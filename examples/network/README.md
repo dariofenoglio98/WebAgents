@@ -7,7 +7,7 @@ The test package, the travel example and the enforcement cases of
 | Path | What it is |
 |---|---|
 | [`network-test/`](network-test/README.md) | `org.webagents.network-test` 0.1.0, a fictional help desk: `Desk` (the entry; one model step, a model-chosen route) hands off to `Lookup` (one local tool, a fixed return) at most twice or `Writer` (one model step, a fixed return) once, within six handoffs, and ends with its answer. Its fixture walk is Desk, Lookup, Desk, Writer, Desk, done |
-| `network-test.agent.pkg` | the archive of that source (signed with `examples/keys/network-test-publisher.pub.pem` once the key exists); the test suites and the conformance suite run it |
+| `network-test.agent.pkg` | the signed archive of that source (signed 2026-10-24 with the development key `examples/keys/network-test-publisher.pub.pem`, `sha256:f081f81d…ea00`): package digest `9d1f2c95803ab06f47af63a442d9716ee72b41676adee5cbee03e81bac3a6976`, archive SHA-256 `b60b80bff72c6d87c8e61ffa4cd903265272868c8209e18b20bc810ca360be78`, 19,513 bytes; the test suites and the conformance suite run it |
 | `network-test-grants.json` | the grants of the fixture run: every permission `session` (a network activates roles more than once, so `once` is refused by the host's rule) |
 | [`travel-network/`](travel-network/README.md) | `org.webagents.travel-network` 0.1.0, an unsigned source: `FrontMan` consults `Flights`, `Hotel` and `Calendar`, each at most once within six handoffs, then ends with the plan; the star whose bound is exact and attained by the full tour (sixteen walks, every one run by `agentpkg/tests/test_network_travel.py`) |
 | `travel-network-grants.json` | the grants of its fixture run |

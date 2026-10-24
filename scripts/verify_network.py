@@ -122,7 +122,7 @@ def main() -> int:
     _check(report, "network-test declares a network", records is not None)
     _check(
         report,
-        "network-test's bound: four Desk activations at most, 11,000 tokens of a 24,000 budget",
+        "network-test's bound: four Desk activations at most, 20,000 tokens of a 24,000 budget",
         records is not None
         and records["worst_case"]["activations"]
         == {"Desk": 4, "Lookup": 2, "Writer": 1}
@@ -138,8 +138,8 @@ def main() -> int:
         built = load_package(archive)
         _check(
             report,
-            "network-test archive is its source",
-            rebuilt.digest == built.digest,
+            "network-test archive is its signed source",
+            rebuilt.digest == built.digest and built.signature is not None,
             {"digest": built.digest, "signed": built.signature is not None},
         )
     grants = load_json(EXAMPLES / "network-test-grants.json")
