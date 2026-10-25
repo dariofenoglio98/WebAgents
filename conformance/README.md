@@ -217,7 +217,9 @@ signed with the run's throwaway key. Expected in both:
 
 One more case compares the envelope both execution layers record for the network-test package under
 the default host limits (`network/execution-layer-envelope`: the whole capability record, the
-`worst_case` and `role_budgets` included). Every network case carries `requires: 0.7.0`.
+`worst_case` and `role_budgets` included). Every network case carries `requires: 0.7.0`; both
+runtimes agree on all 49 since [`results/2026-10-25T02-53-07-223Z/`](results/2026-10-25T02-53-07-223Z/report.md)
+(224/224 cases in all).
 
 ## Recorded differences
 
