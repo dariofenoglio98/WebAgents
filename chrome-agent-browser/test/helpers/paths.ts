@@ -47,7 +47,18 @@ export const SHIPPED = {
     archiveSha256: "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b",
     fingerprint: "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
   },
-  /** T24: the current WebAir (conversation.v0, runtime minimum 0.6.0), which the demo index 1.5.0 names. */
+  /** T26: the travel network (network.v0, runtime minimum 0.7.0), which the demo index 1.6.0 adds. */
+  travelNetwork: {
+    archive: resolve(ROOT, "dist/travel-network-0.1.0.agent.pkg"),
+    key: resolve(ROOT, "examples/keys/travel-network-publisher.pub.pem"),
+    packageId: "org.webagents.travel-network",
+    version: "0.1.0",
+    publisherId: "webagents-research",
+    digest: "b7ef730bd9b3c5d94d10f20c0829f9a8cdb16a1c4ecde264f851fc5238672312",
+    archiveSha256: "4acd67cf414f52542a855bc399e1dbc8912307c608236b866c3ce317ecf7b9ca",
+    fingerprint: "sha256:27c903afe0b78ae7e27736bfbddafd6f8b6a58b3c26f0bce9507f70aeff762ef",
+  },
+  /** T24: the current WebAir (conversation.v0, runtime minimum 0.6.0), which the demo indexes 1.5.0 and 1.6.0 name. */
   webair080: {
     archive: resolve(ROOT, "dist/webair-0.8.0.agent.pkg"),
     key: resolve(ROOT, "examples/keys/webair-publisher.pub.pem"),

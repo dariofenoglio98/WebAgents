@@ -31,7 +31,7 @@ const INDEX_CONTENT = JSON.parse(readFileSync(resolve(ROOT, "examples/agent-inde
 const POLICY_CONTENT = JSON.parse(readFileSync(resolve(ROOT, "examples/policies/webagents-research.content.json"), "utf8")) as JsonObject;
 const QWEN = "ollama/qwen3:30b";
 /** Inside both documents' validity windows. */
-const AFTER_ISSUE = new Date("2026-10-22T12:00:00Z");
+const AFTER_ISSUE = new Date("2026-10-25T12:00:00Z");
 
 /** The demo origin as the WebAir deployment serves it beside the airline (D-105): index, policy, both packages. */
 function demoRoutes(): Record<string, Route> {
@@ -75,9 +75,9 @@ describe("the agent index (deliverables 1–3)", () => {
     const h = harness();
     expect((await send<SearchView>(h, { type: "search.query", text: "literature review" })).enabled_indexes).toBe(0);
     const added = await send<IndexesView>(h, { type: "indexes.add", url: INDEX_URL, publicKeyPem: INDEX_PEM });
-    expect(added.indexes[0]).toMatchObject({ url: INDEX_URL, enabled: true, state: "current", signer_fingerprint: "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103", index: { index_id: "org.webagents.demo-index", version: "1.5.0", entries: 2 } });
+    expect(added.indexes[0]).toMatchObject({ url: INDEX_URL, enabled: true, state: "current", signer_fingerprint: "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103", index: { index_id: "org.webagents.demo-index", version: "1.6.0", entries: 3 } });
     const search = await send<SearchView>(h, { type: "search.query", text: "literature review" });
-    expect(search.searched).toEqual([{ index_id: "org.webagents.demo-index", label: "WebAgents demo index", version: "1.5.0" }]);
+    expect(search.searched).toEqual([{ index_id: "org.webagents.demo-index", label: "WebAgents demo index", version: "1.6.0" }]);
     expect(search.results).toHaveLength(1);
     const result = search.results[0]!;
     expect(result.candidate).toMatchObject({ package_id: SHIPPED.literatureReview029.packageId, package_url: LITERATURE_URL, source: { resolver: "static-index", label: "WebAgents demo index", verified_by: "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103" } });
@@ -87,7 +87,7 @@ describe("the agent index (deliverables 1–3)", () => {
     expect(opened.summary.validation).toMatchObject({ container_status: "valid", integrity_status: "valid", schema_status: "valid" });
     expect(opened.page.trust).toMatchObject({ signature_status: "valid", signer_fingerprint: SHIPPED.literatureReview029.fingerprint, trust_status: "unknown" });
     expect(opened.snapshot.archive_sha256).toBe(SHIPPED.literatureReview029.archiveSha256);
-    expect(opened.found_via).toEqual({ index_id: "org.webagents.demo-index", label: "WebAgents demo index", version: "1.5.0", position: 0, claims: { package_id: "matches", version: "matches", digest: "matches", archive_sha256: "matches", signer_fingerprint: "matches" } });
+    expect(opened.found_via).toEqual({ index_id: "org.webagents.demo-index", label: "WebAgents demo index", version: "1.6.0", position: 0, claims: { package_id: "matches", version: "matches", digest: "matches", archive_sha256: "matches", signer_fingerprint: "matches" } });
   });
 
   it("matches a locator, ranks by trust status then index order, and asks the NANDA stub only for a locator", async () => {
@@ -97,13 +97,14 @@ describe("the agent index (deliverables 1–3)", () => {
     expect(locator.results.map((item) => item.candidate.package_id)).toEqual([SHIPPED.webair080.packageId]);
     expect(locator.notes.map((note) => note.code)).toEqual(["nanda_not_configured"]);
     expect((await send<SearchView>(h, { type: "search.query", text: "agent" })).notes).toEqual([]);
-    expect((await send<SearchView>(h, { type: "search.query", text: "agent" })).results.map((item) => item.candidate.package_id)).toEqual([SHIPPED.literatureReview029.packageId, SHIPPED.webair080.packageId]);
+    expect((await send<SearchView>(h, { type: "search.query", text: "agent" })).results.map((item) => item.candidate.package_id)).toEqual([SHIPPED.literatureReview029.packageId, SHIPPED.webair080.packageId, SHIPPED.travelNetwork.packageId]);
     // Trust the airline's key: it now ranks first, ahead of the index's own order.
     await h.trust.add(Buffer.from((POLICY_CONTENT.trust_anchors as JsonObject[])[0]!.public_key as string, "base64"), { displayName: "WebAir", publisherId: "webair-demo" });
     const ranked = await send<SearchView>(h, { type: "search.query", text: "agent" });
     expect(ranked.results.map((item) => [item.candidate.package_id, item.trust.status])).toEqual([
       [SHIPPED.webair080.packageId, "trusted"],
       [SHIPPED.literatureReview029.packageId, "unknown"],
+      [SHIPPED.travelNetwork.packageId, "unknown"],
     ]);
   });
 

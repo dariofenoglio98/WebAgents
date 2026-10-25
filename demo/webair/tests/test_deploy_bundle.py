@@ -28,6 +28,7 @@ DEMO_DOCUMENTS = {
     "demo/packages/literature-review-0.2.7.agent.pkg",
     "demo/packages/literature-review-0.2.6.agent.pkg",
     "demo/packages/literature-review-0.2.5.agent.pkg",
+    "demo/packages/travel-network-0.1.0.agent.pkg",
 }
 
 
@@ -147,6 +148,9 @@ def test_the_bundle_carries_the_signed_demo_documents_and_the_bundled_origin_ser
         "demo/packages/literature-review-0.2.5.agent.pkg": REPO_ROOT
         / "dist"
         / "literature-review-0.2.5.agent.pkg",
+        "demo/packages/travel-network-0.1.0.agent.pkg": REPO_ROOT
+        / "dist"
+        / "travel-network-0.1.0.agent.pkg",
     }
     for name, source in sources.items():
         assert (tmp_path / "bundle" / name).read_bytes() == source.read_bytes()

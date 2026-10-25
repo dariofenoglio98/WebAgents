@@ -143,13 +143,6 @@ function buildInputs() {
   mkdirSync(keyDir);
   agentpkg(["keygen", "--private-key", join(keyDir, "throwaway.pem"), "--public-key", join(keyDir, "throwaway.pub.pem")]);
   inputs.throwawayKey = join(keyDir, "throwaway.pub.pem");
-  // network.v0 (T26): the travel network's source, built and signed with the throwaway key until
-  // its signed archive is shipped.
-  const travelBuilt = join(SCRATCH, "travel-network.unsigned.agent.pkg");
-  TRAVEL_NETWORK.archive = join(SCRATCH, "travel-network.agent.pkg");
-  TRAVEL_NETWORK.key = inputs.throwawayKey;
-  agentpkg(["build", join(ROOT, "agents/travel-network"), "-o", travelBuilt]);
-  agentpkg(["sign", travelBuilt, "--private-key", join(keyDir, "throwaway.pem"), "-o", TRAVEL_NETWORK.archive]);
   inputs.schemaInvalid = variant("schema-invalid", (source) => {
     // The planner's recorded answer is not what its output schema allows.
     const fixture = readJson(join(source, "fixtures/workflow.json"));
@@ -305,8 +298,8 @@ function computeCase(testCase) {
   return { archive: signed, source, grants, case: testCase, refusedAtBuild: build.stderr.trim() };
 }
 
-/** The travel network the suite runs (set in `buildInputs`). */
-const TRAVEL_NETWORK = { archive: null, key: null };
+/** The shipped travel network (network.v0, T26), signed with its development key. */
+const TRAVEL_NETWORK = { archive: DIST("travel-network-0.1.0.agent.pkg"), key: EXAMPLES("keys/travel-network-publisher.pub.pem") };
 const NETWORK_CASES = JSON.parse(spawn(PYTHON, [join(ROOT, "conformance/drivers/network_probe.py"), "--cases"]).stdout);
 
 /**
