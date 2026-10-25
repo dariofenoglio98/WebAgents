@@ -435,11 +435,16 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   declared edges, the runtime checks every handoff before the target runs, and the worst case
   over every allowed walk (handoffs, activations per role, model calls, tool calls, remote calls,
   tokens) is computed from the signed declaration and reserved before the first activation, so
-  the person is told "at most" before the run. The Python reference runs such networks
-  (`agentpkg run`); the test package, the travel network (a front man consulting flight, hotel
-  and calendar roles, whose bound is exact and attained) and the 46 enforcement cases are under
-  [`examples/network/`](examples/network/). The Chrome port, the agent page's "at most" and a
-  shipped network package are T26.
+  the person is told "at most" before the run. Both runtimes run such networks (agentpkg 0.7.1,
+  the Chrome Agent Browser's core 0.5.0): the agent page says "How it delegates" with the
+  envelope's figures, the plan freezes them, and the run page shows every handoff with the reason
+  it was allowed and each role's spend against its budget. The shipped travel network
+  ([`agents/travel-network/`](agents/travel-network/README.md), a front man consulting flight,
+  hotel and calendar roles on the WebAir origin's fictional services; at most 6 handoffs, 8 model
+  calls, 19 remote calls, 48,000 tokens) is in the demo index 1.6.0; the test package and the 46
+  enforcement cases, which both runtimes refuse identically, are under
+  [`examples/network/`](examples/network/), and a headless Chrome ran the travel network
+  ([`chrome-network-e2e-t26.json`](examples/verification/chrome-network-e2e-t26.json)).
 
 - The plugin depends on OpenClaw's experimental plugin and Control UI APIs. It has been run live
   only on macOS, with one OpenClaw release. On Linux, CI builds, validates and packs it and runs its
