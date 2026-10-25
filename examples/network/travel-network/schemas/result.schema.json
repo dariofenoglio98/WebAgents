@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "plan": {
+      "type": "string"
+    },
+    "trip": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "origin": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$"
+            },
+            "destination": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$"
+            },
+            "date_out": {
+              "type": "string",
+              "format": "date"
+            },
+            "date_back": {
+              "type": "string",
+              "format": "date"
+            },
+            "travellers": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9
+            }
+          },
+          "required": [
+            "origin",
+            "destination",
+            "date_out",
+            "date_back",
+            "travellers"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "flights": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "carrier": {
+            "type": "string"
+          },
+          "depart": {
+            "type": "string"
+          },
+          "price_usd": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "carrier",
+          "depart",
+          "price_usd"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 32
+    },
+    "hotels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nights": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "price_usd": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "nights",
+          "price_usd"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 32
+    },
+    "calendar": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 64
+    }
+  },
+  "required": [
+    "plan",
+    "trip",
+    "flights",
+    "hotels",
+    "calendar"
+  ],
+  "additionalProperties": false
+}

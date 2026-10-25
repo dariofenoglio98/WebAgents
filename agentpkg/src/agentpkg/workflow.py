@@ -52,6 +52,17 @@ def _failed_check(exc):
     return details
 
 
+def _deferred_failure(exc):
+    """A failure event an inner loop left for its node to record: `(action, facts)` on the
+    cancellation it saw, or on the cause of the `TimeoutError` the node's own timeout made of
+    it; None otherwise."""
+    for candidate in (exc, getattr(exc, "__cause__", None)):
+        deferred = getattr(candidate, "deferred_failure", None)
+        if isinstance(deferred, tuple) and len(deferred) == 2:
+            return deferred
+    return None
+
+
 class Workflow:
     """One execution per instance. All authority remains in the host mediator.
 
@@ -72,6 +83,7 @@ class Workflow:
         observer=None,
         memory=None,
         turn=None,
+        deadline_seconds=None,
     ):
         # Recheck the exact payload, not mutable manifest/graph aliases supplied by callers.
         from .package import integrity_statement
@@ -120,6 +132,12 @@ class Workflow:
         self._task = None
         self._cancel_requested = False
         self._output = None
+        # The deadline the run is held to: the graph's, or the host's where it is lower (the
+        # execution host enforces its own by a watchdog and passes it here, so that a figure
+        # computed from it inside the run, network.v0's "at most" in seconds, is the host's).
+        self.deadline_seconds = graph["deadline_seconds"]
+        if deadline_seconds is not None:
+            self.deadline_seconds = min(self.deadline_seconds, deadline_seconds)
 
     def cancel(self):
         """Host-side cancellation; cleanup completes before run() returns/raises."""
@@ -237,6 +255,14 @@ class Workflow:
                 raise
             except ConsentError as exc:
                 raise WorkflowError("worker_error", node["id"]) from exc
+        elif kind == "network":
+            # network.v0: the graph's delegation network, run by the coordinator's one node:
+            # activations as worker instances, the model's route decisions checked against the
+            # declared edges and caps, the worst case reserved before the first activation. A
+            # failure inside propagates as a map step's does; the output schema is checked below.
+            from .delegation.runner import run_network
+
+            result = await run_network(self, node, value, ctx)
         elif kind == "join":
             if not isinstance(value, list):
                 raise ValidationError(f"node {node['id']}: join input must be an array")
@@ -454,10 +480,20 @@ class Workflow:
             )
             return result, patch
         except BaseException as exc:
-            self._event("node.failed", node, error_code=failure_code(exc), **_failed_check(exc))
+            code = failure_code(exc)
+            deferred = _deferred_failure(exc)
+            if deferred is not None:
+                # A loop inside the node (network.v0) that was cancelled from outside could not
+                # name the cause; the node can, once the cancellation has passed its own
+                # timeout, and records the loop's failure with its own code before its own.
+                action, facts = deferred
+                self.runtime.record(
+                    action, context=self.runtime.coordinator_context(), error_code=code, **facts
+                )
+            self._event("node.failed", node, error_code=code, **_failed_check(exc))
             if isinstance(exc, asyncio.CancelledError):
                 raise
-            raise WorkflowError(failure_code(exc), node["id"]) from exc
+            raise WorkflowError(code, node["id"]) from exc
 
     async def run(self, input_value):
         if self._used:

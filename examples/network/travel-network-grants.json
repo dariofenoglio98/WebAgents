@@ -1,0 +1,5 @@
+{
+  "model.reasoning": "session",
+  "memory.session": "session",
+  "travel.index": "session"
+}

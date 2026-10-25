@@ -1,0 +1,387 @@
+{
+  "spec_version": "0.1",
+  "profile": "workflow.v0",
+  "coordinator": "Coordinator",
+  "workers": [
+    {
+      "id": "Coordinator",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 0,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "request",
+        "result"
+      ],
+      "state_write": [
+        "result"
+      ]
+    },
+    {
+      "id": "Desk",
+      "kind": "packaged",
+      "skills": [
+        "desk"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 4000,
+        "remote_calls": 4
+      },
+      "state_read": [
+        "notes",
+        "answers",
+        "draft"
+      ],
+      "state_write": [
+        "notes"
+      ]
+    },
+    {
+      "id": "Lookup",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [
+        "lookup"
+      ],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 0,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "answers"
+      ],
+      "state_write": [
+        "answers"
+      ]
+    },
+    {
+      "id": "Writer",
+      "kind": "packaged",
+      "skills": [
+        "writer"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 4000,
+        "remote_calls": 2
+      },
+      "state_read": [
+        "answers",
+        "notes"
+      ],
+      "state_write": [
+        "draft"
+      ]
+    }
+  ],
+  "input_schema": "schemas/message.schema.json",
+  "output_schema": "schemas/result.schema.json",
+  "initial_state": {
+    "object": {
+      "request": {
+        "from": "input",
+        "path": ""
+      },
+      "result": {
+        "literal": null
+      }
+    }
+  },
+  "deadline_seconds": 600,
+  "network": {
+    "entry": "Desk",
+    "max_hops": 6,
+    "state_schema": "schemas/network-state.schema.json",
+    "initial": {
+      "literal": {
+        "notes": [],
+        "answers": [],
+        "draft": null
+      }
+    },
+    "message_schema": "schemas/message.schema.json",
+    "result": {
+      "object": {
+        "reply": {
+          "from": "message",
+          "path": "/text"
+        },
+        "answers": {
+          "from": "state",
+          "path": "/answers"
+        },
+        "draft": {
+          "from": "state",
+          "path": "/draft"
+        }
+      }
+    },
+    "roles": {
+      "Desk": {
+        "description": "Reads each message, keeps a note of it and decides who helps next: Lookup for a fact, Writer for a write-up, or done with the answer.",
+        "steps": [
+          {
+            "id": "read",
+            "type": "llm",
+            "task": "read",
+            "max_output_tokens": 300,
+            "input": {
+              "object": {
+                "text": {
+                  "from": "message",
+                  "path": "/text"
+                }
+              }
+            },
+            "output_schema": "schemas/note.schema.json",
+            "timeout_seconds": 60
+          },
+          {
+            "id": "notes",
+            "type": "join",
+            "input": {
+              "array": [
+                {
+                  "from": "state",
+                  "path": "/notes"
+                },
+                {
+                  "array": [
+                    {
+                      "from": "steps",
+                      "path": "/read/note"
+                    }
+                  ]
+                }
+              ]
+            },
+            "output_schema": "schemas/notes.schema.json",
+            "timeout_seconds": 10
+          }
+        ],
+        "writes": {
+          "/notes": {
+            "from": "steps",
+            "path": "/notes"
+          }
+        },
+        "route": {
+          "task": "route",
+          "max_output_tokens": 400,
+          "input": {
+            "object": {
+              "text": {
+                "from": "message",
+                "path": "/text"
+              },
+              "notes": {
+                "from": "steps",
+                "path": "/notes"
+              },
+              "answers": {
+                "from": "state",
+                "path": "/answers"
+              },
+              "draft": {
+                "from": "state",
+                "path": "/draft"
+              }
+            }
+          }
+        },
+        "timeout_seconds": 120,
+        "edges": [
+          {
+            "to": "Lookup",
+            "max_uses": 2
+          },
+          {
+            "to": "Writer",
+            "max_uses": 1
+          }
+        ],
+        "may_end": true
+      },
+      "Lookup": {
+        "description": "Looks one question up in the desk's index and reports the answer.",
+        "steps": [
+          {
+            "id": "lookup",
+            "type": "tool",
+            "tool": "lookup",
+            "input": {
+              "object": {
+                "query": {
+                  "from": "message",
+                  "path": "/text"
+                }
+              }
+            },
+            "output_schema": "schemas/answer.schema.json",
+            "timeout_seconds": 10
+          },
+          {
+            "id": "collect",
+            "type": "join",
+            "input": {
+              "array": [
+                {
+                  "from": "state",
+                  "path": "/answers"
+                },
+                {
+                  "array": [
+                    {
+                      "from": "steps",
+                      "path": "/lookup"
+                    }
+                  ]
+                }
+              ]
+            },
+            "output_schema": "schemas/answers.schema.json",
+            "timeout_seconds": 10
+          }
+        ],
+        "writes": {
+          "/answers": {
+            "from": "steps",
+            "path": "/collect"
+          }
+        },
+        "route": {
+          "next": "Desk",
+          "message": {
+            "object": {
+              "text": {
+                "from": "steps",
+                "path": "/lookup/answer"
+              }
+            }
+          }
+        },
+        "timeout_seconds": 30,
+        "edges": [
+          {
+            "to": "Desk",
+            "max_uses": 2
+          }
+        ],
+        "may_end": false
+      },
+      "Writer": {
+        "description": "Drafts the write-up from the answers found so far.",
+        "steps": [
+          {
+            "id": "draft",
+            "type": "llm",
+            "task": "draft",
+            "max_output_tokens": 600,
+            "input": {
+              "object": {
+                "answers": {
+                  "from": "state",
+                  "path": "/answers"
+                },
+                "text": {
+                  "from": "message",
+                  "path": "/text"
+                }
+              }
+            },
+            "output_schema": "schemas/draft.schema.json",
+            "timeout_seconds": 60
+          }
+        ],
+        "writes": {
+          "/draft": {
+            "from": "steps",
+            "path": "/draft/draft"
+          }
+        },
+        "route": {
+          "next": "Desk",
+          "message": {
+            "object": {
+              "text": {
+                "from": "steps",
+                "path": "/draft/draft"
+              }
+            }
+          }
+        },
+        "timeout_seconds": 90,
+        "edges": [
+          {
+            "to": "Desk",
+            "max_uses": 1
+          }
+        ],
+        "may_end": false
+      }
+    }
+  },
+  "fixture": "fixtures/workflow.json",
+  "exports": [
+    {
+      "path": "answer.json",
+      "format": "json",
+      "value": {
+        "from": "result",
+        "path": ""
+      }
+    },
+    {
+      "path": "reply.txt",
+      "format": "text",
+      "value": {
+        "from": "result",
+        "path": "/reply"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "delegate",
+      "type": "network",
+      "worker": "Coordinator",
+      "depends_on": [],
+      "input": {
+        "from": "state",
+        "path": "/request"
+      },
+      "output_schema": "schemas/result.schema.json",
+      "timeout_seconds": 500,
+      "writes": {
+        "/result": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "worker": "Coordinator",
+      "depends_on": [
+        "delegate"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/result"
+      },
+      "output_schema": "schemas/result.schema.json",
+      "timeout_seconds": 10,
+      "writes": {}
+    }
+  ],
+  "extensions": {}
+}

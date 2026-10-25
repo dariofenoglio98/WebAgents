@@ -598,6 +598,12 @@ def tool_requirement_set(package: Package) -> dict:
         for step in node.get("steps", []) if node["type"] == "map" else []:
             if step["type"] == "tool":
                 used.setdefault(step["tool"], []).append(f"{node['id']}/{step['id']}")
+    from ..delegation.analysis import role_steps
+
+    for name, step in role_steps(package.graph):
+        # network.v0: a role's tool step, named by its node, role and step.
+        if step["type"] == "tool":
+            used.setdefault(step["tool"], []).append(name)
     roles: dict[str, list[str]] = {}
     for worker in package.graph["workers"]:
         for tool_id in worker["tools"]:

@@ -187,6 +187,9 @@ def _workflow(package: Package) -> dict:
         # conversation.v0 (V-20): the turns, the persistent keys, the consent steps and the
         # permissions they decide, for the agent page; None for a one-shot package.
         "conversation": _conversation(package),
+        # network.v0 (R-24): the roles, the edges, the caps and the worst case computed from the
+        # declaration, for the agent page's "at most"; None for a package without a network.
+        "network": _network(package),
         # The task a person fills in, and the package's cosmetic hints for it.
         "input": input_form(package),
         "presentation": presentation_hints(package)[0],
@@ -197,6 +200,39 @@ def _conversation(package: Package) -> dict | None:
     from ..conversation.declarations import conversation_records
 
     return conversation_records(package)
+
+
+def _network(package: Package) -> dict | None:
+    from ..delegation.declarations import network_records
+
+    return network_records(package)
+
+
+def network_sentence(network: dict) -> str:
+    """The envelope in words (network.v0 R-24): every figure is the bound computed from the
+    signed declaration, not an estimate."""
+    bound = network["worst_case"]
+    names = [role["id"] for role in network["roles"]]
+    activations = ", ".join(
+        f"{role['id']} at most {role['activation_bound']} "
+        f"{'time' if role['activation_bound'] == 1 else 'times'}"
+        for role in network["roles"]
+    )
+    tools = ", ".join(f"{tool} {count}" for tool, count in sorted(bound["tool_calls"].items()))
+    chosen = any(role["route"]["kind"] == "chosen" for role in network["roles"])
+    # Who picks the next role is the declaration's: the model at a chosen route, the package
+    # alone when every route is fixed (a valid network whose walk is one declared sequence).
+    choice = "chosen by the model while it runs" if chosen else "along handoffs the package fixed"
+    return (
+        f"The package delegates between {len(names)} roles {choice} "
+        f"({', '.join(names)}), within a declared envelope: at most {bound['max_hops']} "
+        f"handoffs; {activations}; at most {bound['model_calls']} model calls, "
+        f"{sum(bound['tool_calls'].values())} tool calls"
+        + (f" ({tools})" if tools else "")
+        + f", {bound['remote_calls']} remote calls and {bound['tokens']} tokens in all; each "
+        "role sees only its declared part of the shared state, and every handoff is recorded "
+        "with the reason it was allowed."
+    )
 
 
 def _evals(package: Package) -> list:
@@ -367,6 +403,9 @@ def warnings(package: Package, evaluation: dict, publisher: dict) -> list:
             f"{', '.join(conversation['persistent_keys']) or 'nothing'} between turns, and asks "
             f"you before: {steps or 'nothing'}.",
         )
+    network = _network(package)
+    if network is not None:
+        warn("delegation_network", "info", network_sentence(network))
     remote = [tool for tool in package.tools.values() if tool["execution"] == "remote"]
     if remote:
         domains = sorted({domain for tool in remote for domain in tool["domains"]})

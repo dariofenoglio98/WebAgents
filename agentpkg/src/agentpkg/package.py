@@ -480,7 +480,17 @@ def inspect_package(package: Package) -> dict:
         ),
         **_module_listing(package),
         **_conversation_listing(package),
+        **_network_listing(package),
     }
+
+
+def _network_listing(package: Package) -> dict:
+    """network.v0: the roles, the edges, the caps and the worst case, where one is declared."""
+    if package.graph.get("network") is None:
+        return {}
+    from .delegation.declarations import network_records
+
+    return {"network": network_records(package)}
 
 
 def _conversation_listing(package: Package) -> dict:

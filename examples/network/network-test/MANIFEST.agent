@@ -1,0 +1,119 @@
+{
+  "spec_version": "0.1",
+  "package_id": "org.webagents.network-test",
+  "name": "Network Test",
+  "version": "0.1.0",
+  "description": "A fictional help desk that delegates between a desk, a lookup and a writer role under network.v0: the test package of the delegation profile.",
+  "publisher": {
+    "id": "webagents-research",
+    "name": "WebAgents Research"
+  },
+  "created_at": "2026-10-24T12:00:00Z",
+  "runtime": {
+    "api": "agentpkg-runtime-v0",
+    "minimum_version": "0.7.0"
+  },
+  "capabilities": [],
+  "entrypoint": "workflow.v0",
+  "graph": "graph.json",
+  "policy": "policy/policy.json",
+  "skills": [
+    {
+      "id": "desk",
+      "version": "0.1.0",
+      "path": "skills/desk/SKILL.md"
+    },
+    {
+      "id": "writer",
+      "version": "0.1.0",
+      "path": "skills/writer/SKILL.md"
+    }
+  ],
+  "tools": [
+    {
+      "id": "lookup",
+      "path": "tools/lookup.tool.json"
+    }
+  ],
+  "schemas": [
+    {
+      "id": "message",
+      "path": "schemas/message.schema.json"
+    },
+    {
+      "id": "state",
+      "path": "schemas/state.schema.json"
+    },
+    {
+      "id": "network-state",
+      "path": "schemas/network-state.schema.json"
+    },
+    {
+      "id": "note",
+      "path": "schemas/note.schema.json"
+    },
+    {
+      "id": "notes",
+      "path": "schemas/notes.schema.json"
+    },
+    {
+      "id": "query",
+      "path": "schemas/query.schema.json"
+    },
+    {
+      "id": "answer",
+      "path": "schemas/answer.schema.json"
+    },
+    {
+      "id": "answers",
+      "path": "schemas/answers.schema.json"
+    },
+    {
+      "id": "draft",
+      "path": "schemas/draft.schema.json"
+    },
+    {
+      "id": "result",
+      "path": "schemas/result.schema.json"
+    }
+  ],
+  "model_requirements": {
+    "tasks": [
+      {
+        "id": "read",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "route",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "draft",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      }
+    ],
+    "routing": "host",
+    "fallback_policy": "deny",
+    "extensions": {}
+  },
+  "evals": [],
+  "attestations": [],
+  "dependencies": [],
+  "update": {
+    "channel": "local",
+    "locator": null
+  },
+  "extensions": {}
+}

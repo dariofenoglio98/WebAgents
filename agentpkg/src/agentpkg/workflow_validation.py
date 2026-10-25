@@ -64,10 +64,12 @@ CHECKS_MINIMUM_VERSION = (0, 3, 0)
 
 
 def _declares_checks(graph):
+    from .delegation.analysis import role_steps
+
     for node in graph["nodes"]:
         if "checks" in node or any("checks" in step for step in node.get("steps", [])):
             return True
-    return False
+    return any("checks" in step for _, step in role_steps(graph))
 
 
 def validate_workflow(manifest, graph, policy, tools, files):
@@ -147,9 +149,17 @@ def validate_workflow(manifest, graph, policy, tools, files):
                 raise ValidationError(f"{label}: source {source!r} is unavailable in this scope")
             parts = tokens(pointer)
             if source == "state":
-                if not parts or parts[0] not in workers[role]["state_read"]:
-                    raise ValidationError(f"{label}: projection exceeds {role} state_read")
-                reads[nid].add(parts[0])
+                if role is not None:
+                    if not parts or parts[0] not in workers[role]["state_read"]:
+                        raise ValidationError(f"{label}: projection exceeds {role} state_read")
+                elif not parts:
+                    # Without a role (network.v0's `result`, read by the network itself over
+                    # its own state), the key only has to exist in the schema, checked below.
+                    raise ValidationError(f"{label}: whole-state reads are forbidden")
+                if nid is not None:
+                    # A network role's program (network.v0) reads the network's own state, not
+                    # the graph's: its reads take no part in the top-level conflict analysis.
+                    reads[nid].add(parts[0])
             if source == "steps":
                 if not parts or parts[0] not in env["steps"]:
                     raise ValidationError(f"{label}: unknown or forward step reference")
@@ -305,6 +315,24 @@ def validate_workflow(manifest, graph, policy, tools, files):
                         case[field],
                         f"fixture tool {tid} {field}",
                     )
+    # network.v0 (agentpkg 0.7.0): the network object, its one node, the roles against the
+    # workers, the edges, the state views, each role's program (checked with `operation` over
+    # its own sources) and the bound against the package's budget; a graph without a network
+    # passes (and may hold no network node).
+    from .delegation.declarations import check_network_declarations
+
+    check_network_declarations(
+        manifest,
+        graph,
+        policy,
+        tools,
+        files,
+        documents=documents,
+        schema=schema,
+        expression=expression,
+        operation=operation,
+        nodes=nodes,
+    )
     # conversation.v0: the conversation object, the consent steps, the gate before every tool
     # that links a consented permission, and the fixture transcript; a graph without a
     # conversation passes (and may hold no consent step).

@@ -1,0 +1,118 @@
+{
+  "spec_version": "0.1",
+  "package_id": "org.webagents.travel-network",
+  "name": "Travel Network",
+  "version": "0.1.0",
+  "description": "A front-man role that consults flight, hotel and calendar roles, chosen while it runs, within a declared envelope: the travel example of network.v0. All data is fictional; nothing is booked.",
+  "publisher": {
+    "id": "webagents-research",
+    "name": "WebAgents Research"
+  },
+  "created_at": "2026-10-24T12:00:00Z",
+  "runtime": {
+    "api": "agentpkg-runtime-v0",
+    "minimum_version": "0.7.0"
+  },
+  "capabilities": [],
+  "entrypoint": "workflow.v0",
+  "graph": "graph.json",
+  "policy": "policy/policy.json",
+  "skills": [
+    {
+      "id": "front-man",
+      "version": "0.1.0",
+      "path": "skills/front-man/SKILL.md"
+    }
+  ],
+  "tools": [
+    {
+      "id": "search-flights",
+      "path": "tools/search-flights.tool.json"
+    },
+    {
+      "id": "search-hotels",
+      "path": "tools/search-hotels.tool.json"
+    },
+    {
+      "id": "check-calendar",
+      "path": "tools/check-calendar.tool.json"
+    }
+  ],
+  "schemas": [
+    {
+      "id": "message",
+      "path": "schemas/message.schema.json"
+    },
+    {
+      "id": "state",
+      "path": "schemas/state.schema.json"
+    },
+    {
+      "id": "network-state",
+      "path": "schemas/network-state.schema.json"
+    },
+    {
+      "id": "understanding",
+      "path": "schemas/understanding.schema.json"
+    },
+    {
+      "id": "flight-query",
+      "path": "schemas/flight-query.schema.json"
+    },
+    {
+      "id": "flight-options",
+      "path": "schemas/flight-options.schema.json"
+    },
+    {
+      "id": "hotel-query",
+      "path": "schemas/hotel-query.schema.json"
+    },
+    {
+      "id": "hotel-options",
+      "path": "schemas/hotel-options.schema.json"
+    },
+    {
+      "id": "calendar-query",
+      "path": "schemas/calendar-query.schema.json"
+    },
+    {
+      "id": "calendar-entries",
+      "path": "schemas/calendar-entries.schema.json"
+    },
+    {
+      "id": "result",
+      "path": "schemas/result.schema.json"
+    }
+  ],
+  "model_requirements": {
+    "tasks": [
+      {
+        "id": "understand",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "route",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      }
+    ],
+    "routing": "host",
+    "fallback_policy": "deny",
+    "extensions": {}
+  },
+  "evals": [],
+  "attestations": [],
+  "dependencies": [],
+  "update": {
+    "channel": "local",
+    "locator": null
+  },
+  "extensions": {}
+}

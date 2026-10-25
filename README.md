@@ -429,6 +429,17 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   ([`chrome-conversation-e2e-t24.json`](examples/verification/chrome-conversation-e2e-t24.json)).
   WebAir 0.8.0 is a conversational travel agent: search, refine, quote, "buy it" with the card
   before the simulated purchase, goodbye ([`agents/webair/`](agents/webair/README.md)).
+- **Bounded delegation** ([`spec/network-v0.md`](spec/network-v0.md), agentpkg 0.7.0): a package
+  may declare a network of roles with the edges a role may hand off along, each with a use cap, a
+  hop cap and a per-role budget; at a role's route the model chooses the next role among the
+  declared edges, the runtime checks every handoff before the target runs, and the worst case
+  over every allowed walk (handoffs, activations per role, model calls, tool calls, remote calls,
+  tokens) is computed from the signed declaration and reserved before the first activation, so
+  the person is told "at most" before the run. The Python reference runs such networks
+  (`agentpkg run`); the test package, the travel network (a front man consulting flight, hotel
+  and calendar roles, whose bound is exact and attained) and the 46 enforcement cases are under
+  [`examples/network/`](examples/network/). The Chrome port, the agent page's "at most" and a
+  shipped network package are T26.
 
 - The plugin depends on OpenClaw's experimental plugin and Control UI APIs. It has been run live
   only on macOS, with one OpenClaw release. On Linux, CI builds, validates and packs it and runs its

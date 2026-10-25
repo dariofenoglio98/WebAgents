@@ -1,0 +1,174 @@
+{
+  "profile": "workflow.fixture.v0",
+  "input": {
+    "text": "Hi, what does 'agent package' mean, and can you write it up for me?"
+  },
+  "models": {
+    "read": [
+      {
+        "input": {
+          "text": "Hi, what does 'agent package' mean, and can you write it up for me?"
+        },
+        "output": {
+          "note": "asks for the meaning of 'agent package' and a write-up"
+        }
+      },
+      {
+        "input": {
+          "text": "A signed, data-only bundle of declarations (skills, tools, schemas, a graph) that a user's own runtime verifies and runs."
+        },
+        "output": {
+          "note": "the index answered: a signed bundle of declarations"
+        }
+      },
+      {
+        "input": {
+          "text": "Draft: An agent package is a signed, data-only bundle that a user's own runtime verifies and runs."
+        },
+        "output": {
+          "note": "a draft is ready"
+        }
+      }
+    ],
+    "route": [
+      {
+        "input": {
+          "input": {
+            "text": "Hi, what does 'agent package' mean, and can you write it up for me?",
+            "notes": [
+              "asks for the meaning of 'agent package' and a write-up"
+            ],
+            "answers": [],
+            "draft": null
+          },
+          "targets": [
+            {
+              "role": "Lookup",
+              "description": "Looks one question up in the desk's index and reports the answer.",
+              "uses_left": 2
+            },
+            {
+              "role": "Writer",
+              "description": "Drafts the write-up from the answers found so far.",
+              "uses_left": 1
+            }
+          ],
+          "hops_left": 6,
+          "may_end": true
+        },
+        "output": {
+          "next": "Lookup",
+          "message": {
+            "text": "What is an agent package?"
+          }
+        }
+      },
+      {
+        "input": {
+          "input": {
+            "text": "A signed, data-only bundle of declarations (skills, tools, schemas, a graph) that a user's own runtime verifies and runs.",
+            "notes": [
+              "asks for the meaning of 'agent package' and a write-up",
+              "the index answered: a signed bundle of declarations"
+            ],
+            "answers": [
+              {
+                "query": "What is an agent package?",
+                "answer": "A signed, data-only bundle of declarations (skills, tools, schemas, a graph) that a user's own runtime verifies and runs."
+              }
+            ],
+            "draft": null
+          },
+          "targets": [
+            {
+              "role": "Lookup",
+              "description": "Looks one question up in the desk's index and reports the answer.",
+              "uses_left": 1
+            },
+            {
+              "role": "Writer",
+              "description": "Drafts the write-up from the answers found so far.",
+              "uses_left": 1
+            }
+          ],
+          "hops_left": 4,
+          "may_end": true
+        },
+        "output": {
+          "next": "Writer",
+          "message": {
+            "text": "Write a two-sentence answer from what was found."
+          }
+        }
+      },
+      {
+        "input": {
+          "input": {
+            "text": "Draft: An agent package is a signed, data-only bundle that a user's own runtime verifies and runs.",
+            "notes": [
+              "asks for the meaning of 'agent package' and a write-up",
+              "the index answered: a signed bundle of declarations",
+              "a draft is ready"
+            ],
+            "answers": [
+              {
+                "query": "What is an agent package?",
+                "answer": "A signed, data-only bundle of declarations (skills, tools, schemas, a graph) that a user's own runtime verifies and runs."
+              }
+            ],
+            "draft": "Draft: An agent package is a signed, data-only bundle that a user's own runtime verifies and runs."
+          },
+          "targets": [
+            {
+              "role": "Lookup",
+              "description": "Looks one question up in the desk's index and reports the answer.",
+              "uses_left": 1
+            },
+            {
+              "role": "Writer",
+              "description": "Drafts the write-up from the answers found so far.",
+              "uses_left": 0
+            }
+          ],
+          "hops_left": 2,
+          "may_end": true
+        },
+        "output": {
+          "next": "done",
+          "message": {
+            "text": "An agent package is a signed, data-only bundle that a user's own runtime verifies and runs. The write-up is in the draft."
+          }
+        }
+      }
+    ],
+    "draft": [
+      {
+        "input": {
+          "answers": [
+            {
+              "query": "What is an agent package?",
+              "answer": "A signed, data-only bundle of declarations (skills, tools, schemas, a graph) that a user's own runtime verifies and runs."
+            }
+          ],
+          "text": "Write a two-sentence answer from what was found."
+        },
+        "output": {
+          "draft": "Draft: An agent package is a signed, data-only bundle that a user's own runtime verifies and runs."
+        }
+      }
+    ]
+  },
+  "tools": {
+    "lookup": [
+      {
+        "input": {
+          "query": "What is an agent package?"
+        },
+        "output": {
+          "query": "What is an agent package?",
+          "answer": "A signed, data-only bundle of declarations (skills, tools, schemas, a graph) that a user's own runtime verifies and runs."
+        }
+      }
+    ]
+  }
+}

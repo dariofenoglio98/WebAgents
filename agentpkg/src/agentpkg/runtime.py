@@ -858,6 +858,51 @@ class Runtime:
         """The `once` grants this run consumed (earlier turns' included), for the next turn."""
         return set(self._once_used)
 
+    async def reserve_network(self, ctx, node_id, bound, *, entry):
+        """network.v0 R-17: before a network's first activation, what the run has left must admit
+        the network's worst case in tokens and remote calls (as a conversation reserves a whole
+        turn, V-10), else the node is refused before anything is spent. Nothing is held: the
+        activations are bounded by their own caps, and the run's caps stay enforced."""
+        self._check_context(ctx)
+        summary = {
+            key: bound[key]
+            for key in (
+                "max_hops",
+                "max_activations",
+                "activations",
+                "model_calls",
+                "tool_calls",
+                "compute_calls",
+                "remote_calls",
+                "tokens",
+                "seconds",
+            )
+        }
+        async with self._lock:
+            tokens_left = (
+                self.budget["hard_tokens"] - self._global.tokens - self._global.reserved_tokens
+            )
+            remote_left = self.budget["max_remote_calls"] - self._global.remote_calls
+            facts = dict(
+                node_id=node_id,
+                bound=summary,
+                tokens_left=tokens_left,
+                remote_calls_left=remote_left,
+            )
+            reason = None
+            if bound["tokens"] > tokens_left:
+                reason = "tokens"
+            elif bound["remote_calls"] > remote_left:
+                reason = "remote_calls"
+            if reason is not None:
+                self.record("network.refused", context=self._root, reason=reason, **facts)
+                raise BudgetError(
+                    f"network {node_id}: its worst case ({bound['tokens']} tokens, "
+                    f"{bound['remote_calls']} remote calls) exceeds what the run has left "
+                    f"({tokens_left} tokens, {remote_left} remote calls)"
+                )
+            self.record("network.started", context=self._root, entry=entry, **facts)
+
     def _engine_facts(self, outcome) -> dict:
         """Which engine ran the call and what it measured; the figures are the engine's own
         (compute.v0 C-44: dropped when two runtimes' audits are compared)."""
