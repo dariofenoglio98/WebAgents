@@ -9,6 +9,8 @@
 import { safeName } from "./archive.js";
 import { checkComputeDeclarations } from "./compute/declarations.js";
 import { checkConversationDeclarations, conversationInitialEnv } from "./conversation/declarations.js";
+import { roleSteps } from "./network/analysis.js";
+import { checkNetworkDeclarations } from "./network/declarations.js";
 import { canonicalString } from "./canonical.js";
 import { ValidationError } from "./errors.js";
 import { isJsonObject, parseJson, type JsonObject, type JsonValue } from "./json.js";
@@ -27,10 +29,11 @@ const RESERVED_EXPORTS = new Set(["result.json", "audit.json", "usage.json", "pr
 export const CHECKS_MINIMUM_VERSION = "0.3.0";
 
 function declaresChecks(graph: JsonObject): boolean {
-  return (graph.nodes as JsonValue[]).some((raw) => {
+  const onNodes = (graph.nodes as JsonValue[]).some((raw) => {
     const node = raw as JsonObject;
     return "checks" in node || ((node.steps as JsonValue[] | undefined) ?? []).some((step) => "checks" in (step as JsonObject));
   });
+  return onNodes || roleSteps(graph).some(([, step]) => "checks" in step);
 }
 
 /** `workflow_validation.py::_at_schema`: reject statically impossible pointers. */
@@ -174,11 +177,19 @@ export async function validateWorkflow(
       let root: JsonValue;
       let path: string;
       if (source === "state") {
-        const stateRead = (workers.get(role!)!.state_read as JsonValue[]).map(String);
-        if (parts.length === 0 || !stateRead.includes(parts[0]!)) {
-          throw new ValidationError(`${label}: projection exceeds ${role} state_read`);
+        if (role !== null) {
+          const stateRead = (workers.get(role)!.state_read as JsonValue[]).map(String);
+          if (parts.length === 0 || !stateRead.includes(parts[0]!)) {
+            throw new ValidationError(`${label}: projection exceeds ${role} state_read`);
+          }
+        } else if (parts.length === 0) {
+          // Without a role (network.v0's `result`, read by the network itself over its own state),
+          // the key only has to exist in the schema, checked below.
+          throw new ValidationError(`${label}: whole-state reads are forbidden`);
         }
-        reads.get(nodeId!)!.add(parts[0]!);
+        // A network role's program (network.v0) reads the network's own state, not the graph's: its
+        // reads take no part in the top-level conflict analysis.
+        if (nodeId !== null) reads.get(nodeId)!.add(parts[0]!);
       }
       if (source === "steps") {
         const steps = env.steps as Record<string, Schema>;
@@ -196,7 +207,7 @@ export async function validateWorkflow(
   // persisted state, typed by the conversation's state schema; nowhere else (V-4).
   expression(graph.initial_state!, { input: schema(graph.input_schema, "input"), ...conversationInitialEnv(graph, documents, schemaPaths) }, "initial_state");
 
-  const operation = (node: JsonObject, role: string, env: Env, label: string, nodeId: string): void => {
+  const operation = (node: JsonObject, role: string, env: Env, label: string, nodeId: string | null): void => {
     schema(node.output_schema, label);
     expression(node.input!, env, `${label}/input`, role, nodeId);
     if ("when" in node) {
@@ -336,6 +347,11 @@ export async function validateWorkflow(
       schemas.close();
     }
   }
+  // network.v0 (Chrome core 0.5.0): the network object, its one node, the roles against the workers,
+  // the edges, the state views, each role's program (checked with `operation` over its own sources)
+  // and the bound against the package's budget; a graph without a network passes (and may hold no
+  // network node).
+  await checkNetworkDeclarations(manifest, graph, policy, { documents, schema, expression, operation, nodes, files, schemaPaths });
   // conversation.v0: the conversation object, the consent steps, the gate before every tool that
   // links a consented permission, and the fixture transcript; a graph without a conversation
   // passes (and may hold no consent step).

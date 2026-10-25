@@ -601,3 +601,14 @@ the composed result correct; it does not bound what a role believes from a messa
 exact maximum over walks is not what the page shows (the relaxation is, R-23). The delegation
 family of the enforcement catalog v2 (D-189) starts from the negative cases of the spec's §7,
 listed in `examples/network/cases/cases.json`.
+
+**In Chrome (T26).** The Chrome core enforces the same envelope with the same code paths' checks:
+both runtimes refuse every case of §7 identically and agree on the audits of the shipped walks (the
+conformance suite's network family). Three host facts add to the table above. The plan freezes
+the envelope and the runner re-derives it from the verified package before the run, so a plan
+that understated it is refused (`execution_plan_invalid`), not run. A refused chosen route is
+re-asked at most twice (R-28): each attempt is reserved against the role's own token and
+remote-call budget, so a model that keeps choosing an exhausted edge spends at most what the
+envelope already counts, and each attempt's refusal is recorded. The agent page's figures and the
+run page's decisions are rendered from the summary and the audit by `textContent`; the role
+descriptions are the package's text, shown as data.

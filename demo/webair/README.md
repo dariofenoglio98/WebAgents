@@ -388,6 +388,19 @@ curl -s -X POST http://127.0.0.1:8040/api/v1/search_flights \
   -d '{"origin":"BOS","destination":"ZRH","date":"2026-10-09","nonstop_only":true,"max_price_usd":900}'
 ```
 
+**The travel network's partner services (T26, D-290).** Beside WebAir's own operations the origin
+answers three fictional services for the shipped travel network
+([`agents/travel-network/`](../../agents/travel-network/README.md), network.v0), whose specialists
+each call one of them: `POST /api/v1/travel/flights` (`{origin, destination, date, travellers}`:
+one row per WebAir flight with its lowest available fare, from the same inventory as
+`search_flights`), `POST /api/v1/travel/hotels` (`{city, check_in, check_out}`: two fictional hotels
+per WebAir city, priced per night, 1 to 30 nights) and `POST /api/v1/travel/calendar` (`{from, to}`:
+one fictional traveller's entries over at most 62 days). The same transport rules and error shape
+as the operations above (`invalid_stay`, `invalid_range` added); deterministic, nothing reserved or
+stored (`origin/travel.py`). `tests/test_travel.py` asserts the package's fixture records exactly
+these answers, so a fixture run and a live run see the same data. They are not in
+`/api/v1/schemas`, which describes WebAir's own operations.
+
 ## Experimental discovery link
 
 Every WebAir page carries, in its `<head>`:
@@ -607,14 +620,16 @@ cmp /tmp/public.agent.pkg dist/webair-0.8.0.agent.pkg && \
 **WebAgents demo documents (T8).** The Chrome Agent Browser's search and policy subscription need
 a public home for the signed demo index, the signed example research policy and the Literature
 Review package the index lists. They do not belong to the airline; they are served here because this
-is the demo deployment that exists. `origin/demo_documents.py` reads exactly seven files from the
+is the demo deployment that exists. `origin/demo_documents.py` reads exactly eight files from the
 directory named by `--demo-documents` (`$WEBAIR_DEMO_DOCUMENTS`) once at startup and serves each at
 one fixed path: `/agent-index.json`, `/policies/webagents-research.json`,
 `/packages/literature-review-0.2.9.agent.pkg` (the package indexes 1.4.0 and 1.5.0 list, T22, T24), and 0.2.8, 0.2.7,
 0.2.6 and 0.2.5 at their paths (the ones indexes 1.3.0, 1.2.0, 1.1.0 and 1.0.0 listed, kept so their URLs
-still resolve). The bundle carries them under `demo/`, byte for byte from `examples/` and `dist/`; without
-the option the paths answer 404. Index 1.5.0 names WebAir 0.8.0, so it is deployed in the same bundle
-as `dist/webair-0.8.0.agent.pkg`. After a redeploy:
+still resolve), and `/packages/travel-network-0.1.0.agent.pkg` (the travel network index 1.6.0 adds, T26).
+The bundle carries them under `demo/`, byte for byte from `examples/` and `dist/`; without
+the option the paths answer 404. Index 1.6.0 names WebAir 0.8.0 and the travel network, whose tools call
+this origin's `/api/v1/travel/` services, so all of it is deployed in one bundle with
+`dist/webair-0.8.0.agent.pkg`. After a redeploy:
 
 ```sh
 for doc in agent-index.json policies/webagents-research.json; do
@@ -624,6 +639,10 @@ node chrome-agent-browser/dist/cli.js document verify --type agent-index \
 for version in 0.2.8 0.2.7 0.2.6 0.2.5; do
   curl -sS "https://webagents-webair-production.up.railway.app/packages/literature-review-$version.agent.pkg" \
     | cmp - "dist/literature-review-$version.agent.pkg"; done
+curl -sS https://webagents-webair-production.up.railway.app/packages/travel-network-0.1.0.agent.pkg \
+  | cmp - dist/travel-network-0.1.0.agent.pkg
+curl -sS -X POST https://webagents-webair-production.up.railway.app/api/v1/travel/hotels \
+  -H 'content-type: application/json' -d '{"city":"ZRH","check_in":"2027-03-09","check_out":"2027-03-14"}'
 ```
 
 To reproduce it in another Railway account: create a service, set `PORT=8080`, generate a domain

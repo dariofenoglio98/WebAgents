@@ -13,7 +13,7 @@
 import { AuditChain, type ChainTail } from "../../core/conversation/chain.js";
 import { conversationStatus, endsByPackage, limitsJson, remainingToolCaps, reserveTurn, type ConversationLimits, type Ended, type EndReason, type TranscriptTurn, type TurnUsage } from "../../core/conversation/runner.js";
 import { CoreError } from "../../core/errors.js";
-import { runtimeLimits } from "../../core/execution/limits.js";
+import { lowerLimits, runtimeLimits } from "../../core/execution/limits.js";
 import { isTerminalStatus, type RunRecord } from "../../core/execution/record.js";
 import type { TurnStart } from "../../core/execution/runner.js";
 import { sha256HexSync } from "../../core/hash.js";
@@ -216,8 +216,12 @@ export class ConversationManager {
     const index = stored.turns_started + 1;
     const chain = this.chainOf(stored);
     chain.turn = index;
-    // The turn's hard budgets under the host's per-run limits, as the runtime will apply them (V-10).
-    const refusal = reserveTurn(facts.pkg, stored.limits, runtimeLimits(stored.turn_limits), stored.spent, stored.turns.filter((turn) => turn.status !== "refused").length);
+    // The turn's run limits, computed once (T24 review 4 nit 1): the lower of the ones the
+    // conversation froze at its start and the current ones (D-102), so the reservation counts
+    // exactly what the turn will run under (V-10).
+    const turnLimits = lowerLimits(stored.turn_limits, await this.deps.runner.hostLimits());
+    // The turn's hard budgets under those limits, as the runtime will apply them (V-10).
+    const refusal = reserveTurn(facts.pkg, stored.limits, runtimeLimits(turnLimits), stored.spent, stored.turns.filter((turn) => turn.status !== "refused").length);
     if (refusal !== null) {
       // V-10: refused before any node runs, and the conversation ends at its bound (V-25), in one write.
       const now = pyIsoTimestamp(this.clock());
@@ -261,8 +265,8 @@ export class ConversationManager {
     if (!won) throw raced(reserved);
     this.starting.add(runId);
     try {
-      // Under the run limits the reservation counted, not the ones Settings holds now (V-10).
-      await this.deps.runner.startTurn(stored.session_id, { plan: facts.plan, message: message as JsonValue, turn, spentByConversation: stored.spent_receipt, runId, limits: stored.turn_limits });
+      // Under the run limits the reservation counted (V-10); the host lowers them again if Settings changes before the run starts (D-102).
+      await this.deps.runner.startTurn(stored.session_id, { plan: facts.plan, message: message as JsonValue, turn, spentByConversation: stored.spent_receipt, runId, limits: turnLimits });
     } catch (error) {
       // The turn never ran (the lease, the host). A stored run means the lease spent the receipt
       // (nit 7): the conversation's later turns are leased under it.
@@ -274,11 +278,15 @@ export class ConversationManager {
       const entry: TranscriptTurn = { turn: index, status: "failed", error_code: code, refusal: null, message: deepCopy(message as JsonValue), consents: {}, decisions: [], unused_consents: [], reply: null, usage: { tokens: 0, remote_calls: 0, tool_calls: {} }, started_at: now, ended_at: now };
       // A failed turn in the record, the conversation open (V-25), unless the run manager already
       // settled the stored run (a host that did not start), which charged it with its own `turn.failed`.
+      let cleared = false;
       await this.deps.conversations.updateConversation(conversationId, (current) => {
         const spentReceipt = current.spent_receipt || leased;
         if (current.active_run_id !== runId) return spentReceipt === current.spent_receipt ? null : { ...current, spent_receipt: spentReceipt };
+        cleared = true;
         return { ...current, active_run_id: null, spent_receipt: spentReceipt, turns: [...current.turns, entry], events: [...current.events, chain.events[chain.events.length - 1]!], chain_tail: chain.tail(), updated_at: this.clock().toISOString() };
       });
+      // A turn that stored no run references no snapshot once cleared: release it (T24 review 4 nit 3).
+      if (cleared && !leased) await this.deps.hooks.turnCharged?.(stored.archive_sha256).catch(() => undefined);
       this.deps.broadcast({ type: "event.conversation", conversationId, sessionId: stored.session_id, status: "open" });
       throw reject(code, detail, error instanceof CoreError ? error.status : 503, { conversation_id: conversationId });
     } finally {
@@ -357,9 +365,13 @@ export class ConversationManager {
         return { ...current, active_run_id: null, spent, state, turns: [...current.turns, entry], events: [...current.events, ...chain.events], chain_tail: chain.tail(), ...(ended !== null ? { status: "ended" as const, ended } : {}), updated_at: this.clock().toISOString() };
       });
       if (!won || updated === null) return;
-      // Clear the turn's leftovers from the run: the conversation holds them now.
-      await this.deps.runs.updateRun(run.run_id, (current) => ({ ...current, turn_outcome: null }));
-      await this.deps.hooks.turnCharged?.(stored.archive_sha256).catch(() => undefined);
+      // Clear the turn's leftovers from the run: the conversation holds them now. The snapshot is
+      // released even when that write fails, since the charge already won (T24 review 4 nit 3).
+      try {
+        await this.deps.runs.updateRun(run.run_id, (current) => ({ ...current, turn_outcome: null }));
+      } finally {
+        await this.deps.hooks.turnCharged?.(stored.archive_sha256).catch(() => undefined);
+      }
       this.deps.broadcast({ type: "event.conversation", conversationId: stored.conversation_id, sessionId: stored.session_id, status: ended !== null ? "ended" : "open" });
     };
     const next = this.charging.then(work, work);

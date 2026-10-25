@@ -454,3 +454,46 @@ Evidence: `scripts/e2e-conversation.mjs` drives a two-turn conversation with a c
 extension's messages in headless Chrome, and `scripts/verify_chrome_conversation.py` recomputes
 its export ([`chrome-conversation-e2e-t24.json`](../examples/verification/chrome-conversation-e2e-t24.json)).
 The boundary is in the [threat model](threat-model.md#conversations-in-chrome-t24).
+
+## 14. Delegation networks (T26)
+
+A package that declares a network ([`network.v0`](../spec/network-v0.md)) runs as any task does;
+what changes is what the person is told before the run and what the run page shows (D-291).
+
+**Before the run.** The agent page has a card **How it delegates**: the sentence the summary's
+`delegation_network` warning carries (the reference's words, which say which roles the model routes
+and which the package does), the envelope's figures under **At most, in any run** (handoffs, model
+calls, tool calls per tool, remote calls, tokens) and each role, the entry first: who picks what
+follows it (the model among its edges, each with its use cap and `done` where it may end, or the
+package's fixed next), at most how many times it runs, and what one activation may spend (model
+calls, tools, tokens, remote calls). Every figure is the bound computed from the signed
+declaration (R-21): a run can stay below it and cannot pass it. The Run Plan freezes the envelope
+(`execution.network`, shown as **Delegation** on the plan card), and the execution runner computes
+it again from the verified package before the run and refuses a plan that states another
+(`execution_plan_invalid`). The execution host records the envelope under its own limits, with each
+role's budget per activation (`role_budgets`), in the run record's `network` section.
+
+**During and after the run.** The network node reserves the envelope before its first activation
+(`network.started`, or `network.refused` with nothing spent, R-17). The progress snapshot carries
+the network's state (`progress.network`: the role running now, the handoffs, every `route.decided`
+with its reason, how it ended), and the run page shows it under the stages: one chip per decision
+("FrontMan → Hotel (the model)", a refused one in red with its reason) and **Handoffs 3 of at most
+6**. Technical details list every route decision (hop, role, which time it ran, chosen by, next,
+allowed or refused) and **Usage by role** (times run of at most, tokens and remote calls against
+the budget per activation). A refused chosen route is a non-conforming answer: this host asks again
+up to twice with a line naming the route check and the failure (R-28); each attempt's decision is
+recorded, and the attempts are charged to the role's tokens and remote calls, which the envelope
+bounds.
+
+**The travel network.** `org.webagents.travel-network` 0.1.0, listed in the demo index 1.6.0 and
+served at `https://webagents-webair-production.up.railway.app/packages/travel-network-0.1.0.agent.pkg`,
+consults the WebAir origin's fictional travel services; its envelope is 6 handoffs, 8 model calls,
+one call of each tool, 19 remote calls and 48,000 tokens.
+
+Evidence: `test/core/network/` (the 46 cases, the bound against the reference over random networks
+and against every reachable prefix, the travel network's sixteen walks, the re-ask, the timeout
+naming), `test/extension/network-ui.test.ts`, the conformance suite's network family (both runtimes,
+identical refusals and audits), and `scripts/e2e-network.mjs`, which runs the signed travel network
+in headless Chrome from a fake WebAir origin in fixture mode, with `scripts/verify_network_run.py`
+recomputing its export ([`chrome-network-e2e-t26.json`](../examples/verification/chrome-network-e2e-t26.json));
+the same script checks a live run's Runs-page export.

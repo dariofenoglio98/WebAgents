@@ -3,13 +3,13 @@
   "content_type": "org.webagents:agent-index-v0",
   "content": {
     "index_id": "org.webagents.demo-index",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "title": "WebAgents demo index",
-    "description": "The agents of the WebAgents research prototype: a literature-review agent and a fictional airline's agent. Signed with a development key, for demonstrations only; every entry is metadata, and each package is verified when you open it.",
+    "description": "The agents of the WebAgents research prototype: a literature-review agent, a fictional airline's agent and a travel network that delegates between roles within a stated envelope. Signed with a development key, for demonstrations only; every entry is metadata, and each package is verified when you open it.",
     "publisher": {
       "name": "WebAgents research prototype (development key)"
     },
-    "issued_at": "2026-10-21T00:00:00Z",
+    "issued_at": "2026-10-24T00:00:00Z",
     "expires_at": "2027-12-31T23:59:59Z",
     "entries": [
       {
@@ -58,12 +58,35 @@
           "demo"
         ],
         "homepage": "https://webagents-webair-production.up.railway.app/"
+      },
+      {
+        "package_id": "org.webagents.travel-network",
+        "name": "Travel Network",
+        "version": "0.1.0",
+        "description": "Plan a trip with a small team: a front man restates your trip and, choosing as it goes, consults a flights, a hotel and a calendar role, each at most once, then answers with the plan. Your browser tells you the envelope before you run it (at most 6 handoffs, 8 model calls, 19 remote calls and 48,000 tokens) and records every handoff with the reason it was allowed. The data comes from the WebAir demo origin's fictional travel services: nothing is booked.",
+        "publisher": {
+          "id": "webagents-research",
+          "name": "WebAgents Research Prototype"
+        },
+        "package_url": "https://webagents-webair-production.up.railway.app/packages/travel-network-0.1.0.agent.pkg",
+        "digest": "b7ef730bd9b3c5d94d10f20c0829f9a8cdb16a1c4ecde264f851fc5238672312",
+        "archive_sha256": "4acd67cf414f52542a855bc399e1dbc8912307c608236b866c3ce317ecf7b9ca",
+        "signer_fingerprint": "sha256:27c903afe0b78ae7e27736bfbddafd6f8b6a58b3c26f0bce9507f70aeff762ef",
+        "locators": [
+          "travel-network@webagents.example"
+        ],
+        "tags": [
+          "travel",
+          "delegation",
+          "network",
+          "demo"
+        ]
       }
     ]
   },
   "signature": {
     "algorithm": "ed25519",
     "key_fingerprint": "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103",
-    "value": "zF1xJU8kl4HJzLVAfKV0HzUmnp2ksD5j9U/V1utMv5ap561J9qqbNbCU0xfLU4kZ5Zdhg98sU9t9WPv3JA2vBw=="
+    "value": "Yc7NQt4AhVvGZ+p/ZjVBST3NHJFsIFE8hHL4VyPXjtdZhhdyEl16kaaqCRFDHvPhZL10teBOPq+e5HICEka+Cg=="
   }
 }

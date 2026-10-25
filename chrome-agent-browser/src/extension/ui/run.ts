@@ -14,6 +14,9 @@
  * `textContent` like everything else a package wrote. A closed panel reconnects by reading the
  * stored record again (`run.list`'s `active`, `run.get`), since the run lives on the host (D-070).
  */
+import { envelopeText } from "../../core/agent-page.js";
+import type { NetworkProgress } from "../../core/execution/progress.js";
+import type { RunNetwork } from "../../core/execution/record.js";
 import { decisiveCallFailure } from "../../core/execution/report.js";
 import { checkLocation } from "../../core/workflow/feedback.js";
 import type { JsonObject } from "../../core/json.js";
@@ -213,6 +216,50 @@ function titleCase(value: string): string {
     .split(/\s+/u)
     .map((word) => (word ? word[0]!.toUpperCase() + word.slice(1) : word))
     .join(" ");
+}
+
+/** network.v0 (D-291): what each role spent, from the usage's worker rows (`Role:N`), against its budget per activation and its activation bound. */
+export interface RoleUsage {
+  role: string;
+  activations: number;
+  atMost: number;
+  tokens: number;
+  remoteCalls: number;
+  tokensPerActivation: number;
+  remoteCallsPerActivation: number;
+}
+
+export function roleUsage(network: RunNetwork, usage: RunView["usage"], progress: NetworkProgress | null): RoleUsage[] {
+  return network.roles.map((role) => {
+    const rows = (usage?.workers ?? []).filter((row) => row.worker.split(":")[0] === role.role);
+    return {
+      role: role.role,
+      activations: progress?.activations[role.role] ?? rows.length,
+      atMost: role.activationBound,
+      tokens: rows.reduce((sum, row) => sum + row.tokens, 0),
+      remoteCalls: rows.reduce((sum, row) => sum + row.remoteCalls, 0),
+      tokensPerActivation: role.tokensPerActivation,
+      remoteCallsPerActivation: role.remoteCallsPerActivation,
+    };
+  });
+}
+
+/** One route decision in words: "Desk → Lookup", with the reason a refused one names (D-291). */
+export function decisionText(decision: NetworkProgress["decisions"][number]): string {
+  const target = decision.next ?? "an undeclared target";
+  const who = decision.chosen_by === "model" ? "the model" : "the package";
+  return decision.allowed ? `${decision.role} → ${target} (${who})` : `${decision.role} → ${target} refused: ${decision.reason ?? "refused"} (${who}${decision.chosen_by === "model" ? "; a refused route may be asked again" : ""})`;
+}
+
+/** The walk so far: one chip per route decision, the role running now last (network.v0, D-291). */
+export function routeWalk(network: NetworkProgress, atMost: number | null): HTMLElement {
+  const line = el("div", { className: "ab-route", attrs: { "data-network": network.node, "data-state": network.state } });
+  line.append(el("span", { className: "ab-muted", text: `Handoffs ${network.hops}${atMost !== null ? ` of at most ${atMost}` : ""}: ` }));
+  if (network.decisions.length === 0 && network.current === null) line.append(el("span", { className: "ab-muted", text: network.state === "refused" ? `not started: the run had too little left for the envelope (${network.refused_reason ?? "budget"})` : "none yet" }));
+  for (const decision of network.decisions) line.append(chip(decisionText(decision), decision.allowed ? "good" : "bad"), " ");
+  if (network.current !== null && network.state === "running") line.append(chip(`now: ${network.current.role} (time ${network.current.activation})`, "neutral"));
+  if (network.state === "failed") line.append(chip(`stopped: ${network.error_code ?? "failed"}`, "bad"));
+  return line;
 }
 
 export function formatElapsed(ms: number): string {
@@ -1325,7 +1372,10 @@ export class RunPanel {
       }
       listNode.append(line);
     }
-    return listNode;
+    // network.v0 (D-291): the route decisions so far, under the stages.
+    const network = progress?.network ?? null;
+    if (network === null) return listNode;
+    return el("div", { className: "ab-stages-network" }, listNode, routeWalk(network, record.network?.atMost.maxHops ?? network.bound?.max_hops ?? null));
   }
 
   private renderCounters(record: RunView): HTMLElement {
@@ -1346,6 +1396,8 @@ export class RunPanel {
       ["Remote calls", String(usage?.remoteCalls ?? progress?.remote_calls ?? 0)],
       ["Tokens", tokens.toLocaleString()],
       ["Workers", progress ? `${progress.workers_active} active · ${progress.workers_spawned} spawned · peak ${progress.peak_parallel_workers}` : "—"],
+      // network.v0 (D-291): the handoffs so far against the envelope.
+      ...(progress?.network || record.network ? [["Handoffs", `${progress?.network?.hops ?? 0} of at most ${record.network?.atMost.maxHops ?? progress?.network?.bound?.max_hops ?? "?"}`] as [string, string]] : []),
     ]);
   }
 
@@ -1564,6 +1616,8 @@ export class RunPanel {
       ["Proposals", record.memory?.proposals ? `${record.memory.proposals.count} proposed (${record.memory.proposals.types.join(", ") || "none"}) · ${record.memory.proposals.offered} offered${record.memory.proposals.reason ? ` · ${record.memory.proposals.count - record.memory.proposals.offered} not offered (${record.memory.proposals.reason})` : ""} · sha256:${shortHash(record.memory.proposals.proposals_sha256)}` : record.memory?.refused ? `refused: ${record.memory.refused.reason ?? record.memory.refused.code}` : "none"],
       ["Agent notes", record.memory?.agent ? (record.memory.agent.committed ? `committed ${record.memory.agent.committed.bytes} bytes (sha256:${shortHash(record.memory.agent.committed.body_sha256)})` : record.memory.agent.discarded ? `discarded (${record.memory.agent.discarded})` : "nothing written") : "none"],
       ["Usage", record.usage ? `${record.usage.tokens.toLocaleString()} tokens of ${record.usage.limits.hardTokens.toLocaleString()} · ${record.usage.remoteCalls} remote calls · ${record.usage.toolCalls} tool calls · peak ${record.usage.peakParallelWorkers} workers` : "—"],
+      // network.v0 (R-24, D-291): the envelope the execution host recorded before the run.
+      ...(record.network ? [["Delegation", `${envelopeText({ max_hops: record.network.atMost.maxHops, model_calls: record.network.atMost.modelCalls, tool_calls: record.network.atMost.toolCalls, remote_calls: record.network.atMost.remoteCalls, tokens: record.network.atMost.tokens })} (the envelope recorded before the run; ${record.progress?.network ? `${record.progress.network.hops} handoffs taken, ${record.progress.network.state}` : "not started"})`] as [string, string]] : []),
       ["Cost", record.cost ? (record.cost.totalUsd === null ? `not reported (${record.cost.status})` : `$${record.cost.totalUsd} (${record.cost.status}; ${record.cost.callsWithReportedCost} of ${record.cost.calls} calls reported a cost)`) : "—"],
       ["Audit", record.audit ? `${record.audit.events} events · chain ${record.audit.chainValid ? "valid" : "INVALID"} · final sha256:${shortHash(record.audit.finalHash ?? "")}` : "—"],
       ["Workers", record.audit ? `${record.audit.workersSpawned} spawned · ${record.audit.nodesCompleted} nodes completed` : "—"],
@@ -1583,6 +1637,33 @@ export class RunPanel {
         table.append(el("tr", {}, el("td", {}, el("code", { text: worker.id })), el("td", { text: worker.role ?? "—" }), el("td", { text: worker.node ?? "—" }), el("td", { text: worker.state }), el("td", { text: worker.duration_ms === null ? "—" : formatElapsed(worker.duration_ms) }), el("td", { text: String(worker.model_calls) }), el("td", { text: String(worker.tool_calls) })));
       }
       details.append(el("h4", { text: "Workers" }), table);
+    }
+    // network.v0 (D-291): every route decision with its reason, and each role's spend against its budget.
+    const network = record.progress?.network ?? null;
+    if (network !== null && network.decisions.length > 0) {
+      const table = el("table", { className: "ab-table ab-route-decisions" });
+      table.append(el("tr", {}, ...["Hop", "Role", "Time", "Chosen by", "Next", "Decision"].map((head) => el("th", { text: head }))));
+      for (const decision of network.decisions) {
+        table.append(el("tr", { attrs: { "data-allowed": String(decision.allowed) } }, el("td", { text: String(decision.hop) }), el("td", { text: decision.role }), el("td", { text: String(decision.activation) }), el("td", { text: decision.chosen_by }), el("td", { text: decision.next ?? "—" }), el("td", { text: decision.allowed ? "allowed" : `refused: ${decision.reason ?? "?"}` })));
+      }
+      details.append(el("h4", { text: "Route decisions" }), table);
+    }
+    if (record.network) {
+      const table = el("table", { className: "ab-table ab-role-usage" });
+      table.append(el("tr", {}, ...["Role", "Times", "Tokens", "Remote calls"].map((head) => el("th", { text: head }))));
+      for (const row of roleUsage(record.network, record.usage, network)) {
+        table.append(
+          el(
+            "tr",
+            { attrs: { "data-role": row.role } },
+            el("td", { text: row.role }),
+            el("td", { text: `${row.activations} of at most ${row.atMost}` }),
+            el("td", { text: `${row.tokens.toLocaleString()} (at most ${row.tokensPerActivation.toLocaleString()} each time)` }),
+            el("td", { text: `${row.remoteCalls} (at most ${row.remoteCallsPerActivation} each time)` }),
+          ),
+        );
+      }
+      details.append(el("h4", { text: "Usage by role" }), table);
     }
     return details;
   }

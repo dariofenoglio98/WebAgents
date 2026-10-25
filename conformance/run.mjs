@@ -188,6 +188,10 @@ function buildInputs() {
   // The two consent-host cases (`silent`, `invalid`) have no CLI form; each unit suite covers them.
   inputs.conversation = {};
   for (const testCase of CONVERSATION_CASES) if (!testCase.host) inputs.conversation[testCase.id] = conversationCase(testCase);
+  // network.v0 (T26): one probe per enforcement case of examples/network/cases/cases.json, written by
+  // the Python driver from agentpkg's own test package and signed with the throwaway key.
+  inputs.network = {};
+  for (const testCase of NETWORK_CASES) inputs.network[testCase.id] = networkCase(testCase);
   // Grants files for the permission cases.
   const webairGrants = readJson(EXAMPLES("webair-0.2.0-grants.json"));
   inputs.webairNetworkDenied = writeInput("webair-network-denied.json", JSON.stringify({ ...webairGrants, "network.webair": "deny" }));
@@ -291,6 +295,34 @@ function computeCase(testCase) {
   }
   const forged = spawn(PYTHON, [join(ROOT, "conformance/drivers/compute_probe.py"), "--signed-archive", source, signed, join(SCRATCH, "keys", "throwaway.pem")]);
   if (forged.status !== 0) throw new Error(`compute probe ${name}: ${forged.stderr}`);
+  return { archive: signed, source, grants, case: testCase, refusedAtBuild: build.stderr.trim() };
+}
+
+/** The shipped travel network (network.v0, T26), signed with its development key. */
+const TRAVEL_NETWORK = { archive: DIST("travel-network-0.1.0.agent.pkg"), key: EXAMPLES("keys/travel-network-publisher.pub.pem") };
+const NETWORK_CASES = JSON.parse(spawn(PYTHON, [join(ROOT, "conformance/drivers/network_probe.py"), "--cases"]).stdout);
+
+/**
+ * One network probe case: its source and grants written by `drivers/network_probe.py`, built and
+ * signed with the throwaway key when it builds (a case agentpkg refuses to build, a validation
+ * case, is signed by the driver without validating, so that both CLIs meet the same refusal when
+ * they load the archive).
+ */
+function networkCase(testCase) {
+  const name = testCase.id;
+  const source = join(SCRATCH, "network", name);
+  const written = spawn(PYTHON, [join(ROOT, "conformance/drivers/network_probe.py"), source, name]);
+  if (written.status !== 0) throw new Error(`network probe ${name}: ${written.stderr}`);
+  const { grants } = JSON.parse(written.stdout);
+  const built = join(SCRATCH, "network", `${name}.unsigned.agent.pkg`);
+  const signed = join(SCRATCH, "network", `${name}.agent.pkg`);
+  const build = spawn(PYTHON_CLI, ["build", source, "-o", built]);
+  if (build.status === 0) {
+    agentpkg(["sign", built, "--private-key", join(SCRATCH, "keys", "throwaway.pem"), "-o", signed]);
+    return { archive: signed, source, grants, case: testCase };
+  }
+  const forged = spawn(PYTHON, [join(ROOT, "conformance/drivers/network_probe.py"), "--signed-archive", source, signed, join(SCRATCH, "keys", "throwaway.pem")]);
+  if (forged.status !== 0) throw new Error(`network probe ${name}: ${forged.stderr}`);
   return { archive: signed, source, grants, case: testCase, refusedAtBuild: build.stderr.trim() };
 }
 
@@ -405,7 +437,26 @@ function positiveCases() {
     { id: "compute/echo", title: "Control: the smallest conforming module answers its input (throwaway key)", argv: fixtureRun(inputs.compute.echo.archive, inputs.compute.echo.grants, [], ["--trust-key", inputs.throwawayKey]), requires: "0.5.0" },
     { id: "compute/with-start", title: "Control: a start function is allowed and runs inside the call (C-17; throwaway key)", argv: fixtureRun(inputs.compute["with-start"].archive, inputs.compute["with-start"].grants, [], ["--trust-key", inputs.throwawayKey]), requires: "0.5.0" },
   ];
-  return [...cases.map((testCase) => ({ ...testCase, kind: "fixture parity", run: () => runPositive(testCase) })), ...conversationCases()];
+  return [...cases.map((testCase) => ({ ...testCase, kind: "fixture parity", run: () => runPositive(testCase) })), ...networkPositiveCases(fixtureRun), ...conversationCases()];
+}
+
+/**
+ * network.v0 (T26): the signed test package's fixture walk, the shipped travel network's full tour,
+ * and the probe's control cases (spec/network-v0.md §7: the walks that complete), each compared by
+ * the fixture-parity rules. Every case carries `requires: 0.7.0`.
+ */
+function networkPositiveCases(fixtureRun) {
+  const probe = (name) => inputs.network[name];
+  const cases = [
+    { id: "network-test/fixture", title: "Network Test 0.1.0 (network.v0, T25): the help desk's fixture walk Desk, Lookup, Desk, Writer, Desk, done, within the envelope", argv: fixtureRun(EXAMPLES("network/network-test.agent.pkg"), EXAMPLES("network/network-test-grants.json"), ["lookup"], ["--trust-key", EXAMPLES("keys/network-test-publisher.pub.pem")]) },
+    { id: "travel-network/fixture", title: "Travel Network 0.1.0 (network.v0, T26): the front man consults flights, hotel and calendar once each, the full tour that attains the envelope", argv: fixtureRun(TRAVEL_NETWORK.archive, EXAMPLES("network/travel-network-grants.json"), ["search-flights", "search-hotels", "check-calendar"], ["--trust-key", TRAVEL_NETWORK.key]) },
+    ...NETWORK_CASES.filter((testCase) => testCase.code === "completed").map((testCase) => ({
+      id: `network/${testCase.id}`,
+      title: `${testCase.title} (network.v0 §7, throwaway key)`,
+      argv: fixtureRun(probe(testCase.id).archive, probe(testCase.id).grants, ["lookup"], ["--trust-key", inputs.throwawayKey]),
+    })),
+  ];
+  return cases.map((testCase) => ({ ...testCase, kind: "fixture parity", requires: "0.7.0", run: () => runPositive(testCase) }));
 }
 
 /**
@@ -544,6 +595,7 @@ function negativeCases() {
     ...memoryNegativeCases(cli, run),
     ...computeNegativeCases(cli, run, documented),
     ...conversationNegativeCases(cli, run, documented),
+    ...networkNegativeCases(cli, run, documented),
     documented(
       "once-overused",
       "The model permission granted once, to a graph that calls the model more than once",
@@ -673,6 +725,57 @@ function conversationNegativeCases(cli, run, documented) {
     }
   }
   return cases;
+}
+
+/**
+ * The negative cases of spec/network-v0.md §7 both runtimes must refuse identically: validation by
+ * the message (the code first), run failures by the node's code and the compared artifacts (the
+ * audit's `route.decided`, `network.*` and `model.failed` facts included), the `once` rule by each
+ * CLI's own stage (D-091) with the execution layers compared, and the host's output-cap check by the
+ * execution layers alone (`agentpkg run` applies no host ceiling). Last, the envelope both execution
+ * layers record for the signed test package under the default host limits.
+ */
+function networkNegativeCases(cli, run, documented) {
+  const probe = (name) => inputs.network[name];
+  const runProbe = (name) => run(probe(name).archive, probe(name).grants, ["--approve-tool", "lookup", "--trust-key", inputs.throwawayKey]);
+  const cases = [];
+  for (const testCase of NETWORK_CASES) {
+    const name = testCase.id;
+    if (testCase.code === "completed") continue;
+    const title = `${testCase.title} (network.v0 §7, ${testCase.stage})`;
+    if (testCase.stage === "validation") {
+      cases.push({ ...cli(`network/${name}`, title, [runProbe(name)], { code: testCase.code, message: new RegExp(`^${testCase.code}: `, "u") }), requires: "0.7.0" });
+    } else if (testCase.stage === "grants") {
+      const permission = Object.keys(testCase.grants)[0];
+      cases.push({
+        ...documented(`network/${name}`, title, runProbe(name), { python: { code: "permission_denied", node: "delegate" }, node: { message: new RegExp(`^Permission '${escapeRegExp(permission)}' was granted 'once', but this workflow would use it up to \\d+ times\\.`, "u") } }, { archive: probe(name).archive, grants: probe(name).grants, code: testCase.code }),
+        requires: "0.7.0",
+      });
+    } else if (testCase.stage === "host") {
+      cases.push({ id: `network/${name}`, title, kind: "execution-layer parity", requires: "0.7.0", run: () => runLayers(probe(name).archive, probe(name).grants, { outcome: "refused", code: testCase.code }) });
+    } else {
+      cases.push({ ...cli(`network/${name}`, title, [runProbe(name)], { code: testCase.code, node: testCase.expect?.node ?? "delegate", artifacts: true }), requires: "0.7.0" });
+    }
+  }
+  cases.push({
+    id: "network/execution-layer-envelope",
+    title: "The envelope both execution layers record for Network Test 0.1.0 under the default host limits (R-24): every figure equal",
+    kind: "execution-layer parity",
+    requires: "0.7.0",
+    run: () => runLayers(EXAMPLES("network/network-test.agent.pkg"), EXAMPLES("network/network-test-grants.json"), { outcome: "accepted" }),
+  });
+  return cases;
+}
+
+/** The two execution layers asked the same question (`drivers/execution_policy.py`, `execution-policy.ts`); their whole answers compared. */
+function runLayers(archive, grants, expected) {
+  const checks = [];
+  const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
+  const outcomes = [spawn(PYTHON, [join(ROOT, "conformance/drivers/execution_policy.py"), archive, grants]), spawn(process.execPath, [join(SCRATCH, "drivers", "execution-policy.js"), archive, grants])].map((result) => (result.status === 0 ? JSON.parse(result.stdout) : { outcome: "driver_failed", message: result.stderr.slice(-400) }));
+  check(`execution layers: both ${expected.outcome}${expected.code ? ` ${expected.code}` : ""}`, outcomes.every((o) => o.outcome === expected.outcome && (!expected.code || o.code === expected.code)) ? [] : outcomes.map((o) => JSON.stringify(o).slice(0, 400)));
+  check("execution layers: identical answers", diff(outcomes[0], outcomes[1]));
+  const halves = { python: outcomes[0].outcome === expected.outcome, chromeVersionRefused: /exceeds reference runtime/u.test(outcomes[1].message ?? "") };
+  return { checks, notes: [], halves, observed: { execution_layers: outcomes } };
 }
 
 function runNegative(commands, expectation, options) {

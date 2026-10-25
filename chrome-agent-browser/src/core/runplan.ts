@@ -17,6 +17,7 @@
 import { DEFAULT_PRESET } from "./authorization.js";
 import { canonicalJson } from "./canonical.js";
 import { conversationRecords } from "./conversation/declarations.js";
+import { networkRecords } from "./network/declarations.js";
 import { consentPlan, type ConsentPolicy } from "./policies/consent.js";
 import { CoreError } from "./errors.js";
 import type { EvaluationLayers, PublisherReport } from "./evaluation.js";
@@ -51,6 +52,7 @@ import {
   type AuthorizationReceipt,
   type BrowserPolicy,
   type ConversationPlan,
+  type NetworkPlan,
   type ExecutionMode,
   type PresetId,
   type Provenance,
@@ -312,6 +314,7 @@ export async function buildRunPlan(pkg: Package, input: RunPlanInputs): Promise<
         (probe !== null ? " This plan is authority for ONE mediated call to one declared tool. It binds no model and is not authority to run this package's graph." : "") +
         " Declared tools the authorization did not approve are listed in denied_tool_ids; the runtime refuses any call to them (D-022).",
       conversation: conversationPlan(pkg, input.consentPreset ?? input.receipt.provenance?.preset ?? DEFAULT_PRESET, input.consentPolicy ?? null),
+      ...networkSection(pkg),
     },
     tool_bindings: bindings as unknown as RunPlan["tool_bindings"],
     tool_registry: input.toolRegistry ? toolRegistryReference(input.toolRegistry) : null,
@@ -502,6 +505,19 @@ export function preflight(plan: RunPlan, input: PreflightInputs): RunPlanPreflig
 /** Whether a receipt grants anything `once`; the first run under it spends it (control.py). */
 export function grantsOnce(receipt: Pick<AuthorizationReceipt, "decisions">): boolean {
   return Object.values(receipt.decisions).includes("once");
+}
+
+/** network.v0 (R-24, `runplan.py`): the envelope the person agreed to, computed from the signed declaration; null for a package without a network. */
+export function networkPlan(pkg: Package): NetworkPlan | null {
+  const records = networkRecords(pkg);
+  if (records === null) return null;
+  return { node: records.node, entry: records.entry, roles: records.roles.map((role) => role.id), worst_case: JSON.parse(JSON.stringify(records.worst_case)) as JsonObject };
+}
+
+/** `{network}` for a delegation package, nothing otherwise: only such a plan carries the section. */
+export function networkSection(pkg: Package): { network?: NetworkPlan } {
+  const network = networkPlan(pkg);
+  return network === null ? {} : { network };
 }
 
 /** conversation.v0 (D-270): what the plan records about a conversational package, with D-271's pre-decisions; null for a one-shot package. */

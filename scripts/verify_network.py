@@ -99,6 +99,7 @@ def main() -> int:
     sys.path.insert(0, str(ROOT / "agentpkg" / "src"))
     from agentpkg.delegation.analysis import enumerate_walks
     from agentpkg.delegation.declarations import network_records
+    from agentpkg.errors import SignatureError
     from agentpkg.execution.report import verify_audit_chain
     from agentpkg.fixtures import fixture_adapters
     from agentpkg.package import build_package, load_package
@@ -140,7 +141,11 @@ def main() -> int:
         with tempfile.TemporaryDirectory() as scratch:
             target = Path(scratch).resolve() / "rebuilt.agent.pkg"
             rebuilt = load_package(build_package(source, target))
-        verified = verify_package(archive, trusted_key=KEY)
+        # A signature that does not verify is a failed check with its reason, not a traceback.
+        try:
+            verified = verify_package(archive, trusted_key=KEY)
+        except SignatureError as exc:
+            verified = {"valid": False, "error": str(exc)}
         built = load_package(archive)
         _check(
             report,
@@ -150,6 +155,7 @@ def main() -> int:
                 "digest": built.digest,
                 "valid": verified["valid"],
                 "key_fingerprint": verified.get("key_fingerprint"),
+                **({"error": verified["error"]} if "error" in verified else {}),
             },
         )
     grants = load_json(EXAMPLES / "network-test-grants.json")
@@ -183,7 +189,7 @@ def main() -> int:
         chain["valid"] and len(decided) == 5 and all(e["allowed"] for e in decided),
         {"events": chain["events"], "decisions": len(decided)},
     )
-    travel = load_package(EXAMPLES / "travel-network")
+    travel = load_package(ROOT / "agents" / "travel-network")
     walks = enumerate_walks(travel.graph["network"])
     _check(
         report, "the travel network admits sixteen walks", len(walks) == 16, len(walks)

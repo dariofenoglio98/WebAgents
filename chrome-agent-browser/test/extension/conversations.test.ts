@@ -465,6 +465,69 @@ describe("a conversation from the browser", () => {
     ]);
   });
 
+  it("a run limit lowered so that one more turn fits lets that turn run: the reservation counts the limits the turn runs under (T24 review 4 nit 1, V-10, D-102)", async () => {
+    // The conversation's budget leaves 4,100 − 267 = 3,833 tokens after a first turn: not enough for
+    // a turn reserved at the frozen 3,900-token cap, enough for one at the lowered 3,000.
+    const tight = (m: Members) => {
+      ((m["graph.json"] as JsonObject).conversation as { budget: JsonObject }).budget.hard_tokens = 4100;
+    };
+    const runs = new MemoryRunStore();
+    const w = await world({ mutate: tight, limits: { total_tokens: 3900 }, runs });
+    const started = await start(w, await authorize(w));
+    await send(w, started.conversationId, "hello");
+    const first = await settled(w, started.conversationId);
+    expect(first.transcript[0]!.usage.tokens).toBe(267);
+    const current = (await w.h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView;
+    await w.h.controller.handle({ type: "settings.set", settings: { ...current.settings, limits: { ...(current.settings.limits ?? {}), total_tokens: 3000 } as typeof current.settings.limits } }, PAGE);
+    await send(w, started.conversationId, "hello");
+    const second = await settled(w, started.conversationId);
+    expect(second.status).toBe("open");
+    expect(second.transcript.map((turn) => [turn.turn, turn.status])).toEqual([
+      [1, "completed"],
+      [2, "completed"],
+    ]);
+    const limits = (await runs.listRuns()).sort((a, b) => a.invocation.turn!.turn - b.invocation.turn!.turn).map((run) => run.invocation.limits.total_tokens);
+    expect(limits).toEqual([3900, 3000]);
+  });
+
+  it("a turn cleared without a stored run, and a charge whose run write fails, both release the snapshot (T24 review 4 nit 3)", async () => {
+    const runs = new MemoryRunStore();
+    const w = await world({ runs });
+    const started = await start(w, await authorize(w));
+    const hooks = (w.h.controller.conversations as unknown as { deps: { hooks: { turnCharged?: (sha: string) => Promise<void> } } }).deps.hooks;
+    const charged: string[] = [];
+    const original = hooks.turnCharged!;
+    hooks.turnCharged = async (sha) => {
+      charged.push(sha);
+      await original(sha);
+    };
+    // (a) The host refuses the turn before any run is stored.
+    const manager = w.h.controller.runs as unknown as { startTurn: (...args: unknown[]) => Promise<unknown> };
+    const startTurn = manager.startTurn;
+    manager.startTurn = async () => {
+      throw new Error("the host could not start the turn");
+    };
+    await expect(send(w, started.conversationId, "hello")).rejects.toMatchObject({ code: "execution_unavailable" });
+    manager.startTurn = startTurn;
+    expect(await runs.listRuns()).toEqual([]);
+    expect(charged).toHaveLength(1);
+    // (b) The turn is charged, and clearing its leftovers from the stored run fails.
+    const update = runs.updateRun.bind(runs);
+    runs.updateRun = async (runId, mutate) =>
+      update(runId, (current) => {
+        const next = mutate(current);
+        if (next !== null && current.turn_outcome != null && next.turn_outcome === null) throw new Error("the run store refused the write");
+        return next;
+      });
+    await send(w, started.conversationId, "hello");
+    await w.h.host.drain();
+    await waitFor(w, started.conversationId, (view) => view.transcript.some((turn) => turn.status === "completed"), "the charged turn");
+    const deadline = Date.now() + 5_000;
+    while (charged.length < 2 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(charged).toHaveLength(2);
+    expect(new Set(charged).size).toBe(1);
+  });
+
   it("a policy cap subscribed after the conversation started reaches its later turns (T24 review 3 finding 1, D-102)", async () => {
     const signer = newSigner();
     const url = "https://policy.example/tight.json";

@@ -54,9 +54,14 @@ def _failed_check(exc):
 
 def _deferred_failure(exc):
     """A failure event an inner loop left for its node to record: `(action, facts)` on the
-    cancellation it saw, or on the cause of the `TimeoutError` the node's own timeout made of
-    it; None otherwise."""
-    for candidate in (exc, getattr(exc, "__cause__", None)):
+    cancellation it saw, or on the cause or the context of the `TimeoutError` the node's own
+    timeout made of it (`asyncio.timeout` raises it from the cancellation, which an
+    interpreter may expose as either); None otherwise."""
+    for candidate in (
+        exc,
+        getattr(exc, "__cause__", None),
+        getattr(exc, "__context__", None),
+    ):
         deferred = getattr(candidate, "deferred_failure", None)
         if isinstance(deferred, tuple) and len(deferred) == 2:
             return deferred
@@ -132,9 +137,12 @@ class Workflow:
         self._task = None
         self._cancel_requested = False
         self._output = None
-        # The deadline the run is held to: the graph's, or the host's where it is lower (the
-        # execution host enforces its own by a watchdog and passes it here, so that a figure
-        # computed from it inside the run, network.v0's "at most" in seconds, is the host's).
+        # The deadline a figure computed inside the run is under: the graph's, or the host's
+        # where it is lower. It is reported, not enforced here: `run()` enforces the graph's own
+        # deadline (an RQ1 experiment anchors that line), and the execution host enforces its
+        # lower one by its watchdog and passes the same figure here, so that network.v0's "at
+        # most" in seconds is the deadline the host enforces. Moving the enforcement here waits
+        # for the catalog v2's re-anchoring.
         self.deadline_seconds = graph["deadline_seconds"]
         if deadline_seconds is not None:
             self.deadline_seconds = min(self.deadline_seconds, deadline_seconds)

@@ -10,6 +10,7 @@
  * each (D-053). Nothing here decides anything: a profile card shows what it would grant, the
  * person presses. Every package string reaches the document through `textContent`.
  */
+import { envelopeText } from "../../core/agent-page.js";
 import type { Decided } from "../../core/authorization.js";
 import type { ModelCompatibility } from "../../core/compatibility.js";
 import type { Profile } from "../../core/profiles.js";
@@ -623,6 +624,8 @@ function planCard(input: AuthorizeInput, actions: AuthorizeActions): HTMLElement
           ["Tools it may call", plan.run_plan.execution.required_tool_ids.join(", ") || "none"],
           ["Tools it may not call", plan.run_plan.execution.denied_tool_ids.join(", ") || "none"],
           ["Memory", plan.run_plan.resource_grants.map((grant) => grant.permission_id).join(", ") || "none"],
+          // network.v0 (R-24, D-291): the envelope this plan froze, which the runner re-derives before the run.
+          ...(plan.run_plan.execution.network ? [["Delegation", envelopeText(plan.run_plan.execution.network.worst_case as unknown as Parameters<typeof envelopeText>[0])] as [string, string]] : []),
           ["Decided by", receipt.provenance ? `${receipt.provenance.profile_title ? `profile “${receipt.provenance.profile_title}”` : "your own settings"}, ${PRESET_TITLES[receipt.provenance.preset] ?? receipt.provenance.preset} preset${receipt.provenance.policy ? `, policy ${receipt.provenance.policy.policy_id}@${receipt.provenance.policy.version}` : ""}${receipt.provenance.decisions && Object.values(receipt.provenance.decisions).includes("user") ? "; some items by you" : ""}` : "the receipt states no provenance"],
         ])
       : null,

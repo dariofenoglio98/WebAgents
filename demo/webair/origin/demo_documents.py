@@ -4,9 +4,9 @@ The WebAgents Chrome browser searches a signed agent index and lets a person sub
 signed policy. Neither belongs to the fictional airline; they are served from this origin only
 because it is the demo deployment that exists (a new hosting project is not available on the
 free plan). The origin publishes them the way it publishes its own package: the operator names a
-directory at startup, exactly seven files are read from it once, there, and each is served at
+directory at startup, exactly eight files are read from it once, there, and each is served at
 one fixed path. A request can never name, widen or swap a file, and nothing else in that
-directory becomes reachable. Without a directory the seven paths answer 404.
+directory becomes reachable. Without a directory the eight paths answer 404.
 
     /agent-index.json                              the signed WebAgents demo index
     /policies/webagents-research.json              the signed example research policy
@@ -16,6 +16,8 @@ directory becomes reachable. Without a directory the seven paths answer 404.
     /packages/literature-review-0.2.6.agent.pkg    the one index 1.1.0 listed (T11), kept like 0.2.5
     /packages/literature-review-0.2.5.agent.pkg    the one index 1.0.0 listed, kept so its URL and
                                                    the Library pins made from it still resolve
+    /packages/travel-network-0.1.0.agent.pkg       the travel network index 1.6.0 adds (T26); its
+                                                   tools call this origin's /api/v1/travel/ services
 
 The signatures are the documents' own (Ed25519 under development keys); this module only
 serves bytes and checks nothing about them.
@@ -63,6 +65,11 @@ DOCUMENTS: dict[str, tuple[str, str, int]] = {
     ),
     "/packages/literature-review-0.2.5.agent.pkg": (
         "packages/literature-review-0.2.5.agent.pkg",
+        MEDIA_TYPE,
+        16 * 1024 * 1024,
+    ),
+    "/packages/travel-network-0.1.0.agent.pkg": (
+        "packages/travel-network-0.1.0.agent.pkg",
         MEDIA_TYPE,
         16 * 1024 * 1024,
     ),

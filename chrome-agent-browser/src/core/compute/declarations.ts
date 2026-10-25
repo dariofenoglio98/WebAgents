@@ -5,6 +5,7 @@
  * Refusals are `ValidationError`s whose text starts with the specification's code, so that both
  * runtimes refuse a package with the same message (the conformance suite compares refusals).
  */
+import { roleSteps } from "../network/analysis.js";
 import { ValidationError } from "../errors.js";
 import { sha256HexSync } from "../hash.js";
 import type { JsonObject, JsonValue } from "../json.js";
@@ -48,6 +49,8 @@ export function computeOperations(graph: JsonObject): Array<[string, JsonObject]
       if (step.type === "compute") found.push([`${node.id}/${step.id}`, step]);
     }
   }
+  // network.v0: every compute step of a network role, named by its node, role and step.
+  for (const [name, step] of roleSteps(graph)) if (step.type === "compute") found.push([name, step]);
   return found;
 }
 

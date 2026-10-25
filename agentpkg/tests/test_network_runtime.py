@@ -323,16 +323,49 @@ def test_the_run_s_at_most_in_seconds_is_the_effective_deadline(tmp_path):
         tool_bindings=[{"tool_id": "lookup"}],
     )
     assert facts["network"]["worst_case"]["seconds"] == started["bound"]["seconds"]
+    # Each role's budget per activation and its activation bound (T26, D-291).
+    workers = {w["id"]: w for w in package.graph["workers"]}
+    assert facts["network"]["role_budgets"] == {
+        role_id: {
+            "tokens": workers[role_id]["budget"]["tokens"],
+            "remote_calls": workers[role_id]["budget"]["remote_calls"],
+            "activation_bound": started["bound"]["activations"][role_id],
+        }
+        for role_id in ("Desk", "Lookup", "Writer")
+    }
 
 
 def test_the_sentence_says_who_chooses(tmp_path):
     """Review 1, nit 7: a network whose routes are all fixed is valid, and the agent page does
-    not say the model chooses in it."""
+    not say the model chooses in it. T25 review 2, nit 6: a mixed network (the probe: Desk
+    chooses, Lookup and Writer return by a fixed route) says which roles are which, and a network
+    whose every route is chosen says so."""
     from agentpkg.browser.summary import network_sentence
     from agentpkg.delegation.declarations import network_records
 
-    chosen = network_records(_probe(tmp_path / "chosen"))
-    assert "chosen by the model while it runs" in network_sentence(chosen)
+    mixed = network_records(_probe(tmp_path / "mixed"))
+    sentence = network_sentence(mixed)
+    assert sentence.startswith(
+        "The package delegates between 3 roles (Desk, Lookup, Writer), the next role chosen by "
+        "the model after Desk and fixed by the package after Lookup and Writer, within a "
+        "declared envelope: at most 6 handoffs;"
+    ), sentence
+    assert "while it runs" not in sentence
+
+    def all_chosen(m):
+        desk = role(m, "Desk")["route"]
+        for role_id in ("Lookup", "Writer"):
+            role(m, role_id)["route"] = {
+                "task": desk["task"],
+                "max_output_tokens": desk["max_output_tokens"],
+                "input": {"object": {"text": message("/text")}},
+            }
+
+    chosen = network_records(_probe(tmp_path / "chosen", mutate=all_chosen))
+    assert all(r["route"]["kind"] == "chosen" for r in chosen["roles"])
+    assert "roles chosen by the model while it runs (Desk, Lookup, Writer)" in network_sentence(
+        chosen
+    )
 
     def all_fixed(m):
         reply = {"object": {"text": message("/text")}}
@@ -717,3 +750,35 @@ def test_a_role_tool_step_behind_a_gate_must_depend_on_its_consent_step(tmp_path
     with pytest.raises(ValidationError, match="^consent_missing_before_tool: ") as refused:
         _probe(tmp_path, mutate=ungated)
     assert "delegate/Lookup/lookup" in str(refused.value)
+
+
+def test_an_activation_returns_only_its_patch_and_decision(tmp_path):
+    """T25 review 2, nit 4: the next shared state stays in the loop; what an activation's worker
+    returns, and `worker.completed` hashes, is what crosses its boundary (the patch and the
+    decision), never keys outside the role's view."""
+    report = _run(_probe(tmp_path))
+    assert report["status"] == "completed"
+    roles = {
+        e["worker"]: e["role"] for e in _events(report["audit"], "worker.spawned") if e["role"]
+    }
+    completed = [e for e in _events(report["audit"], "worker.completed") if e["worker"] in roles]
+    assert completed and all(e["state_keys"] == ["decision", "patch"] for e in completed)
+
+
+def test_a_deferred_failure_is_read_from_the_context_too():
+    """T25 review 2, nit 3: the node finds the loop's deferred event on the exception, its cause,
+    or its context (the `TimeoutError` `asyncio.timeout` raises from the cancellation)."""
+    from agentpkg.workflow import _deferred_failure
+
+    deferred = ("network.failed", {"node_id": "delegate", "hop": 1, "role": "Desk"})
+    inner = asyncio.CancelledError()
+    inner.deferred_failure = deferred
+    try:
+        try:
+            raise inner
+        except asyncio.CancelledError:
+            raise TimeoutError  # noqa: B904 - the implicit context is the point of the test
+    except TimeoutError as exc:
+        assert exc.__cause__ is None and exc.__context__ is inner
+        assert _deferred_failure(exc) == deferred
+    assert _deferred_failure(TimeoutError()) is None

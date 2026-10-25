@@ -9,7 +9,7 @@ import type { JsonObject } from "../../src/core/json.js";
 import { inputForm, presentationHints, validateTaskInput } from "../../src/core/presentation.js";
 import { buildSummary, SUMMARY_SCHEMA, warnings } from "../../src/core/summary.js";
 import { MemoryTrustStorage, TrustStore } from "../../src/core/trust.js";
-import { PROJECT, readBytes, SHIPPED } from "../helpers/paths.js";
+import { PROJECT, readBytes, ROOT, SHIPPED } from "../helpers/paths.js";
 
 const FIXTURES = join(PROJECT, "test", "fixtures");
 
@@ -32,6 +32,7 @@ describe("build_summary parity with the Python control plane (test/fixtures/summ
     ["WebAir 0.3.0", SHIPPED.webair, "summary-webair-0.3.0.json"],
     ["Literature Review 0.2.5", SHIPPED.literatureReview, "summary-literature-review-0.2.5.json"],
     ["Meeting Agenda 0.2.2", SHIPPED.meetingAgenda, "summary-meeting-agenda-0.2.2.json"],
+    ["Network Test 0.1.0", { archive: join(ROOT, "examples", "network", "network-test.agent.pkg") }, "summary-network-test-0.1.0.json"],
   ] as const) {
     it(`${label}: the TypeScript summary equals the Python one canonically`, async () => {
       const reference = JSON.parse(readFileSync(join(FIXTURES, fixture), "utf8")) as JsonObject;

@@ -13,9 +13,9 @@ import type { JsonObject, JsonValue } from "../json.js";
 import { normalizeModelBinding, type ModelBindingDescriptor } from "../models/binding.js";
 import type { Package } from "../package.js";
 import { pyIsoTimestamp } from "../pyjson.js";
-import { conversationPlan } from "../runplan.js";
+import { conversationPlan, networkPlan } from "../runplan.js";
 import { normalizeToolBindings, type ToolBindingRecord } from "../tools/bindings.js";
-import { MODE_MODEL, MODE_TOOL_PROBE, type ConversationPlan, type ExecutionMode, type ModelBinding, type ResourceGrant, type RunPlan } from "../types.js";
+import { MODE_MODEL, MODE_TOOL_PROBE, type ConversationPlan, type ExecutionMode, type ModelBinding, type NetworkPlan, type ResourceGrant, type RunPlan } from "../types.js";
 import { ExecutionError, invalid, TOOL_NOT_BOUND } from "./errors.js";
 import { normalizeResourceGrants } from "./policy.js";
 
@@ -40,6 +40,8 @@ export interface ExecutionPlan {
     denied_tool_ids: string[];
     /** conversation.v0 (D-270): the conversation's budget, persistent keys and consent steps with their pre-decisions; null for a one-shot package. */
     conversation: ConversationPlan | null;
+    /** network.v0 (R-24): the delegation envelope the plan froze; null for a package without a network. The runner re-derives it. */
+    network: NetworkPlan | null;
   };
   model_binding: ModelBindingDescriptor | null;
   tool_bindings: ToolBindingRecord[];
@@ -83,7 +85,7 @@ export function normalizeExecutionPlan(raw: unknown): ExecutionPlan {
   const record = fields(raw, "run_plan", ["run_plan_id", "run_plan_sha256", "session_id", "package", "publisher", "execution", "model_binding", "tool_bindings", "resource_grants"], ["run_plan_id", "run_plan_sha256", "package", "publisher", "execution"]);
   const pkg = fields(record.package, "run_plan.package", ["package_id", "name", "version", "digest", "archive_sha256", "execution_profile"], ["package_id", "version", "digest", "archive_sha256"]);
   const publisher = fields(record.publisher, "run_plan.publisher", ["signer_fingerprint", "signature_status", "trust_status"], ["signer_fingerprint"]);
-  const execution = fields(record.execution, "run_plan.execution", ["mode", "profile", "required_permission_ids", "required_tool_ids", "probe_tool_id", "tool_binding_count", "fixture", "denied_tool_ids", "conversation"], ["mode"]);
+  const execution = fields(record.execution, "run_plan.execution", ["mode", "profile", "required_permission_ids", "required_tool_ids", "probe_tool_id", "tool_binding_count", "fixture", "denied_tool_ids", "conversation", "network"], ["mode"]);
   const mode = execution.mode;
   if (mode !== MODE_MODEL && mode !== MODE_TOOL_PROBE) throw invalid("A run plan must be model-backed or a tool probe");
   const fixture = execution.fixture === true;
@@ -127,10 +129,31 @@ export function normalizeExecutionPlan(raw: unknown): ExecutionPlan {
       fixture,
       denied_tool_ids: [...new Set(idList(execution.denied_tool_ids, "run_plan.execution.denied_tool_ids"))].sort(),
       conversation: normalizeConversationPlan(execution.conversation),
+      network: normalizeNetworkPlan(execution.network),
     },
     model_binding: mode === MODE_MODEL && !fixture ? normalizeModelBinding(record.model_binding) : null,
     tool_bindings: bindings,
     resource_grants: normalizeResourceGrants(record.resource_grants),
+  };
+}
+
+/** At most this many bytes of canonical JSON in a plan's network section (a 16-role network's envelope is far smaller). */
+const MAX_NETWORK_PLAN_BYTES = 64 * 1024;
+
+/**
+ * network.v0 (R-24): the plan's network section, bounded and shaped; null when absent. Its figures
+ * are compared with the runner's own recomputation from the verified package, not believed.
+ */
+export function normalizeNetworkPlan(raw: unknown): NetworkPlan | null {
+  if (raw === undefined || raw === null) return null;
+  const record = fields(raw, "run_plan.execution.network", ["node", "entry", "roles", "worst_case"], ["node", "entry", "roles", "worst_case"]);
+  const worst = record.worst_case;
+  if (typeof worst !== "object" || worst === null || Array.isArray(worst) || canonicalJson(worst).length > MAX_NETWORK_PLAN_BYTES) throw invalid("run_plan.execution.network.worst_case must be a bounded object");
+  return {
+    node: text(record.node, "network.node", { limit: 200, allowNull: true }),
+    entry: text(record.entry, "network.entry", { limit: 200 })!,
+    roles: idList(record.roles, "network.roles"),
+    worst_case: JSON.parse(JSON.stringify(worst)) as JsonObject,
   };
 }
 
@@ -251,6 +274,7 @@ export function executionPlanFromRunPlan(plan: RunPlan): ExecutionPlan {
       tool_binding_count: plan.execution.tool_binding_count,
       denied_tool_ids: denied,
       conversation: (plan.execution as { conversation?: ConversationPlan | null }).conversation ?? null,
+      network: plan.execution.network ?? null,
     },
     model_binding: plan.model_binding === null ? null : modelBindingFromPlan(plan.model_binding),
     tool_bindings: plan.tool_bindings,
@@ -342,6 +366,7 @@ export function localExecutionPlan(input: LocalPlanInputs): { plan: ExecutionPla
       denied_tool_ids: declared.filter((toolId) => !approved.includes(toolId)),
       // The operator's grants are the whole conversation's; no preset or policy pre-decides a step here.
       conversation: conversationPlan(pkg, "balanced", null),
+      network: networkPlan(pkg),
     },
     model_binding: input.fixture ? null : (input.modelBinding ?? null),
     tool_bindings: bindings,

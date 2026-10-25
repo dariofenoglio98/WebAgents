@@ -545,6 +545,9 @@ class ExecutionSession:
                 from ..compute.engine import precompile
 
                 await asyncio.to_thread(precompile, self.package)
+            # One figure, computed once: the deadline the watchdog enforces is the one the run
+            # computes network.v0's "at most" in seconds from.
+            deadline = effective_deadline_seconds(self.package, self._limits)
             try:
                 workflow = Workflow(
                     self.package,
@@ -560,7 +563,7 @@ class ExecutionSession:
                     observer=tracker.observe,
                     # The deadline the watchdog below enforces, so that what the run computes
                     # from it (network.v0's "at most" in seconds) is this host's figure.
-                    deadline_seconds=effective_deadline_seconds(self.package, self._limits),
+                    deadline_seconds=deadline,
                 )
             except AgentPkgError as exc:
                 raise ExecutionError(
@@ -572,7 +575,6 @@ class ExecutionSession:
                 # rather than merely recorded: the workflow is stopped before its
                 # first node, and the run reports `cancelled` with an audit.
                 workflow.cancel()
-            deadline = effective_deadline_seconds(self.package, self._limits)
             watchdog = asyncio.create_task(self._watchdog(deadline, workflow))
             task = asyncio.create_task(self._execute(workflow))
             try:

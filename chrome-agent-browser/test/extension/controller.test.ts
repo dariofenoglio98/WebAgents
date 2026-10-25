@@ -700,7 +700,7 @@ describe("status", () => {
     const h = makeHarness({ limits: { maxSessions: 3 } });
     await open(h);
     const status = (await h.controller.handle({ type: "status.get" }, PAGE)) as StatusInfo;
-    expect(status).toMatchObject({ version: "0.1.0-test", runtime_version: "0.6.0", sessions: 1, max_sessions: 3, cached_bytes: WEBAIR_BYTES, session_ttl_seconds: 7200, execution: "enabled", runs: { active: 0, stored: 0 } });
+    expect(status).toMatchObject({ version: "0.1.0-test", runtime_version: "0.7.0", sessions: 1, max_sessions: 3, cached_bytes: WEBAIR_BYTES, session_ttl_seconds: 7200, execution: "enabled", runs: { active: 0, stored: 0 } });
     expect(status.execution_limits).toMatchObject({ total_tokens: 120000, max_remote_calls: 32, max_parallel_workers: 3, run_timeout_seconds: 600, model_call_timeout_seconds: 300 });
     const without = makeHarness({ hostOptions: { available: false } });
     expect(((await without.controller.handle({ type: "status.get" }, PAGE)) as StatusInfo)).toMatchObject({ execution: "disabled", execution_limits: null });

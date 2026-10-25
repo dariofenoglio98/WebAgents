@@ -1,7 +1,8 @@
 # network.v0: bounded, model-chosen delegation inside workflow.v0
 
-Status: experimental, normative for agentpkg **0.7.0** (D-187, D-280…D-284; the Chrome port, the
-agent page's "at most" and the shipped travel package are T26, D-290…D-299). The enclosing
+Status: experimental, normative for agentpkg **0.7.0** and later (0.7.1) and the Chrome Agent
+Browser's core **0.5.0** (D-187, D-280…D-284; the Chrome port, the agent page's "at most" and the
+shipped travel package are T26, D-290…D-293). The enclosing
 agent.pkg format stays 0.1 and `workflow.v0` stays the execution profile: this document adds one
 top-level graph object, one node type, one value source and six audit events. Machine contracts
 live beside it in [`spec/network-v0/`](network-v0/): the RFC 6902 patch for `workflow.schema.json`
@@ -173,7 +174,9 @@ are at most `max_hops` transitions. Every walk activates r at most A(r) times, a
 R-21. **The bound.** For each component c, B_c is the maximum of Σ_r n_r · cost_c(r) over
 integer counts with 1 ≤ n_entry ≤ A(entry), 0 ≤ n_r ≤ A(r) and Σ_r n_r ≤ `max_hops` + 1. It is
 computed exactly by the greedy allocation: one activation of the entry, then activations in
-descending order of cost_c (declaration order breaks ties) up to each role's A(r), until
+descending order of cost_c (declaration order breaks ties; in a built or signed archive, whose JSON
+is canonical, the `roles` map is in lexicographic order, which is then its declaration order, and
+a tie changes which role is allocated, never the sum) up to each role's A(r), until
 `max_hops` + 1 are placed (a bounded knapsack with unit weights). B_c dominates every walk
 (the counts of any walk satisfy the constraints). It is a relaxation: exact when some walk
 realizes the allocation (every star, every chain), loose where the graph's shape forbids it;
@@ -206,7 +209,11 @@ activation bound, budget, view), its entry, `max_hops`, its schemas and its wors
 (`network`); the agent page says, in words, between how many roles the model chooses, at most
 how many handoffs, how often each role at most, and at most how many model calls, tool calls per
 tool, remote calls and tokens (`delegation_network`). The Run Plan records the same under
-`execution.network`; the execution host's capability check records it under the host's limits.
+`execution.network`; the execution host's capability check records it under the host's limits,
+with each role's budget per activation and activation bound (`role_budgets`, agentpkg 0.7.1, so a
+run record can say what each role may spend). A host re-derives the plan's envelope from the
+signed declaration before the run and refuses a plan that states another (the Chrome runner,
+`execution_plan_invalid`).
 Every figure is a theorem about the signed declaration, not an estimate: a run can stay below
 it and cannot pass it.
 
@@ -288,7 +295,11 @@ transition check like a live model.
 R-28. **Host re-asks.** A host that re-asks non-conforming answers (workflow.v0 §7, the Chrome
 runtime) may re-ask a refused chosen route up to twice with the feedback line naming the check
 (`route`) and the failure; each re-ask is reserved, charged and audited afresh, and a third
-refusal fails as above. The reference's routers declare no re-asks.
+refusal fails as above. The reference's routers declare no re-asks. The Chrome runtime re-asks with
+the line "the route check refused it: `<failure>` for `"<next>"`. Choose among the targets whose
+uses_left is above zero, or done where may_end is true."; a re-ask is another attempt of the same
+logical model call (`model.called` with `attempt` > 1), charged to the role's tokens and remote
+calls, which the envelope bounds, and every attempt's decision is recorded.
 
 ## 5. Audit
 
@@ -391,26 +402,33 @@ for the test suites and the conformance suite and is not shipped in `dist/`;
 `agentpkg run examples/network/network-test.agent.pkg --mode fixture --grants examples/network/network-test-grants.json --approve-tool lookup --trust-key examples/keys/network-test-publisher.pub.pem --out <new dir>`
 runs it.
 
-`org.webagents.travel-network` 0.1.0 ([`examples/network/travel-network/`](../examples/network/travel-network/README.md)),
-an unsigned source in T25 (T26 ships it signed from `agents/`): `FrontMan` restates the trip and,
-at a chosen route, consults `Flights`, `Hotel` and `Calendar` (each a local fictional tool and a
-fixed return), each at most once within six handoffs, then ends with the plan. A star: the bound
-is exact (FrontMan at most 4 times, the specialists once each; 8 model calls, one call of each
-tool, 16 remote calls, 32,000 tokens), attained by the full tour, which is the fixture walk.
-Sixteen walks; `test_network_travel.py` runs every one. All data is fictional; nothing is booked.
+`org.webagents.travel-network` 0.1.0 ([`agents/travel-network/`](../agents/travel-network/README.md);
+an unsigned source under `examples/network/` in T25, shipped by T26 as
+`dist/travel-network-0.1.0.agent.pkg`, signed with the development key
+`examples/keys/travel-network-publisher.pub.pem`, named by the demo index 1.6.0 and served by the
+WebAir origin, D-290): `FrontMan` restates the trip and, at a chosen route, consults `Flights`,
+`Hotel` and `Calendar` (each one remote POST tool on the WebAir origin's fictional travel
+services, `/api/v1/travel/flights`, `hotels`, `calendar`, and a fixed return), each at most once
+within six handoffs, then ends with the plan. A star: the bound is exact (FrontMan at most 4
+times, the specialists once each; 8 model calls, one call of each tool, 19 remote calls, 48,000
+tokens), attained by the full tour, which is the fixture walk. Sixteen walks;
+`test_network_travel.py` runs every one in the reference and `test/core/network/travel.test.ts`
+in the Chrome core. All data is fictional; nothing is booked.
 
 Both sources are generated by `examples/network/make_network_examples.py` (so the route cases
 carry the runtime's exact request data, R-27) and a test asserts the committed files are its
-output.
+output; the WebAir origin's `test_travel.py` asserts the travel fixture's tool answers are the
+origin's own.
 
 ## 9. Versions, deliberate limits, prior art
 
-**Versions.** agentpkg 0.7.0 implements this document; packages that use it declare
-`runtime.minimum_version: "0.7.0"`. The Chrome core stays 0.4.0 with `SUPPORTED_RUNTIME_VERSION`
-0.6.0 until T26 ports the runner and the bound, wires the cases into the conformance suite and
-puts "at most" on the agent page; its `version.test.ts` accepts the pair (0.7.0, 0.6.0) until
-then. The OpenClaw plugin stays frozen (D-029) and its execution host refuses 0.7.0 packages by
-version. The paper line is untouched.
+**Versions.** agentpkg 0.7.0 implements this document (0.7.1: T25 review 2's fixes and
+`role_budgets`); packages that use it declare `runtime.minimum_version: "0.7.0"`. The Chrome
+core 0.5.0 (`SUPPORTED_RUNTIME_VERSION` 0.7.0, T26) implements it too: the bound, the rules with
+the reference's messages, the runner, the agent page's "at most", the plan's envelope, the run's
+route decisions; the conformance suite runs every case of §7 and both fixture walks in both
+runtimes (`conformance/run.mjs`, the network family). The OpenClaw plugin stays frozen (D-029)
+and its execution host refuses 0.7.0 packages by version. The paper line is untouched.
 
 **Deliberate limits of v0.** No remote roles; no roles created at run time; no nesting (a
 call-and-return is two edges, and the hop cap bounds it); no loop inside a role (a program is

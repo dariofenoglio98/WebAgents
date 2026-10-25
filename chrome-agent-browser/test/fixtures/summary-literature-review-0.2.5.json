@@ -1085,6 +1085,7 @@
     ],
     "fixture_declared": true,
     "conversation": null,
+    "network": null,
     "input": {
       "schema": "agentpkg-task-input-v0",
       "schema_path": "schemas/workflow-input.schema.json",

@@ -1,5 +1,5 @@
 {
   "model.reasoning": "session",
   "memory.session": "session",
-  "travel.index": "session"
+  "network.webair": "session"
 }

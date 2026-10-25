@@ -743,9 +743,11 @@ declared.
 - **Conversations** (R-25). A turn graph may hold the network node; the consent gate reaches a
   role's tool step, and validation requires the network node to depend on the gating consent
   step.
-- **This host runs networks**: a network package runs under the ordinary one-shot invocation. The
-  Chrome Agent Browser ports the runner and the bound, and puts "at most" on the agent page, in
-  T26.
+- **This host runs networks**: a network package runs under the ordinary one-shot invocation; the
+  execution host's capability record carries the envelope under its limits with each role's budget
+  per activation (`role_budgets`, agentpkg 0.7.1). The Chrome Agent Browser runs networks too (core
+  0.5.0, T26): the same bound and refusals (the conformance suite's network family), "at most" on the
+  agent page, the route decisions on the run page ([Chrome guide §14](chrome-agent-browser.md#14-delegation-networks-t26)).
 
 ## 15. Why Meeting Agenda was the first package
 

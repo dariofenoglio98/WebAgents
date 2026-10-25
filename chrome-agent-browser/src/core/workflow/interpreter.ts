@@ -25,6 +25,7 @@ import { CancelToken, withDeadline, yieldPoint } from "./cancel.js";
 import { BudgetError, CancelledError, failedCheck, failureCode, PolicyError, TimeoutError, WorkflowError } from "./errors.js";
 import { computeHostLimits, Context, digest, prepareCompute, Runtime, type ConsentRecord, type RuntimeOptions } from "./runtime.js";
 import { ConsentError } from "../conversation/errors.js";
+import { deferredFailure, runNetwork } from "../network/runner.js";
 import { evaluate, pyEqual, type Environment } from "./values.js";
 
 export const PROFILE = "workflow.v0";
@@ -38,6 +39,13 @@ export interface WorkflowOptions extends RuntimeOptions {
    * a re-ask or a retry tell that the run would end before it could (D-151, D-152).
    */
   deadlineAt?: number;
+  /**
+   * The host's deadline for the whole run in seconds, when it is lower than the graph's (the
+   * runner's `effectiveDeadlineSeconds`, the same figure its watchdog enforces and `deadlineAt`
+   * names). What the run computes from the deadline, network.v0's "at most" in seconds, is then the
+   * host's figure, so the host's record and the run's audit agree (R-21).
+   */
+  deadlineSeconds?: number;
 }
 
 export interface ExecutionReport {
@@ -78,13 +86,16 @@ export class Workflow {
   private persisted: JsonObject | null = null;
   /** Bundled model schemas by path: the package is immutable for the run, so one bundle per schema (review 1, nit 13). */
   private readonly modelSchemas = new Map<string, JsonValue>();
+  /** The deadline the run is held to: the graph's, or the host's where it is lower. */
+  readonly deadlineSeconds: number;
 
   private constructor(pkg: Package, schemas: PackageSchemas, options: WorkflowOptions) {
     this.package = pkg;
     this.graph = pkg.graph;
     this.schemas = schemas;
-    const { deadlineAt, ...runtimeOptions } = options;
+    const { deadlineAt, deadlineSeconds, ...runtimeOptions } = options;
     this.root = new CancelToken(null, deadlineAt ?? Number.POSITIVE_INFINITY);
+    this.deadlineSeconds = Math.min(pkg.graph.deadline_seconds as number, deadlineSeconds ?? Number.POSITIVE_INFINITY);
     // conversation.v0 (§4): a conversational graph runs turn by turn, each turn given its
     // conversation's context; a plain run of it has no persisted state to start from.
     const conversation = pkg.graph.conversation;
@@ -140,7 +151,8 @@ export class Workflow {
     this.runtime.record(action, { context: ctx, node_id: nodeId, node_type: node.type!, profile: PROFILE, ...metadata });
   }
 
-  private async validate(path: string, instance: JsonValue, label: string): Promise<void> {
+  /** Validate against a declared package schema (the network loop's message and state checks use it too). */
+  async validate(path: string, instance: JsonValue, label: string): Promise<void> {
     await this.schemas.validateInstance(path, instance, label);
   }
 
@@ -208,6 +220,12 @@ export class Workflow {
         if (error instanceof ConsentError) throw new WorkflowError("worker_error", String(node.id), { cause: error });
         throw error;
       }
+    } else if (kind === "network") {
+      // network.v0: the graph's delegation network, run by the coordinator's one node: activations
+      // as worker instances, the model's route decisions checked against the declared edges and
+      // caps, the worst case reserved before the first activation. A failure inside propagates as a
+      // map step's does; the output schema is checked below.
+      result = await runNetwork(this, node, value, ctx, token);
     } else if (kind === "join") {
       if (!Array.isArray(value)) throw new ValidationError(`node ${node.id}: join input must be an array`);
       const joined: JsonValue[] = [];
@@ -322,7 +340,8 @@ export class Workflow {
     return bundled;
   }
 
-  private async step(node: Node, env: Environment, ctx: Context, token: CancelToken): Promise<JsonValue> {
+  /** One map step, or one step of a network role's program (network.v0), in the worker's context. */
+  async step(node: Node, env: Environment, ctx: Context, token: CancelToken): Promise<JsonValue> {
     this.event("node.started", node, ctx);
     ctx.operation_id = `${ctx.node_id}/${node.id}`;
     try {
@@ -433,9 +452,17 @@ export class Workflow {
       this.event("node.completed", node, null, { output_hash: digest(result), state_keys: Object.keys(patch).sort() });
       return [result, patch];
     } catch (error) {
-      this.event("node.failed", node, null, { error_code: failureCode(error), ...failedCheck(error) });
+      const code = failureCode(error);
+      const deferred = deferredFailure(error);
+      if (deferred !== null) {
+        // A loop inside the node (network.v0) that was cancelled from outside could not name the
+        // cause; the node can, once the cancellation has passed its own timeout, and records the
+        // loop's failure with its own code before its own.
+        this.runtime.record(deferred.action, { context: this.runtime.coordinatorContext(), error_code: code, ...deferred.facts });
+      }
+      this.event("node.failed", node, null, { error_code: code, ...failedCheck(error) });
       if (error instanceof CancelledError) throw error;
-      throw new WorkflowError(failureCode(error), String(node.id), { cause: error });
+      throw new WorkflowError(code, String(node.id), { cause: error });
     }
   }
 

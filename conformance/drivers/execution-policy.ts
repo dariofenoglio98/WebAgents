@@ -20,7 +20,9 @@ async function main(): Promise<void> {
     if (pkg.graph.conversation !== undefined && pkg.graph.conversation !== null) checkCapabilities(pkg, normalizeHostLimits(null), { fixture: true });
     // compute.v0 (T22): the layer's compute preflight under the default host ceilings, as the Python driver asks it.
     const compute = checkCompute(pkg, normalizeHostLimits(null), true);
-    outcome = { outcome: "accepted", grants: accepted, ...(compute !== null ? { compute } : {}) };
+    // network.v0 (T26): the capability check of a delegation package, its tools bound by the fixture, under the default host limits, as the Python driver asks it.
+    const network = pkg.graph.network !== undefined && pkg.graph.network !== null ? checkCapabilities(pkg, normalizeHostLimits(null), { fixture: true }).network : null;
+    outcome = { outcome: "accepted", grants: accepted, ...(compute !== null ? { compute } : {}), ...(network ? { network } : {}) };
   } catch (error) {
     if (!(error instanceof ExecutionError)) throw error;
     outcome = { outcome: "refused", code: error.code, message: error.message };

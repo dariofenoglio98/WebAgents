@@ -71,6 +71,9 @@ async def run_network(workflow, node, message, ctx):
     walk = Walk()
     current = network["entry"]
     walk.activations[current] = 1
+    # The shared state after the current activation's patch, once validated; the loop commits it,
+    # so the activation returns only what crosses its boundary (the patch and the decision).
+    pending = {}
 
     def patched(role_id, patch):
         """The shared state after a role's patch (R-9): only keys of its `state_write`, and the
@@ -79,7 +82,7 @@ async def run_network(workflow, node, message, ctx):
         if set(patch) - set(rt.roles[role_id]["state_write"]):
             raise PolicyError(f"role {role_id} state write exceeds its state_write view")
         next_state = copy.deepcopy(state)
-        next_state.update(patch)
+        next_state.update(copy.deepcopy(patch))
         try:
             validate_instance(
                 files, network["state_schema"], next_state, f"node {node_id} network state"
@@ -87,7 +90,7 @@ async def run_network(workflow, node, message, ctx):
         except ValidationError as exc:
             exc.failed_check = {"check": "network_state", "schema": network["state_schema"]}
             raise
-        return next_state
+        pending["state"] = next_state
 
     try:
         while True:
@@ -105,6 +108,7 @@ async def run_network(workflow, node, message, ctx):
                 activation=walk.activations[current],
                 message_hash=digest(message),
             )
+            pending.clear()
             outcome = await rt.run_worker(
                 current,
                 view,
@@ -114,7 +118,7 @@ async def run_network(workflow, node, message, ctx):
             )
             patch = outcome["patch"]
             decision = outcome["decision"]
-            state = outcome["state"]
+            state = pending.pop("state")
             rt.record(
                 "network.state.committed",
                 context=ctx,
@@ -161,7 +165,7 @@ def _activation(workflow, node_id, network, role_id, role, message, walk, patche
     """One activation (R-15): the role's steps in order over its view, the message and its
     earlier steps; then the patch it writes, validated over the shared state before anything
     is routed; then its route. All inside the role's timeout, in the worker instance the
-    runtime gave it."""
+    runtime gave it. It returns the patch and the decision; the loop keeps the next state."""
 
     async def work(ctx, view):
         ctx.node_id = f"{node_id}/{role_id}"
@@ -171,9 +175,9 @@ def _activation(workflow, node_id, network, role_id, role, message, walk, patche
                 await asyncio.sleep(0)
                 local["steps"][step["id"]] = await workflow._step(step, local, ctx)
             patch = {tokens(p)[0]: evaluate(v, local) for p, v in role["writes"].items()}
-            state = patched(role_id, patch)
+            patched(role_id, patch)
             decision = await _route(workflow, node_id, network, role_id, role, local, walk, ctx)
-        return {"patch": patch, "state": state, "decision": decision}
+        return {"patch": patch, "decision": decision}
 
     return work
 

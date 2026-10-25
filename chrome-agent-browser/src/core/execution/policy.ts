@@ -36,7 +36,8 @@ import {
   TOOL_PERMISSION_DENIED,
   TOOLS_NOT_SUPPORTED,
 } from "./errors.js";
-import { computeLimitsOf, type HostExecutionLimits } from "./limits.js";
+import { activationBound, activationCosts, networkNodes, networkOf, roleSteps, routeCalls, worstCase } from "../network/analysis.js";
+import { computeLimitsOf, effectiveBudget, effectiveDeadlineSeconds, type HostExecutionLimits } from "./limits.js";
 
 const ONCE = "once";
 const ALWAYS = "always";
@@ -47,12 +48,17 @@ const GRANT_FIELDS = ["permission_id", "resource_type", "resource_id", "resource
 const pyList = (items: readonly string[]): string => `[${items.map((item) => `'${item}'`).join(", ")}]`;
 const sorted = (items: Iterable<string>): string[] => [...items].sort();
 
-/** Every top-level node and every map step, with a qualified identity. */
+/**
+ * Every top-level node, every map step and, for a network (network.v0), every role step and every
+ * chosen route (as the one model call it is), with a qualified identity.
+ */
 function* operations(graph: JsonObject): Generator<[string, JsonObject]> {
   for (const node of graph.nodes as JsonObject[]) {
     yield [String(node.id), node];
     if (node.type === "map") for (const step of node.steps as JsonObject[]) yield [`${node.id}/${step.id}`, step];
   }
+  yield* roleSteps(graph);
+  for (const [name, route] of routeCalls(graph)) yield [name, { type: "llm", task: route.task!, max_output_tokens: route.max_output_tokens! }];
 }
 
 function permissionsOf(pkg: Package): Record<string, JsonObject> {
@@ -135,6 +141,7 @@ export function checkCapabilities(pkg: Package, limits: HostExecutionLimits, opt
     }
   }
   const compute = checkCompute(pkg, limits, options.computeAvailable === true);
+  const network = checkNetwork(pkg, limits);
   return {
     tools_declared: declaredTools.length,
     tool_nodes: toolNodes.length,
@@ -144,7 +151,30 @@ export function checkCapabilities(pkg: Package, limits: HostExecutionLimits, opt
     max_requested_output_tokens: caps.reduce((max, cap) => Math.max(max, cap.max_output_tokens as number), 0),
     host_max_output_tokens_per_call: limits.max_output_tokens_per_call,
     ...(compute !== null ? { compute } : {}),
+    ...(network !== null ? { network } : {}),
   };
+}
+
+/**
+ * network.v0 (R-24, `execution/policy.py::check_network`): the network's worst case under this
+ * host's effective budget, recorded with the run so that "at most" is on the record before the
+ * first activation; the runtime reserves it again when the node starts (R-17). A package without a
+ * network returns null and its run record is unchanged.
+ */
+export function checkNetwork(pkg: Package, limits: HostExecutionLimits): JsonObject | null {
+  const graph = pkg.graph;
+  const network = networkOf(graph);
+  if (network === null) return null;
+  const node = networkNodes(graph)[0]!;
+  const bound = worstCase(graph, pkg.policy, { budget: effectiveBudget(pkg, limits).effective as JsonObject, nodeTimeout: Math.min(node.timeout_seconds as number, effectiveDeadlineSeconds(pkg, limits)) });
+  const workers = new Map((graph.workers as JsonObject[]).map((worker) => [String(worker.id), worker]));
+  const roleBudgets: JsonObject = {};
+  for (const roleId of Object.keys(network.roles as JsonObject)) {
+    const budget = workers.get(roleId)!.budget as JsonObject;
+    // Each role's budget per activation (its worker's, enforced per instance) and its activation bound, so a run record can say what each role may spend (D-291).
+    roleBudgets[roleId] = { tokens: budget.tokens!, remote_calls: budget.remote_calls!, activation_bound: activationBound(network, roleId) };
+  }
+  return { node: String(node.id), entry: String(network.entry), roles: Object.keys(network.roles as JsonObject), role_budgets: roleBudgets, worst_case: bound };
 }
 
 /**
@@ -321,6 +351,20 @@ export function consumptionCounts(pkg: Package): Record<string, number> {
         if (step.type === "compute") counts.compute = (counts.compute ?? 0) + children;
       }
     } else if (node.worker !== coordinator) counts.memory! += 1;
+  }
+  const network = networkOf(graph);
+  if (network !== null) {
+    // network.v0: each activation of a role is a worker instance (the memory permission once per
+    // activation) that may make its program's calls; the bound on activations is the declaration's
+    // (R-20), so the count stays a bound.
+    for (const roleId of Object.keys(network.roles as JsonObject)) {
+      const activations = activationBound(network, roleId);
+      const costs = activationCosts(graph, roleId);
+      counts.memory! += activations;
+      counts.model! += activations * costs.model_calls;
+      for (const [toolId, perActivation] of Object.entries(costs.tool_calls)) toolUse(toolId, activations * perActivation);
+      if (costs.compute_calls > 0) counts.compute = (counts.compute ?? 0) + activations * costs.compute_calls;
+    }
   }
   return counts;
 }

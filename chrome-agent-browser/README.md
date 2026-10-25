@@ -292,6 +292,7 @@ node scripts/e2e-webair-live.mjs --model ollama/qwen3:30b   # the live acceptanc
 agentpkg/.venv/bin/python ../scripts/verify_chrome_webair_live.py   # recompute its checks over the exported runs
 node scripts/e2e-paper-reader.mjs      # a picked PDF read by a run in headless Chrome (no model call)
 node scripts/e2e-conversation.mjs      # a two-turn conversation with a consent card in headless Chrome (no network: a scripted Ollama, a local desk origin)
+node scripts/e2e-network.mjs           # the signed travel network (network.v0) in headless Chrome, fixture mode (a fake WebAir origin, a scripted Ollama)
 agentpkg/.venv/bin/python ../scripts/verify_chrome_conversation.py   # recompute its checks over the exported conversation
 node scripts/e2e-literature-live.mjs --model openai/gpt-5.6-luna   # Literature Review live: real Chrome, Crossref, the resolver
 agentpkg/.venv/bin/python ../scripts/verify_chrome_literature_live.py  # recompute its checks, grounding included

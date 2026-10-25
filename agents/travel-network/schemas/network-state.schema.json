@@ -2,9 +2,6 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "properties": {
-    "plan": {
-      "type": "string"
-    },
     "trip": {
       "anyOf": [
         {
@@ -60,6 +57,10 @@
           "depart": {
             "type": "string"
           },
+          "stops": {
+            "type": "integer",
+            "minimum": 0
+          },
           "price_usd": {
             "type": "integer",
             "minimum": 0
@@ -69,6 +70,7 @@
           "id",
           "carrier",
           "depart",
+          "stops",
           "price_usd"
         ],
         "additionalProperties": false
@@ -128,7 +130,6 @@
     }
   },
   "required": [
-    "plan",
     "trip",
     "flights",
     "hotels",

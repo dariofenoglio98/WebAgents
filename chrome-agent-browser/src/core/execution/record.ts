@@ -53,8 +53,21 @@ export interface RunRecord {
   origin: "live" | "fixture";
   /** conversation.v0 (D-270): the conversation this run is a turn of; absent or null for a one-shot run. */
   conversation?: { conversationId: string; turn: number } | null;
+  /**
+   * network.v0 (D-291): the delegation envelope the execution host recorded before the run (its "at
+   * most" under this host's effective limits) and each role's budget per activation and activation
+   * bound; what the run did is in `progress.network` and `usage.workers`. Absent for a run without a network.
+   */
+  network?: RunNetwork | null;
   /** memory.v0 §9 (T19): the proposals the run offered (counts and a hash, never a value) and the agent document's fate; null for a run without memory. */
   memory?: { proposals: { count: number; types: string[]; proposals_sha256: string; offered: number; reason: string | null } | null; refused: { code: string; reason: string | null; index: number | null } | null; agent: { committed: { package_id: string; bytes: number; body_sha256: string } | null; discarded: string | null } | null } | null;
+}
+
+export interface RunNetwork {
+  node: string;
+  entry: string;
+  atMost: { maxHops: number; maxActivations: number; activations: Record<string, number>; modelCalls: number; toolCalls: Record<string, number>; computeCalls: number; remoteCalls: number; tokens: number; seconds: number };
+  roles: Array<{ role: string; activationBound: number; tokensPerActivation: number; remoteCallsPerActivation: number }>;
 }
 
 const rec = (value: unknown): JsonObject => (typeof value === "object" && value !== null && !Array.isArray(value) ? (value as JsonObject) : {});
@@ -77,6 +90,24 @@ export interface RecordInputs {
   revalidated?: readonly string[];
   origin: "live" | "fixture";
   conversation?: { conversationId: string; turn: number } | null;
+}
+
+/** The network section of a record from the execution host's capability record (`checkNetwork`), bounded; null without one. */
+export function projectNetwork(value: unknown): RunNetwork | null {
+  const network = rec(value);
+  if (Object.keys(network).length === 0) return null;
+  const bound = rec(network.worst_case);
+  const named = (item: unknown): Record<string, number> => Object.fromEntries(Object.entries(rec(item)).slice(0, 64).map(([key, count]) => [clip(key, 128), int(count)]));
+  const budgets = rec(network.role_budgets);
+  return {
+    node: clip(str(network.node), 200),
+    entry: clip(str(network.entry), 128),
+    atMost: { maxHops: int(bound.max_hops), maxActivations: int(bound.max_activations), activations: named(bound.activations), modelCalls: int(bound.model_calls), toolCalls: named(bound.tool_calls), computeCalls: int(bound.compute_calls), remoteCalls: int(bound.remote_calls), tokens: int(bound.tokens), seconds: int(bound.seconds) },
+    roles: strings(network.roles, 16).map((role) => {
+      const budget = rec(budgets[role]);
+      return { role: clip(role, 128), activationBound: int(budget.activation_bound), tokensPerActivation: int(budget.tokens), remoteCallsPerActivation: int(budget.remote_calls) };
+    }),
+  };
 }
 
 /** The record for a run that was bound and may have started: `preparing` until `complete` fills it. */
@@ -148,6 +179,8 @@ export function initialRunRecord(input: RecordInputs): RunRecord {
     failure: null,
     origin: input.origin,
     ...(input.conversation ? { conversation: input.conversation } : {}),
+    // network.v0: the envelope recorded before the run; only a delegation package's record carries it.
+    ...(rec(begin.capabilities).network !== undefined ? { network: projectNetwork(rec(begin.capabilities).network) } : {}),
   };
 }
 

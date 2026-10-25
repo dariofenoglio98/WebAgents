@@ -86,7 +86,9 @@ export async function withDeadline<T>(seconds: number, parent: CancelToken, fn: 
     if (timedOut) throw new TimeoutError("deadline elapsed");
     return value;
   } catch (error) {
-    if (timedOut) throw new TimeoutError("deadline elapsed");
+    // The cancellation the block saw is the cause: a loop inside (network.v0) leaves on it the
+    // failure event its node records once the cause is known.
+    if (timedOut) throw new TimeoutError("deadline elapsed", { cause: error });
     throw error;
   } finally {
     clearTimeout(timer);

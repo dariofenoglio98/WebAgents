@@ -198,6 +198,29 @@ is pending rather than failed; the Chrome core 0.4.0 (T24) runs them, and both r
 on all 42 since `conformance/results/` of 2026-10-21, and on the 9 WebAir 0.8.0 cases since
 [`results/2026-10-22T02-02-36-009Z/`](results/2026-10-22T02-02-36-009Z/report.md).
 
+**network.v0** (49 cases, T26; [`spec/network-v0.md`](../spec/network-v0.md) §7): the signed test
+package `org.webagents.network-test` 0.1.0 on its fixture walk, the shipped travel network
+`org.webagents.travel-network` 0.1.0 (`dist/`, its development key) on its full tour, and every case
+of [`examples/network/cases/cases.json`](../examples/network/cases/cases.json). Each case is agentpkg's
+own probe ([`agentpkg/tests/network_probe.py`](../agentpkg/tests/network_probe.py)) with one change,
+written by [`drivers/network_probe.py`](drivers/network_probe.py) exactly as `test_network_cases.py`
+builds it (its fixture generated from the mutated network with the reference's route data), and
+signed with the run's throwaway key. Expected in both:
+
+| Case | Expected |
+|---|---|
+| the four controls and the two shipped walks | fixture parity: the same files, exports, usage and audit (every `network.*` and `route.decided` event with its facts) |
+| N-1…N-27, N-43 (validation) | `run` refuses at validation with the spec's code, identical message |
+| N-28, N-29 (the once rule) | a recorded difference of the CLIs (D-091): `agentpkg run` refuses at the first use (`permission_denied` at `delegate`), the Chrome CLI before the run; both execution layers refuse `execution_grant_unsupported` with an identical message |
+| N-30 (a route's output cap) | the two execution layers refuse `execution_output_cap_too_large` with identical answers (`agentpkg run` applies no host ceiling) |
+| N-31…N-39, N-44, N-45 (run) | the run fails with the code at `delegate` in both (exit 2), identical artifacts and audits |
+
+One more case compares the envelope both execution layers record for the network-test package under
+the default host limits (`network/execution-layer-envelope`: the whole capability record, the
+`worst_case` and `role_budgets` included). Every network case carries `requires: 0.7.0`; both
+runtimes agree on all 49 since [`results/2026-10-25T02-53-07-223Z/`](results/2026-10-25T02-53-07-223Z/report.md)
+(224/224 cases in all).
+
 ## Recorded differences
 
 Each is checked against what its decision says each runtime does, so the case fails if either

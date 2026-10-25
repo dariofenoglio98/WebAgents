@@ -25,6 +25,8 @@ PACKAGES = {
     "summary-webair-0.3.0.json": "dist/webair-0.3.0.agent.pkg",
     "summary-literature-review-0.2.5.json": "dist/literature-review-0.2.5.agent.pkg",
     "summary-meeting-agenda-0.2.2.json": "dist/meeting-agenda-0.2.2.agent.pkg",
+    # network.v0 (T26): `workflow.network` and the `delegation_network` sentence.
+    "summary-network-test-0.1.0.json": "examples/network/network-test.agent.pkg",
 }
 
 
