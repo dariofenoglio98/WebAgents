@@ -35,7 +35,7 @@ function randomGraph(seed: number): { graph: JsonObject; policy: JsonObject } {
   const roles: Record<string, JsonObject> = {};
   const workers: JsonObject[] = [{ id: "Coordinator", budget: { tokens: 0, remote_calls: 0 } }];
   for (const id of ids) {
-    const steps = Array.from({ length: pick(3) }, (_, index) => {
+    const steps = Array.from({ length: pick(3) }, (_, index): JsonObject => {
       const kind = ["llm", "tool", "compute"][pick(3)]!;
       return kind === "tool" ? { id: `s${index}`, type: "tool", tool: tools[pick(2)]! } : { id: `s${index}`, type: kind };
     });

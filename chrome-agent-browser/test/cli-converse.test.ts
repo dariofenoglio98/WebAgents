@@ -88,6 +88,20 @@ describe("converse", () => {
     expect(existsSync(out)).toBe(false);
   });
 
+  it("checks --out before the conversation's limits, in the reference's order (T24 review 4 nit 2)", () => {
+    const limits = join(scratch, "out-first-limits.json");
+    writeFileSync(limits, JSON.stringify({ conversation_max_turns: -1 }));
+    const existing = join(scratch, "out-first-existing");
+    writeFileSync(existing, "");
+    const argv = [...base(), "--limits", limits, "--out", existing];
+    const node = cli.run(argv);
+    const python = spawnSync(PYTHON_CLI, argv, { cwd: ROOT, encoding: "utf8" });
+    expect(node.status).toBe(2);
+    expect(python.status).toBe(2);
+    expect(node.stderr.trim().replace(/^agent-browser: /u, "")).toBe(python.stderr.trim().replace(/^agentpkg: /u, ""));
+    expect(node.stderr).toContain("--out");
+  });
+
   it("in live mode a conversation limit is refused before binding contacts a model provider (T24 review 3 nit 3)", () => {
     const transcript = join(scratch, "live-limit.json");
     writeFileSync(transcript, JSON.stringify({ schema: "conversation.transcript.v0", turns: [{ message: { text: "hello" } }] }));

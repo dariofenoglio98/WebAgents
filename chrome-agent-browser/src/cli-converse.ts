@@ -83,6 +83,10 @@ export async function converseCommand(args: string[]): Promise<number> {
     throw new AgentPkgError("The conversation's adapters are bound before its first turn");
   };
   const engine = nodeComputeEngine();
+  // The output directory is checked before the conversation checks the host's inputs, as `agentpkg
+  // converse` checks `--out` first (T24 review 4 nit 2); it is created only once the conversation
+  // refused nothing about them (D-265): a refused grant or limit leaves no --out behind.
+  const out = prepareOutput(parsed.value("--out")!);
   // The conversation checks the host's inputs (grants, approvals, then the turn's and the
   // conversation's limits, in the reference's order) when it is built, before binding contacts a
   // model provider, as `agentpkg converse` refuses before any network (T24 review 3 nit 3). Its
@@ -115,9 +119,6 @@ export async function converseCommand(args: string[]): Promise<number> {
       return { router: live.deps.router ?? null, handlers };
     };
   }
-  // The output directory is checked before anything runs and created only once the conversation
-  // refused nothing about its host inputs (D-265): a refused grant or limit leaves no --out behind.
-  const out = prepareOutput(parsed.value("--out")!);
   mkdirSync(out, { mode: 0o700 });
   const onSignal = () => {
     process.stderr.write("agent-browser: cancelling the conversation\n");

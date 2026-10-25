@@ -29,7 +29,7 @@ const events = (audit: readonly AuditEvent[], action: string): JsonObject[] => a
 
 /** The fixture's answers, except that a route offered a target with no uses left first names it (once), as a model that overshoots a cap would. */
 class OvershootingRouter extends FixtureRouter {
-  override readonly nonconformingRetries = 2;
+  readonly nonconformingRetries = 2;
   readonly requests: ModelRequest[] = [];
   private overshot = false;
 
