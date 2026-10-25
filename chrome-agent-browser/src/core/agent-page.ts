@@ -300,7 +300,9 @@ export function delegationView(network: NetworkRecords | null | undefined): Dele
     sentence: networkSentence(network),
     entry: network.entry,
     at_most: { handoffs: bound.max_hops, activations: bound.max_activations, model_calls: bound.model_calls, tool_calls: { ...bound.tool_calls }, remote_calls: bound.remote_calls, tokens: bound.tokens, seconds: bound.seconds },
-    roles: network.roles.map((role) => ({
+    // The entry first, then the others in their declared order (a signed archive's canonical JSON
+    // lists a roles map lexicographically).
+    roles: [...network.roles.filter((role) => role.id === network.entry), ...network.roles.filter((role) => role.id !== network.entry)].map((role) => ({
       id: role.id,
       description: role.description,
       chosen_by: role.route.kind === "chosen" ? "model" : "package",

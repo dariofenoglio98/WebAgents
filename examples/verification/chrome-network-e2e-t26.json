@@ -1,0 +1,1171 @@
+{
+  "profile": "chrome-network-e2e-v0",
+  "recordedAt": "2026-10-25T02:37:36.464Z",
+  "chrome": "Chrome/155.0.8059.86",
+  "model": {
+    "id": "ollama/travel-fixture",
+    "provider_id": "ollama",
+    "model_id": "travel-fixture",
+    "display_name": "travel-fixture",
+    "available": true,
+    "availability_reason": null,
+    "selectable": true,
+    "capabilities": {
+      "structured_output": {
+        "value": true,
+        "basis": "derived",
+        "detail": "The adapter requests a constrained response and validates every answer against the schema, failing closed. This is the adapter's guarantee, not a provider declaration."
+      },
+      "reasoning": {
+        "value": false,
+        "basis": "declared",
+        "detail": "Ollama /api/show capabilities: completion."
+      },
+      "tool_use": {
+        "value": false,
+        "basis": "declared",
+        "detail": "Ollama /api/show capabilities: completion."
+      }
+    },
+    "limits": {
+      "context_tokens": 32768,
+      "native_context_window": 32768,
+      "max_output_tokens": null
+    },
+    "properties": {
+      "local": true,
+      "privacy_class": "local",
+      "cost_class": "free",
+      "status": null,
+      "tags": [
+        "local"
+      ]
+    }
+  },
+  "outputDirectory": "examples/my-chrome-network-2026-10-25T02-37-36-464Z",
+  "exportDirectory": "examples/my-chrome-network-2026-10-25T02-37-36-464Z/export",
+  "referenceDirectory": "examples/my-chrome-network-2026-10-25T02-37-36-464Z/reference",
+  "package": {
+    "package_id": "org.webagents.travel-network",
+    "version": "0.1.0",
+    "digest": "b7ef730bd9b3c5d94d10f20c0829f9a8cdb16a1c4ecde264f851fc5238672312",
+    "archiveSha256": "4acd67cf414f52542a855bc399e1dbc8912307c608236b866c3ce317ecf7b9ca",
+    "bytes": 31557,
+    "signer": "sha256:27c903afe0b78ae7e27736bfbddafd6f8b6a58b3c26f0bce9507f70aeff762ef"
+  },
+  "fakes": {
+    "ollama": "http://127.0.0.1:55005",
+    "origin": "https://webagents-webair-production.up.railway.app -> 127.0.0.1:55006"
+  },
+  "page": {
+    "delegation": {
+      "sentence": "The package delegates between 4 roles (Calendar, Flights, FrontMan, Hotel), the next role chosen by the model after FrontMan and fixed by the package after Calendar, Flights and Hotel, within a declared envelope: at most 6 handoffs; Calendar at most 1 time, Flights at most 1 time, FrontMan at most 4 times, Hotel at most 1 time; at most 8 model calls, 3 tool calls (check-calendar 1, search-flights 1, search-hotels 1), 19 remote calls and 48000 tokens in all; each role sees only its declared part of the shared state, and every handoff is recorded with the reason it was allowed.",
+      "entry": "FrontMan",
+      "at_most": {
+        "handoffs": 6,
+        "activations": 7,
+        "model_calls": 8,
+        "tool_calls": {
+          "check-calendar": 1,
+          "search-flights": 1,
+          "search-hotels": 1
+        },
+        "remote_calls": 19,
+        "tokens": 48000,
+        "seconds": 800
+      },
+      "roles": [
+        {
+          "id": "FrontMan",
+          "description": "Understands the traveller's request, keeps the trip facts, and decides which specialist to consult next or ends with the plan.",
+          "chosen_by": "model",
+          "next": null,
+          "at_most": 4,
+          "edges": [
+            {
+              "to": "Flights",
+              "max_uses": 1
+            },
+            {
+              "to": "Hotel",
+              "max_uses": 1
+            },
+            {
+              "to": "Calendar",
+              "max_uses": 1
+            }
+          ],
+          "may_end": true,
+          "tools": [],
+          "model_calls_per_activation": 2,
+          "tokens_per_activation": 12000,
+          "remote_calls_per_activation": 4
+        },
+        {
+          "id": "Calendar",
+          "description": "Lists the traveller's calendar entries over the trip's dates (fictional data).",
+          "chosen_by": "package",
+          "next": "FrontMan",
+          "at_most": 1,
+          "edges": [
+            {
+              "to": "FrontMan",
+              "max_uses": 1
+            }
+          ],
+          "may_end": false,
+          "tools": [
+            "check-calendar"
+          ],
+          "model_calls_per_activation": 0,
+          "tokens_per_activation": 0,
+          "remote_calls_per_activation": 1
+        },
+        {
+          "id": "Flights",
+          "description": "Searches WebAir's flights for the trip in the shared state (fictional airline data).",
+          "chosen_by": "package",
+          "next": "FrontMan",
+          "at_most": 1,
+          "edges": [
+            {
+              "to": "FrontMan",
+              "max_uses": 1
+            }
+          ],
+          "may_end": false,
+          "tools": [
+            "search-flights"
+          ],
+          "model_calls_per_activation": 0,
+          "tokens_per_activation": 0,
+          "remote_calls_per_activation": 1
+        },
+        {
+          "id": "Hotel",
+          "description": "Searches hotels at the destination for the trip's nights (fictional data).",
+          "chosen_by": "package",
+          "next": "FrontMan",
+          "at_most": 1,
+          "edges": [
+            {
+              "to": "FrontMan",
+              "max_uses": 1
+            }
+          ],
+          "may_end": false,
+          "tools": [
+            "search-hotels"
+          ],
+          "model_calls_per_activation": 0,
+          "tokens_per_activation": 0,
+          "remote_calls_per_activation": 1
+        }
+      ]
+    },
+    "warning": "The package delegates between 4 roles (Calendar, Flights, FrontMan, Hotel), the next role chosen by the model after FrontMan and fixed by the package after Calendar, Flights and Hotel, within a declared envelope: at most 6 handoffs; Calendar at most 1 time, Flights at most 1 time, FrontMan at most 4 times, Hotel at most 1 time; at most 8 model calls, 3 tool calls (check-calendar 1, search-flights 1, search-hotels 1), 19 remote calls and 48000 tokens in all; each role sees only its declared part of the shared state, and every handoff is recorded with the reason it was allowed."
+  },
+  "plan": {
+    "run_plan_id": "rp_28ab8e8f73fc427a800fabb4a43ea6fa",
+    "run_plan_sha256": "004ddbe6ad4112b9ef6861e7e7eccc7fcae3f6c7aabef7a2cddcd4a1fe11b9c9",
+    "network": {
+      "node": "plan-trip",
+      "entry": "FrontMan",
+      "roles": [
+        "Calendar",
+        "Flights",
+        "FrontMan",
+        "Hotel"
+      ],
+      "worst_case": {
+        "max_hops": 6,
+        "max_activations": 7,
+        "activations": {
+          "Calendar": 1,
+          "Flights": 1,
+          "FrontMan": 4,
+          "Hotel": 1
+        },
+        "model_calls": 8,
+        "tool_calls": {
+          "check-calendar": 1,
+          "search-flights": 1,
+          "search-hotels": 1
+        },
+        "compute_calls": 0,
+        "remote_calls": 19,
+        "tokens": 48000,
+        "seconds": 800,
+        "relaxation": {
+          "model_calls": 8,
+          "compute_calls": 0,
+          "remote_calls": 19,
+          "tokens": 48000,
+          "seconds": 890,
+          "tool_calls": {
+            "check-calendar": 1,
+            "search-flights": 1,
+            "search-hotels": 1
+          }
+        },
+        "caps": {
+          "hard_tokens": 48000,
+          "max_remote_calls": 20,
+          "max_calls_per_tool": {
+            "check-calendar": 1,
+            "search-flights": 1,
+            "search-hotels": 1
+          },
+          "timeout_seconds": 800,
+          "deadline_seconds": 900
+        }
+      }
+    }
+  },
+  "run": {
+    "runId": "run_e39106ed3416454aa25756312535c31b",
+    "status": "completed",
+    "errorCode": null,
+    "network": {
+      "node": "plan-trip",
+      "entry": "FrontMan",
+      "atMost": {
+        "maxHops": 6,
+        "maxActivations": 7,
+        "activations": {
+          "Calendar": 1,
+          "Flights": 1,
+          "FrontMan": 4,
+          "Hotel": 1
+        },
+        "modelCalls": 8,
+        "toolCalls": {
+          "check-calendar": 1,
+          "search-flights": 1,
+          "search-hotels": 1
+        },
+        "computeCalls": 0,
+        "remoteCalls": 19,
+        "tokens": 48000,
+        "seconds": 600
+      },
+      "roles": [
+        {
+          "role": "Calendar",
+          "activationBound": 1,
+          "tokensPerActivation": 0,
+          "remoteCallsPerActivation": 1
+        },
+        {
+          "role": "Flights",
+          "activationBound": 1,
+          "tokensPerActivation": 0,
+          "remoteCallsPerActivation": 1
+        },
+        {
+          "role": "FrontMan",
+          "activationBound": 4,
+          "tokensPerActivation": 12000,
+          "remoteCallsPerActivation": 4
+        },
+        {
+          "role": "Hotel",
+          "activationBound": 1,
+          "tokensPerActivation": 0,
+          "remoteCallsPerActivation": 1
+        }
+      ]
+    },
+    "progress": {
+      "node": "plan-trip",
+      "state": "completed",
+      "entry": "FrontMan",
+      "bound": {
+        "max_hops": 6,
+        "activations": {
+          "Calendar": 1,
+          "Flights": 1,
+          "FrontMan": 4,
+          "Hotel": 1
+        },
+        "model_calls": 8,
+        "tool_calls": {
+          "check-calendar": 1,
+          "search-flights": 1,
+          "search-hotels": 1
+        },
+        "remote_calls": 19,
+        "tokens": 48000,
+        "seconds": 600
+      },
+      "current": null,
+      "hops": 6,
+      "activations": {
+        "FrontMan": 4,
+        "Flights": 1,
+        "Hotel": 1,
+        "Calendar": 1
+      },
+      "decisions": [
+        {
+          "hop": 0,
+          "role": "FrontMan",
+          "activation": 1,
+          "chosen_by": "model",
+          "next": "Flights",
+          "allowed": true,
+          "reason": null
+        },
+        {
+          "hop": 1,
+          "role": "Flights",
+          "activation": 1,
+          "chosen_by": "package",
+          "next": "FrontMan",
+          "allowed": true,
+          "reason": null
+        },
+        {
+          "hop": 2,
+          "role": "FrontMan",
+          "activation": 2,
+          "chosen_by": "model",
+          "next": "Hotel",
+          "allowed": true,
+          "reason": null
+        },
+        {
+          "hop": 3,
+          "role": "Hotel",
+          "activation": 1,
+          "chosen_by": "package",
+          "next": "FrontMan",
+          "allowed": true,
+          "reason": null
+        },
+        {
+          "hop": 4,
+          "role": "FrontMan",
+          "activation": 3,
+          "chosen_by": "model",
+          "next": "Calendar",
+          "allowed": true,
+          "reason": null
+        },
+        {
+          "hop": 5,
+          "role": "Calendar",
+          "activation": 1,
+          "chosen_by": "package",
+          "next": "FrontMan",
+          "allowed": true,
+          "reason": null
+        },
+        {
+          "hop": 6,
+          "role": "FrontMan",
+          "activation": 4,
+          "chosen_by": "model",
+          "next": "done",
+          "allowed": true,
+          "reason": null
+        }
+      ],
+      "error_code": null,
+      "refused_reason": null
+    },
+    "usage": {
+      "tokens": 3650,
+      "remoteCalls": 3,
+      "peakParallelWorkers": 1,
+      "toolCalls": 3,
+      "limits": {
+        "hardTokens": 48000,
+        "maxRemoteCalls": 20,
+        "maxParallelWorkers": 2
+      },
+      "workers": [
+        {
+          "worker": "coordinator",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "FrontMan:1",
+          "tokens": 913,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "Flights:2",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "FrontMan:3",
+          "tokens": 899,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "Hotel:4",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "FrontMan:5",
+          "tokens": 899,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "Calendar:6",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "FrontMan:7",
+          "tokens": 939,
+          "remoteCalls": 0
+        }
+      ]
+    },
+    "audit": {
+      "events": 163,
+      "chainValid": true,
+      "modelCalls": 8,
+      "toolCalls": 3
+    }
+  },
+  "requests": {
+    "model": [
+      {
+        "at": "2026-10-25T02:37:42.196Z",
+        "task": "understand",
+        "bytes": 3406,
+        "matched": true,
+        "next": null,
+        "offered": null,
+        "hops_left": null
+      },
+      {
+        "at": "2026-10-25T02:37:42.199Z",
+        "task": "route",
+        "bytes": 2944,
+        "matched": true,
+        "next": "Flights",
+        "offered": [
+          "Flights:1",
+          "Hotel:1",
+          "Calendar:1"
+        ],
+        "hops_left": 6
+      },
+      {
+        "at": "2026-10-25T02:37:42.206Z",
+        "task": "understand",
+        "bytes": 3791,
+        "matched": true,
+        "next": null,
+        "offered": null,
+        "hops_left": null
+      },
+      {
+        "at": "2026-10-25T02:37:42.208Z",
+        "task": "route",
+        "bytes": 3255,
+        "matched": true,
+        "next": "Hotel",
+        "offered": [
+          "Flights:0",
+          "Hotel:1",
+          "Calendar:1"
+        ],
+        "hops_left": 4
+      },
+      {
+        "at": "2026-10-25T02:37:42.213Z",
+        "task": "understand",
+        "bytes": 3969,
+        "matched": true,
+        "next": null,
+        "offered": null,
+        "hops_left": null
+      },
+      {
+        "at": "2026-10-25T02:37:42.215Z",
+        "task": "route",
+        "bytes": 3433,
+        "matched": true,
+        "next": "Calendar",
+        "offered": [
+          "Flights:0",
+          "Hotel:0",
+          "Calendar:1"
+        ],
+        "hops_left": 2
+      },
+      {
+        "at": "2026-10-25T02:37:42.219Z",
+        "task": "understand",
+        "bytes": 4032,
+        "matched": true,
+        "next": null,
+        "offered": null,
+        "hops_left": null
+      },
+      {
+        "at": "2026-10-25T02:37:42.222Z",
+        "task": "route",
+        "bytes": 3502,
+        "matched": true,
+        "next": "done",
+        "offered": [
+          "Flights:0",
+          "Hotel:0",
+          "Calendar:0"
+        ],
+        "hops_left": 0
+      }
+    ],
+    "origin": [
+      {
+        "at": "2026-10-25T02:37:42.203Z",
+        "method": "POST",
+        "path": "/api/v1/travel/flights",
+        "tool": "search-flights"
+      },
+      {
+        "at": "2026-10-25T02:37:42.210Z",
+        "method": "POST",
+        "path": "/api/v1/travel/hotels",
+        "tool": "search-hotels"
+      },
+      {
+        "at": "2026-10-25T02:37:42.217Z",
+        "method": "POST",
+        "path": "/api/v1/travel/calendar",
+        "tool": "check-calendar"
+      }
+    ]
+  },
+  "observations": {
+    "recording": true,
+    "count": 11,
+    "kinds": [
+      "model:127.0.0.1:55005",
+      "tool:webagents-webair-production.up.railway.app"
+    ]
+  },
+  "checks": {
+    "the scripted Ollama is offered as a local model": "ok",
+    "the agent page states the envelope: at most 6 handoffs, FrontMan 4 times and each specialist once, 8 model calls, one call of each tool, 19 remote calls, 48,000 tokens": "ok",
+    "the agent page's sentence is the summary's delegation_network warning": "ok",
+    "the agent page renders 'How it delegates' with the roles": "ok",
+    "the plan records the network: node plan-trip, entry FrontMan, the four roles, the envelope": "ok",
+    "the run completes": "ok",
+    "the walk is the full tour: FrontMan 4 times, each specialist once, 6 handoffs, 7 decisions all allowed": "ok",
+    "the model chose every route of FrontMan, the package every return": "ok",
+    "the run record holds the envelope the execution host recorded, with each role's budget": "ok",
+    "every model request matched a fixture case: the runtime built exactly the route data the reference builds": "ok",
+    "the three travel services were called once each, in the walk's order": "ok",
+    "the run page shows the walk with the handoffs against the envelope": "ok",
+    "Technical details list the 7 route decisions and the usage by role": "ok",
+    "the export carries the run record, the result, the audit and the plan's exports": "ok",
+    "the privacy observer, recording, saw only the scripted Ollama and the WebAir origin": "ok"
+  },
+  "failures": [],
+  "passed": true,
+  "export": {
+    "entries": [
+      {
+        "name": "run.json",
+        "bytes": 14650,
+        "sha256": "8b881eca4781eb78dc9c1823e426746095ddeae163d4a768b5ddc7efdf60b162"
+      },
+      {
+        "name": "run-plan.json",
+        "bytes": 16315,
+        "sha256": "606e44772d4c1249353ddf3b7e2daf316be7b81258dad5ca727d3b48dde5a60a"
+      },
+      {
+        "name": "input.json",
+        "bytes": 128,
+        "sha256": "fba64dd4db1e18e2605a1d33bf6f35080c3d955e2d8c75498ae67b34c426d1cb"
+      },
+      {
+        "name": "audit.json",
+        "bytes": 105608,
+        "sha256": "7ceff6cbcb39943f0d1ecf0ceb31b4c618ba84dfcf0f347026a4c11a191876ae"
+      },
+      {
+        "name": "plan.json",
+        "bytes": 1201,
+        "sha256": "28ba5c871ae286d575e1bcf16f9b6ef75f63384ee874a55e4d116c94486188b1"
+      },
+      {
+        "name": "plan.txt",
+        "bytes": 208,
+        "sha256": "a2cfb2edb3adbf7c536b1c0d9107bcfb3ce2d6ce94971222c1dcfbb49eee62dc"
+      },
+      {
+        "name": "provenance.json",
+        "bytes": 248,
+        "sha256": "7f2e550e8f9d34c9abaf29ae933b18017db7406d092f163d7a633f037be00805"
+      },
+      {
+        "name": "result.json",
+        "bytes": 116456,
+        "sha256": "fc3ed99a00d64f6549437e257c20605157cd6d029365df4c20b250d83aa4fb3c"
+      },
+      {
+        "name": "usage.json",
+        "bytes": 1390,
+        "sha256": "12f889a0788c8979e49218f327a069e982c6841d5db8f8aa38d53c4c761e7d00"
+      }
+    ]
+  },
+  "network_verification": {
+    "package": {
+      "archive": "dist/travel-network-0.1.0.agent.pkg",
+      "digest": "b7ef730bd9b3c5d94d10f20c0829f9a8cdb16a1c4ecde264f851fc5238672312",
+      "archive_sha256": "4acd67cf414f52542a855bc399e1dbc8912307c608236b866c3ce317ecf7b9ca"
+    },
+    "status": "completed",
+    "at_most": {
+      "max_hops": 6,
+      "activations": {
+        "Calendar": 1,
+        "Flights": 1,
+        "FrontMan": 4,
+        "Hotel": 1
+      },
+      "model_calls": 8,
+      "tool_calls": {
+        "check-calendar": 1,
+        "search-flights": 1,
+        "search-hotels": 1
+      },
+      "compute_calls": 0,
+      "remote_calls": 19,
+      "tokens": 48000
+    },
+    "observed": {
+      "max_hops": 6,
+      "model_calls": 8,
+      "compute_calls": 0,
+      "remote_calls": 3,
+      "tokens": 3650,
+      "activations": {
+        "FrontMan": 4,
+        "Flights": 1,
+        "Hotel": 1,
+        "Calendar": 1
+      },
+      "tool_calls": {
+        "search-flights": 1,
+        "search-hotels": 1,
+        "check-calendar": 1
+      },
+      "model_reasks": 0
+    },
+    "tightness": {
+      "max_hops": 1.0,
+      "model_calls": 1.0,
+      "compute_calls": null,
+      "remote_calls": 0.158,
+      "tokens": 0.076
+    },
+    "walk": [
+      "FrontMan",
+      "Flights",
+      "FrontMan",
+      "Hotel",
+      "FrontMan",
+      "Calendar",
+      "FrontMan"
+    ],
+    "decisions": [
+      {
+        "hop": 0,
+        "role": "FrontMan",
+        "activation": 1,
+        "chosen_by": "model",
+        "next": "Flights",
+        "allowed": true,
+        "reason": null
+      },
+      {
+        "hop": 1,
+        "role": "Flights",
+        "activation": 1,
+        "chosen_by": "package",
+        "next": "FrontMan",
+        "allowed": true,
+        "reason": null
+      },
+      {
+        "hop": 2,
+        "role": "FrontMan",
+        "activation": 2,
+        "chosen_by": "model",
+        "next": "Hotel",
+        "allowed": true,
+        "reason": null
+      },
+      {
+        "hop": 3,
+        "role": "Hotel",
+        "activation": 1,
+        "chosen_by": "package",
+        "next": "FrontMan",
+        "allowed": true,
+        "reason": null
+      },
+      {
+        "hop": 4,
+        "role": "FrontMan",
+        "activation": 3,
+        "chosen_by": "model",
+        "next": "Calendar",
+        "allowed": true,
+        "reason": null
+      },
+      {
+        "hop": 5,
+        "role": "Calendar",
+        "activation": 1,
+        "chosen_by": "package",
+        "next": "FrontMan",
+        "allowed": true,
+        "reason": null
+      },
+      {
+        "hop": 6,
+        "role": "FrontMan",
+        "activation": 4,
+        "chosen_by": "model",
+        "next": "done",
+        "allowed": true,
+        "reason": null
+      }
+    ],
+    "per_role": {
+      "FrontMan": {
+        "tokens": 3650,
+        "remote_calls": 0,
+        "activations": 4
+      },
+      "Flights": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "activations": 1
+      },
+      "Hotel": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "activations": 1
+      },
+      "Calendar": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "activations": 1
+      }
+    },
+    "checks": [
+      {
+        "check": "the export holds run.json",
+        "passed": true
+      },
+      {
+        "check": "the export holds run-plan.json",
+        "passed": true
+      },
+      {
+        "check": "the export holds audit.json",
+        "passed": true
+      },
+      {
+        "check": "the export holds usage.json",
+        "passed": true
+      },
+      {
+        "check": "audit.json is one valid hash chain, the run record's",
+        "passed": true,
+        "detail": {
+          "chain": {
+            "events": 163,
+            "valid": true,
+            "broken": [],
+            "final_hash": "925ab7a005c7b25f586078d1a92468a6d348de546c5843e9caf38ca22018c8ca",
+            "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
+          },
+          "record": "925ab7a005c7b25f586078d1a92468a6d348de546c5843e9caf38ca22018c8ca"
+        }
+      },
+      {
+        "check": "the package is a known signed archive in dist/",
+        "passed": true,
+        "detail": "4acd67cf414f52542a855bc399e1dbc8912307c608236b866c3ce317ecf7b9ca"
+      },
+      {
+        "check": "the plan records the network's envelope (execution.network)",
+        "passed": true
+      },
+      {
+        "check": "the plan's envelope is the one agentpkg computes from the signed declaration",
+        "passed": true,
+        "detail": {
+          "plan": {
+            "max_hops": 6,
+            "max_activations": 7,
+            "activations": {
+              "Calendar": 1,
+              "Flights": 1,
+              "FrontMan": 4,
+              "Hotel": 1
+            },
+            "model_calls": 8,
+            "tool_calls": {
+              "check-calendar": 1,
+              "search-flights": 1,
+              "search-hotels": 1
+            },
+            "compute_calls": 0,
+            "remote_calls": 19,
+            "tokens": 48000,
+            "seconds": 800,
+            "relaxation": {
+              "model_calls": 8,
+              "compute_calls": 0,
+              "remote_calls": 19,
+              "tokens": 48000,
+              "seconds": 890,
+              "tool_calls": {
+                "check-calendar": 1,
+                "search-flights": 1,
+                "search-hotels": 1
+              }
+            },
+            "caps": {
+              "hard_tokens": 48000,
+              "max_remote_calls": 20,
+              "max_calls_per_tool": {
+                "check-calendar": 1,
+                "search-flights": 1,
+                "search-hotels": 1
+              },
+              "timeout_seconds": 800,
+              "deadline_seconds": 900
+            }
+          },
+          "agentpkg": {
+            "max_hops": 6,
+            "max_activations": 7,
+            "activations": {
+              "Calendar": 1,
+              "Flights": 1,
+              "FrontMan": 4,
+              "Hotel": 1
+            },
+            "model_calls": 8,
+            "tool_calls": {
+              "check-calendar": 1,
+              "search-flights": 1,
+              "search-hotels": 1
+            },
+            "compute_calls": 0,
+            "remote_calls": 19,
+            "tokens": 48000,
+            "seconds": 800,
+            "relaxation": {
+              "model_calls": 8,
+              "compute_calls": 0,
+              "remote_calls": 19,
+              "tokens": 48000,
+              "seconds": 890,
+              "tool_calls": {
+                "check-calendar": 1,
+                "search-flights": 1,
+                "search-hotels": 1
+              }
+            },
+            "caps": {
+              "hard_tokens": 48000,
+              "max_remote_calls": 20,
+              "max_calls_per_tool": {
+                "check-calendar": 1,
+                "search-flights": 1,
+                "search-hotels": 1
+              },
+              "timeout_seconds": 800,
+              "deadline_seconds": 900
+            }
+          }
+        }
+      },
+      {
+        "check": "the run reserved the envelope before the first activation (network.started), never above the plan's",
+        "passed": true,
+        "detail": {
+          "max_hops": 6,
+          "max_activations": 7,
+          "activations": {
+            "Calendar": 1,
+            "Flights": 1,
+            "FrontMan": 4,
+            "Hotel": 1
+          },
+          "model_calls": 8,
+          "tool_calls": {
+            "check-calendar": 1,
+            "search-flights": 1,
+            "search-hotels": 1
+          },
+          "compute_calls": 0,
+          "remote_calls": 19,
+          "tokens": 48000,
+          "seconds": 600
+        }
+      },
+      {
+        "check": "every allowed handoff is along a declared edge",
+        "passed": true,
+        "detail": [
+          {
+            "hop": 0,
+            "role": "FrontMan",
+            "activation": 1,
+            "chosen_by": "model",
+            "next": "Flights",
+            "allowed": true,
+            "reason": null
+          },
+          {
+            "hop": 1,
+            "role": "Flights",
+            "activation": 1,
+            "chosen_by": "package",
+            "next": "FrontMan",
+            "allowed": true,
+            "reason": null
+          },
+          {
+            "hop": 2,
+            "role": "FrontMan",
+            "activation": 2,
+            "chosen_by": "model",
+            "next": "Hotel",
+            "allowed": true,
+            "reason": null
+          },
+          {
+            "hop": 3,
+            "role": "Hotel",
+            "activation": 1,
+            "chosen_by": "package",
+            "next": "FrontMan",
+            "allowed": true,
+            "reason": null
+          },
+          {
+            "hop": 4,
+            "role": "FrontMan",
+            "activation": 3,
+            "chosen_by": "model",
+            "next": "Calendar",
+            "allowed": true,
+            "reason": null
+          },
+          {
+            "hop": 5,
+            "role": "Calendar",
+            "activation": 1,
+            "chosen_by": "package",
+            "next": "FrontMan",
+            "allowed": true,
+            "reason": null
+          },
+          {
+            "hop": 6,
+            "role": "FrontMan",
+            "activation": 4,
+            "chosen_by": "model",
+            "next": "done",
+            "allowed": true,
+            "reason": null
+          }
+        ]
+      },
+      {
+        "check": "the walk follows the decisions: each activation after the first is the target of the previous allowed decision",
+        "passed": true,
+        "detail": {
+          "walk": [
+            "FrontMan",
+            "Flights",
+            "FrontMan",
+            "Hotel",
+            "FrontMan",
+            "Calendar",
+            "FrontMan"
+          ],
+          "decisions": [
+            {
+              "hop": 0,
+              "role": "FrontMan",
+              "activation": 1,
+              "chosen_by": "model",
+              "next": "Flights",
+              "allowed": true,
+              "reason": null
+            },
+            {
+              "hop": 1,
+              "role": "Flights",
+              "activation": 1,
+              "chosen_by": "package",
+              "next": "FrontMan",
+              "allowed": true,
+              "reason": null
+            },
+            {
+              "hop": 2,
+              "role": "FrontMan",
+              "activation": 2,
+              "chosen_by": "model",
+              "next": "Hotel",
+              "allowed": true,
+              "reason": null
+            },
+            {
+              "hop": 3,
+              "role": "Hotel",
+              "activation": 1,
+              "chosen_by": "package",
+              "next": "FrontMan",
+              "allowed": true,
+              "reason": null
+            },
+            {
+              "hop": 4,
+              "role": "FrontMan",
+              "activation": 3,
+              "chosen_by": "model",
+              "next": "Calendar",
+              "allowed": true,
+              "reason": null
+            },
+            {
+              "hop": 5,
+              "role": "Calendar",
+              "activation": 1,
+              "chosen_by": "package",
+              "next": "FrontMan",
+              "allowed": true,
+              "reason": null
+            },
+            {
+              "hop": 6,
+              "role": "FrontMan",
+              "activation": 4,
+              "chosen_by": "model",
+              "next": "done",
+              "allowed": true,
+              "reason": null
+            }
+          ]
+        }
+      },
+      {
+        "check": "every observed figure stays within the plan's at most",
+        "passed": true,
+        "detail": {
+          "observed": {
+            "max_hops": 6,
+            "model_calls": 8,
+            "compute_calls": 0,
+            "remote_calls": 3,
+            "tokens": 3650
+          },
+          "activations": {
+            "FrontMan": 4,
+            "Flights": 1,
+            "Hotel": 1,
+            "Calendar": 1
+          },
+          "tools": {
+            "search-flights": 1,
+            "search-hotels": 1,
+            "check-calendar": 1
+          }
+        }
+      },
+      {
+        "check": "each role's tokens and remote calls stay within its budget per activation",
+        "passed": true,
+        "detail": {
+          "FrontMan": {
+            "tokens": 3650,
+            "remote_calls": 0,
+            "activations": 4
+          },
+          "Flights": {
+            "tokens": 0,
+            "remote_calls": 1,
+            "activations": 1
+          },
+          "Hotel": {
+            "tokens": 0,
+            "remote_calls": 1,
+            "activations": 1
+          },
+          "Calendar": {
+            "tokens": 0,
+            "remote_calls": 1,
+            "activations": 1
+          }
+        }
+      },
+      {
+        "check": "every recorded request went to the model's origin or a host the package declares",
+        "passed": true,
+        "detail": [
+          "model:127.0.0.1:55005",
+          "tool:webagents-webair-production.up.railway.app"
+        ]
+      },
+      {
+        "check": "the reference's fixture run takes the same walk with the same route decisions",
+        "passed": true,
+        "detail": {
+          "reference": [
+            "FrontMan",
+            "Flights",
+            "FrontMan",
+            "Hotel",
+            "FrontMan",
+            "Calendar",
+            "FrontMan"
+          ],
+          "chrome": [
+            "FrontMan",
+            "Flights",
+            "FrontMan",
+            "Hotel",
+            "FrontMan",
+            "Calendar",
+            "FrontMan"
+          ]
+        }
+      },
+      {
+        "check": "the run's exports equal the reference's",
+        "passed": true,
+        "detail": [
+          "plan.json",
+          "plan.txt"
+        ]
+      }
+    ],
+    "passed": true
+  },
+  "passed_network": true
+}

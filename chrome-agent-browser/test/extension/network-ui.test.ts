@@ -103,7 +103,8 @@ describe("the agent page of a delegation package", () => {
     const front = page.querySelector<HTMLElement>('.ab-role[data-role="FrontMan"]')!;
     expect(front.textContent).toContain("at most 4 times");
     expect(front.textContent).toContain("The model chooses what follows: Flights (at most 1×), Hotel (at most 1×), Calendar (at most 1×), done");
-    expect(page.querySelector<HTMLElement>('.ab-role[data-role="Hotel"]')!.textContent).toContain("Then FrontMan, fixed by the package");
+    expect(page.querySelector<HTMLElement>('.ab-role[data-role="Hotel"]')!.textContent).toContain("Then FrontMan, fixed by the package. Each time: the tool search-hotels, 1 remote call.");
+    expect(front.textContent).toContain("Each time: up to 2 model calls, 12,000 tokens, 4 remote calls.");
   });
 
   it("the plan card states the envelope the plan froze", async () => {

@@ -7,7 +7,7 @@
  * are chosen in the authorize view's "Ways to use it" (D-111). Every package string reaches the document
  * through `textContent`; the README goes through the copied Markdown sanitizer only.
  */
-import type { AccessGroup, AgentPageModel, Tone } from "../../core/agent-page.js";
+import type { AccessGroup, AgentPageModel, DelegationRole, Tone } from "../../core/agent-page.js";
 import type { Profile } from "../../core/profiles.js";
 import type { SessionView } from "../messages.js";
 import { button, bytes, card, chip, definition, details, el, list, row, shortHash, whenText, type Child } from "./dom.js";
@@ -127,6 +127,16 @@ export function pinControls(model: AgentPageModel, onTrust: (scope: "package" | 
   return container;
 }
 
+/** What one activation of a role may spend, naming only what it may spend at all. */
+function perActivation(role: DelegationRole): string {
+  const parts: string[] = [];
+  if (role.model_calls_per_activation > 0) parts.push(`up to ${role.model_calls_per_activation} model call${role.model_calls_per_activation === 1 ? "" : "s"}`);
+  if (role.tools.length > 0) parts.push(`${role.tools.length === 1 ? "the tool" : "the tools"} ${role.tools.join(", ")}`);
+  if (role.tokens_per_activation > 0) parts.push(`${role.tokens_per_activation.toLocaleString("en-US")} tokens`);
+  if (role.remote_calls_per_activation > 0) parts.push(`${role.remote_calls_per_activation} remote call${role.remote_calls_per_activation === 1 ? "" : "s"}`);
+  return parts.length > 0 ? parts.join(", ") : "no model call, no tool";
+}
+
 /** The person-first card and the technical details for one open package. */
 export function renderAgentPage(view: SessionView, actions: AgentPageActions = {}): HTMLElement {
   const model = view.page;
@@ -193,10 +203,7 @@ export function renderAgentPage(view: SessionView, actions: AgentPageActions = {
                 " ",
                 chip(`at most ${role.at_most} ${role.at_most === 1 ? "time" : "times"}`, "neutral"),
                 el("p", { className: "ab-hint", text: role.description }),
-                el("p", {
-                  className: "ab-hint",
-                  text: `${role.chosen_by === "model" ? `The model chooses what follows: ${[...role.edges.map((edge) => `${edge.to} (at most ${edge.max_uses}×)`), ...(role.may_end ? ["done"] : [])].join(", ")}` : `Then ${role.next === "done" ? "done" : role.next}, fixed by the package`}. Each time: up to ${role.model_calls_per_activation} model call${role.model_calls_per_activation === 1 ? "" : "s"}${role.tools.length > 0 ? `, tools ${role.tools.join(", ")}` : ""}, ${role.tokens_per_activation.toLocaleString("en-US")} tokens, ${role.remote_calls_per_activation} remote call${role.remote_calls_per_activation === 1 ? "" : "s"}.`,
-                }),
+                el("p", { className: "ab-hint", text: `${role.chosen_by === "model" ? `The model chooses what follows: ${[...role.edges.map((edge) => `${edge.to} (at most ${edge.max_uses}×)`), ...(role.may_end ? ["done"] : [])].join(", ")}` : `Then ${role.next === "done" ? "done" : role.next}, fixed by the package`}. Each time: ${perActivation(role)}.` }),
               ),
             ),
           ),
