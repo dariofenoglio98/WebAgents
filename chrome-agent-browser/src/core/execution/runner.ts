@@ -13,6 +13,7 @@
  * artifacts as named bytes. The host writes them.
  */
 import type { ComputeEngine } from "../compute/engine.js";
+import { canonicalString } from "../canonical.js";
 import { AgentPkgError } from "../errors.js";
 import { sha256HexSync } from "../hash.js";
 import type { JsonObject, JsonValue } from "../json.js";
@@ -21,6 +22,7 @@ import type { ModelRouter } from "../models/contract.js";
 import { packageJson, type Package } from "../package.js";
 import { declaredSchemaPaths } from "../presentation.js";
 import { pyIsoTimestamp } from "../pyjson.js";
+import { networkPlan } from "../runplan.js";
 import { deepCopy } from "../references.js";
 import { PackageSchemas } from "../schema.js";
 import { toolHandlers, type BoundToolHandler, type BrokerDeps } from "../tools/broker.js";
@@ -237,6 +239,11 @@ export class ExecutionSession {
     if (turn !== null && !conversational) throw new ExecutionError(PLAN_INVALID, "A turn was given for a package that declares no conversation");
     if (turn !== null && !deps.consent) throw new ExecutionError(PLAN_INVALID, "A turn needs the host's consent host");
     if (turn !== null && (plan.execution.conversation ?? null) === null) throw new ExecutionError(PLAN_INVALID, "A turn needs a plan that records the conversation");
+    // network.v0 (R-24): the envelope the person agreed to is the one the signed declaration gives,
+    // re-derived here; a plan that describes it differently, or omits it, is refused, not believed.
+    if (plan.execution.mode === MODE_MODEL && canonicalString(plan.execution.network ?? null) !== canonicalString(networkPlan(pkg))) {
+      throw new ExecutionError(PLAN_INVALID, "The run plan's delegation envelope does not match the package's own declaration");
+    }
     const capabilities =
       plan.execution.mode === MODE_MODEL
         ? checkCapabilities(pkg, limits, { toolBindings: plan.tool_bindings, deniedTools: plan.execution.denied_tool_ids, fixture, computeAvailable: (deps.compute ?? null) !== null, turn: turn !== null })
@@ -387,10 +394,14 @@ export class ExecutionSession {
     // `cancel()` never reports a run that is not there (as `session.py` does since T21 review 2).
     try {
       let workflow: Workflow;
+      // One figure, computed once (T25 review 2, nit 5): the deadline the watchdog enforces is the
+      // one a re-ask is measured against and the one network.v0's "at most" in seconds is under.
+      const deadline = effectiveDeadlineSeconds(this.package, this.limits);
       try {
         workflow = await Workflow.create(this.package, {
           // The watchdog's deadline, so a re-ask or a retry the run would not outlive is not sent.
-          deadlineAt: Date.now() + effectiveDeadlineSeconds(this.package, this.limits) * 1000,
+          deadlineAt: Date.now() + deadline * 1000,
+          deadlineSeconds: deadline,
           grants: this.grants,
           memory: this.memory,
           handlers: this.handlers,
@@ -408,7 +419,6 @@ export class ExecutionSession {
       this.workflow = workflow;
       // A cancellation that arrived between `begin` and `run` is honoured, not merely recorded.
       if (this.cancelRequested) workflow.cancel();
-      const deadline = effectiveDeadlineSeconds(this.package, this.limits);
       const watchdog = setTimeout(() => {
         this.timedOut = true;
         workflow.cancel();

@@ -40,6 +40,7 @@ import { urlsplit } from "./urls.js";
 import { CROSSREF_IMPLEMENTATION } from "./tools/adapters/crossref.js";
 import { CROSSREF_DOI_IMPLEMENTATION, CROSSREF_DOI_PATH, CROSSREF_ORIGIN } from "./tools/adapters/crossref-doi.js";
 import { SELECTED_PDF_IMPLEMENTATION } from "./tools/adapters/selected-file.js";
+import { roleSteps } from "./network/analysis.js";
 
 export const REGISTRY_SCHEMA = "agentpkg-host-tool-registry-v0";
 export const BINDING_SCHEMA = "agentpkg-host-tool-binding-v0";
@@ -561,6 +562,8 @@ export async function toolRequirementSet(pkg: Package): Promise<ToolRequirementS
       }
     }
   }
+  // network.v0: a role's tool step, named by its node, role and step.
+  for (const [name, step] of roleSteps(pkg.graph)) if (step.type === "tool") used.set(str(step.tool), [...(used.get(str(step.tool)) ?? []), name]);
   const roles = new Map<string, string[]>();
   for (const worker of pkg.graph.workers as JsonObject[]) {
     for (const toolId of (worker.tools as JsonValue[]).map(str)) roles.set(toolId, [...(roles.get(toolId) ?? []), str(worker.id)]);

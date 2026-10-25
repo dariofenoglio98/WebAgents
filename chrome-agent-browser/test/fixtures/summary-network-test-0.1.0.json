@@ -1,0 +1,673 @@
+{
+  "schema": "agentpkg-browser-summary-v0",
+  "package": {
+    "spec_version": "0.1",
+    "package_id": "org.webagents.network-test",
+    "name": "Network Test",
+    "version": "0.1.0",
+    "description": "A fictional help desk that delegates between a desk, a lookup and a writer role under network.v0: the test package of the delegation profile.",
+    "created_at": "2026-10-24T12:00:00Z",
+    "digest": "9d1f2c95803ab06f47af63a442d9716ee72b41676adee5cbee03e81bac3a6976",
+    "entrypoint": "workflow.v0",
+    "execution_profile": "workflow.v0",
+    "runtime": {
+      "api": "agentpkg-runtime-v0",
+      "minimum_version": "0.7.0"
+    },
+    "update": {
+      "channel": "local",
+      "locator": null
+    },
+    "dependencies": [],
+    "extension_keys": []
+  },
+  "validation": {
+    "container_status": "valid",
+    "integrity_status": "valid",
+    "schema_status": "valid",
+    "runtime_status": "compatible",
+    "supported_execution_profiles": [
+      "workflow.v0"
+    ],
+    "errors": []
+  },
+  "publisher": {
+    "claimed_id": "webagents-research",
+    "claimed_name": "WebAgents Research",
+    "signature_status": "valid",
+    "signature_reason": "self_consistent_ed25519_signature",
+    "signer_fingerprint": "sha256:f081f81d9f71207ba8fdeb5d3f142c8c1e1ebb839c71e2b799916ddeb387ea00",
+    "signed_digest_matches": true,
+    "trust_status": "unknown",
+    "trust_reason": "signer_key_not_pinned",
+    "trust_entry": null
+  },
+  "capabilities": [],
+  "skills": [
+    {
+      "id": "desk",
+      "version": "0.1.0",
+      "path": "skills/desk/SKILL.md",
+      "bytes": 472,
+      "sha256": "4e937098a7c7704e35fae3be56a5af80b7e2dd171471e540b754dd7b0e99dc02"
+    },
+    {
+      "id": "writer",
+      "version": "0.1.0",
+      "path": "skills/writer/SKILL.md",
+      "bytes": 129,
+      "sha256": "8457aadead2b89960f41a40602c1118ce9ab196d7847973bb4494ba1af574075"
+    }
+  ],
+  "tools": [
+    {
+      "id": "lookup",
+      "version": "0.1.0",
+      "description": "Look one question up in the desk's index.",
+      "execution": "local",
+      "binding": "example.lookup",
+      "endpoint": null,
+      "endpoint_origin": null,
+      "method": null,
+      "domains": [],
+      "permissions": [
+        "desk.index"
+      ],
+      "side_effects": "read",
+      "approval_required": false,
+      "timeout_seconds": 10,
+      "retries": 0,
+      "input_schema": "schemas/query.schema.json",
+      "output_schema": "schemas/answer.schema.json"
+    }
+  ],
+  "workers": [
+    {
+      "id": "Coordinator",
+      "kind": "packaged",
+      "is_coordinator": true,
+      "skills": [],
+      "tools": [],
+      "max_instances": 1,
+      "state_read": [
+        "request",
+        "result"
+      ],
+      "state_write": [
+        "result"
+      ],
+      "budget": {
+        "remote_calls": 0,
+        "tokens": 0
+      }
+    },
+    {
+      "id": "Desk",
+      "kind": "packaged",
+      "is_coordinator": false,
+      "skills": [
+        "desk"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "state_read": [
+        "notes",
+        "answers",
+        "draft"
+      ],
+      "state_write": [
+        "notes"
+      ],
+      "budget": {
+        "remote_calls": 4,
+        "tokens": 4000
+      }
+    },
+    {
+      "id": "Lookup",
+      "kind": "packaged",
+      "is_coordinator": false,
+      "skills": [],
+      "tools": [
+        "lookup"
+      ],
+      "max_instances": 1,
+      "state_read": [
+        "answers"
+      ],
+      "state_write": [
+        "answers"
+      ],
+      "budget": {
+        "remote_calls": 0,
+        "tokens": 0
+      }
+    },
+    {
+      "id": "Writer",
+      "kind": "packaged",
+      "is_coordinator": false,
+      "skills": [
+        "writer"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "state_read": [
+        "answers",
+        "notes"
+      ],
+      "state_write": [
+        "draft"
+      ],
+      "budget": {
+        "remote_calls": 2,
+        "tokens": 4000
+      }
+    }
+  ],
+  "workflow": {
+    "profile": "workflow.v0",
+    "coordinator": "Coordinator",
+    "deadline_seconds": 600,
+    "input_schema": "schemas/message.schema.json",
+    "output_schema": "schemas/result.schema.json",
+    "node_count": 2,
+    "node_types": {
+      "network": 1,
+      "output": 1
+    },
+    "entry_nodes": [
+      "delegate"
+    ],
+    "output_nodes": [
+      "output"
+    ],
+    "max_declared_parallel": 1,
+    "map_item_caps": {},
+    "edges": [
+      {
+        "from": "delegate",
+        "to": "output"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "delegate",
+        "type": "network",
+        "worker": "Coordinator",
+        "depends_on": [],
+        "timeout_seconds": 500,
+        "writes": [
+          "/result"
+        ],
+        "conditional": false
+      },
+      {
+        "id": "output",
+        "type": "output",
+        "worker": "Coordinator",
+        "depends_on": [
+          "delegate"
+        ],
+        "timeout_seconds": 10,
+        "writes": [],
+        "conditional": false
+      }
+    ],
+    "exports": [
+      {
+        "path": "answer.json",
+        "format": "json"
+      },
+      {
+        "path": "reply.txt",
+        "format": "text"
+      }
+    ],
+    "fixture_declared": true,
+    "conversation": null,
+    "network": {
+      "node": "delegate",
+      "entry": "Desk",
+      "max_hops": 6,
+      "state_schema": "schemas/network-state.schema.json",
+      "state_keys": [
+        "answers",
+        "draft",
+        "notes"
+      ],
+      "message_schema": "schemas/message.schema.json",
+      "roles": [
+        {
+          "id": "Desk",
+          "description": "Reads each message, keeps a note of it and decides who helps next: Lookup for a fact, Writer for a write-up, or done with the answer.",
+          "skills": [
+            "desk"
+          ],
+          "tools": [],
+          "steps": [
+            {
+              "id": "read",
+              "type": "llm"
+            },
+            {
+              "id": "notes",
+              "type": "join"
+            }
+          ],
+          "route": {
+            "kind": "chosen",
+            "task": "route"
+          },
+          "edges": [
+            {
+              "max_uses": 2,
+              "to": "Lookup"
+            },
+            {
+              "max_uses": 1,
+              "to": "Writer"
+            }
+          ],
+          "may_end": true,
+          "max_activations": null,
+          "activation_bound": 4,
+          "timeout_seconds": 120,
+          "budget": {
+            "remote_calls": 4,
+            "tokens": 4000
+          },
+          "state_read": [
+            "notes",
+            "answers",
+            "draft"
+          ],
+          "state_write": [
+            "notes"
+          ],
+          "per_activation": {
+            "model_calls": 2,
+            "tool_calls": {},
+            "compute_calls": 0,
+            "remote_calls": 4,
+            "tokens": 4000,
+            "seconds": 120
+          }
+        },
+        {
+          "id": "Lookup",
+          "description": "Looks one question up in the desk's index and reports the answer.",
+          "skills": [],
+          "tools": [
+            "lookup"
+          ],
+          "steps": [
+            {
+              "id": "lookup",
+              "type": "tool"
+            },
+            {
+              "id": "collect",
+              "type": "join"
+            }
+          ],
+          "route": {
+            "kind": "fixed",
+            "next": "Desk"
+          },
+          "edges": [
+            {
+              "max_uses": 2,
+              "to": "Desk"
+            }
+          ],
+          "may_end": false,
+          "max_activations": null,
+          "activation_bound": 2,
+          "timeout_seconds": 30,
+          "budget": {
+            "remote_calls": 0,
+            "tokens": 0
+          },
+          "state_read": [
+            "answers"
+          ],
+          "state_write": [
+            "answers"
+          ],
+          "per_activation": {
+            "model_calls": 0,
+            "tool_calls": {
+              "lookup": 1
+            },
+            "compute_calls": 0,
+            "remote_calls": 0,
+            "tokens": 0,
+            "seconds": 30
+          }
+        },
+        {
+          "id": "Writer",
+          "description": "Drafts the write-up from the answers found so far.",
+          "skills": [
+            "writer"
+          ],
+          "tools": [],
+          "steps": [
+            {
+              "id": "draft",
+              "type": "llm"
+            }
+          ],
+          "route": {
+            "kind": "fixed",
+            "next": "Desk"
+          },
+          "edges": [
+            {
+              "max_uses": 1,
+              "to": "Desk"
+            }
+          ],
+          "may_end": false,
+          "max_activations": null,
+          "activation_bound": 1,
+          "timeout_seconds": 90,
+          "budget": {
+            "remote_calls": 2,
+            "tokens": 4000
+          },
+          "state_read": [
+            "answers",
+            "notes"
+          ],
+          "state_write": [
+            "draft"
+          ],
+          "per_activation": {
+            "model_calls": 1,
+            "tool_calls": {},
+            "compute_calls": 0,
+            "remote_calls": 2,
+            "tokens": 4000,
+            "seconds": 90
+          }
+        }
+      ],
+      "worst_case": {
+        "max_hops": 6,
+        "max_activations": 7,
+        "activations": {
+          "Desk": 4,
+          "Lookup": 2,
+          "Writer": 1
+        },
+        "model_calls": 9,
+        "tool_calls": {
+          "lookup": 2
+        },
+        "compute_calls": 0,
+        "remote_calls": 18,
+        "tokens": 20000,
+        "seconds": 500,
+        "relaxation": {
+          "model_calls": 9,
+          "compute_calls": 0,
+          "remote_calls": 18,
+          "tokens": 20000,
+          "seconds": 630,
+          "tool_calls": {
+            "lookup": 2
+          }
+        },
+        "caps": {
+          "hard_tokens": 24000,
+          "max_remote_calls": 20,
+          "max_calls_per_tool": {
+            "lookup": 2
+          },
+          "timeout_seconds": 500,
+          "deadline_seconds": 600
+        }
+      }
+    },
+    "input": {
+      "schema": "agentpkg-task-input-v0",
+      "schema_path": "schemas/message.schema.json",
+      "schema_sha256": "3d9b412c34efa24d0bacfa4ee874f93c7a8456c07e1169517e717c86f048b21e",
+      "document": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      },
+      "bytes": 137,
+      "note": "The package's own declared input schema. The runner validates every run against it again before any instruction reaches a model."
+    },
+    "presentation": null
+  },
+  "model_requirements": {
+    "routing": "host",
+    "fallback_policy": "deny",
+    "privacy": null,
+    "latency_preference": null,
+    "cost_sensitivity": null,
+    "tasks": [
+      {
+        "id": "read",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "route",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "draft",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      }
+    ]
+  },
+  "evals": [],
+  "attestations": [],
+  "policy": {
+    "permissions": [
+      {
+        "description": "Read messages, decide the next role, draft the answer.",
+        "id": "model.reasoning",
+        "kind": "model",
+        "required": true,
+        "resources": [
+          "host-router"
+        ]
+      },
+      {
+        "description": "The run's state and the network's shared state, for this run only.",
+        "id": "memory.session",
+        "kind": "memory",
+        "required": true,
+        "resources": [
+          "session"
+        ]
+      },
+      {
+        "description": "Read the desk's own index (local, fictional).",
+        "id": "desk.index",
+        "kind": "files.read",
+        "required": true,
+        "resources": [
+          "desk-index"
+        ]
+      }
+    ],
+    "network": {
+      "allow_redirects": false,
+      "allowed_domains": [],
+      "https_only": true
+    },
+    "memory": {
+      "raw_documents": false,
+      "retention": "session",
+      "scope": "session",
+      "sharing": "explicit_views",
+      "state_schema": "schemas/state.schema.json"
+    },
+    "budget": {
+      "approval_threshold_tokens": null,
+      "estimated_cost_usd": null,
+      "estimated_tokens": 4000,
+      "hard_tokens": 24000,
+      "max_calls_per_tool": {
+        "lookup": 2
+      },
+      "max_parallel_workers": 2,
+      "max_remote_calls": 20
+    },
+    "delegation": {
+      "allow_remote": false,
+      "approved_roles": [
+        "Desk",
+        "Lookup",
+        "Writer"
+      ],
+      "max_depth": 1
+    }
+  },
+  "payload": {
+    "file_count": 18,
+    "total_bytes": 14996,
+    "files": [
+      {
+        "path": "MANIFEST.agent",
+        "bytes": 1772,
+        "sha256": "c902d08a68cc32edfde062f43ff799a4075823be011641a82ed41aba64a6af90"
+      },
+      {
+        "path": "README.md",
+        "bytes": 893,
+        "sha256": "c39484574d0f69d2da069d2158753da3840c2fc71e1e4e4b3ce1434736fa4ddc"
+      },
+      {
+        "path": "fixtures/workflow.json",
+        "bytes": 3643,
+        "sha256": "16557c8cb9faf8c78daf61c051e87cac52963a661e9b0c225994e74f3f0d00cf"
+      },
+      {
+        "path": "graph.json",
+        "bytes": 4238,
+        "sha256": "0f188237f11e533683154ebd410de779f1ae167c8ea19cce24afe7f8a23c6eac"
+      },
+      {
+        "path": "policy/policy.json",
+        "bytes": 1024,
+        "sha256": "84a554afa50607597ae63616473ad2e4892a3dd13d9eeb82ab91cd8fe14eab6d"
+      },
+      {
+        "path": "schemas/answer.schema.json",
+        "bytes": 201,
+        "sha256": "6ac2df8e9eab9016401d7596628bf6eef5dac0046756ec1963ad8ec312a6af15"
+      },
+      {
+        "path": "schemas/answers.schema.json",
+        "bytes": 240,
+        "sha256": "bbe2b8178941a3155f58b100620e2e68f5ea0b0a77072770c01b5f6fa29a3065"
+      },
+      {
+        "path": "schemas/draft.schema.json",
+        "bytes": 182,
+        "sha256": "c45a77b1db468cfe0089bd4c6bfa5dc82f9298b83d50bfdf27e5b93c9c197dcb"
+      },
+      {
+        "path": "schemas/message.schema.json",
+        "bytes": 194,
+        "sha256": "3d9b412c34efa24d0bacfa4ee874f93c7a8456c07e1169517e717c86f048b21e"
+      },
+      {
+        "path": "schemas/network-state.schema.json",
+        "bytes": 451,
+        "sha256": "339d14db9b3b2708a7ad72d2576033b5d91b1e004db4829a53b6298ad84a6197"
+      },
+      {
+        "path": "schemas/note.schema.json",
+        "bytes": 179,
+        "sha256": "bd3bde54ad09269799c9de9bde5e1e75b555ed8cc4bbf29ea586fdc6ad5fdd7e"
+      },
+      {
+        "path": "schemas/notes.schema.json",
+        "bytes": 113,
+        "sha256": "d715581da736d2026dd4f4b51ed7ff6f6204db11eac81ff720b45ccc097fed96"
+      },
+      {
+        "path": "schemas/query.schema.json",
+        "bytes": 179,
+        "sha256": "3169adbc23aa82b15b5afa7e561ce900346fad48d88469a6ffc4e5279f5cce1e"
+      },
+      {
+        "path": "schemas/result.schema.json",
+        "bytes": 412,
+        "sha256": "e2a1ba20d7f12501dc5d282def4dbbc2ac19299c9e6d229722daf028acef9601"
+      },
+      {
+        "path": "schemas/state.schema.json",
+        "bytes": 258,
+        "sha256": "6ac2cad90e209fdddbb506b238c58dc37fd7f9c58bc821f20ecc1e36b6703d27"
+      },
+      {
+        "path": "skills/desk/SKILL.md",
+        "bytes": 472,
+        "sha256": "4e937098a7c7704e35fae3be56a5af80b7e2dd171471e540b754dd7b0e99dc02"
+      },
+      {
+        "path": "skills/writer/SKILL.md",
+        "bytes": 129,
+        "sha256": "8457aadead2b89960f41a40602c1118ce9ab196d7847973bb4494ba1af574075"
+      },
+      {
+        "path": "tools/lookup.tool.json",
+        "bytes": 416,
+        "sha256": "56ac1099d22a0f2736d87dd3ed37394529afd5dd11da698c2bbe1ac7ae6b1ee7"
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "publisher_unknown",
+      "severity": "warning",
+      "message": "The signing key is not pinned in this host's trust store, so the publisher is unverified even when the signature is self-consistent."
+    },
+    {
+      "code": "delegation_network",
+      "severity": "info",
+      "message": "The package delegates between 3 roles (Desk, Lookup, Writer), the next role chosen by the model after Desk and fixed by the package after Lookup and Writer, within a declared envelope: at most 6 handoffs; Desk at most 4 times, Lookup at most 2 times, Writer at most 1 time; at most 9 model calls, 2 tool calls (lookup 2), 18 remote calls and 20000 tokens in all; each role sees only its declared part of the shared state, and every handoff is recorded with the reason it was allowed."
+    },
+    {
+      "code": "no_evals_declared",
+      "severity": "info",
+      "message": "The package declares no evaluations."
+    },
+    {
+      "code": "no_attestations_declared",
+      "severity": "info",
+      "message": "The package declares no attestations."
+    }
+  ]
+}

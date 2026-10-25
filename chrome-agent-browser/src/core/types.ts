@@ -217,6 +217,18 @@ export interface ConversationPlan {
   gated_permissions: Record<string, string[]>;
 }
 
+/**
+ * network.v0 (R-24): the envelope the person agreed to, computed from the signed declaration under
+ * the package's own budgets; only the plan of a delegation package carries it (the reference's
+ * `execution.network`). The runner re-derives it and refuses a plan that describes it differently.
+ */
+export interface NetworkPlan extends JsonObject {
+  node: string | null;
+  entry: string;
+  roles: string[];
+  worst_case: JsonObject;
+}
+
 export interface RunPlan {
   schema: typeof RUN_PLAN_SCHEMA;
   run_plan_version: typeof RUN_PLAN_VERSION;
@@ -257,6 +269,8 @@ export interface RunPlan {
     note: string;
     /** conversation.v0 (D-270): the conversation's budget, persistent keys and consent steps with their pre-decisions; null for a one-shot package. */
     conversation: ConversationPlan | null;
+    /** network.v0 (R-24): the delegation envelope; absent for a package without a network, so every other plan keeps its shape and hash. */
+    network?: NetworkPlan;
   };
   tool_bindings: ToolBinding[];
   tool_registry: {

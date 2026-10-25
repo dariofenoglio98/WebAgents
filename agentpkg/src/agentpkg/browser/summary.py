@@ -208,9 +208,16 @@ def _network(package: Package) -> dict | None:
     return network_records(package)
 
 
+def _and(names: list[str]) -> str:
+    """Names joined as A, B and C."""
+    return names[0] if len(names) <= 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
 def network_sentence(network: dict) -> str:
     """The envelope in words (network.v0 R-24): every figure is the bound computed from the
-    signed declaration, not an estimate."""
+    signed declaration, not an estimate. Who picks the next role is the declaration's: the model
+    at a chosen route, the package at a fixed one, and a mixed network says which roles are
+    which."""
     bound = network["worst_case"]
     names = [role["id"] for role in network["roles"]]
     activations = ", ".join(
@@ -219,13 +226,23 @@ def network_sentence(network: dict) -> str:
         for role in network["roles"]
     )
     tools = ", ".join(f"{tool} {count}" for tool, count in sorted(bound["tool_calls"].items()))
-    chosen = any(role["route"]["kind"] == "chosen" for role in network["roles"])
-    # Who picks the next role is the declaration's: the model at a chosen route, the package
-    # alone when every route is fixed (a valid network whose walk is one declared sequence).
-    choice = "chosen by the model while it runs" if chosen else "along handoffs the package fixed"
+    chosen = [role["id"] for role in network["roles"] if role["route"]["kind"] == "chosen"]
+    fixed = [role["id"] for role in network["roles"] if role["route"]["kind"] != "chosen"]
+    if chosen and fixed:
+        lead = (
+            f"The package delegates between {len(names)} roles ({', '.join(names)}), the next "
+            f"role chosen by the model after {_and(chosen)} and fixed by the package after "
+            f"{_and(fixed)}"
+        )
+    else:
+        # Every route chosen, or every route fixed (a valid network whose walk is one declared
+        # sequence).
+        choice = (
+            "chosen by the model while it runs" if chosen else "along handoffs the package fixed"
+        )
+        lead = f"The package delegates between {len(names)} roles {choice} ({', '.join(names)})"
     return (
-        f"The package delegates between {len(names)} roles {choice} "
-        f"({', '.join(names)}), within a declared envelope: at most {bound['max_hops']} "
+        f"{lead}, within a declared envelope: at most {bound['max_hops']} "
         f"handoffs; {activations}; at most {bound['model_calls']} model calls, "
         f"{sum(bound['tool_calls'].values())} tool calls"
         + (f" ({tools})" if tools else "")

@@ -10,6 +10,7 @@ import { canonicalString } from "../canonical.js";
 import { ValidationError } from "../errors.js";
 import { isJsonObject, parseJson, type JsonObject, type JsonValue } from "../json.js";
 import { packageJson, type Package } from "../package.js";
+import { roleSteps } from "../network/analysis.js";
 import { pyRepr } from "../repr.js";
 import { references } from "../references.js";
 import { describeFailure, failuresForSchema, PackageSchemas } from "../schema.js";
@@ -199,7 +200,10 @@ export async function checkConversationDeclarations(manifest: JsonObject, graph:
   }
   const gated = gatedPermissions(graph);
   for (const [nodeId, node] of hooks.nodes) {
-    const operations: Array<[string, JsonObject]> = node.type === "tool" ? [[String(node.id), node]] : ((node.steps as JsonObject[] | undefined) ?? []).filter((step) => step.type === "tool").map((step) => [`${nodeId}/${step.id}`, step]);
+    let operations: Array<[string, JsonObject]> = node.type === "tool" ? [[String(node.id), node]] : ((node.steps as JsonObject[] | undefined) ?? []).filter((step) => step.type === "tool").map((step) => [`${nodeId}/${step.id}`, step]);
+    // network.v0: a role's tool step runs inside the network node, so the node holding the network
+    // must depend on the consent step that gates the permission (R-25).
+    if (node.type === "network") operations = roleSteps(graph).filter(([, step]) => step.type === "tool");
     for (const [name, operation] of operations) {
       for (const permissionId of (tools[String(operation.tool)]!.permissions as JsonValue[]).map(String)) {
         const steps = gated[permissionId];

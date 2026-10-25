@@ -33,6 +33,7 @@ const LISTABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.-]{0,63}$/u;
 /** Why an answer was not accepted, in the structural terms a feedback line may use. */
 export type Refusal =
   | { kind: "check"; failed_check: JsonObject; offending: readonly JsonValue[] }
+  | { kind: "route"; failure: string; next: string | null }
   | { kind: "schema"; keyword: string; instance_path: readonly string[]; missing: readonly string[] }
   | { kind: "not_json" }
   | { kind: "no_text" }
@@ -102,6 +103,17 @@ function checkReason(refusal: Extract<Refusal, { kind: "check" }>, disclosed: Re
   return `${reason}.`;
 }
 
+/**
+ * A refused route (network.v0 R-28): the transition check's failure code and the declared target the
+ * answer named, which the model wrote and the request's own enum lists; the request's `targets`
+ * already say how often each target can still be taken.
+ */
+function routeReason(refusal: Extract<Refusal, { kind: "route" }>, detail: { location: boolean; values: boolean }): string {
+  let reason = `the route check refused it: ${refusal.failure}`;
+  if (detail.values && refusal.next !== null) reason += ` for ${pyJsonDumps(refusal.next, { sortKeys: true, compact: true })}`;
+  return `${reason}. Choose among the targets whose uses_left is above zero, or done where may_end is true.`;
+}
+
 function schemaReason(refusal: Extract<Refusal, { kind: "schema" }>, detail: { location: boolean; values: boolean }): string {
   let reason = `it does not match the output schema: ${refusal.keyword}`;
   if (detail.location) reason += ` at ${refusal.instance_path.length > 0 ? pointer(refusal.instance_path) : "the document root"}`;
@@ -119,6 +131,7 @@ export function feedbackLine(refusal: Refusal, disclosed: ReadonlySet<string> = 
   const build = (detail: { location: boolean; values: boolean }): string => {
     let reason: string;
     if (refusal.kind === "check") reason = checkReason(refusal, disclosed, detail);
+    else if (refusal.kind === "route") reason = routeReason(refusal, detail);
     else if (refusal.kind === "schema") reason = schemaReason(refusal, detail);
     else if (refusal.kind === "not_json") reason = "it is not one JSON document.";
     else if (refusal.kind === "no_text") reason = "it contained no text.";

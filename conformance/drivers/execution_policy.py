@@ -38,9 +38,20 @@ if __name__ == "__main__":
             check_capabilities(package, HostExecutionLimits.normalize(None))
         # compute.v0 (T22): the layer's compute preflight under the default host ceilings.
         compute = check_compute(package, HostExecutionLimits.normalize(None))
+        # network.v0 (T26): the capability check of a delegation package, its tools bound by the
+        # fixture, under the default host limits: the output caps of its role steps and routes,
+        # and the envelope the layer records (R-24).
+        network = None
+        if package.graph.get("network") is not None:
+            bindings = [{"tool_id": tool_id} for tool_id in package.tools]
+            network = check_capabilities(
+                package, HostExecutionLimits.normalize(None), tool_bindings=bindings
+            )["network"]
         outcome = {"outcome": "accepted", "grants": accepted}
         if compute:
             outcome["compute"] = compute
+        if network:
+            outcome["network"] = network
     except ExecutionError as error:
         outcome = {"outcome": "refused", "code": error.code, "message": str(error)}
     print(json.dumps(outcome, indent=2))

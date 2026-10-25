@@ -249,6 +249,9 @@ export async function validatePayload(files: ReadonlyMap<string, Uint8Array>): P
   if (approved.size !== nonCoordinator.size || [...approved].some((role) => !nonCoordinator.has(role))) {
     throw new ValidationError("delegation approved_roles must exactly match non-coordinator graph workers");
   }
+  // network.v0: a network role's state view is over the network's own state schema, checked by the
+  // workflow validation (`network_state_key_undeclared`), not over the graph's state.
+  const networkRoles = new Set(workflow && isJsonObject(graph.network ?? null) ? Object.keys((graph.network as JsonObject).roles as JsonObject) : []);
   for (const [role, worker] of workers) {
     for (const [field, declared] of [
       ["skills", new Set(skills.keys())],
@@ -270,7 +273,7 @@ export async function validatePayload(files: ReadonlyMap<string, Uint8Array>): P
       throw new ValidationError(`worker ${role}: max_instances exceeds max_parallel_workers`);
     }
     const view = [...(worker.state_read as JsonValue[]), ...(worker.state_write as JsonValue[])].map(String);
-    if (view.some((key) => !stateKeys.has(key))) {
+    if (!networkRoles.has(role) && view.some((key) => !stateKeys.has(key))) {
       throw new ValidationError(`worker ${role}: state view refers to keys absent from state schema`);
     }
   }

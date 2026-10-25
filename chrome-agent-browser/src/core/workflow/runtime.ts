@@ -41,6 +41,8 @@ import { Semaphore } from "./sync.js";
 import type { AuditChain } from "../conversation/chain.js";
 import { MAX_TEXT_CHARS, gatedPermissions } from "../conversation/declarations.js";
 import { checkDecision, type ConsentDecision, type ConsentHost, type ConsentRequest } from "../conversation/host.js";
+import type { WorstCase } from "../network/analysis.js";
+import { RouteRefusal } from "../network/errors.js";
 
 export type GrantDecision = "once" | "session" | "always" | "deny";
 export type Grants = Record<string, GrantDecision>;
@@ -153,9 +155,11 @@ export const MAX_REASKS = 2;
 export interface ModelCallOptions {
   /**
    * The node's answer checks (D-150): called with a copy of the schema-valid answer; throws an
-   * `AnswerCheckFailure` to refuse it, which the call treats as a non-conforming answer.
+   * `AnswerCheckFailure` to refuse it, which the call treats as a non-conforming answer. A
+   * network's route (network.v0 R-14) checks asynchronously (the message against the package's
+   * validator, then the transition) and throws a `RouteRefusal` to refuse.
    */
-  check?: (answer: JsonValue) => void;
+  check?: (answer: JsonValue) => void | Promise<void>;
 }
 
 /**
@@ -906,6 +910,29 @@ export class Runtime {
     return { accepted: decision.accepted };
   }
 
+  /**
+   * network.v0 R-17 (`runtime.py::reserve_network`): before a network's first activation, what the
+   * run has left must admit the network's worst case in tokens and remote calls (as a conversation
+   * reserves a whole turn, V-10), else the node is refused before anything is spent. Nothing is
+   * held: the activations are bounded by their own caps, and the run's caps stay enforced.
+   */
+  reserveNetwork(ctx: Context, nodeId: string, bound: WorstCase, entry: string): void {
+    this.checkContext(ctx);
+    const summary: JsonObject = {};
+    for (const key of ["max_hops", "max_activations", "activations", "model_calls", "tool_calls", "compute_calls", "remote_calls", "tokens", "seconds"] as const) summary[key] = deepCopy(bound[key] as JsonValue);
+    const tokensLeft = (this.budget.hard_tokens as number) - this.global.tokens - this.global.reserved_tokens;
+    const remoteLeft = (this.budget.max_remote_calls as number) - this.global.remote_calls;
+    const facts = { node_id: nodeId, bound: summary, tokens_left: tokensLeft, remote_calls_left: remoteLeft };
+    let reason: string | null = null;
+    if (bound.tokens > tokensLeft) reason = "tokens";
+    else if (bound.remote_calls > remoteLeft) reason = "remote_calls";
+    if (reason !== null) {
+      this.record("network.refused", { context: this.root, reason, ...facts });
+      throw new BudgetError(`network ${nodeId}: its worst case (${bound.tokens} tokens, ${bound.remote_calls} remote calls) exceeds what the run has left (${tokensLeft} tokens, ${remoteLeft} remote calls)`);
+    }
+    this.record("network.started", { context: this.root, entry, ...facts });
+  }
+
   /** The `once` grants this run consumed (earlier turns' included), for the next turn. */
   get spentPermissions(): Set<string> {
     return new Set(this.onceUsed);
@@ -1098,7 +1125,8 @@ export class Runtime {
           // The node's answer checks (D-150) on the schema-valid answer; a refusal is a
           // non-conforming answer, charged what the router reported.
           refusedAnswer = deepCopy(result.output);
-          options.check(deepCopy(result.output));
+          const checked = options.check(deepCopy(result.output));
+          if (checked instanceof Promise) await checked;
           refusedAnswer = null;
         }
         this.record("model.completed", {
@@ -1159,7 +1187,8 @@ export class Runtime {
       try {
         return await attemptOnce(attempt, asked, askedBound, reserved, after);
       } catch (error) {
-        const notAccepted = (error instanceof AdapterError || error instanceof AnswerCheckFailure) && error.code === "model_output_not_conforming";
+        // A refused route is a non-conforming answer too (network.v0 R-28): re-asked within the same bounds, naming the route check.
+        const notAccepted = (error instanceof AdapterError || error instanceof AnswerCheckFailure || error instanceof RouteRefusal) && error.code === "model_output_not_conforming";
         if (!(attempt <= retries && notAccepted && !token.signal.aborted && this.halted === null)) throw error;
         const elapsed = Date.now() - started;
         const next: ModelRequest = { ...request, feedback: feedbackLine(refusalOf(error), disclosedScalars(request.data, refusedAnswer)) };
@@ -1214,6 +1243,7 @@ export class Runtime {
 /** Why an answer was not accepted, as a re-ask's feedback line names it (D-151). */
 function refusalOf(error: unknown): Refusal {
   if (error instanceof AnswerCheckFailure) return { kind: "check", failed_check: error.failed_check, offending: error.offending };
+  if (error instanceof RouteRefusal) return { kind: "route", failure: error.reason, next: (error.failed_check.next as string | null) ?? null };
   const refusal = error instanceof AdapterError ? (error.detail.refusal as Record<string, unknown> | undefined) : undefined;
   if (refusal?.kind === "not_json" || refusal?.kind === "no_text") return { kind: refusal.kind };
   const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
@@ -1225,7 +1255,7 @@ function refusalOf(error: unknown): Refusal {
 
 /** What a re-ask's `model.called` records about the refusal that triggered it: structure only, never data. */
 function afterOf(error: unknown): JsonObject {
-  if (error instanceof AnswerCheckFailure) return { output_failure: "check", failed_check: error.failed_check };
+  if (error instanceof AnswerCheckFailure || error instanceof RouteRefusal) return { output_failure: "check", failed_check: error.failed_check };
   const facts = error instanceof AdapterError ? safeFacts(error.audit_facts) : {};
   const after: JsonObject = { output_failure: typeof facts.output_failure === "string" ? facts.output_failure : "unknown" };
   for (const key of ["schema_keyword", "schema_location"]) if (typeof facts[key] === "string") after[key] = facts[key]!;

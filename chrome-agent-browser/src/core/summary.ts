@@ -13,6 +13,7 @@ import { sha256Hex } from "./hash.js";
 import { isJsonObject, type JsonObject, type JsonValue } from "./json.js";
 import { packageJson, permissionsSummary, type Package } from "./package.js";
 import { conversationRecords } from "./conversation/declarations.js";
+import { networkRecords, type NetworkRecords } from "./network/declarations.js";
 import { EXTENSION_KEY, inputForm, presentationHints, type InputForm, type PresentationHints } from "./presentation.js";
 import { urlsplit } from "./urls.js";
 
@@ -186,6 +187,9 @@ async function workflow(pkg: Package): Promise<WorkflowSummary> {
     // conversation.v0 (V-20): the turns, the persistent keys, the consent steps and the
     // permissions they decide, for the agent page; null for a one-shot package.
     conversation: conversationRecords(pkg),
+    // network.v0 (R-24): the roles, the edges, the caps and the worst case computed from the
+    // declaration, for the agent page's "at most"; null for a package without a network.
+    network: networkRecords(pkg),
     // The task a person fills in, and the package's cosmetic hints for it.
     input: await inputForm(pkg),
     presentation: hints,
@@ -323,6 +327,8 @@ export function warnings(pkg: Package, evaluation: EvaluationLayers, publisher: 
     const steps = conversation.consent_steps.map((step) => `${step.id} (before ${step.permissions.join(", ")})`).join(", ");
     warn("conversational_package", "info", `The package is a conversation of at most ${conversation.budget.max_turns} turns, within ${conversation.budget.hard_tokens} tokens and ${conversation.budget.max_remote_calls} remote calls in all; it keeps ${conversation.persistent_keys.join(", ") || "nothing"} between turns, and asks you before: ${steps || "nothing"}.`);
   }
+  const network = networkRecords(pkg);
+  if (network !== null) warn("delegation_network", "info", networkSentence(network));
   const remote = toolList.filter((tool) => tool.execution === "remote");
   if (remote.length > 0) {
     const domains = [...new Set(remote.flatMap((tool) => (tool.domains as JsonValue[]).map(String)))].sort();
@@ -354,6 +360,39 @@ export function warnings(pkg: Package, evaluation: EvaluationLayers, publisher: 
   if ((pkg.manifest.evals as JsonValue[]).length === 0) warn("no_evals_declared", "info", "The package declares no evaluations.");
   if ((pkg.manifest.attestations as JsonValue[]).length === 0) warn("no_attestations_declared", "info", "The package declares no attestations.");
   return found;
+}
+
+/** "A, B and C" (`summary.py::_and`). */
+function listed(names: readonly string[]): string {
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/**
+ * The envelope in words (network.v0 R-24, `summary.py::network_sentence`): every figure is the bound
+ * computed from the signed declaration, not an estimate. Who picks the next role is the
+ * declaration's: the model at a chosen route, the package at a fixed one, and a mixed network says
+ * which roles are which.
+ */
+export function networkSentence(network: NetworkRecords): string {
+  const bound = network.worst_case;
+  const names = network.roles.map((role) => role.id);
+  const activations = network.roles.map((role) => `${role.id} at most ${role.activation_bound} ${role.activation_bound === 1 ? "time" : "times"}`).join(", ");
+  const tools = Object.keys(bound.tool_calls)
+    .sort()
+    .map((tool) => `${tool} ${bound.tool_calls[tool]}`)
+    .join(", ");
+  const chosen = network.roles.filter((role) => role.route.kind === "chosen").map((role) => role.id);
+  const fixed = network.roles.filter((role) => role.route.kind !== "chosen").map((role) => role.id);
+  const lead =
+    chosen.length > 0 && fixed.length > 0
+      ? `The package delegates between ${names.length} roles (${names.join(", ")}), the next role chosen by the model after ${listed(chosen)} and fixed by the package after ${listed(fixed)}`
+      : `The package delegates between ${names.length} roles ${chosen.length > 0 ? "chosen by the model while it runs" : "along handoffs the package fixed"} (${names.join(", ")})`;
+  const toolTotal = Object.values(bound.tool_calls).reduce((sum, count) => sum + count, 0);
+  return (
+    `${lead}, within a declared envelope: at most ${bound.max_hops} handoffs; ${activations}; at most ${bound.model_calls} model calls, ${toolTotal} tool calls` +
+    (tools ? ` (${tools})` : "") +
+    `, ${bound.remote_calls} remote calls and ${bound.tokens} tokens in all; each role sees only its declared part of the shared state, and every handoff is recorded with the reason it was allowed.`
+  );
 }
 
 /** `build_summary`: the stable JSON a shell renders without domain knowledge. */
