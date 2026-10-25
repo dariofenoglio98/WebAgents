@@ -139,7 +139,7 @@ class Workflow:
         self._output = None
         # The deadline a figure computed inside the run is under: the graph's, or the host's
         # where it is lower. It is reported, not enforced here: `run()` enforces the graph's own
-        # deadline (an RQ1 ablation anchors that line), and the execution host enforces its
+        # deadline (an RQ1 experiment anchors that line), and the execution host enforces its
         # lower one by its watchdog and passes the same figure here, so that network.v0's "at
         # most" in seconds is the deadline the host enforces. Moving the enforcement here waits
         # for the catalog v2's re-anchoring.
