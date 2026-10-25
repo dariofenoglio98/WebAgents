@@ -165,6 +165,44 @@ export function renderAgentPage(view: SessionView, actions: AgentPageActions = {
       : null,
   );
 
+  // network.v0 (R-24, D-291): the envelope before any run, in words and in figures.
+  const delegation = model.delegation;
+  const delegates =
+    delegation === null
+      ? null
+      : el(
+          "div",
+          { className: "ab-delegation", attrs: { "data-entry": delegation.entry } },
+          el("p", { className: "ab-delegation-sentence", text: delegation.sentence }),
+          el("h4", { text: "At most, in any run" }),
+          definition([
+            ["Handoffs", String(delegation.at_most.handoffs)],
+            ["Model calls", String(delegation.at_most.model_calls)],
+            ["Tool calls", Object.keys(delegation.at_most.tool_calls).length > 0 ? Object.entries(delegation.at_most.tool_calls).map(([tool, count]) => `${tool} ${count}`).join(", ") : "none"],
+            ["Remote calls", String(delegation.at_most.remote_calls)],
+            ["Tokens", delegation.at_most.tokens.toLocaleString("en-US")],
+          ]),
+          el("h4", { text: "Roles" }),
+          list(
+            delegation.roles.map((role) =>
+              el(
+                "div",
+                { className: "ab-role", attrs: { "data-role": role.id } },
+                el("strong", { text: role.id }),
+                role.id === delegation.entry ? chip("starts", "neutral") : null,
+                " ",
+                chip(`at most ${role.at_most} ${role.at_most === 1 ? "time" : "times"}`, "neutral"),
+                el("p", { className: "ab-hint", text: role.description }),
+                el("p", {
+                  className: "ab-hint",
+                  text: `${role.chosen_by === "model" ? `The model chooses what follows: ${[...role.edges.map((edge) => `${edge.to} (at most ${edge.max_uses}×)`), ...(role.may_end ? ["done"] : [])].join(", ")}` : `Then ${role.next === "done" ? "done" : role.next}, fixed by the package`}. Each time: up to ${role.model_calls_per_activation} model call${role.model_calls_per_activation === 1 ? "" : "s"}${role.tools.length > 0 ? `, tools ${role.tools.join(", ")}` : ""}, ${role.tokens_per_activation.toLocaleString("en-US")} tokens, ${role.remote_calls_per_activation} remote call${role.remote_calls_per_activation === 1 ? "" : "s"}.`,
+                }),
+              ),
+            ),
+          ),
+          el("p", { className: "ab-hint", text: "Every figure is computed from the signed declaration: a run can stay below it and cannot pass it. Each handoff is checked before the next role runs and recorded with the reason it was allowed." }),
+        );
+
   const where = el(
     "div",
     { className: "ab-source" },
@@ -257,6 +295,7 @@ export function renderAgentPage(view: SessionView, actions: AgentPageActions = {
     card("Publisher", trustCard(model, actions)),
     card("What it does", about),
     card("Access", access),
+    delegates !== null ? card("How it delegates", delegates) : null,
     card("Origin and cost", where),
     technical,
     el("p", { className: "ab-hint ab-execution-note", text: view.execution.note }),

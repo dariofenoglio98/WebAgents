@@ -13,7 +13,9 @@ export const MAX_COMPLETED = 128;
 export const MAX_LISTED = 64;
 /** Per-worker rows a run surface can render; totals keep counting past it. */
 export const MAX_PROGRESS_WORKERS = 64;
-const URGENT = new Set(["node.started", "node.completed", "node.failed", "node.skipped"]);
+const URGENT = new Set(["node.started", "node.completed", "node.failed", "node.skipped", "network.activated", "route.decided", "network.completed", "network.failed", "network.refused"]);
+/** Route decisions a snapshot keeps (a network makes at most 64 handoffs; a host re-ask adds a decision each). */
+export const MAX_DECISIONS = 192;
 
 export interface WorkerProgress {
   id: string;
@@ -23,6 +25,36 @@ export interface WorkerProgress {
   model_calls: number;
   tool_calls: number;
   duration_ms: number | null;
+}
+
+/** One route decision as the audit recorded it (network.v0 R-18): identifiers and codes only. */
+export interface NetworkDecision {
+  hop: number;
+  role: string;
+  activation: number;
+  chosen_by: "model" | "package";
+  next: string | null;
+  allowed: boolean;
+  reason: string | null;
+}
+
+/**
+ * network.v0 (D-291): where a delegation network is, read from its audit events: the envelope the run
+ * reserved (`network.started`), the role running now, the handoffs so far, every route decision with
+ * the reason it was allowed or refused, and how the network ended. Present only once a network
+ * started (or was refused), so every other run's snapshot keeps its shape.
+ */
+export interface NetworkProgress {
+  node: string;
+  state: "running" | "completed" | "failed" | "refused";
+  entry: string | null;
+  bound: { max_hops: number; activations: Record<string, number>; model_calls: number; tool_calls: Record<string, number>; remote_calls: number; tokens: number; seconds: number } | null;
+  current: { role: string; hop: number; activation: number } | null;
+  hops: number;
+  activations: Record<string, number>;
+  decisions: NetworkDecision[];
+  error_code: string | null;
+  refused_reason: string | null;
 }
 
 export interface ProgressSnapshot {
@@ -45,7 +77,18 @@ export interface ProgressSnapshot {
   tokens: number;
   remote_calls: number;
   workers: WorkerProgress[];
+  /** network.v0: the delegation network's progress; absent for a run that runs none. */
+  network?: NetworkProgress;
 }
+
+const cleanText = (value: unknown): string | null => (typeof value === "string" && value.length > 0 ? value.slice(0, 128) : null);
+const whole = (value: unknown): number => (typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0);
+const counted = (value: unknown): Record<string, number> => {
+  const out: Record<string, number> = {};
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return out;
+  for (const [key, item] of Object.entries(value).slice(0, 64)) out[key.slice(0, 128)] = whole(item);
+  return out;
+};
 
 export type ProgressListener = (snapshot: ProgressSnapshot) => void;
 
@@ -81,6 +124,7 @@ export class ProgressTracker {
   toolCompleted = 0;
   tokens = 0;
   remoteCalls = 0;
+  network: NetworkProgress | null = null;
 
   constructor(listener: ProgressListener | null = null, options: { intervalSeconds?: number; clock?: () => number } = {}) {
     this.listener = listener;
@@ -151,6 +195,7 @@ export class ProgressTracker {
       const row = this.workers.get(worker ?? "");
       if (row) row.tool_calls += 1;
     } else if (action === "tool.completed") this.toolCompleted += 1;
+    if (action.startsWith("network.") || action === "route.decided") this.observeNetwork(action, event as JsonObject);
     if (action === "budget.updated") {
       if (typeof event.tokens === "number" && Number.isInteger(event.tokens)) this.tokens = event.tokens;
       if (typeof event.remote_calls === "number" && Number.isInteger(event.remote_calls)) this.remoteCalls = event.remote_calls;
@@ -159,6 +204,43 @@ export class ProgressTracker {
     if (URGENT.has(action)) this.urgent = true;
     this.schedule();
   };
+
+  /** network.v0 (D-291): the network's events, read into its progress. */
+  private observeNetwork(action: string, event: JsonObject): void {
+    if (action === "network.started" || action === "network.refused") {
+      const bound = typeof event.bound === "object" && event.bound !== null && !Array.isArray(event.bound) ? (event.bound as JsonObject) : null;
+      this.network = {
+        node: cleanText(event.node_id) ?? "network",
+        state: action === "network.started" ? "running" : "refused",
+        entry: cleanText(event.entry),
+        bound: bound === null ? null : { max_hops: whole(bound.max_hops), activations: counted(bound.activations), model_calls: whole(bound.model_calls), tool_calls: counted(bound.tool_calls), remote_calls: whole(bound.remote_calls), tokens: whole(bound.tokens), seconds: whole(bound.seconds) },
+        current: null,
+        hops: 0,
+        activations: {},
+        decisions: [],
+        error_code: null,
+        refused_reason: action === "network.refused" ? cleanText(event.reason) : null,
+      };
+      return;
+    }
+    const network = this.network;
+    if (network === null) return;
+    if (action === "network.activated") {
+      const role = cleanText(event.role) ?? "?";
+      network.current = { role, hop: whole(event.hop), activation: whole(event.activation) };
+      network.hops = whole(event.hop);
+      network.activations[role] = whole(event.activation);
+    } else if (action === "route.decided" && network.decisions.length < MAX_DECISIONS) {
+      network.decisions.push({ hop: whole(event.hop), role: cleanText(event.role) ?? "?", activation: whole(event.activation), chosen_by: event.chosen_by === "model" ? "model" : "package", next: cleanText(event.next), allowed: event.allowed === true, reason: cleanText(event.reason) });
+    } else if (action === "network.completed") {
+      network.state = "completed";
+      network.current = null;
+      network.hops = whole(event.hops);
+    } else if (action === "network.failed") {
+      network.state = "failed";
+      network.error_code = cleanText(event.error_code);
+    }
+  }
 
   snapshot(): ProgressSnapshot {
     return {
@@ -181,6 +263,7 @@ export class ProgressTracker {
       tokens: this.tokens,
       remote_calls: this.remoteCalls,
       workers: [...this.workers.values()].map(({ started: _started, ...row }) => ({ ...row })),
+      ...(this.network !== null ? { network: JSON.parse(JSON.stringify(this.network)) as NetworkProgress } : {}),
     };
   }
 

@@ -14,7 +14,8 @@ import { moduleRecords } from "./compute/declarations.js";
 import { isJsonObject, type JsonObject, type JsonValue } from "./json.js";
 import { packageJson, type Package } from "./package.js";
 import { readProfiles, type Profile } from "./profiles.js";
-import type { BrowserSummary, Warning } from "./summary.js";
+import type { NetworkRecords } from "./network/declarations.js";
+import { networkSentence, type BrowserSummary, type Warning } from "./summary.js";
 
 export type Tone = "good" | "warn" | "bad" | "neutral";
 
@@ -63,6 +64,35 @@ export interface SourceInfo {
   advertised_on: string | null;
 }
 
+/** One role of a delegation network, as the agent page lists it (network.v0 R-24, D-291). */
+export interface DelegationRole {
+  id: string;
+  description: string;
+  /** Who picks what follows this role: the model at a chosen route, the package at a fixed one. */
+  chosen_by: "model" | "package";
+  /** The fixed route's target (a role or "done"); null for a chosen route. */
+  next: string | null;
+  at_most: number;
+  edges: Array<{ to: string; max_uses: number }>;
+  may_end: boolean;
+  tools: string[];
+  model_calls_per_activation: number;
+  tokens_per_activation: number;
+  remote_calls_per_activation: number;
+}
+
+/**
+ * network.v0 (R-24, D-291): what a person agrees to when the package delegates, before any run: the
+ * sentence, the envelope's figures ("at most", every one a theorem about the signed declaration) and
+ * each role. Null for a package without a network.
+ */
+export interface DelegationView {
+  sentence: string;
+  entry: string;
+  at_most: { handoffs: number; activations: number; model_calls: number; tool_calls: Record<string, number>; remote_calls: number; tokens: number; seconds: number };
+  roles: DelegationRole[];
+}
+
 export interface AgentPageModel {
   identity: {
     name: string;
@@ -85,6 +115,8 @@ export interface AgentPageModel {
   tools: { remote: ToolRow[]; local: ToolRow[] };
   profiles: Profile[] | null;
   profile_notes: string[];
+  /** network.v0: the delegation envelope; null for a package without a network. */
+  delegation: DelegationView | null;
   source: SourceInfo;
   cost: {
     estimated_cost_usd: number | null;
@@ -254,6 +286,36 @@ function costText(budget: JsonObject): string {
   return "Cost not stated by the publisher. It depends on the model you choose; a local model costs nothing to run.";
 }
 
+/** The envelope in one line ("at most 6 handoffs, 8 model calls, …"), for the plan and the run page. */
+export function envelopeText(bound: { max_hops: number; model_calls: number; tool_calls: Record<string, number>; remote_calls: number; tokens: number }): string {
+  const tools = Object.values(bound.tool_calls).reduce((sum, count) => sum + count, 0);
+  return `at most ${bound.max_hops} handoff${bound.max_hops === 1 ? "" : "s"}, ${bound.model_calls} model call${bound.model_calls === 1 ? "" : "s"}, ${tools} tool call${tools === 1 ? "" : "s"}, ${bound.remote_calls} remote call${bound.remote_calls === 1 ? "" : "s"} and ${bound.tokens.toLocaleString("en-US")} tokens`;
+}
+
+/** network.v0 (D-291): the agent page's delegation section from the summary's network records. */
+export function delegationView(network: NetworkRecords | null | undefined): DelegationView | null {
+  if (network === null || network === undefined) return null;
+  const bound = network.worst_case;
+  return {
+    sentence: networkSentence(network),
+    entry: network.entry,
+    at_most: { handoffs: bound.max_hops, activations: bound.max_activations, model_calls: bound.model_calls, tool_calls: { ...bound.tool_calls }, remote_calls: bound.remote_calls, tokens: bound.tokens, seconds: bound.seconds },
+    roles: network.roles.map((role) => ({
+      id: role.id,
+      description: role.description,
+      chosen_by: role.route.kind === "chosen" ? "model" : "package",
+      next: role.route.kind === "chosen" ? null : String((role.route as { next: string }).next),
+      at_most: role.activation_bound,
+      edges: role.edges.map((edge) => ({ to: edge.to, max_uses: edge.max_uses })),
+      may_end: role.may_end,
+      tools: [...role.tools],
+      model_calls_per_activation: role.per_activation.model_calls,
+      tokens_per_activation: role.budget.tokens,
+      remote_calls_per_activation: role.budget.remote_calls,
+    })),
+  };
+}
+
 /** Build the agent-page model from a verified package, its summary and its publisher report. */
 export function agentPageModel(
   pkg: Package,
@@ -282,6 +344,7 @@ export function agentPageModel(
     tools: toolRows(summary),
     profiles: profiles.profiles,
     profile_notes: profiles.notes,
+    delegation: delegationView(summary.workflow.network as NetworkRecords | null | undefined),
     source: {
       kind: options.source?.kind ?? "unknown",
       display: options.source?.display ?? null,

@@ -323,6 +323,16 @@ def test_the_run_s_at_most_in_seconds_is_the_effective_deadline(tmp_path):
         tool_bindings=[{"tool_id": "lookup"}],
     )
     assert facts["network"]["worst_case"]["seconds"] == started["bound"]["seconds"]
+    # Each role's budget per activation and its activation bound (T26, D-291).
+    workers = {w["id"]: w for w in package.graph["workers"]}
+    assert facts["network"]["role_budgets"] == {
+        role_id: {
+            "tokens": workers[role_id]["budget"]["tokens"],
+            "remote_calls": workers[role_id]["budget"]["remote_calls"],
+            "activation_bound": started["bound"]["activations"][role_id],
+        }
+        for role_id in ("Desk", "Lookup", "Writer")
+    }
 
 
 def test_the_sentence_says_who_chooses(tmp_path):

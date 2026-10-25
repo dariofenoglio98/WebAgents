@@ -384,7 +384,7 @@ def check_network(package, limits: HostExecutionLimits) -> dict | None:
     """network.v0 (R-24): the network's worst case under this host's effective budget, recorded
     with the run so that "at most" is on the record before the first activation; the runtime
     reserves it again when the node starts (R-17). A package without a network returns None."""
-    from ..delegation.analysis import network_nodes, worst_case
+    from ..delegation.analysis import activation_bound, network_nodes, worst_case
 
     graph = package.graph
     if graph.get("network") is None:
@@ -397,10 +397,22 @@ def check_network(package, limits: HostExecutionLimits) -> dict | None:
         budget=effective,
         node_timeout=min(node["timeout_seconds"], effective_deadline_seconds(package, limits)),
     )
+    network = graph["network"]
+    workers = {w["id"]: w for w in graph["workers"]}
     return {
         "node": node["id"],
-        "entry": graph["network"]["entry"],
-        "roles": list(graph["network"]["roles"]),
+        "entry": network["entry"],
+        "roles": list(network["roles"]),
+        # Each role's budget per activation (its worker's, enforced per instance) and its
+        # activation bound, so a run record can say what each role may spend (T26, D-291).
+        "role_budgets": {
+            role_id: {
+                "tokens": workers[role_id]["budget"]["tokens"],
+                "remote_calls": workers[role_id]["budget"]["remote_calls"],
+                "activation_bound": activation_bound(network, role_id),
+            }
+            for role_id in network["roles"]
+        },
         "worst_case": bound,
     }
 

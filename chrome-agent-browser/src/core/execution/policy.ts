@@ -167,7 +167,14 @@ export function checkNetwork(pkg: Package, limits: HostExecutionLimits): JsonObj
   if (network === null) return null;
   const node = networkNodes(graph)[0]!;
   const bound = worstCase(graph, pkg.policy, { budget: effectiveBudget(pkg, limits).effective as JsonObject, nodeTimeout: Math.min(node.timeout_seconds as number, effectiveDeadlineSeconds(pkg, limits)) });
-  return { node: String(node.id), entry: String(network.entry), roles: Object.keys(network.roles as JsonObject), worst_case: bound };
+  const workers = new Map((graph.workers as JsonObject[]).map((worker) => [String(worker.id), worker]));
+  const roleBudgets: JsonObject = {};
+  for (const roleId of Object.keys(network.roles as JsonObject)) {
+    const budget = workers.get(roleId)!.budget as JsonObject;
+    // Each role's budget per activation (its worker's, enforced per instance) and its activation bound, so a run record can say what each role may spend (D-291).
+    roleBudgets[roleId] = { tokens: budget.tokens!, remote_calls: budget.remote_calls!, activation_bound: activationBound(network, roleId) };
+  }
+  return { node: String(node.id), entry: String(network.entry), roles: Object.keys(network.roles as JsonObject), role_budgets: roleBudgets, worst_case: bound };
 }
 
 /**
