@@ -33,9 +33,10 @@ DIST = ROOT / "dist"
 # The current wheel, which CI rebuilds from agentpkg/ and compares file by file. The 0.2.2 wheel of
 # the v0.2.0 release stays in dist/ for the paper line, and the 0.3.0, 0.4.0, 0.5.0, 0.6.0 and
 # 0.6.1 wheels for their lines (0.6.1 is 0.6.0 with T23 review 2's fixes, T24; 0.7.0 adds
-# network.v0, T25); those are checked by the SHA-256 list only.
-WHEEL = DIST / "agentpkg-0.7.0-py3-none-any.whl"
-WHEEL_DIST_INFO = "agentpkg-0.7.0.dist-info"
+# network.v0, T25; 0.7.1 is 0.7.0 with T25 review 2's fixes, T26); those are checked by the
+# SHA-256 list only.
+WHEEL = DIST / "agentpkg-0.7.1-py3-none-any.whl"
+WHEEL_DIST_INFO = "agentpkg-0.7.1.dist-info"
 # SHA-256 of https://www.apache.org/licenses/LICENSE-2.0.txt
 APACHE_2_0_SHA256 = "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
 
@@ -134,6 +135,19 @@ CURRENT_PACKAGES = {
     # Chrome live acceptance, the conformance reports and the demo index describe, and 0.3.0,
     # which the recorded live and Table I evidence and the contract overhead benchmark
     # describe, stay pinned.
+    # The travel network (network.v0, T26, D-290): the shipped delegation package, signed with its
+    # own development key, which the demo index 1.6.0 names and the WebAir origin serves.
+    "travel-network-0.1.0": {
+        "stem": "travel-network",
+        "alias": False,
+        "package_id": "org.webagents.travel-network",
+        "version": "0.1.0",
+        "digest": "b7ef730bd9b3c5d94d10f20c0829f9a8cdb16a1c4ecde264f851fc5238672312",
+        "archive_sha256": "4acd67cf414f52542a855bc399e1dbc8912307c608236b866c3ce317ecf7b9ca",
+        "key": "examples/keys/travel-network-publisher.pub.pem",
+        "fingerprint": "sha256:27c903afe0b78ae7e27736bfbddafd6f8b6a58b3c26f0bce9507f70aeff762ef",
+        "tools": ["check-calendar", "search-flights", "search-hotels"],
+    },
     "webair-0.8.0": {
         "stem": "webair",
         "alias": False,
@@ -332,6 +346,11 @@ def check_packages() -> dict:
         previous_027.read_bytes()
         == (DIST / "literature-review-0.2.7.agent.pkg").read_bytes()
     )
+    # T26: the travel network, which index 1.6.0 names, served at its indexed path too.
+    travel = ROOT / "package-origin/packages/travel-network-0.1.0.agent.pkg"
+    report["package_origin_travel_network_copy_identical"] = (
+        travel.read_bytes() == (DIST / "travel-network-0.1.0.agent.pkg").read_bytes()
+    )
     previous = ROOT / "package-origin/packages/literature-review-0.2.6.agent.pkg"
     report["package_origin_0_2_6_copy_identical"] = (
         previous.read_bytes()
@@ -517,6 +536,7 @@ def main() -> int:
         and packages["package_origin_copy_identical"]
         and packages["package_origin_current_copy_identical"]
         and packages["package_origin_0_2_6_copy_identical"]
+        and packages["package_origin_travel_network_copy_identical"]
         and packages["package_origin_documents_identical"]
         and packages["package_origin_document_pins"]["passed"]
         and all(
