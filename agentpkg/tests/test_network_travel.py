@@ -1,4 +1,4 @@
-"""The travel network (examples/network/travel-network): the worst case computed from the
+"""The travel network (agents/travel-network, shipped since T26): the worst case computed from the
 declaration equals the maximum observed over an exhaustive enumeration of the allowed walks
 (T25's acceptance check), and the example sources regenerate identically."""
 
@@ -18,9 +18,9 @@ from agentpkg.workflow import run_workflow
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES = ROOT / "examples" / "network"
-TRAVEL = EXAMPLES / "travel-network"
+TRAVEL = ROOT / "agents" / "travel-network"
 DESK = EXAMPLES / "network-test"
-GRANTS = {"model.reasoning": "session", "memory.session": "session", "travel.index": "session"}
+GRANTS = {"model.reasoning": "session", "memory.session": "session", "network.webair": "session"}
 TOOLS = ["search-flights", "search-hotels", "check-calendar"]
 
 
@@ -118,13 +118,15 @@ def test_the_bound_equals_the_maximum_over_every_allowed_walk():
     assert max(u["model_calls"] for u in observed) == bound["model_calls"] == 8
     for tool, cap in bound["tool_calls"].items():
         assert max(u["tool_calls"].get(tool, 0) for u in observed) == cap == 1, tool
-    assert max(u["remote_calls"] for u in observed) == bound["remote_calls"] == 16
+    # Two remote calls per model call (the count preflight and the completion of a remote router)
+    # and one per tool call (each specialist's remote tool on the WebAir origin).
+    assert max(u["remote_calls"] for u in observed) == bound["remote_calls"] == 19
     # Budgets: never passed; the full tour is the costliest walk in every component at once.
     assert all(u["tokens"] <= bound["tokens"] for u in observed)
     full = max(observed, key=lambda u: (u["hops"], u["tokens"]))
     assert full["activations"] == {"FrontMan": 4, "Flights": 1, "Hotel": 1, "Calendar": 1}
-    assert full["hops"] == 6 and full["remote_calls"] == 16 and full["model_calls"] == 8
-    assert bound["relaxation"]["tokens"] == 32000 == bound["tokens"]
+    assert full["hops"] == 6 and full["remote_calls"] == 19 and full["model_calls"] == 8
+    assert bound["relaxation"]["tokens"] == 48000 == bound["tokens"]
 
 
 def test_the_fixture_walk_of_the_travel_network_is_the_full_tour():
@@ -147,9 +149,9 @@ def test_the_fixture_walk_of_the_travel_network_is_the_full_tour():
         "Hotel": 1,
         "Calendar": 1,
     }
-    assert report["output"]["flights"][1]["id"] == "WA203" and report["output"]["plan"].startswith(
-        "Boston to Zurich"
-    )
+    assert report["output"]["flights"][2]["id"] == "WA205-WA731-20270309" and report["output"][
+        "plan"
+    ].startswith("Boston to Zurich")
     assert report["output"]["trip"]["origin"] == "BOS"
 
 
@@ -159,7 +161,7 @@ def test_the_fixture_walk_of_the_travel_network_is_the_full_tour():
 def test_the_example_sources_are_the_generator_output(name, builder):
     generator = _generator()
     members = getattr(generator, builder)()
-    directory = EXAMPLES / name
+    directory = generator.TARGETS[name]
     committed = {
         str(path.relative_to(directory)): path for path in directory.rglob("*") if path.is_file()
     }

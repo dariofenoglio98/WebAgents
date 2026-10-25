@@ -189,7 +189,7 @@ def main() -> int:
         chain["valid"] and len(decided) == 5 and all(e["allowed"] for e in decided),
         {"events": chain["events"], "decisions": len(decided)},
     )
-    travel = load_package(EXAMPLES / "travel-network")
+    travel = load_package(ROOT / "agents" / "travel-network")
     walks = enumerate_walks(travel.graph["network"])
     _check(
         report, "the travel network admits sixteen walks", len(walks) == 16, len(walks)

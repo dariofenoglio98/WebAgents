@@ -36,16 +36,25 @@
           },
           "flights": [
             {
-              "id": "WA201",
+              "id": "WA101-20270309",
               "carrier": "WebAir",
-              "depart": "2027-03-09T18:30",
-              "price_usd": 640
+              "depart": "2027-03-09T18:05",
+              "stops": 0,
+              "price_usd": 588
             },
             {
-              "id": "WA203",
+              "id": "WA213-WA741-20270309",
               "carrier": "WebAir",
-              "depart": "2027-03-09T21:10",
-              "price_usd": 585
+              "depart": "2027-03-09T19:10",
+              "stops": 1,
+              "price_usd": 490
+            },
+            {
+              "id": "WA205-WA731-20270309",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T20:30",
+              "stops": 1,
+              "price_usd": 422
             }
           ],
           "hotels": [],
@@ -74,16 +83,25 @@
           },
           "flights": [
             {
-              "id": "WA201",
+              "id": "WA101-20270309",
               "carrier": "WebAir",
-              "depart": "2027-03-09T18:30",
-              "price_usd": 640
+              "depart": "2027-03-09T18:05",
+              "stops": 0,
+              "price_usd": 588
             },
             {
-              "id": "WA203",
+              "id": "WA213-WA741-20270309",
               "carrier": "WebAir",
-              "depart": "2027-03-09T21:10",
-              "price_usd": 585
+              "depart": "2027-03-09T19:10",
+              "stops": 1,
+              "price_usd": 490
+            },
+            {
+              "id": "WA205-WA731-20270309",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T20:30",
+              "stops": 1,
+              "price_usd": 422
             }
           ],
           "hotels": [
@@ -125,16 +143,25 @@
           },
           "flights": [
             {
-              "id": "WA201",
+              "id": "WA101-20270309",
               "carrier": "WebAir",
-              "depart": "2027-03-09T18:30",
-              "price_usd": 640
+              "depart": "2027-03-09T18:05",
+              "stops": 0,
+              "price_usd": 588
             },
             {
-              "id": "WA203",
+              "id": "WA213-WA741-20270309",
               "carrier": "WebAir",
-              "depart": "2027-03-09T21:10",
-              "price_usd": 585
+              "depart": "2027-03-09T19:10",
+              "stops": 1,
+              "price_usd": 490
+            },
+            {
+              "id": "WA205-WA731-20270309",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T20:30",
+              "stops": 1,
+              "price_usd": 422
             }
           ],
           "hotels": [
@@ -189,7 +216,7 @@
           "targets": [
             {
               "role": "Flights",
-              "description": "Searches flights for the trip in the shared state (fictional airline data).",
+              "description": "Searches WebAir's flights for the trip in the shared state (fictional airline data).",
               "uses_left": 1
             },
             {
@@ -226,16 +253,25 @@
             },
             "flights": [
               {
-                "id": "WA201",
+                "id": "WA101-20270309",
                 "carrier": "WebAir",
-                "depart": "2027-03-09T18:30",
-                "price_usd": 640
+                "depart": "2027-03-09T18:05",
+                "stops": 0,
+                "price_usd": 588
               },
               {
-                "id": "WA203",
+                "id": "WA213-WA741-20270309",
                 "carrier": "WebAir",
-                "depart": "2027-03-09T21:10",
-                "price_usd": 585
+                "depart": "2027-03-09T19:10",
+                "stops": 1,
+                "price_usd": 490
+              },
+              {
+                "id": "WA205-WA731-20270309",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T20:30",
+                "stops": 1,
+                "price_usd": 422
               }
             ],
             "hotels": [],
@@ -244,7 +280,7 @@
           "targets": [
             {
               "role": "Flights",
-              "description": "Searches flights for the trip in the shared state (fictional airline data).",
+              "description": "Searches WebAir's flights for the trip in the shared state (fictional airline data).",
               "uses_left": 0
             },
             {
@@ -281,16 +317,25 @@
             },
             "flights": [
               {
-                "id": "WA201",
+                "id": "WA101-20270309",
                 "carrier": "WebAir",
-                "depart": "2027-03-09T18:30",
-                "price_usd": 640
+                "depart": "2027-03-09T18:05",
+                "stops": 0,
+                "price_usd": 588
               },
               {
-                "id": "WA203",
+                "id": "WA213-WA741-20270309",
                 "carrier": "WebAir",
-                "depart": "2027-03-09T21:10",
-                "price_usd": 585
+                "depart": "2027-03-09T19:10",
+                "stops": 1,
+                "price_usd": 490
+              },
+              {
+                "id": "WA205-WA731-20270309",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T20:30",
+                "stops": 1,
+                "price_usd": 422
               }
             ],
             "hotels": [
@@ -312,7 +357,7 @@
           "targets": [
             {
               "role": "Flights",
-              "description": "Searches flights for the trip in the shared state (fictional airline data).",
+              "description": "Searches WebAir's flights for the trip in the shared state (fictional airline data).",
               "uses_left": 0
             },
             {
@@ -349,16 +394,25 @@
             },
             "flights": [
               {
-                "id": "WA201",
+                "id": "WA101-20270309",
                 "carrier": "WebAir",
-                "depart": "2027-03-09T18:30",
-                "price_usd": 640
+                "depart": "2027-03-09T18:05",
+                "stops": 0,
+                "price_usd": 588
               },
               {
-                "id": "WA203",
+                "id": "WA213-WA741-20270309",
                 "carrier": "WebAir",
-                "depart": "2027-03-09T21:10",
-                "price_usd": 585
+                "depart": "2027-03-09T19:10",
+                "stops": 1,
+                "price_usd": 490
+              },
+              {
+                "id": "WA205-WA731-20270309",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T20:30",
+                "stops": 1,
+                "price_usd": 422
               }
             ],
             "hotels": [
@@ -385,7 +439,7 @@
           "targets": [
             {
               "role": "Flights",
-              "description": "Searches flights for the trip in the shared state (fictional airline data).",
+              "description": "Searches WebAir's flights for the trip in the shared state (fictional airline data).",
               "uses_left": 0
             },
             {
@@ -405,7 +459,7 @@
         "output": {
           "next": "done",
           "message": {
-            "text": "Boston to Zurich, 9 to 14 March 2027: WebAir WA203 at 21:10 ($585) and Hotel Altstadt for five nights ($950); one movable meeting on 11 March. Nothing is booked."
+            "text": "Boston to Zurich, 9 to 14 March 2027: WebAir WA205-WA731 at 20:30, one stop ($422), or WA101 nonstop at 18:05 ($588); Hotel Altstadt for five nights ($950); one movable meeting on 11 March. Nothing is booked."
           }
         }
       }
@@ -423,16 +477,25 @@
         "output": {
           "options": [
             {
-              "id": "WA201",
+              "id": "WA101-20270309",
               "carrier": "WebAir",
-              "depart": "2027-03-09T18:30",
-              "price_usd": 640
+              "depart": "2027-03-09T18:05",
+              "stops": 0,
+              "price_usd": 588
             },
             {
-              "id": "WA203",
+              "id": "WA213-WA741-20270309",
               "carrier": "WebAir",
-              "depart": "2027-03-09T21:10",
-              "price_usd": 585
+              "depart": "2027-03-09T19:10",
+              "stops": 1,
+              "price_usd": 490
+            },
+            {
+              "id": "WA205-WA731-20270309",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T20:30",
+              "stops": 1,
+              "price_usd": 422
             }
           ]
         }

@@ -3,8 +3,9 @@
     agentpkg/.venv/bin/python examples/network/make_network_examples.py [--force]
 
 Writes `network-test/` (`org.webagents.network-test`, a fictional help desk) and
-`travel-network/` (`org.webagents.travel-network`, a front-man with flight, hotel and calendar
-roles, the shape of the deck's agent collaboration chain), each with a fixture whose route cases
+`agents/travel-network/` (`org.webagents.travel-network`, shipped since T26: a front-man with
+flight, hotel and calendar roles whose tools call the WebAir origin's fictional travel services,
+the shape of the deck's agent collaboration chain), each with a fixture whose route cases
 carry exactly the request data the runtime builds (`agentpkg.delegation.analysis.route_data`),
 then validates both and builds `network-test.agent.pkg` (unsigned; `--force` replaces it). The
 sources are committed; a test regenerates them and asserts nothing changed. Signing is a
@@ -121,6 +122,34 @@ def local_tool(tool_id, description, input_schema, output_schema, permission):
     }
 
 
+#: The WebAir origin, whose fictional partner services answer the travel network's tools (D-290).
+WEBAIR_HOST = "webagents-webair-production.up.railway.app"
+
+
+def remote_tool(tool_id, description, operation, input_schema, output_schema, permission):
+    """A remote POST tool on the WebAir origin's travel services (`demo/webair/origin/travel.py`),
+    bound by a host's generic HTTPS JSON binding in a live run."""
+    return {
+        "spec_version": "0.1",
+        "id": tool_id,
+        "version": "0.1.0",
+        "description": description,
+        "execution": "remote",
+        "binding": f"webair.travel_{operation}",
+        "endpoint": f"https://{WEBAIR_HOST}/api/v1/travel/{operation}",
+        "method": "POST",
+        "input_schema": f"schemas/{input_schema}.schema.json",
+        "output_schema": f"schemas/{output_schema}.schema.json",
+        "permissions": [permission],
+        "domains": [WEBAIR_HOST],
+        "timeout_seconds": 15,
+        "retries": 0,
+        "side_effects": "read",
+        "approval_required": False,
+        "extensions": {},
+    }
+
+
 def worker(role_id, *, skills=(), tools=(), tokens, remote_calls, read, write):
     return {
         "id": role_id,
@@ -135,13 +164,13 @@ def worker(role_id, *, skills=(), tools=(), tokens, remote_calls, read, write):
 
 
 def policy(
-    permissions, *, state_schema, hard_tokens, max_remote_calls, tool_caps, roles
+    permissions, *, state_schema, hard_tokens, max_remote_calls, tool_caps, roles, domains=()
 ):
     return {
         "spec_version": "0.1",
         "permissions": permissions,
         "network": {
-            "allowed_domains": [],
+            "allowed_domains": list(domains),
             "https_only": True,
             "allow_redirects": False,
         },
@@ -679,18 +708,29 @@ TRAVEL_INPUT = (
     "Plan a trip from Boston to Zurich: out on 9 March 2027, back on the 14th, one traveller; "
     "check my calendar too."
 )
+# What the WebAir origin's travel services answer for the trip (`demo/webair/tests/test_travel.py`
+# checks that the fixture records exactly these answers).
 FLIGHTS = [
     {
-        "id": "WA201",
+        "id": "WA101-20270309",
         "carrier": "WebAir",
-        "depart": "2027-03-09T18:30",
-        "price_usd": 640,
+        "depart": "2027-03-09T18:05",
+        "stops": 0,
+        "price_usd": 588,
     },
     {
-        "id": "WA203",
+        "id": "WA213-WA741-20270309",
         "carrier": "WebAir",
-        "depart": "2027-03-09T21:10",
-        "price_usd": 585,
+        "depart": "2027-03-09T19:10",
+        "stops": 1,
+        "price_usd": 490,
+    },
+    {
+        "id": "WA205-WA731-20270309",
+        "carrier": "WebAir",
+        "depart": "2027-03-09T20:30",
+        "stops": 1,
+        "price_usd": 422,
     },
 ]
 HOTELS = [
@@ -713,8 +753,9 @@ TRAVEL_WALK = [
     (
         "done",
         (
-            "Boston to Zurich, 9 to 14 March 2027: WebAir WA203 at 21:10 ($585) and Hotel "
-            "Altstadt for five nights ($950); one movable meeting on 11 March. Nothing is booked."
+            "Boston to Zurich, 9 to 14 March 2027: WebAir WA205-WA731 at 20:30, one stop ($422), "
+            "or WA101 nonstop at 18:05 ($588); Hotel Altstadt for five nights ($950); one "
+            "movable meeting on 11 March. Nothing is booked."
         ),
     ),
 ]
@@ -752,9 +793,10 @@ def travel_members() -> dict:
             "id": {"type": "string"},
             "carrier": {"type": "string"},
             "depart": {"type": "string"},
+            "stops": {"type": "integer", "minimum": 0},
             "price_usd": {"type": "integer", "minimum": 0},
         },
-        "required": ["id", "carrier", "depart", "price_usd"],
+        "required": ["id", "carrier", "depart", "stops", "price_usd"],
         "additionalProperties": False,
     }
     hotel = {
@@ -802,7 +844,7 @@ def travel_members() -> dict:
                     "id": "understand",
                     "type": "llm",
                     "task": "understand",
-                    "max_output_tokens": 600,
+                    "max_output_tokens": 1500,
                     "input": {
                         "object": {
                             "text": message("/text"),
@@ -819,7 +861,7 @@ def travel_members() -> dict:
             "writes": {"/trip": steps("/understand/trip")},
             "route": {
                 "task": "route",
-                "max_output_tokens": 600,
+                "max_output_tokens": 1500,
                 "input": {
                     "object": {
                         "summary": steps("/understand/summary"),
@@ -839,7 +881,7 @@ def travel_members() -> dict:
             "may_end": True,
         },
         "Flights": {
-            "description": "Searches flights for the trip in the shared state (fictional airline data).",
+            "description": "Searches WebAir's flights for the trip in the shared state (fictional airline data).",
             "steps": [
                 {
                     "id": "search",
@@ -926,7 +968,7 @@ def travel_members() -> dict:
             worker(
                 "FrontMan",
                 skills=["front-man"],
-                tokens=8000,
+                tokens=12000,
                 remote_calls=4,
                 read=["trip", "flights", "hotels", "calendar"],
                 write=["trip"],
@@ -935,7 +977,7 @@ def travel_members() -> dict:
                 "Flights",
                 tools=["search-flights"],
                 tokens=0,
-                remote_calls=0,
+                remote_calls=1,
                 read=["trip"],
                 write=["flights"],
             ),
@@ -943,7 +985,7 @@ def travel_members() -> dict:
                 "Hotel",
                 tools=["search-hotels"],
                 tokens=0,
-                remote_calls=0,
+                remote_calls=1,
                 read=["trip"],
                 write=["hotels"],
             ),
@@ -951,7 +993,7 @@ def travel_members() -> dict:
                 "Calendar",
                 tools=["check-calendar"],
                 tokens=0,
-                remote_calls=0,
+                remote_calls=1,
                 read=["trip"],
                 write=["calendar"],
             ),
@@ -1022,11 +1064,11 @@ def travel_members() -> dict:
         "extensions": {},
     }
     index = {
-        "id": "travel.index",
-        "kind": "files.read",
-        "description": "Read the bundled, fictional airline, hotel and calendar data.",
+        "id": "network.webair",
+        "kind": "network",
+        "description": "Ask the WebAir origin's fictional flight, hotel and calendar services.",
         "required": True,
-        "resources": ["travel-index"],
+        "resources": [WEBAIR_HOST],
     }
     members = {
         "MANIFEST.agent": manifest(
@@ -1055,31 +1097,35 @@ def travel_members() -> dict:
         "policy/policy.json": policy(
             base_permissions([index]),
             state_schema="schemas/state.schema.json",
-            hard_tokens=32000,
-            max_remote_calls=16,
+            hard_tokens=48000,
+            max_remote_calls=20,
             tool_caps={"search-flights": 1, "search-hotels": 1, "check-calendar": 1},
             roles=["FrontMan", "Flights", "Hotel", "Calendar"],
+            domains=[WEBAIR_HOST],
         ),
-        "tools/search-flights.tool.json": local_tool(
+        "tools/search-flights.tool.json": remote_tool(
             "search-flights",
-            "Search the fictional airline's flights for one date.",
+            "Search WebAir's fictional flights for one date: one row per flight, lowest fare.",
+            "flights",
             "flight-query",
             "flight-options",
-            "travel.index",
+            "network.webair",
         ),
-        "tools/search-hotels.tool.json": local_tool(
+        "tools/search-hotels.tool.json": remote_tool(
             "search-hotels",
-            "Search the fictional hotel index for a stay.",
+            "Search two fictional hotels at the destination for a stay.",
+            "hotels",
             "hotel-query",
             "hotel-options",
-            "travel.index",
+            "network.webair",
         ),
-        "tools/check-calendar.tool.json": local_tool(
+        "tools/check-calendar.tool.json": remote_tool(
             "check-calendar",
-            "List the traveller's fictional calendar entries over a date range.",
+            "List a fictional traveller's calendar entries over a date range.",
+            "calendar",
             "calendar-query",
             "calendar-entries",
-            "travel.index",
+            "network.webair",
         ),
         "graph.json": graph,
         "skills/front-man/SKILL.md": (
@@ -1183,16 +1229,19 @@ def travel_members() -> dict:
         },
         "README.md": (
             "# Travel Network\n\n`org.webagents.travel-network`: the travel example of "
-            "[network.v0](../../../spec/network-v0.md), the shape of the deck's agent "
-            "collaboration chain. `FrontMan` (the entry) restates the trip and, at a model-chosen "
-            "route, consults `Flights`, `Hotel` and `Calendar` (each a local, fictional tool and "
-            "a fixed return), each at most once within six handoffs, then ends with the plan. "
-            "The worst case is exact for this star: the fixture walk is the full tour (FrontMan, "
-            "Flights, FrontMan, Hotel, FrontMan, Calendar, FrontMan, done), and "
-            "`agentpkg/tests/test_network_travel.py` enumerates every allowed walk and checks "
-            "that the bound is attained. All data is fictional; nothing is booked.\n\n"
-            "An unsigned source in T25; T26 ships it signed from `agents/travel-network/`. "
-            "Regenerate with `python3 examples/network/make_network_examples.py`.\n"
+            "network.v0 (bounded, model-chosen delegation), the shape of an agent collaboration "
+            "chain. `FrontMan` (the entry) restates the trip and, at a route the model chooses, "
+            "consults `Flights`, `Hotel` and `Calendar`, each at most once within six handoffs, "
+            "then ends with the plan. Each specialist calls one tool on the WebAir demo origin's "
+            "fictional partner services (`/api/v1/travel/flights`, `hotels`, `calendar`) and "
+            "returns to the front man by a fixed route.\n\n"
+            "Before you run it your Agent Browser tells you the envelope, computed from this "
+            "signed declaration: at most 6 handoffs; FrontMan at most 4 times and each "
+            "specialist once; at most 8 model calls, one call of each tool, 19 remote calls and "
+            "48,000 tokens. A run can stay below these figures and cannot pass them. For this "
+            "star the figures are exact: the full tour (FrontMan, Flights, FrontMan, Hotel, "
+            "FrontMan, Calendar, FrontMan) attains them, and it is the fixture walk.\n\n"
+            "All data is fictional; nothing is booked.\n"
         ),
     }
     members["fixtures/workflow.json"] = travel_fixture(members)
@@ -1285,13 +1334,18 @@ def travel_fixture(members) -> dict:
     return fixture
 
 
+#: Where each source is written: the test package beside this script, the travel network under
+#: `agents/` (shipped, T26).
+TARGETS = {"network-test": HERE / "network-test", "travel-network": ROOT / "agents" / "travel-network"}
+
+
 def main(argv) -> int:
     for name, members in (
         ("network-test", desk_members()),
         ("travel-network", travel_members()),
     ):
-        write_tree(HERE / name, members)
-        package = load_package(HERE / name)
+        write_tree(TARGETS[name], members)
+        package = load_package(TARGETS[name])
         print(
             f"{name}: validates as {package.manifest['package_id']} {package.manifest['version']}"
         )

@@ -20,17 +20,19 @@
       ]
     },
     {
-      "id": "travel.index",
-      "kind": "files.read",
-      "description": "Read the bundled, fictional airline, hotel and calendar data.",
+      "id": "network.webair",
+      "kind": "network",
+      "description": "Ask the WebAir origin's fictional flight, hotel and calendar services.",
       "required": true,
       "resources": [
-        "travel-index"
+        "webagents-webair-production.up.railway.app"
       ]
     }
   ],
   "network": {
-    "allowed_domains": [],
+    "allowed_domains": [
+      "webagents-webair-production.up.railway.app"
+    ],
     "https_only": true,
     "allow_redirects": false
   },
@@ -43,8 +45,8 @@
   },
   "budget": {
     "estimated_tokens": 4000,
-    "hard_tokens": 32000,
-    "max_remote_calls": 16,
+    "hard_tokens": 48000,
+    "max_remote_calls": 20,
     "max_calls_per_tool": {
       "search-flights": 1,
       "search-hotels": 1,

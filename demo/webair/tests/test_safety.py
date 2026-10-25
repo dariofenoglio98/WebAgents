@@ -132,6 +132,8 @@ def test_the_origin_serves_exactly_its_routes(client):
         | {("/payment", "POST"), ("/confirmation", "POST")}
         | {(f"/api/v1/{name}", "POST") for name in operations}
         | {("/api/v1/schemas", "GET")}
+        # The travel network's fictional partner services (T26, D-290).
+        | {(f"/api/v1/travel/{name}", "POST") for name in ("flights", "hotels", "calendar")}
         | {("/static/webair.css", "GET"), ("/health", "GET")}
         | {("/agent.pkg", "GET"), ("/agent.pkg", "HEAD")}
         # T8: the WebAgents demo documents, fixed paths read from one configured directory

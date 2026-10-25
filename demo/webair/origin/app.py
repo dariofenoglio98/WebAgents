@@ -11,7 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import agent_package, api, demo_documents, web
+from . import agent_package, api, demo_documents, travel, web
 from .service import WebAirService
 
 STYLESHEET_PATH = "/static/webair.css"
@@ -108,6 +108,7 @@ def create_app(
 
     app.include_router(web.router(templates))
     app.include_router(api.router())
+    app.include_router(travel.router())
     app.include_router(agent_package.router(package))
     app.include_router(demo_documents.router(documents))
     return app

@@ -148,7 +148,7 @@ function buildInputs() {
   const travelBuilt = join(SCRATCH, "travel-network.unsigned.agent.pkg");
   TRAVEL_NETWORK.archive = join(SCRATCH, "travel-network.agent.pkg");
   TRAVEL_NETWORK.key = inputs.throwawayKey;
-  agentpkg(["build", EXAMPLES("network/travel-network"), "-o", travelBuilt]);
+  agentpkg(["build", join(ROOT, "agents/travel-network"), "-o", travelBuilt]);
   agentpkg(["sign", travelBuilt, "--private-key", join(keyDir, "throwaway.pem"), "-o", TRAVEL_NETWORK.archive]);
   inputs.schemaInvalid = variant("schema-invalid", (source) => {
     // The planner's recorded answer is not what its output schema allows.
