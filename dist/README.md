@@ -62,8 +62,8 @@ python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.7.1-py3
 The keys are development keys: they establish which key signed an artifact, not an independent
 certification of its publisher.
 
-**The 0.7.1 wheel** (SHA-256 `c7067fd2…4e0c`, T26) was built from a clean export (`git archive`) of `agentpkg/`
-at `fa9af14` with the command below (setuptools 84.0.0, Python 3.13.5, `SOURCE_DATE_EPOCH=1790965957`); two such builds
+**The 0.7.1 wheel** (SHA-256 `2816f2f9…cba1`, T26) was built from a clean export (`git archive`) of `agentpkg/`
+at `672545e` with the command below (setuptools 84.0.0, Python 3.13.5, `SOURCE_DATE_EPOCH=1790965957`); two such builds
 produced identical bytes, and CI rebuilds it from source and checks that every file matches. It is 0.7.0 with T25
 review 2's six nits and the `role_budgets` of the execution host's network record; the patch version leaves the
 format's gate at 0.7 (the Chrome core's `SUPPORTED_RUNTIME_VERSION` is 0.7.0).
@@ -231,7 +231,7 @@ c5d4496f867c725a6fb7c4a1793999dab1edfb55ce8490718df4baa5ac009ecb  agentpkg-0.5.0
 e9d450b1176b13d6ec48b00cca5a3410023f235ce48e59b39f53248d96db5b72  agentpkg-0.6.0-py3-none-any.whl
 9079f53a2995d6135b6ced50415a24dde7b0242238d2758eaa4723342a7271b4  agentpkg-0.6.1-py3-none-any.whl
 bc0de183c0e406b96a87f539c0f19ca7b78869ad6f7ece0d88d1500c92e344eb  agentpkg-0.7.0-py3-none-any.whl
-c7067fd2b772823d50880b02c1ffa3f56ac3913bc9c4c13ce39e232052244e0c  agentpkg-0.7.1-py3-none-any.whl
+2816f2f90c5537839b1fe72765e2f711d0a1f33d577faea3018ed71f2999cba1  agentpkg-0.7.1-py3-none-any.whl
 5fdde862352598fc68e4fe5a2f5c2dee19bf952112446b3fc13bc77763533b0b  literature-review-0.2.0.agent.pkg
 0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42  literature-review-0.2.1.agent.pkg
 4804ea8f4c2ad40439641f8348c2d65b798f4d52802f6ad751b71114e4f27c04  literature-review-0.2.2.agent.pkg
