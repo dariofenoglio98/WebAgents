@@ -27,8 +27,11 @@ def model_text(checker):
 
 
 def run(checker, tmp_path, text, **kwargs):
+    """One mutated model through every check; the repository's cited documents are scanned only
+    when a test asks for them (`documents=`), to keep each case cheap."""
     path = tmp_path / "model.md"
     path.write_text(text, encoding="utf-8")
+    kwargs.setdefault("documents", [])
     return checker.run_checks(path, **kwargs)
 
 

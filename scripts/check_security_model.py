@@ -36,6 +36,7 @@ Prints a JSON report with `"passed"` and exits 1 when a check fails. No network,
 from __future__ import annotations
 
 import argparse
+import bisect
 import json
 import re
 import sys
@@ -413,25 +414,28 @@ def check_threat_model_map(path: Path, report: dict) -> None:
     }
 
 
-def collapsed(text: str) -> tuple[str, list[int]]:
-    """The text with every run of whitespace as one space, and each character's line number."""
-    out = []
-    line_of = []
-    line = 1
-    pending_space = False
-    for char in text:
-        if char == "\n":
-            line += 1
-        if char.isspace():
-            pending_space = bool(out)
-            continue
-        if pending_space:
-            out.append(" ")
-            line_of.append(line)
-            pending_space = False
-        out.append(char)
-        line_of.append(line)
-    return "".join(out), line_of
+def collapsed(text: str):
+    """The text with every run of whitespace as one space, and a function from an index in that
+    text to the line of the original: one entry per word, not per character."""
+    parts: list[str] = []
+    starts: list[int] = []
+    originals: list[int] = []
+    position = 0
+    for match in re.finditer(r"\S+", text):
+        if parts:
+            position += 1
+        starts.append(position)
+        originals.append(match.start())
+        parts.append(match.group(0))
+        position += len(match.group(0))
+    newlines = [m.start() for m in re.finditer("\n", text)]
+
+    def line_at(index: int) -> int:
+        k = bisect.bisect_right(starts, index) - 1
+        original = originals[k] + (index - starts[k]) if k >= 0 else 0
+        return bisect.bisect_right(newlines, original) + 1
+
+    return " ".join(parts), line_at
 
 
 def check_wording(
@@ -448,19 +452,19 @@ def check_wording(
             continue
         sources.append((relative, read(path)))
     for name, text in sources:
-        flat, line_of = collapsed(text)
+        flat, line_at = collapsed(text)
         for pattern in FORBIDDEN:
             for match in pattern.finditer(flat):
                 hits.append(
                     {
                         "file": name,
-                        "line": line_of[match.start()],
+                        "line": line_at(match.start()),
                         "phrase": match.group(0),
                     }
                 )
-    flat, line_of = collapsed(model_text)
+    flat, line_at = collapsed(model_text)
     model_hits = [
-        {"file": label, "line": line_of[m.start()], "phrase": m.group(0)}
+        {"file": label, "line": line_at(m.start()), "phrase": m.group(0)}
         for m in MODEL_ONLY_FORBIDDEN.finditer(flat)
     ]
     report["wording"] = {
