@@ -1,8 +1,10 @@
 # The Agent-Native Web: security and privacy model, version 2
 
-**Status.** Version 2, draft at gate 1 (2026-11-01). Normative for the Python reference
-(`agentpkg` 0.7.1) and the Chrome core (0.5.0) at `main` `d5631ed`; the OpenClaw plugin 0.1.0 is
-the frozen reference shell. §5.4 and §6 are **planned** and bind the tasks named there; they claim
+**Status.** Version 2, approved at gate 2 (2026-11-02) and corrected after review 1 (2026-11-02;
+§8). Normative for the Python reference (`agentpkg` 0.7.1) and the Chrome core (0.5.0) at `main`
+`117afd8`, the commit every pointer below was checked against (T28 changes no code); the OpenClaw
+plugin 0.1.0 is the frozen reference shell, and where its path differs from the core's the property
+says so (P-8, P-13). §5.4 and §6 are **planned** and bind the tasks named there; they claim
 nothing about today's code. The per-boundary implementation notes that this model replaces as the
 primary statement are kept in [threat-model.md](threat-model.md); every claim there now cites a
 property of §3.
@@ -63,17 +65,17 @@ with the paper; this model names which experiment measures which property.
 ### 1.2 The one trusted component: the person's runtime
 
 Everything else may be compromised. The runtime is trusted *for* specific things, listed here so
-that the trusted base is measured rather than assumed. Pointers name the Python reference (`agentpkg`)
-and the Chrome core (`chrome-agent-browser/src/core`).
+that the trusted base is measured rather than assumed. Pointers name the Python reference
+(`agentpkg`) and the Chrome core (`chrome-agent-browser/src/core`).
 
 | Component | Trusted for | Where |
 |---|---|---|
-| **Control plane** | opening and snapshotting bytes once; verifying integrity and signature; evaluating trust; showing what it verified; recording the person's decisions into a receipt bound to the digest; freezing the Run Plan; **never executing** (a static scan and a fresh-interpreter check keep every interpreter, mediator and transport module out of it) | `agentpkg/src/agentpkg/browser/control.py:ControlPlane`, `agentpkg/tests/test_browser_boundary.py`; `chrome-agent-browser/src/core/evaluation.ts`, `chrome-agent-browser/src/core/authorization.ts`, `chrome-agent-browser/src/core/runplan.ts` |
+| **Control plane** | opening and snapshotting bytes once; verifying integrity and signature; evaluating trust; showing what it verified; recording the person's decisions into a receipt bound to the digest; freezing the Run Plan; **never executing** (in the reference, a static scan and a fresh-interpreter check keep every interpreter, mediator and transport module out of it; in the extension, the service worker authorizes and the offscreen document's Worker runs: a separation by execution context, P-5) | `agentpkg/src/agentpkg/browser/control.py:ControlPlane`, `agentpkg/tests/test_browser_boundary.py`; `chrome-agent-browser/src/core/evaluation.ts`, `chrome-agent-browser/src/core/authorization.ts`, `chrome-agent-browser/src/core/runplan.ts` |
 | **Execution host** | issuing one lease over the snapshot; re-verifying every fact the plan froze before anything runs; running the runner; writing the Run Record and the audit | `agentpkg/src/agentpkg/browser/lease.py`, `agentpkg/src/agentpkg/execution/session.py`; `chrome-agent-browser/src/core/execution/lease.ts`, `chrome-agent-browser/src/core/execution/runner.ts` |
 | **Interpreter** (Agent Workflow, with the Memory, Compute, Conversations and Delegation runners) | enforcing the graph, the views, the schemas, the budgets and the deadlines; calling out only through the mediation layer; committing a wave atomically | `agentpkg/src/agentpkg/workflow.py`, `agentpkg/src/agentpkg/runtime.py`; `chrome-agent-browser/src/core/workflow/interpreter.ts`, `chrome-agent-browser/src/core/workflow/runtime.ts` |
 | **Mediation layer** | the model router (exactly the bound model, the output schema, usage projection); the tool broker (exactly the frozen bindings, the address policy, the output contract); the memory resolver and the egress scans | `agentpkg/src/agentpkg/hostbridge/router.py`, `agentpkg/src/agentpkg/toolbridge/handler.py`, `agentpkg/src/agentpkg/memory/scan.py`; `chrome-agent-browser/src/core/models/router.ts`, `chrome-agent-browser/src/core/tools/broker.ts`, `chrome-agent-browser/src/core/memory/scan.ts` |
-| **Host adapters** | performing exactly their bound contract and nothing beside it (the Crossref adapter reads two arguments; the JSON-HTTP adapter posts to one origin and path; the PDF reader parses in a bounded child; host resources answer the plan's grant) | `agentpkg/src/agentpkg/tools.py`, `agentpkg/src/agentpkg/hostfiles/pdf.py`; `chrome-agent-browser/src/core/tools/adapters/json-http.ts`, `chrome-agent-browser/src/core/tools/adapters/crossref.ts`, `chrome-agent-browser/src/core/tools/adapters/host-resource.ts`; the reference shell's `openclaw-agent-browser/src/tool-broker.ts` |
-| **Stores at rest** | the integrity of trust pins, receipts, plans, run records and memory records; the secrecy of the secret store's entries (provider keys, the memory keys) | `agentpkg/src/agentpkg/browser/trust.py`; `chrome-agent-browser/src/core/trust.ts`, `chrome-agent-browser/src/core/secrets.ts`, `chrome-agent-browser/src/core/memory/store.ts` |
+| **Host adapters** | performing exactly their bound contract and nothing beside it (the Crossref adapter reads two arguments; the JSON-HTTP adapter posts to one origin and path; the PDF reader parses in a bounded child; host resources answer the plan's grant) | `agentpkg/src/agentpkg/tools.py`, `agentpkg/src/agentpkg/hostfiles/pdf.py`; `chrome-agent-browser/src/core/tools/adapters/json-http.ts`, `chrome-agent-browser/src/core/tools/adapters/crossref.ts`, `chrome-agent-browser/src/core/tools/adapters/host-resource.ts`, the extension's PDF reader `chrome-agent-browser/src/extension/execution/pdf-reader.ts` (a nested Worker, `chrome-agent-browser/src/extension/execution/pdf-worker.ts`); the reference shell's `openclaw-agent-browser/src/tool-broker.ts` |
+| **Stores at rest** | the integrity of trust pins, receipts, plans, run records and memory records; the secrecy of the secret store's entries (provider keys, the memory keys) | `agentpkg/src/agentpkg/browser/trust.py`, `agentpkg/src/agentpkg/browser/control.py` (the session's snapshots, receipts and plans), `agentpkg/src/agentpkg/memory/folder.py`; `chrome-agent-browser/src/core/trust.ts`, `chrome-agent-browser/src/core/secrets.ts`, `chrome-agent-browser/src/core/memory/store.ts` |
 | **The platform beneath** | the operating-system account; the language runtime and its TLS and cryptography (Python 3.13 with `cryptography` for Ed25519; Chrome's WebCrypto, or `@noble/ed25519` where it is absent); the JSON parser and the JSON Schema validator; Chrome's `fetch`, certificate checks, CSP and extension isolation; for the OpenClaw shell, the Gateway process, its plugin runtime and the operator's configuration | not this project's code |
 
 ### 1.3 What each extension adds to the trusted base
@@ -95,7 +97,11 @@ The core is one thing; three shells host it, and each adds a trusted surface of 
 - **The OpenClaw plugin** (the frozen reference shell): the Gateway process and the plugin backend
   are trusted host code; they hold the control plane's bearer token, open the lease descriptor and
   own the runner process. The operator's Gateway authority is the trust root: a compromised Control
-  UI session can start any authorized plan, as the operator could.
+  UI session can start any authorized plan, as the operator could. Two of its paths fall short of
+  the core's and are stated where they matter: its broker classifies a tool connection's address but
+  does not yet pin the connection (B-116; P-8), and it opens a run without a memory store, so its
+  model requests are not scanned for sealed values and its host resources are scanned on tool
+  arguments only, to a bounded depth (B-114, B-265; P-13).
 - **The Chrome extension**: Chrome is trusted for the network stack, TLS, storage, CSP and the
   isolation of extension contexts; the extension's own pages are trusted as the person's surface;
   the service worker authorizes and never executes; the offscreen document runs each run in a
@@ -109,13 +115,14 @@ The core is one thing; three shells host it, and each adds a trusted surface of 
 
 Some things are trusted only because the person chose to trust them, and the model says what each
 choice delegates. **A trust pin** makes one key trusted for one package-id scope (P-2). **A policy
-subscription** makes the issuer's anchors trusted within their scopes and adopts its defaults; it
-can lower limits and never raise one, and it is one explicit, revocable choice (P-18). **An
-operator binding file** is trusted like every other host setting: it can only add entries of the
-service-neutral JSON-HTTP adapter, which still have to land inside the package's declared domain
-and be approved by the person. **A host adapter** the operator approved is inside the trusted base
-(§1.2). **A preset** pre-decides the decisions the person chose it for, never a payment and never
-a personal record (P-16).
+subscription** (Chrome core) makes the issuer's anchors trusted within their scopes and adopts its
+defaults within the declaration and the preset's ceiling; it can lower a limit and never raise one,
+and it is one explicit, revocable choice (P-4, P-18). **An operator binding file** is trusted like
+every other host setting: it can only add entries of the service-neutral JSON-HTTP adapter, which
+still have to land inside the package's declared domain and be approved by the person. **A host
+adapter** the operator approved is inside the trusted base (§1.2). **A preset** (Chrome core)
+pre-decides, within the declaration, the decisions the person chose it for, never a payment and
+never a personal record (P-4, P-16).
 
 ### 1.6 Outside the trusted base
 
@@ -136,32 +143,33 @@ compromised, careless or merely faulty; the cause is never assumed and nothing d
 
 | Adversary | Controls | Can read | Can emit | Goals | Cannot do by construction |
 |---|---|---|---|---|---|
-| **A-PKG** the package or publisher, and any distributor between them and the person | every byte of the package and the key that signs it; a distributor controls the bytes in transit | nothing of the person's before authorization; after it, what the person granted, through the graph | any declaration, skill text, schema, fixture, module; any later version | run code; reach undeclared destinations; obtain more than the person grants; keep or leak the person's data; spend more than declared; make an action look consented | change bytes after verification (P-1); be trusted by signing (P-2); execute anything but a bounded module (P-3, P-15); widen a grant (P-4); change the plan (P-5); reach an undeclared destination (P-8); overspend (P-9); move a sealed value to a model or an unlinked tool (P-13); write memory without review (P-14); skip a consent step (P-16) |
+| **A-PKG** the package or publisher, and any distributor between them and the person | every byte of the package and the key that signs it; a distributor controls the bytes in transit | nothing of the person's before authorization; after it, what the person granted, through the graph | any declaration, skill text, schema, fixture, module; any later version | run code; reach undeclared destinations; obtain more than the person grants; keep or leak the person's data; spend more than declared; make an action look consented | change bytes after verification (P-1); be trusted by signing (P-2); execute anything but a bounded module (P-3, P-15); widen a grant (P-4); change the plan (P-5); reach an undeclared destination (P-8); overspend (P-9); move a sealed value to a model or an unlinked tool where the run holds the store (P-13); write memory without review (P-14); skip a consent step (P-16) |
 | **A-ORIG** the origin, or a page on it | what it serves: the package bytes, the HTML, the services' answers, redirects | the requests the runtime sends it (arguments of approved tool calls, nothing else) | any bytes, any `<link>`, any response | substitute a package; vouch for one; reach the person's machine; inject instructions through responses | make a substituted package verify (P-1); make discovery grant anything (P-18); be followed through a redirect or to a private address (P-8); make a response an instruction (P-6, P-18) |
-| **A-MODEL** the model, local or hosted (§2.2) | every answer it gives, on every call | the request: the task, the skill, the data the graph routed to its role; never a sealed value (P-13); never another role's view (P-17) | any JSON within the schema; any choice among allowed values; any text in free-text fields | exfiltrate granted data; misuse an approved capability; persuade the person; loop or fan out; spend | execute or command (P-6); call a tool the graph did not place (P-6, P-8); route outside the enum or the caps (P-7); widen a grant (P-4); see or emit a sealed value (P-13); decide a consent step (P-16); exceed the budget (P-9); hide an attempt (P-11) |
-| **A-PROV** the model provider as a recipient | what it receives and keeps | the model requests it is sent | its answers | retain or correlate what it is sent | receive a sealed value (P-13); receive what the plan does not route to the model role (P-17); the tiers of §5 (planned) |
+| **A-MODEL** the model, local or hosted (§2.2) | every answer it gives, on every call | the request: the task, the skill, the data the graph routed to its role; never a sealed value where the run holds the store (P-13); never another role's view (P-17) | any JSON within the schema; any choice among allowed values; any text in free-text fields | exfiltrate granted data; misuse an approved capability; persuade the person; loop or fan out; spend | execute or command (P-6); call a tool the graph did not place (P-6, P-8); route outside the enum or the caps (P-7); widen a grant (P-4); see or emit a sealed value (P-13); decide a consent step (P-16); spend past a reported overrun (P-9); hide an attempt (P-11) |
+| **A-PROV** the model provider as a recipient | what it receives and keeps | the model requests it is sent | its answers | retain or correlate what it is sent | receive a sealed value where the run holds the store (P-13); receive what the plan does not route to the model role (P-17); the tiers of §5 (planned) |
 | **A-TOOL** a remote tool service, or its compromised response | what it answers to approved calls | the arguments of calls bound to it | any JSON, markup, text, status, headers | inject instructions; return out-of-contract data; redirect; stall | be reached without a declaration, binding and approval (P-8); redirect the runtime (P-8); be used outside its output schema (P-6, P-10); stall past the deadline (P-9); turn text into authority (P-18) |
 | **A-PEER** a peer role of a network (later: another publisher's package or a remote agent) | its message to the next role; its patch to the shared state within its view | its own view of the state and the message it received | a message under the declared schema; a route choice among the enum | steer the next role; read or write beyond its view; loop | read or write outside its view (P-17); route outside the edges and caps (P-7); call tools its worker was not given (P-4) |
 | **A-MEM** a memory record: poisoned, imported, or proposed by another publisher | its own content | — | text, fields, links that a later run reads as data | plant an instruction the next run follows; leak through a proposal; persist | be read as an instruction (P-14); name a tool, permission or destination (P-14); be recalled without a declared type and the person's choice (P-12); be written without review (P-14) |
 | **A-ISS** an index or policy issuer | what it lists; what its anchors trust; which defaults it sets | — | signed documents the person subscribed to | put a look-alike agent in front of the person; make an untrusted key trusted; loosen defaults | grant anything by listing (P-18); raise a limit, pick a record, pre-decide a payment or exceed what a package declares (P-18, P-16); override the person's own pins (P-2) |
-| **A-NET** an on-path or DNS adversary | DNS answers; the path (TLS assumed sound) | ciphertext | a rebinding answer; a private address for a public name | reach the person's network through the runtime | be followed to a non-public address or through a redirect where addresses are classified (P-8; the extension's limit is stated there) |
+| **A-NET** an on-path or DNS adversary | DNS answers; the path (TLS assumed sound) | ciphertext | a rebinding answer; a private address for a public name | reach the person's network through the runtime | be followed to a non-public address or through a redirect where addresses are classified (P-8; the extension's limit and the reference shell's unpinned connection are stated there) |
 
 ### 2.2 The compromised model
 
 The model is the one adversary that sits inside the computation, so it is stated on its own.
 **Capabilities assumed.** On any call, triggered by any content it reads (a tool output, a page, a
 memory record, a peer's message, the task) or untriggered and persistent, the model may return any
-JSON document its schema admits: any string in a free-text field, any value among an enum's
-allowed values, any number; in a network, any target among the enum the runtime built. It may do
-so while its visible reasoning denies it. The cause (poisoning at training time, a planted
-backdoor, a fault, a harness defect) is never assumed; three strengths are evaluated: a triggered
+JSON document its schema admits: any string in a free-text field, any value among an enum's allowed
+values, any number; in a network, any target among the enum the runtime built. It may do so while
+its visible reasoning denies it. The cause (poisoning at training time, a planted backdoor, a fault,
+a harness defect) is never assumed; three strengths are to be evaluated in E10: a triggered
 backdoor, an untriggered poisoned model, and a wrapper that rewrites any model's output on trigger
 (the worst case, model-independent).
 
 **What it cannot do by construction.** Emit a call the graph did not place; name a destination;
-change the plan or a grant; read outside its role's view; see a sealed value; decide a consent
-step; exceed the reservation; leave no trace: every attempt it can express is a schema-conforming
-answer, and every call and refusal is in the audit (P-4…P-9, P-11, P-13, P-16, P-17).
+change the plan or a grant; read outside its role's view; see a sealed value where the run holds the
+store; decide a consent step; spend past a reported overrun; leave no trace: every attempt it can
+express is a schema-conforming answer, and every call and refusal is in the audit (P-4…P-9, P-11,
+P-13, P-16, P-17).
 
 **What counts as a boundary reached** (the oracle's definition for the catalog and the
 compromised-model experiment): (a) bytes leave toward a destination the plan does not name;
@@ -176,8 +184,9 @@ the plan's recipient set excludes it.
 **What a compromised model can still do**, stated in every paper and pitch: give wrong or slanted
 answers; misuse a tool the person approved, within its approval and the graph's arguments; leak
 through covert channels (timing; which of the allowed values it picks; the length or existence of
-an answer); try to persuade the person through the text it writes. The runtime bounds the effect
-of a compromise; it does not detect one.
+an answer); try to persuade the person through the text it writes; burn the run's own budget or
+stall to a deadline, a denial the person sees (§4). The runtime bounds the effect of a compromise;
+it does not detect one.
 
 ### 2.3 Combined adversaries
 
@@ -191,13 +200,13 @@ authorization rather than assuming good faith.
 
 ## 3. Properties
 
-Properties are grouped by what they bound: what runs (P-1…P-3), what authority a run holds
-(P-4, P-5), what a model and the graph may do (P-6, P-7), how a run reaches the world (P-8…P-11),
-the person's data (P-12…P-14), the extensions (P-15…P-17), the web's inputs (P-18) and the
-Chrome shell (P-19). The conformance case ids are those of [`conformance/`](../conformance/README.md)
-(224 cases agreed by both runtimes at `d5631ed`, `conformance/results/2026-10-25T02-53-07-223Z/`);
-the spec-numbered cases (memory N1…N22, compute N-1…N-27, conversation N-1…N-43, network N-1…N-46)
-are the same cases by their specification numbers.
+Properties are grouped by what they bound: what runs (P-1…P-3), what authority a run holds (P-4,
+P-5), what a model and the graph may do (P-6, P-7), how a run reaches the world (P-8…P-11), the
+person's data (P-12…P-14), the extensions (P-15…P-17), the web's inputs (P-18) and the Chrome shell
+(P-19). The conformance case ids are those of [`conformance/`](../conformance/README.md) (224 cases
+agreed by both runtimes at `d5631ed`, `conformance/results/2026-10-25T02-53-07-223Z/`); the
+spec-numbered cases (memory N1…N22, compute N-1…N-27, conversation N-1…N-43, network N-1…N-46) are
+the same cases by their specification numbers.
 
 ### P-1 · Integrity and provenance of what runs
 
@@ -206,7 +215,9 @@ named in the integrity statement with its SHA-256; the publisher's Ed25519 signa
 statement under a domain separator; a package is parsed under closed limits (no duplicate or
 unsafe names, no duplicate JSON keys, no remote schema, bounded sizes); the control plane captures
 the bytes once into a private snapshot and every later answer, and the run itself, come from that
-snapshot; the Run Record names the package digest, the archive hash and the signer.
+snapshot; the Run Record names the package digest and the archive hash, and the signer directly
+(the reference's report) or through the plan's hash it records (the Chrome core and the reference
+shell).
 
 **Adversary.** A-PKG as a distributor or a publisher who changes a member after signing; A-ORIG
 substituting bytes; a race between verification and loading.
@@ -236,11 +247,12 @@ credential yet (planned: the supply chain, W6). The runtime itself is trusted as
 ### P-2 · A valid signature is not a trusted publisher
 
 **Statement.** Verification reports which key signed. Trust is a separate state: a pin the person
-made (or a policy they subscribed to) for a key within a package-id scope. Signature status and
-trust status are reported and rendered as separate facts; an embedded key is never a trust
-anchor; a claimed publisher pinned to another key reports `mismatch`. A key rotation and an
-impersonation are indistinguishable in the bytes, by design; only the person's out-of-band
-decision on that fingerprint resolves them, and the narrowest scope binds one key to one package.
+made (or, in the Chrome core, a policy they subscribed to) for a key within a package-id scope.
+Signature status and trust status are reported and rendered as separate facts; an embedded key is
+never a trust anchor; a claimed publisher pinned to another key reports `mismatch`. A key rotation
+and an impersonation are indistinguishable in the bytes, by design; only the person's out-of-band
+decision on that fingerprint resolves them. A scope is a package-id prefix: the narrowest pin names
+one package id in full, and a shorter prefix covers every id that begins with it.
 
 **Adversary.** A-PKG signing under another publisher's name; A-ISS or A-ORIG vouching for a
 package.
@@ -249,12 +261,13 @@ package.
 `agentpkg/src/agentpkg/signing.py:verify_package`,
 `agentpkg/src/agentpkg/browser/evaluation.py:signature_report`.
 
-**Chrome core.** `chrome-agent-browser/src/core/trust.ts:trustState`,
+**Chrome core.** `chrome-agent-browser/src/core/trust.ts:evaluateTrust`,
 `chrome-agent-browser/src/core/signature.ts:verifyWithTrustedKey`,
 `chrome-agent-browser/src/core/evaluation.ts:publisherReport`,
 `chrome-agent-browser/src/core/policies/apply.ts:anchorVerdict`.
 
-**Conformance.** `unpinned-key`, `wrong-key`, `control-plane/stale_trust_revoked`.
+**Conformance.** `unpinned-key`, `wrong-key` (a pin withdrawn after the plan froze is P-5's
+`control-plane/stale_trust_revoked`).
 
 **Experiment.** E1 (the trust family of the first catalog is cited), E8.
 
@@ -298,9 +311,14 @@ can persuade a model (belief, not authority; §4).
 their endpoints and schemas, model requirements, resource types, modules, consent steps, roles
 and caps. The person's runtime grants; the run holds the intersection, frozen in the receipt and
 the Run Plan. Every tool needs its permission granted **and** its own approval; a declared
-endpoint is an upper bound, never a grant; a required permission denied refuses the plan, an
-optional one denied refuses the node that needs it. Nothing a skill says, a model emits, a tool
-returns or a record contains can widen a grant; a preset, a profile or a policy can only narrow.
+endpoint is an upper bound, never a grant; a required permission denied refuses the plan at
+preparation (the `agentpkg run` CLI, which prepares no plan, refuses at the node:
+`denied-permission/required` documents the difference), an optional one denied refuses the node
+that needs it. Nothing a skill says, a model emits, a tool returns or a record contains can widen
+a grant. The Chrome core's presets, profiles and policies pre-decide or select within the
+declaration and the preset's ceiling (a policy can lift an optional permission the preset left
+denied up to that ceiling, and approve a tool by default), never beyond the declaration, and the
+provenance of every decision is recorded; the reference has none of the three.
 
 **Adversary.** A-PKG; A-MODEL; injected content (A-ORIG, A-TOOL, A-MEM, A-PEER); A-ISS.
 
@@ -308,7 +326,9 @@ returns or a record contains can widen a grant; a preset, a profile or a policy 
 `agentpkg/src/agentpkg/browser/authorization.py:blocking_reasons`,
 `agentpkg/src/agentpkg/browser/runplan.py:preparation_blockers`,
 `agentpkg/src/agentpkg/runtime.py:Runtime._authorize`,
-`agentpkg/src/agentpkg/runtime.py:check_approved_tools`,
+`agentpkg/src/agentpkg/runtime.py:Runtime.call_tool` (every tool needs its own approval),
+`agentpkg/src/agentpkg/runtime.py:check_approved_tools` (an approval for an undeclared tool is
+refused),
 `agentpkg/src/agentpkg/execution/policy.py:normalize_grants`,
 `agentpkg/src/agentpkg/execution/policy.py:check_tools`.
 
@@ -323,15 +343,18 @@ returns or a record contains can widen a grant; a preset, a profile or a policy 
 **Conformance.** `missing-approval`, `denied-permission/required`, `denied-permission/optional`,
 `denied-permission/optional-in-a-map`, `control-plane/profile_search`,
 `control-plane/partial_approvals_without_profile`, `compute/permission-denied`,
-`compute/permission-missing`, `memory/n3-read-denied` (compute N-12, N-19; memory N3).
+`compute/permission-missing`, `memory/n3-read-denied`, and `once` consumed at its first use
+within a run: `once-overused`, `network/once-memory`, `network/once-model` (compute N-12, N-19;
+memory N3).
 
 **Experiment.** E1 (the authorization family of the first catalog is cited; the second catalog's
 four families), E3 (an injection cannot widen a grant), E6 (CB-2, CB-6), E10 (a compromised model
 cannot widen one).
 
 **Residual.** A person who grants broadly has granted broadly: a `session` grant covers every run
-under its receipt, and a grant is of a kind, not of a purpose. `always` does not exist; a
-remembered, revocable decision is planned (§5.4).
+under its receipt, and a grant is of a kind, not of a purpose. `always` is in the grant
+vocabulary both interpreters accept, but no shell offers it; a remembered, revocable decision is
+planned (§5.4).
 
 ### P-5 · Prepare, re-verify, then run; what authorizes never runs
 
@@ -339,12 +362,17 @@ remembered, revocable decision is planned (§5.4).
 hash, the signer and the trust state, the receipt, the resource grants by opaque id and keyed
 digest, the tool bindings by digest, the model binding, the limits and, for a network, the
 envelope. Execution begins only under a one-time lease over the snapshot, after the host
-re-verified every one of those facts and the runner re-derived them from the verified bytes in
-its own process; anything that changed (bytes, trust, bindings, resources, model availability or
-identity, receipt expiry) refuses as stale and is replaced, never repaired. A `once` grant is spent
-by the first lease. The component that shows and authorizes cannot import the interpreter; a
-static scan and a fresh-interpreter check enforce it, and authorization produces a receipt, never
-a run.
+re-verified every one of those facts and the runner re-derived the package's identity (archive
+hash, digest, signer) and its declarations from the verified bytes: in the reference in its own
+process, in the Chrome core in the host's process, which the extension places in a dedicated
+Worker. Trust is the host's decision, which the runner cannot re-evaluate: it refuses a signer
+other than the plan's. Anything that changed (bytes, trust, bindings, resources, model
+availability or identity, receipt expiry) refuses as stale and is replaced, never repaired. A
+`once` grant is spent by the first lease. Authorization produces a receipt, never a run; in the
+reference, the component that shows and authorizes cannot import the interpreter (a static scan
+and a fresh-interpreter check enforce it), and in the extension the separation is by execution
+context (the service worker authorizes, the offscreen document's Worker runs), not by an import
+rule: the service worker imports a digest helper from the interpreter module.
 
 **Adversary.** A-PKG, A-ORIG or A-ISS changing the world between consent and start: a re-signed
 package, a withdrawn pin, a swapped binding or record, a replayed plan; a stale page authorizing
@@ -353,6 +381,8 @@ other bytes.
 **Python reference.** `agentpkg/src/agentpkg/browser/runplan.py:build_run_plan`,
 `agentpkg/src/agentpkg/browser/runplan.py:preflight`,
 `agentpkg/src/agentpkg/browser/runplan.py:tool_staleness`,
+`agentpkg/src/agentpkg/browser/control.py:ControlPlane.issue_execution_lease` (the `once`
+receipt spent at the first lease),
 `agentpkg/src/agentpkg/browser/lease.py:issue`,
 `agentpkg/src/agentpkg/execution/session.py:normalize_execution_plan`,
 `agentpkg/src/agentpkg/execution/session.py:ExecutionSession`,
@@ -366,7 +396,7 @@ other bytes.
 `chrome-agent-browser/src/core/execution/runner.ts:ExecutionSession`.
 
 **Conformance.** `control-plane/stale_trust_revoked`, `control-plane/stale_tool_changed`,
-`control-plane/once_replayed`, `once-overused`, `network/once-memory`, `network/once-model`,
+`control-plane/once_replayed` (the receipt spent by the first lease; `once` within a run is P-4's),
 `network/execution-layer-envelope` (network N-28, N-29).
 
 **Experiment.** E1 (the plan-binding family of the first catalog is cited; the envelope-reservation
@@ -384,8 +414,10 @@ checks; the document becomes state that later nodes read through declared constr
 no shell, no free tool call and no text the runtime obeys: a tool call exists only as a node the
 publisher placed in the signed graph, with arguments the graph constructs; a model's only choices
 are the values its schema admits and, in a network, a target among the enum the runtime built. A
-non-conforming answer is refused (and asked for again at most twice with a host-written line),
-never repaired.
+non-conforming answer is refused, never repaired: the reference asks no model twice, and the
+Chrome core may ask again at most twice (`MAX_REASKS`) with a host-written line, within the same
+bounds. Both routers take the answer as one JSON document, found as a fenced document or as the
+first balanced object in prose, and edit nothing inside it.
 
 **Adversary.** A-MODEL (§2.2); A-ORIG, A-TOOL, A-MEM and A-PEER as sources of text a model follows.
 
@@ -396,6 +428,7 @@ never repaired.
 
 **Chrome core.** `chrome-agent-browser/src/core/models/router.ts:BoundModelRouter`,
 `chrome-agent-browser/src/core/models/structured.ts`,
+`chrome-agent-browser/src/core/workflow/runtime.ts:MAX_REASKS`,
 `chrome-agent-browser/src/core/workflow/assertions.ts:checkAnswer`,
 `chrome-agent-browser/src/core/workflow/values.ts:evaluate`.
 
@@ -412,13 +445,15 @@ approved tool within its approval; a covert choice among allowed values (§2.2, 
 
 ### P-7 · Control flow is the publisher's signed graph
 
-**Statement.** The graph is acyclic and fixed before signing; a wave commits atomically or not at
-all. The only loop is Agent Delegation: the model chooses the next role among the targets the
-runtime admits (declared edges with uses left, under the hop cap and the target's activation cap);
-the worst case over every admissible walk (model calls, compute calls, remote calls, tokens,
-seconds) is computed from the declaration, shown before the run as "at most", checked against the
-budget at validation and reserved before the first activation. A refused route is a visible
-failure, never a silent extra call.
+**Statement.** The graph is acyclic and fixed before signing; a wave's state commits atomically or
+not at all (a tool dispatched in a wave that then fails is not undone). The only loop is Agent
+Delegation: the model chooses the next role among the targets the runtime admits (declared edges
+with uses left, under the hop cap and the target's activation cap); the worst case over every
+admissible walk (model calls, compute calls, remote calls, tokens, seconds) is computed from the
+declaration, shown before the run as "at most", checked at validation against the package's budget
+(tokens and remote calls) and admitted before the first activation against what the run has left,
+with nothing held (P-9). A refused route is a visible failure, after the Chrome core's bounded
+re-asks (R-28), never a silent extra call.
 
 **Adversary.** A-MODEL or A-PEER looping, fanning out or routing outside the edges (termination
 poisoning, inter-role injection); A-PKG declaring a bound its own budget cannot hold.
@@ -427,7 +462,8 @@ poisoning, inter-role injection); A-PKG declaring a bound its own budget cannot 
 `agentpkg/src/agentpkg/workflow.py:Workflow`,
 `agentpkg/src/agentpkg/delegation/analysis.py:worst_case`,
 `agentpkg/src/agentpkg/delegation/analysis.py:enumerate_walks`,
-`agentpkg/src/agentpkg/delegation/runner.py:_check_transition`.
+`agentpkg/src/agentpkg/delegation/runner.py:_check_transition`,
+`agentpkg/src/agentpkg/runtime.py:Runtime.reserve_network` (an admission check: nothing is held).
 
 **Chrome core.** `chrome-agent-browser/src/core/workflow-static.ts:validateWorkflow`,
 `chrome-agent-browser/src/core/workflow/interpreter.ts:Workflow`,
@@ -456,10 +492,13 @@ A remote binding must land on a host inside the package's declared domains, the 
 permission's resources and the policy's allowed domains, at the declared path and method, or it is
 incompatible; the binding digest covers what the binding would do, so a changed implementation
 makes the plan stale. Transport: HTTPS on port 443 only, no redirect followed, bounded request and
-response, a deadline, no cookie and no ambient credential; in the reference and in the Node CLI
-every resolved address is classified against the public-address policy (loopback, private,
-link-local, multicast, reserved, cloud metadata, mapped and tunnelled forms) and the connection is
-pinned to the classified address with TLS bound to the name. A binding's credential is read at
+response, a deadline, no cookie and no ambient credential; in the Python reference's own
+transport, in the Node CLI and in the reference shell's broker every resolved address is
+classified against the public-address policy (loopback, private, link-local, multicast, reserved,
+cloud metadata, mapped and tunnelled forms); the Python transport and the Node CLI then pin the
+connection to the classified address with TLS bound to the name, while the reference shell's
+broker classifies the first resolution but does not yet pin the connection (B-116: Node resolves
+the name again when it dials). A binding's credential is read at
 call time and appears in no frame, plan, audit, report or error.
 
 **Adversary.** A-PKG naming a destination; A-MODEL or injected content shaping arguments; A-NET
@@ -493,20 +532,24 @@ undeclared destination is refused and recorded, against the same model in a shel
 **Residual.** The extension has no resolver and no socket, so it cannot classify where a name
 resolves: a public name that resolves to a private address would be fetched by Chrome, bounded by
 what a request can carry (a declared endpoint, schema-checked arguments, no cookie or credential)
-and reach (the person's own network). An approved tool receives whatever the package's signed
-declarations route to it (Agent Data Flow, §5.4). Adapters and operator bindings are trusted host
-code.
+and reach (the person's own network). The reference shell's unpinned connection (B-116) leaves a
+name that changes its answer between the classification and the dial. An approved tool receives
+whatever the package's signed declarations route to it (Agent Data Flow, §5.4). Adapters and
+operator bindings are trusted host code.
 
 ### P-9 · Budgets hold and accounting is conservative
 
 **Statement.** Tokens (global, per worker, per call), remote calls (global, per worker, per tool),
-fan-out, parallelism and deadlines (node, graph, run) are declared by the package and capped by the
-host as the minimum of the two; a per-call output cap above the host's ceiling is refused, not
+fan-out, parallelism and deadlines (node, graph, run) are declared by the package; the run totals,
+the parallelism, the per-tool call caps and the graph deadline are the minimum of the package's and
+the host's figures, and the per-worker, per-call, per-node and fan-out bounds are the package's own,
+nested inside; a per-call output cap above the host's ceiling is refused at plan preparation, not
 lowered. Every model call is reserved before dispatch as the full input bound plus the maximum
 output; unknown usage consumes the reservation; a reported overrun is recorded and halts further
 dispatch; absent or invalid usage fails rather than counting as zero. A conversation reserves a
-whole turn against the conversation's budget; a network reserves the worst case before the first
-activation; a compute call is bounded in memory, wall time and, on the reference, instructions.
+whole turn against the conversation's budget; a network is admitted before its first activation only
+if what the run has left covers its worst case, with nothing held; a compute call is bounded in
+memory, wall time and, on the reference, instructions.
 
 **Adversary.** A-PKG or A-MODEL driving a run past its bounds; A-PROV misreporting usage; a
 module that never returns.
@@ -515,6 +558,7 @@ module that never returns.
 `agentpkg/src/agentpkg/runtime.py:check_host_limits`,
 `agentpkg/src/agentpkg/execution/policy.py:effective_budget`,
 `agentpkg/src/agentpkg/execution/policy.py:effective_deadline_seconds`,
+`agentpkg/src/agentpkg/execution/policy.py:check_capabilities` (the output-cap refusal),
 `agentpkg/src/agentpkg/hostbridge/router.py:project_usage`,
 `agentpkg/src/agentpkg/hostbridge/router.py:token_upper_bound`,
 `agentpkg/src/agentpkg/conversation/runner.py:effective_limits`,
@@ -547,13 +591,14 @@ is a denial the person sees, not a breach.
 refused; a failed wave commits nothing; a failed turn persists nothing; a denied required
 permission refuses the plan; a host that cannot ask answers no; a lease that cannot be verified is
 not issued; an absent engine refuses the compute node before the run; a disagreement between the
-two runtimes fails the conformance suite rather than being normalized away.
+two runtimes fails the conformance suite rather than being normalized away, except the
+differences the suite itself names as documented (its `documented difference` cases).
 
 **Adversary.** Any party that profits from an ambiguous state: a desynchronized peer, a malformed
 tool response, a reload during a card, an absent person.
 
 **Python reference.** `agentpkg/src/agentpkg/workflow.py:Workflow`,
-`agentpkg/src/agentpkg/conversation/host.py:ConsentHost`,
+`agentpkg/src/agentpkg/conversation/host.py:TranscriptConsent.decide` (no decision is a no),
 `agentpkg/src/agentpkg/hostbridge/peer.py:BridgePeer`,
 `agentpkg/src/agentpkg/execution/session.py:normalize_execution_plan`.
 
@@ -575,12 +620,13 @@ repeats it; a package can be written to fail.
 ### P-11 · A hash-linked audit, refused attempts included
 
 **Statement.** Every run writes an audit chain: each model call (requested, completed, refused),
-tool call (requested, settled, refused), permission check with its decision, route decision with
-its reason, consent request and decision with its provenance, compute call with its bounds and
-trap, memory proposal and agent write, and state commit; events link by hash; a conversation keeps
-one chain across turns. The run summary, the usage and the cost are derived from the chain, never
-kept beside it. Events carry identifiers, codes, hashes, counts and pointers, never a prompt, a
-record value, a credential or a provider's error text.
+tool call (requested, settled, refused), permission check with its decision, route decision with its
+reason, consent request and decision with its provenance, compute call with its bounds and trap,
+memory proposal and agent write, and state commit; events link by hash; a conversation keeps one
+chain across turns. The run summary and the cost are derived from the chain; the usage is the
+runtime's own counters, written into the record beside the chain. Events carry identifiers, codes,
+hashes, counts and pointers, never a prompt, a record value, a credential or a provider's error
+text.
 
 **Adversary.** A run that hides what it attempted (A-MODEL's denied tool use; A-PKG's undeclared
 attempt); a transcript that claims a consent the chain does not hold; a flattering report.
@@ -631,7 +677,11 @@ the plan stale before execution and is refused at call time.
 
 **Conformance.** `webair-0.5.0/fixture`, `webair-0.6.0/fixture`, `denied-permission/optional`,
 `memory/n3-read-denied`, `memory/n6-view-mismatch`, `memory-probe/custom-type-read` (memory N3,
-N6).
+N6). These run in fixture mode and exercise the plan-level checks; the call-time handlers (no
+arguments; a changed record refused) are unit tests:
+`openclaw-agent-browser/test/host-resources.test.ts`,
+`chrome-agent-browser/test/core/memory/run.test.ts`,
+`chrome-agent-browser/test/core/vault.test.ts`.
 
 **Experiment.** E4 (the allowed-set ratio: what a package could obtain against what it needed,
 with the person's choice as the minimizer), E1.
@@ -642,12 +692,19 @@ them (recipients computed from the graph are planned, §5.4).
 
 ### P-13 · Sealed values never reach a model, and reach only tools that link their permission
 
-**Statement.** Two egress scans in both runtimes: every model request body and every tool call's
-arguments are searched for the run's scan set (the sealed values of every record of the store the
-run was opened with). A sealed value in a model request refuses the call; a sealed value in a
-tool's arguments is refused unless the run was granted it and the tool links its permission; a
-proposal or an agent note that carries one refuses the run before anything is written. A run
-opened without the store holds no sealed value and runs while the store is locked.
+**Statement.** Where a run is opened with the store (the Python reference's CLI with
+`--memory-dir`; the Chrome core whenever the plan grants a record or binds a memory tool), two
+egress scans search every model request body and every tool call's arguments for the run's scan
+set: the sealed values of every record of the store, or, in fixture mode without a store, the
+values at the sealed pointers of the replayed answers (M-62). A sealed value in a model request
+refuses the call; a sealed value in a tool's arguments is refused unless the run was granted it
+and the tool links its permission; a proposal or an agent note that carries one refuses the run
+before anything is written. A run opened without the store holds no sealed value of it and runs
+while the store is locked. **The reference shell is the stated exception:** the OpenClaw plugin
+opens every run without a store, so its model requests are not scanned, and the sealed fields of
+its host resources are scanned on tool arguments only, by the plugin's own scan, to a bounded
+depth (B-114, B-265); a granted value that the signed graph routes to a model step is honoured
+there, visibly in the graph.
 
 **Adversary.** A-PKG whose graph routes a sealed field toward a model or an unlinked tool; A-MODEL
 copying one; a proposal that launders one into memory.
@@ -665,7 +722,10 @@ copying one; a proposal that launders one into memory.
 
 **Conformance.** `memory/n11-sealed-value-to-a-model`, `memory/m36-sealed-value-to-a-tool`,
 `memory/m36-two-sealed-values`, `memory/n13-sealed-value-in-a-proposal`,
-`memory-probe/granted-sealed-value` (memory N11, N13, M-36).
+`memory-probe/granted-sealed-value` (memory N11, N13, M-36), all in fixture mode over the
+replayed answers' sealed values (M-62); the store path is unit-tested in
+`chrome-agent-browser/test/core/memory/run.test.ts` and the reference shell's tool-argument scan
+in `openclaw-agent-browser/test/host-resources.test.ts`.
 
 **Experiment.** E4 (the channel table: model request, unapproved tool, encoding, proposal, notes,
 delegation hop, error text, audit; on both runtimes; against a record-in-context baseline), E10
@@ -673,17 +733,21 @@ delegation hop, error text, audit; on both runtimes; against a record-in-context
 
 **Residual.** Exact-value matching: a paraphrased, encoded, split or inferred value is not caught;
 a value that enters from outside the store (the task, a tool's answer) is not sealed; a tool
-approved to receive a value can still exfiltrate it. Labels at every egress are planned (§5.4).
+approved to receive a value can still exfiltrate it; on the reference shell a model request is not
+scanned at all and the tool-argument scan stops at a depth (above). Labels at every egress are
+planned (§5.4).
 
 ### P-14 · Memory is written only through reviewed proposals, and records are data
 
 **Statement.** A run writes nothing to the person's memory. Proposals are bounded, of declared
 types, link only granted records and carry no sealed field or value; they are reviewed one by one
-with the package's rationale, and an accepted record carries package, version and run as
-provenance. Recalled bodies, agent notes and proposals enter a model request as data, framed as
-untrusted content; nothing in a record can name a tool, a permission or a destination. A package's
-notes reach only that package; a custom type is qualified by the declaring package, closed, and
-free of sealed field names; the person sees which packages touched which records.
+with the package's rationale, and an accepted record carries package, version and run as provenance.
+Recalled bodies, agent notes and proposals enter a model request as data, inside the input document
+under a generic preamble, never as instructions (the instructions are the package's skills); the
+label M-35 asks for ("the person's stored content") is applied by neither renderer yet (B-263). No
+field of a record is read as a tool, a permission or a destination. A package's notes reach only
+that package; a custom type is qualified by the declaring package, closed, and free of sealed field
+names; the person sees which packages touched which records.
 
 **Adversary.** A-MEM and A-PKG: a run that wants data to leave through memory or an instruction to
 stay for the next run; a record imported from elsewhere; another publisher's proposal.
@@ -718,8 +782,11 @@ already holds; a well-known type is shared by design; provenance is local.
 
 **Statement.** A tier-1 module's import section is empty: it has no clock, entropy, file, network
 or host function; it receives one byte string and returns one; it is named in the graph by its
-SHA-256, which the signature covers; only a deterministic instruction set passes validation
-(threads, SIMD, tail calls and other proposals are refused before compilation); every call runs in
+SHA-256, which the signature covers; only the gate's instruction set passes validation (threads,
+SIMD, tail calls and other proposals are refused before compilation), and what it admits is
+deterministic across engines except the bit pattern of a NaN a floating-point operation produces,
+which the reference canonicalizes and V8 leaves open, and the behaviour after a refused memory
+grow (C-19, C-47); every call runs in
 a fresh instance under the module's declared memory maximum (which must fit the host's ceiling), a
 wall bound and, on the reference, a fuel bound; the output is used only through the node's schema.
 In Chrome each call runs in its own nested Worker, terminated at the bound.
@@ -750,7 +817,8 @@ or exploit the engine.
 (trap codes across engines).
 
 **Residual.** Not an OS sandbox: the engine is trusted, and a bug in wasmtime or V8 is a bug in the
-host; Chrome meters wall time, not instructions; a module can transform data it was given into a
+host; Chrome meters wall time, not instructions; cross-engine determinism holds up to C-47's two
+exceptions; a module can transform data it was given into a
 form a later tool call carries (P-13's exact scan does not see an encoded value); a run's total
 compute is bounded by the graph's number of calls, not by a run-wide meter.
 
@@ -759,13 +827,15 @@ compute is bounded by the graph's number of calls, not by a run-wide meter.
 **Statement.** A conversational package declares consent steps. A tool linking a gated permission
 is dispatched in a turn only after a step naming that permission was accepted in that turn, checked
 statically (the tool depends on the step) and at run time (the mediator reads the turn's decisions
-before the call); every tool with write side effects must be gated. The card shows facts the graph
+before the call); every tool with write side effects must be gated, the host's own memory tools
+(`host.memory.`) excepted. The card shows facts the graph
 constructed, with their provenance, beside the model's sentence; the decision is the host's record
 of the person's answer. A step whose permission the plan denies, or whose `once` the conversation
 already spent, is not asked, and a transcript's yes for it is refused: a step narrows the plan and
-never widens it. A preset or a policy may pre-decide a step only for kinds that are neither
-`payment` nor `personal.read`, and a policy can only lower. A decision lives for its turn; the
-absence of a yes is a no.
+never widens it. In the Chrome core, a preset or a policy may pre-decide a step only for kinds
+that are neither `payment` nor `personal.read` (`NEVER_PRE_DECIDED_KINDS`), and a policy can only
+lower; the reference has no presets or policies and records whatever provenance its host reports.
+A decision lives for its turn; the absence of a yes is a no.
 
 **Adversary.** A-MODEL skipping the ask or arguing for a yes; injected self-approval (A-ORIG,
 A-TOOL); card poisoning; a change between consent and execution; replay of a `once`; a preset or
@@ -775,7 +845,7 @@ policy that pays (A-ISS); a host that answers for the person.
 `agentpkg/src/agentpkg/conversation/host.py:check_decision`,
 `agentpkg/src/agentpkg/conversation/declarations.py:check_conversation_declarations`,
 `agentpkg/src/agentpkg/conversation/declarations.py:gated_permissions`,
-`agentpkg/src/agentpkg/runtime.py:Runtime._authorize`.
+`agentpkg/src/agentpkg/runtime.py:Runtime._check_consent` (the run-time gate before a call).
 
 **Chrome core.** `chrome-agent-browser/src/core/conversation/runner.ts`,
 `chrome-agent-browser/src/core/conversation/host.ts:checkDecision`,
@@ -783,13 +853,13 @@ policy that pays (A-ISS); a host that answers for the person.
 `chrome-agent-browser/src/core/policies/consent.ts:consentPlan`,
 `chrome-agent-browser/src/core/policies/consent.ts:NEVER_PRE_DECIDED_KINDS`.
 
-**Conformance.** `conversation/tool-after-denied-consent`, `conversation/tool-after-skipped-consent`,
-`conversation/consent-undecided`, `conversation/once-across-turns`,
-`conversation/once-spent-tool-reached`, `conversation/two-steps-one-accepted`,
-`conversation/two-steps-two-permissions`, `conversation/transcript-accepts-denied`,
-`conversation/write-tool-ungated`, `conversation/tool-before-consent`,
-`conversation/consent-otherwise-accepts`, `webair-0.8.0/fixture` (conversation N-15…N-17, N-23,
-N-30…N-32, N-34, N-41…N-43).
+**Conformance.** `conversation/tool-after-denied-consent`,
+`conversation/tool-after-skipped-consent`, `conversation/consent-undecided`,
+`conversation/once-across-turns`, `conversation/once-spent-tool-reached`,
+`conversation/two-steps-one-accepted`, `conversation/two-steps-two-permissions`,
+`conversation/transcript-accepts-denied`, `conversation/write-tool-ungated`,
+`conversation/tool-before-consent`, `conversation/consent-otherwise-accepts`, `webair-0.8.0/fixture`
+(conversation N-15…N-17, N-23, N-30…N-32, N-34, N-41…N-43).
 
 **Experiment.** E6 (the consent-bypass catalog CB-1…CB-11; the precedence test that the host may
 add a step and the publisher cannot remove a host-mandated one; cards per task with and without
@@ -806,46 +876,52 @@ far as the facts shown.
 **Statement.** Each worker and each network role sees a declared view of the state (`state_read`)
 and may write declared keys (`state_write`). Views are checked statically (no cross-role
 projection; no read of a key that `initial` does not set) and at run time (an activation receives
-a copy of its view; a patch outside the view or outside the state schema is refused before the
-role routes). A role's tools and permissions are its worker's; messages between roles are data
+a copy of its view; a patch outside `state_write` or outside the state schema is refused before
+the role routes). A role's tools and permissions are its worker's; messages between roles are data
 under a declared schema.
 
 **Adversary.** A-PEER, or A-MODEL steered by a peer's message or injected content, reading another
 role's data, writing another's keys or calling a tool it was not given.
 
 **Python reference.** `agentpkg/src/agentpkg/workflow_validation.py:validate_workflow`,
-`agentpkg/src/agentpkg/runtime.py:Runtime.state_permissions`,
+`agentpkg/src/agentpkg/runtime.py:Runtime.run_worker` (the view and the patch checked at run time),
+`agentpkg/src/agentpkg/workflow.py:Workflow._node` (the view built per node),
 `agentpkg/src/agentpkg/delegation/declarations.py:check_network_declarations`,
 `agentpkg/src/agentpkg/delegation/runner.py:Walk.patched`.
 
 **Chrome core.** `chrome-agent-browser/src/core/workflow-static.ts:validateWorkflow`,
+`chrome-agent-browser/src/core/workflow/runtime.ts:runWorker`,
 `chrome-agent-browser/src/core/network/declarations.ts:checkNetworkDeclarations`,
 `chrome-agent-browser/src/core/network/runner.ts:Walk`.
 
 **Conformance.** `network/read-outside-view`, `network/write-outside-view`,
 `network/read-uninitialized`, `network/patch-outside-schema`,
-`network/patch-outside-schema-chosen`, `network/source-outside`,
-`denied-permission/optional-in-a-map` (network N-20…N-22, N-38, N-43, N-44).
+`network/patch-outside-schema-chosen`, `network/source-outside` (network N-20…N-22, N-38, N-43,
+N-44). No case yet makes a role call a tool its worker was not given (B-264).
 
 **Experiment.** E5 (inter-role injection and message tampering), E4 (the delegation-hop channel),
 E1 (family N; the transition-check profile).
 
 **Residual.** The message is a free channel within its schema: what a role believes from a message
-is not bounded; a sealed value copied into a message is caught only by P-13's exact scan.
+is not bounded; a sealed value copied into a message is caught only by P-13's exact scan; the
+tool side of the confinement (a role's tools are its worker's) rests on P-4's checks and has no
+conformance case of its own yet (B-264).
 
 ### P-18 · Inputs from the web grant nothing
 
 **Statement.** A page's `rel="agent-package"` link, an index entry, a tool response, a PDF and a
 memory record are data or metadata. Discovery reads one page's head under a byte cap, runs no
-script, follows redirects only within one origin, reports a location on the page's own origin and
-creates no session, fetches no package and touches no trust. An index's digest and signer claims
-are compared with the bytes and a difference is shown; ranking uses only the person's own pins. A
-tool response is validated against the package's own output schema, and text with markup is
-rendered to plain text; a PDF is parsed in a separate bounded process with no script, link or
-attachment handling. A signed policy is delegated trust and delegated defaults, pinned by the
-person at subscription: it may make a key trusted within its anchors' scope and lower limits; it
-can never raise a limit, pick a record, pre-decide a payment or exceed what a package declares, and
-unsubscribing withdraws everything it did.
+script, follows redirects only within one origin (the reference) or not at all (the Chrome core),
+reports a location on the page's own origin and creates no session, fetches no package and touches
+no trust. An index's digest and signer claims are compared with the bytes and a difference is shown;
+ranking uses only the person's own pins. A tool response is validated against the package's own
+output schema, and the Crossref adapters render text with markup to plain text; a PDF is parsed with
+no script, link or attachment handling, in a bounded child process (the reference) or a nested
+Worker (the extension). Indexes and policies are Chrome-core features with no Python counterpart. A
+signed policy is delegated trust and delegated defaults, pinned by the person at subscription: it
+may make a key trusted within its anchors' scope and lower limits; it can never raise a limit, pick
+a record, pre-decide a payment or exceed what a package declares, and unsubscribing withdraws
+everything it did.
 
 **Adversary.** A-ORIG (a compromised page or a visitor-injected `<link>`); A-ISS (a stale or
 dishonest index; a compromised policy issuer); A-TOOL (a response carrying markup or
@@ -861,7 +937,8 @@ instructions); a hostile PDF.
 `chrome-agent-browser/src/core/policies/apply.ts:applyPolicy`,
 `chrome-agent-browser/src/core/policies/apply.ts:cappedLimits`,
 `chrome-agent-browser/src/core/resolve/static-index.ts`,
-`chrome-agent-browser/src/core/html-text.ts`.
+`chrome-agent-browser/src/core/html-text.ts` (the Crossref adapters only),
+`chrome-agent-browser/src/extension/execution/pdf-reader.ts`.
 
 **Conformance.** None in the cross-runtime suite (discovery, indexes and policies are host
 features): the Python discovery tests, and the real-Chrome harnesses
@@ -878,20 +955,22 @@ advertise a package, which is then judged like any other.
 
 ### P-19 · Least privilege and secrets at rest in the Chrome extension (a product property)
 
-**Statement.** The extension holds no host permission beyond the two loopback names; every HTTPS
-origin is optional and granted one at a time by the person's click (a package's origin, its
-declared services and the chosen provider, computed per plan and checked again before Prepare and
-before Run); `tabs` is never requested; pages cannot message the extension. Provider keys and the
-memory's two keys live in one envelope: AES-256-GCM per entry under a random master key, wrapped
-under a key derived from the person's passphrase with scrypt (N = 2^17, r = 8, p = 1); the master
-key is unlocked into session memory and wiped by an idle lock, on Lock now and when the browser
-closes. A run is handed only the bound provider's key and, when the plan grants a record or binds
-a memory tool, the memory snapshot. Every run executes in a dedicated Worker of the offscreen
-document and every compute call in a nested Worker; the extension's content security policy
-admits its own scripts and WebAssembly compilation only; the execution host's transports refuse
-any destination outside the plan's origins. On the Python side, the control plane binds loopback
-only under a per-process bearer token that no page can obtain, and the snapshot is an owner-only
-file.
+**Statement.** The extension holds no standing host permission beyond the two loopback names;
+`activeTab` with `scripting` gives a temporary grant on the page the person acted on, to read its
+head; every HTTPS origin is optional and granted one at a time by the person's click (a package's
+origin, its declared services and the chosen provider, computed per plan and checked again before
+Prepare and before Run); `tabs` is never requested; pages cannot message the extension. Provider
+keys and the memory's two keys live in one envelope: AES-256-GCM per entry under a random master
+key, wrapped under a key derived from the person's passphrase with scrypt (N = 2^17, r = 8, p = 1);
+the master key is unlocked into session memory and wiped by an idle lock, on Lock now and when the
+browser closes. A run is handed the bound provider's key and, when the plan grants a record or binds
+a memory tool, the whole store's snapshot with its data key (the resolver answers only the plan's
+grants; the scan set is every sealed value). Every run executes in a dedicated Worker of the
+offscreen document and every compute call in a nested Worker; the extension's content security
+policy admits its own scripts and WebAssembly compilation only; the execution host's transports
+refuse any destination outside the plan's origins, the model transport admitting loopback for a
+local engine. On the Python side, the control plane binds loopback only under a per-process bearer
+token that no page can obtain, and the snapshot is an owner-only file.
 
 **Adversary.** Another account, a backup or a stolen disk reading the profile directory; a web
 page or another extension reaching the extension or its stores; a package reaching an origin the
@@ -956,9 +1035,9 @@ Each item says what is outside the claim, why, and what bounds it anyway or what
   computed; it does not make the decision.
 - **Models run outside the browser's protection.** Ollama is a native process with full network
   access that the browser cannot confine; a hosted provider sees everything it is sent and keeps
-  what it keeps. Today the runtime bounds what reaches a model (P-13, P-17) and records every call
-  (P-11); in-browser inference (W5's route card says when a model runs outside the browser) and the
-  tiers of §5.4 are planned.
+  what it keeps. Today the runtime bounds what reaches a model (P-13 where the run holds the store,
+  P-17) and records every call (P-11); in-browser inference (W5's route card says when a model runs
+  outside the browser) and the tiers of §5.4 are planned.
 - **Denial within declared budgets.** A package or a model can burn the run's own budget, stall
   until a deadline or fail every wave; the person sees a failed run and pays what the envelope
   allowed. Fail-closed is a denial, not a breach.
@@ -968,6 +1047,10 @@ Each item says what is outside the claim, why, and what bounds it anyway or what
   Store would add a reviewer and an updater the person then also trusts).
 - **The extension's missing resolver.** It cannot classify where a DNS name resolves (P-8's
   residual); the reference and the CLI can.
+- **The reference shell's two gaps.** The OpenClaw plugin classifies a tool connection's address
+  but does not yet pin the connection (B-116), and it scans tool arguments only, to a bounded
+  depth, never a model request (B-114, B-265): P-8 and P-13 state both as the shell's exceptions,
+  and the fixes are bug fixes to the frozen reference.
 - **Exact-value sealing's limits.** A paraphrased, encoded, split or inferred sealed value; the
   unsealed fields of a granted record; a value that enters from outside the store; a secret the
   person typed into a note (P-13, P-14; labels planned in §5.4).
@@ -993,7 +1076,7 @@ Data Flow exists (§5.4).
 | The task | what the person types at run start | the person | the person's own text, untiered | reaches the roles whose view includes it; a sealed value of the store typed into it is still caught by P-13's scan |
 | Preferences | cabin, diet, interests, writing style | unsealed fields of memory records | **P** | ordinary data: goes wherever the signed graph routes it; no P/I distinction yet |
 | Identifying, unsealed | name, home city, affiliation, a research profile | unsealed fields of memory records | **I** | the same as P today |
-| Sealed | e-mail, phone, date of birth, payment method, identity numbers | the `sealed_fields` of the well-known types | **S** | never in a model request; only to a tool linking the permission (P-13) |
+| Sealed | e-mail, phone, date of birth, payment method, identity numbers | the `sealed_fields` of the well-known types | **S** | never in a model request and only to a tool linking the permission where the run holds the store (P-13; the reference shell's exception is stated there) |
 | Selected files | the PDFs the person picked | file capabilities of the session | the person's choice per file | their text reaches the roles the graph gives it to, through the reader only |
 | Derived | proposals, agent notes, exports, the transcript, the audit | written by the run | inherits the inputs' | proposals reviewed (P-14); notes per package (P-14); the audit carries identifiers only (P-11) |
 | Metadata | that a fetch or a call happened, when, from which address; the run's shape | the origin and the services see requests arrive; the provider sees the request | — | TLS; no cookie, no credential, no identifier of the person in the format (§5.5) |
@@ -1007,7 +1090,7 @@ runtime distinguishes only sealed from unsealed.
 | Channel | Mediated by | What can leave today | What the person sees |
 |---|---|---|---|
 | A tool call to a declared service | P-8 (binding, address policy), P-13 (the argument scan), the tool's input schema | the arguments the graph constructs; a sealed value only through a tool that links its permission | the agent page's tools and services; each call in the audit; the egress view by destination is planned (W4) |
-| A model request | P-6, P-17 (the role's view), P-13 (the request scan) | the role's view: task, skill, the data routed to the role, tool outputs and recalled bodies as data; never a sealed value | the plan's model and provider; the route card |
+| A model request | P-6, P-17 (the role's view), P-13 (the request scan) | the role's view: task, skill, the data routed to the role, tool outputs and recalled bodies as data; never a sealed value where the run holds the store (P-13) | the plan's model and provider; the route card |
 | A proposal to memory | P-14 | nothing without review; no sealed field or value | the review sheet, one proposal at a time |
 | An agent note | P-14 | the package's own note, no sealed value, read back only by that package | Settings → Memory |
 | A message or patch between roles | P-17 | the message under its schema; a patch within the view | the agent page's "at most"; the run page's route decisions |
@@ -1018,19 +1101,19 @@ runtime distinguishes only sealed from unsealed.
 
 Reading is not an egress: a record granted to a run and read by a model-less role, as WebAir's
 host-resource role does, reaches nobody. When the local model is Ollama, the engine is a separate
-process on the person's machine and what it logs stays there; in-browser inference (planned) runs
-the engine with no network at all.
+process on the person's machine outside the browser's protection (§4): what it logs and where it
+connects are its own; in-browser inference (planned) runs the engine with no network at all.
 
 ### 5.3 What each recipient class sees today
 
 | Recipient | Sees | Does not see | Bounded by | Shown to the person |
 |---|---|---|---|---|
-| The local model | the role's view: task, skills, the unsealed fields the graph routed, tool outputs, recalled bodies as data | sealed values; other roles' views | P-13, P-17 | the model route in the plan |
-| A hosted provider | what a local model would see, over TLS; what it retains is its own terms, outside the runtime | sealed values | P-13; the person's choice of route | the plan names provider and model id. **Current exposure, stated:** an unsealed identifying field reaches a hosted model if the signed graph routes it to a model role; the tiers of §5.4 are the planned bound |
-| A tool origin (an airline, a resolver) | the arguments of approved calls under the tool's input schema, within the declared domain; a sealed value only through a tool that links its permission (the demo purchase's payment method) | anything the graph does not route to it; the person's other records | P-8, P-12, P-13 | the agent page names the tools and their services; the signed graph is inspectable; per-field recipients are planned (§5.4) |
+| The local model | the role's view: task, skills, the unsealed fields the graph routed, tool outputs, recalled bodies as data | sealed values where the run holds the store (P-13); other roles' views | P-13, P-17 | the model route in the plan |
+| A hosted provider | what a local model would see, over TLS; what it retains is its own terms, outside the runtime | sealed values where the run holds the store | P-13; the person's choice of route | the plan names provider and model id. **Current exposure, stated:** an unsealed identifying field reaches a hosted model if the signed graph routes it to a model role; the tiers of §5.4 are the planned bound |
+| A tool origin (an airline, a resolver) | the arguments of approved calls under the tool's input schema, within the declared domain; a sealed value only through a tool that links its permission (the demo purchase's payment method); Crossref also receives the contact address the person set for its polite pool, if any | anything the graph does not route to it; the person's other records | P-8, P-12, P-13 | the agent page names the tools and their services; the signed graph is inspectable; per-field recipients are planned (§5.4) |
 | A peer role | its view and the message it received | the rest of the state | P-17 | the agent page's roles and edges |
 | The person's memory | what the package proposed, after review; its own notes | — | P-14 | the review sheet; Settings → Memory |
-| Index and policy issuers | nothing: documents are fetched when the person adds them and refreshed when the person asks | — | P-18 | the search and policy pages |
+| Index and policy issuers | the fetch's address and time when the person adds a document or asks for a refresh, as an origin does (§5.2); nothing else | the person's records, grants and runs | P-18 | the search and policy pages |
 | The shell's operator | everything, as trusted host code | — | §1.2, §1.4 | — |
 
 ### 5.4 Agent Data Flow (planned; binds T45; D-337)
@@ -1138,7 +1221,7 @@ answer (W7).
 | Intrusion | the address policy and the loopback-only control plane (P-8, P-19); bounded parsing (P-1) | — |
 | Misattribution | a package is attributed to a key, never to a name (P-1, P-2); nothing attributes a run to a person: the format carries no user identity | publisher credentials (W6) |
 | Correlation | an origin can correlate fetches by address and time; no identifier of the person travels; run ids are random; no cookie or credential is sent | — |
-| Identification | only what the signed graph routes reaches a recipient; sealed values never reach a model | tiers (DF-5); recipients before consent (DF-2) |
+| Identification | only what the signed graph routes reaches a recipient; sealed values do not reach a model where the run holds the store (P-13) | tiers (DF-5); recipients before consent (DF-2) |
 | Secondary use | a provider's retention is outside the runtime; a tool origin's use of what it received is its own | tiers and the hosted-model setting (DF-5); attested hosting (W8) |
 | Disclosure | every egress mediated (§5.2) | labels at egress (DF-3); the ledger (DF-7) |
 | Exclusion | the person sees the agent page, the review sheet, the run record and the audit | the egress view (W4); connections and the ledger (DF-6, DF-7) |
@@ -1215,17 +1298,17 @@ the enforcement at egress (DF-3) is what makes the shown set the real one.
 
 ### 7.4 Vocabulary
 
-**Trustworthy** (of the system): collaboration among parties that do not trust each other, made
-safe by one trusted component, the person's runtime. **By construction**: a bound that holds
-because of what the runtime can express and admit, not because a party behaves. **Least privilege**:
-a run holds the intersection of what the package declared and what the person granted, and nothing
-widens it (P-4). **Data minimization**: requests by type and, planned, by field; the person as the
+**Trustworthy** (of the system): collaboration among parties that do not trust each other, made safe
+by one trusted component, the person's runtime. **By construction**: a bound that holds because of
+what the runtime can express and admit, not because a party behaves. **Least privilege**: a run
+holds the intersection of what the package declared and what the person granted, and nothing widens
+it (P-4). **Data minimization**: requests by type and, planned, by field; the person as the
 minimizer (P-12, DF-1). **Contextual integrity**: §7.3. **Containment**: the effect of a compromised
 part is bounded to what that part was granted (§2.3). **Provenance**: which key signed what runs
-(P-1, P-2); which run proposed a record (P-14); which model answered a call (P-11). **Transparency**:
-the agent page before, the audit after (P-11). **Accountability**: signed packages and hash-linked
-records (P-1, P-11). **User agency**: the person decides every grant, record, consent and (planned)
-request, and can revoke what was remembered (P-4, P-12, P-16, DF-6).
+(P-1, P-2); which run proposed a record (P-14); which model answered a call (P-11).
+**Transparency**: the agent page before, the audit after (P-11). **Accountability**: signed packages
+and hash-linked records (P-1, P-11). **User agency**: the person decides every grant, record,
+consent and (planned) request, and can revoke what was remembered (P-4, P-12, P-16, DF-6).
 
 ## 8. Change log and the per-boundary notes
 
@@ -1234,6 +1317,22 @@ request, and can revoke what was remembered (P-4, P-12, P-16, DF-6).
   seven fields each, the "not protected" list, the privacy model with the planned Agent Data Flow
   (DF-1…DF-10) and the planned rule for unplanned calls (UC-1…UC-7), the mappings. It replaces
   the per-boundary threat model as the primary statement.
+- **Version 2, corrected after review 1 (2026-11-02, T28).** No property was added or removed and
+  no id changed. Statements were narrowed to what the code does: P-13 and P-8 state the reference
+  shell's exceptions (no model-request scan and a bounded tool-argument scan, B-114 and B-265; a
+  classified but unpinned tool connection, B-116); P-2 (a scope is a prefix; policies are the
+  Chrome core's), P-4 (presets, profiles and policies within the declaration and the preset's
+  ceiling; `always` accepted but never offered), P-5 (the runner re-derives identity, not trust;
+  the import scan is the reference's, the extension separates by execution context), P-6 (re-asks
+  are the Chrome core's), P-7 and P-9 (an admission check, nothing held; the minimum of package
+  and host for the run totals only), P-10 (documented differences), P-11 (usage is the runtime's
+  counters), P-14 (records enter as data; M-35's label unapplied, B-263), P-15 (NaN and a refused
+  grow as C-47's exceptions), P-16 (the pre-decide floor is the Chrome core's), P-17 (pointers;
+  no tool-side case yet, B-264), P-18 (the Crossref adapters, the PDF reader per shell, indexes
+  and policies Chrome-core), P-19 (`activeTab` and `scripting`, the whole snapshot, loopback for
+  the model transport); §2.2 reads "spend past a reported overrun" and names denial; conformance
+  cases moved to the property they test; §4 lists the reference shell's gaps; §5 states P-13's
+  scope at every mention.
 - **Version 1** is [threat-model.md](threat-model.md): the per-boundary notes written with each
   milestone from the format to Agent Delegation. They are kept as the implementation notes of this
   model: each section states the properties it implements, and nothing a specification cites was
