@@ -55,6 +55,8 @@ class Case:
     tamper: str | None = None
     extra: Callable | None = field(default=None, compare=False)
     extra_name: str | None = None
+    pre: Callable | None = field(default=None, compare=False)
+    pre_name: str | None = None
     parametric: dict | None = None
     origin: str = ""
     property_id: str | None = None
@@ -73,6 +75,8 @@ class Case:
                 raise ValueError(f"{self.id}: a violation names its boundary predicate")
         if (self.extra is None) != (self.extra_name is None):
             raise ValueError(f"{self.id}: an extra change is named")
+        if (self.pre is None) != (self.pre_name is None):
+            raise ValueError(f"{self.id}: a change before the probe is written is named")
         if not self.id.startswith(f"{self.family}."):
             raise ValueError(f"{self.id}: ids start with the family letter")
 
@@ -99,6 +103,7 @@ class Case:
             "origin": self.origin,
             "source": source,
             "extra": self.extra_name,
+            "pre": self.pre_name,
             "tamper": self.tamper,
             "mode": self.mode,
             "grants": self.grants,

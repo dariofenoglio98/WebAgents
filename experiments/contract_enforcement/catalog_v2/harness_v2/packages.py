@@ -94,21 +94,26 @@ def _write_members(source: Path, files: dict) -> None:
             path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
 
 
-def write_source(source_spec: dict, out: Path, extra=None) -> Path:
-    """Write one case's probe source into `out` (a new directory); `extra(files)` may change the
-    written members afterwards (catalog v2's own changes)."""
+def write_source(source_spec: dict, out: Path, extra=None, pre=None) -> Path:
+    """Write one case's probe source into `out` (a new directory), exactly as the conformance
+    driver of its probe writes it; `pre(members)` may change the members after the case's own
+    variant and before the probe writes them (and, for the network probe, before its fixture is
+    generated from the network), `extra(files)` may change the written members afterwards."""
     kind = source_spec["probe"]
     if kind == "memory":
         name = source_spec["variant"]
-        module, change = driver("memory"), driver("memory").VARIANTS[name]
+        change = driver("memory").VARIANTS[name]
 
         def apply(files):
             files["MANIFEST.agent"]["package_id"] = f"org.webagents.catalog-v2.memory-{name}"
             change(files)
+            if pre is not None:
+                pre(files)
 
         probe("memory").write_probe(out, apply)
-        del module
     elif kind == "compute":
+        if pre is not None:
+            raise ValueError("compute cases change the probe through the case itself")
         case = dict(source_spec["case"])
         driver("compute").write_case(out, case)
         _rewrite_json(
@@ -116,22 +121,23 @@ def write_source(source_spec: dict, out: Path, extra=None) -> Path:
             "MANIFEST.agent",
             lambda m: m.update(package_id=f"org.webagents.catalog-v2.compute-{case['id']}"),
         )
-    elif kind == "conversation":
+    elif kind in ("conversation", "network"):
+        # `conformance/drivers/{conversation,network}_probe.py::write_case`, with `pre` added.
         case = dict(source_spec["case"])
-        driver("conversation").write_case(out, case)
-        _rewrite_json(
-            out,
-            "MANIFEST.agent",
-            lambda m: m.update(package_id=f"org.webagents.catalog-v2.conversation-{case['id']}"),
-        )
-    elif kind == "network":
-        case = dict(source_spec["case"])
-        driver("network").write_case(out, case)
-        _rewrite_json(
-            out,
-            "MANIFEST.agent",
-            lambda m: m.update(package_id=f"org.webagents.catalog-v2.network-{case['id']}"),
-        )
+        module = probe(kind)
+        mutate = module.VARIANTS[case["variant"]] if case.get("variant") else None
+        options = {"remote_tool": True} if case.get("remote_tool") else {}
+
+        def apply(members):
+            members["MANIFEST.agent"]["package_id"] = (
+                f"org.webagents.catalog-v2.{kind}-{case['id']}"
+            )
+            if mutate is not None:
+                mutate(members)
+            if pre is not None:
+                pre(members)
+
+        module.write_probe(out, mutate=apply, **options)
     else:
         raise ValueError(f"unknown probe {kind!r}")
     for leftover in out.parent.glob(f"{out.name}.*.json"):
@@ -174,7 +180,7 @@ def build_archive(case, workdir: Path, private_key: Path) -> dict:
     if source.exists():
         shutil.rmtree(source)
     source.parent.mkdir(parents=True, exist_ok=True)
-    write_source(case.source, source, case.extra)
+    write_source(case.source, source, case.extra, case.pre)
     archive = workdir / "packages" / f"{case.slug}.agent.pkg"
     archive.parent.mkdir(parents=True, exist_ok=True)
     sign(source, archive, private_key)
