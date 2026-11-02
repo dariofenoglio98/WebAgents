@@ -1,7 +1,8 @@
 # Documentation index
 
 Start with the root [README](../README.md) for what WebAgents is and the shortest demo, and
-[getting-started.md](getting-started.md) for full installation. The documents below fall into
+[getting-started.md](getting-started.md) for full installation. For what the runtime guarantees, read
+[security-and-privacy-model.md](security-and-privacy-model.md) first. The documents below fall into
 three groups: **specifications** (normative for the prototype), **guides** (how a component
 works and how to operate it), and **reports** (dated milestone records with the evidence behind
 each claim). Reports are historical: a later report or the current artifacts in
@@ -11,6 +12,7 @@ each claim). Reports are historical: a later report or the current artifacts in
 
 | Document | Contents |
 |---|---|
+| [security-and-privacy-model.md](security-and-privacy-model.md) | **The security and privacy model, version 2** (normative): the trusted computing base per component and per extension; the adversaries, the compromised model included; properties P-1…P-19, each with its mechanism in both runtimes, its conformance cases, its experiment and its residual; what is not protected; the privacy model and the planned Agent Data Flow and unplanned-call rule; checked by `scripts/check_security_model.py` |
 | [spec/agent-pkg-v0.md](../spec/agent-pkg-v0.md) | The `agent.pkg` container: manifest, integrity statement, signature, parsing limits |
 | [spec/workflow-v0.md](../spec/workflow-v0.md) | The `workflow.v0` execution profile: node types, state, waves, validation |
 | [spec/network-v0.md](../spec/network-v0.md) | `network.v0`: bounded, model-chosen delegation inside `workflow.v0` (declared roles with programs, edges with use caps, a hop cap, a shared state with per-role views, the `route` chosen by the model under a runtime-built enum, the worst case computed from the declaration and reserved before the first activation, the audit of every handoff, the enforcement cases); the machine contract in [spec/network-v0/](../spec/network-v0/), the test package and the travel network in [examples/network/](../examples/network/); normative for agentpkg 0.7.0 (the Chrome port is T26) |
@@ -26,7 +28,7 @@ each claim). Reports are historical: a later report or the current artifacts in
 | [getting-started.md](getting-started.md) | Installation, OpenClaw plugin setup, model configuration (Ollama, hosted OpenAI), and the Chrome Agent Browser (level 4) |
 | [architecture.md](architecture.md) | Architecture and concrete design decisions |
 | [writing-a-compute-module.md](writing-a-compute-module.md) | The publisher's guide to a compute module: when to write one, the ABI in one screen, declaring it, building it with AssemblyScript or Rust, what the person sees |
-| [threat-model.md](threat-model.md) | Assets, trust boundaries and what the prototype does and does not defend; the Chrome Agent Browser's network, storage, permission and review boundaries ([§ Chrome](threat-model.md#chrome-agent-browser-t7)); the optional macOS helper and installer ([§ helper](threat-model.md#native-helper-and-macos-installer-t17)); the user-owned memory ([§ memory](threat-model.md#user-memory-t18-memoryv0)); code in packages ([§ compute](threat-model.md#code-in-packages-t21-computev0)); conversations and consent ([§ conversation](threat-model.md#conversations-and-consent-t23-conversationv0)) |
+| [threat-model.md](threat-model.md) | The per-boundary implementation notes of the model's properties (each section names the properties it implements): assets, trust boundaries and what the prototype does and does not defend; the Chrome Agent Browser's network, storage, permission and review boundaries ([§ Chrome](threat-model.md#chrome-agent-browser-t7)); the optional macOS helper and installer ([§ helper](threat-model.md#native-helper-and-macos-installer-t17)); the user-owned memory ([§ memory](threat-model.md#user-memory-t18-memoryv0)); code in packages ([§ compute](threat-model.md#code-in-packages-t21-computev0)); conversations and consent ([§ conversation](threat-model.md#conversations-and-consent-t23-conversationv0)) |
 | [browser-control-plane.md](browser-control-plane.md) | `agentpkg browser-serve`: opening, snapshots, validation, trust, authorization, and experimental website discovery (`rel="agent-package"`, §3a) |
 | [model-selection-and-run-plan.md](model-selection-and-run-plan.md) | Model compatibility semantics and the run-plan schema |
 | [model-availability.md](model-availability.md) | Which host view means "this model can be used" |

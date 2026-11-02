@@ -979,31 +979,267 @@ Each item says what is outside the claim, why, and what bounds it anyway or what
 
 ## 5. Privacy model
 
-*Written for gate 2.* §5.1 data categories and the tiers of D-317 (P, I, S); §5.2 every egress is
-mediated (tool call, model request, proposals, notes, roles); §5.3 what each recipient class sees
-today (the local model, a hosted provider, a tool origin, a peer role); §5.4 Agent Data Flow
-(planned): recipients computed from the signed graph before consent, labels enforced at every
-egress, connections with expiry, the disclosure ledger, the request budget, with its properties
-DF-1… stated now so that T45 implements against them.
+Privacy here is a property of flows, in Nissenbaum's sense: the question is not who may *read* a
+record but **where it goes, to whom, and under which rule**. A package runs on the person's
+machine; a record read into a local computation tells nobody anything. A record reaches someone
+else only through an egress, and every egress in this runtime is mediated, so the model can state,
+for each recipient class, what reaches it today and what will be shown and enforced once Agent
+Data Flow exists (§5.4).
 
-## 6. Unplanned calls and imports
+### 5.1 Data categories and tiers
 
-*Written for gate 2.* The rule of D-319 as a design commitment (planned, T47): declared and
-approved runs without a question; undeclared becomes a request with facts the runtime computed,
-default no; no person present means refused and recorded; an approval is an appended, hash-linked
-amendment to the Run Plan; a per-run cap within the request budget; imports only as signed
-artifacts through the same pipeline or as data to a signed interpreter in WebAssembly.
+| Category | Examples | Source | Tier (D-317) | Today |
+|---|---|---|---|---|
+| The task | what the person types at run start | the person | the person's own text, untiered | reaches the roles whose view includes it; a sealed value of the store typed into it is still caught by P-13's scan |
+| Preferences | cabin, diet, interests, writing style | unsealed fields of memory records | **P** | ordinary data: goes wherever the signed graph routes it; no P/I distinction yet |
+| Identifying, unsealed | name, home city, affiliation, a research profile | unsealed fields of memory records | **I** | the same as P today |
+| Sealed | e-mail, phone, date of birth, payment method, identity numbers | the `sealed_fields` of the well-known types | **S** | never in a model request; only to a tool linking the permission (P-13) |
+| Selected files | the PDFs the person picked | file capabilities of the session | the person's choice per file | their text reaches the roles the graph gives it to, through the reader only |
+| Derived | proposals, agent notes, exports, the transcript, the audit | written by the run | inherits the inputs' | proposals reviewed (P-14); notes per package (P-14); the audit carries identifiers only (P-11) |
+| Metadata | that a fetch or a call happened, when, from which address; the run's shape | the origin and the services see requests arrive; the provider sees the request | — | TLS; no cookie, no credential, no identifier of the person in the format (§5.5) |
 
-## 7. Mapping to Privacy by Design and Trustworthy AI; vocabulary
+The tier is set by the type's author; the person may raise it and never lower it below the
+taxonomy's; a signed policy may tighten it and never loosen it (D-317, planned in §5.4). Today the
+runtime distinguishes only sealed from unsealed.
 
-*Written for gate 2.* Each property mapped to Langheinrich's principles (notice; choice and
-consent; anonymity and pseudonymity; proximity and locality; adequate security; access and
-recourse) and to the Trustworthy AI requirements (human agency and oversight; technical robustness
-and safety; privacy and data governance; transparency; accountability); contextual integrity as
-the privacy model's theory; the vocabulary list.
+### 5.2 Every egress is mediated
+
+| Channel | Mediated by | What can leave today | What the person sees |
+|---|---|---|---|
+| A tool call to a declared service | P-8 (binding, address policy), P-13 (the argument scan), the tool's input schema | the arguments the graph constructs; a sealed value only through a tool that links its permission | the agent page's tools and services; each call in the audit; the egress view by destination is planned (W4) |
+| A model request | P-6, P-17 (the role's view), P-13 (the request scan) | the role's view: task, skill, the data routed to the role, tool outputs and recalled bodies as data; never a sealed value | the plan's model and provider; the route card |
+| A proposal to memory | P-14 | nothing without review; no sealed field or value | the review sheet, one proposal at a time |
+| An agent note | P-14 | the package's own note, no sealed value, read back only by that package | Settings → Memory |
+| A message or patch between roles | P-17 | the message under its schema; a patch within the view | the agent page's "at most"; the run page's route decisions |
+| Exports and artifacts | the runner writes only into the run's directory | what the package declared as exports | the run page |
+| The audit and progress | P-11 | identifiers, codes, counts, hashes, pointers | the technical audit |
+| The package fetch and discovery | P-1, P-18 | the origin learns a fetch from the person's address and time; no cookie, no credential | the address bar, the agent page |
+| The conversation transcript | P-16 | the person's own record | the chat surface |
+
+Reading is not an egress: a record granted to a run and read by a model-less role, as WebAir's
+host-resource role does, reaches nobody. When the local model is Ollama, the engine is a separate
+process on the person's machine and what it logs stays there; in-browser inference (planned) runs
+the engine with no network at all.
+
+### 5.3 What each recipient class sees today
+
+| Recipient | Sees | Does not see | Bounded by | Shown to the person |
+|---|---|---|---|---|
+| The local model | the role's view: task, skills, the unsealed fields the graph routed, tool outputs, recalled bodies as data | sealed values; other roles' views | P-13, P-17 | the model route in the plan |
+| A hosted provider | what a local model would see, over TLS; what it retains is its own terms, outside the runtime | sealed values | P-13; the person's choice of route | the plan names provider and model id. **Current exposure, stated:** an unsealed identifying field reaches a hosted model if the signed graph routes it to a model role; the tiers of §5.4 are the planned bound |
+| A tool origin (an airline, a resolver) | the arguments of approved calls under the tool's input schema, within the declared domain; a sealed value only through a tool that links its permission (the demo purchase's payment method) | anything the graph does not route to it; the person's other records | P-8, P-12, P-13 | the agent page names the tools and their services; the signed graph is inspectable; per-field recipients are planned (§5.4) |
+| A peer role | its view and the message it received | the rest of the state | P-17 | the agent page's roles and edges |
+| The person's memory | what the package proposed, after review; its own notes | — | P-14 | the review sheet; Settings → Memory |
+| Index and policy issuers | nothing: documents are fetched when the person adds them and refreshed when the person asks | — | P-18 | the search and policy pages |
+| The shell's operator | everything, as trusted host code | — | §1.2, §1.4 | — |
+
+### 5.4 Agent Data Flow (planned; binds T45; D-337)
+
+The properties below are commitments of the design (D-317), stated now so that the specification
+and the two runtimes are built against them and tested by a conformance family. They claim
+nothing about today's code; the mechanism paper reports today's exact-value scans (P-13) and the
+Data Flow arm waits for the implementation (D-321). The privacy paper's metrics are named here.
+
+#### DF-1 · Field-level requests
+A `memory.read` may name the fields it needs; the record view holds only those, and the card
+names them ("your home airport and cabin"). Absent `fields`, the whole view as today, and the card
+says so. *Bounds:* A-PKG asking for a record when it needs a field. *Residual:* the publisher
+chooses the fields; a type's author chooses the granularity.
+
+#### DF-2 · Recipients computed from the signed graph before consent
+Before the run, the runtime labels each granted field at the memory read and propagates the labels
+through the graph: precisely through `validate`, `map` and `join` constructors, conservatively
+through `llm` steps and compute modules (an answer computed from a labelled input carries the
+label). The result, per field, is the set of recipients it can reach: tool bindings and therefore
+origins, the model route (local, or which provider), proposals, the agent's notes, the roles of a
+network. The plan freezes it as `disclosures`; the card states it before consent. *Bounds:*
+A-PKG's undeclared routing; a person's misreading of what a package does with a field. *Residual:*
+conservative labels over-approximate through models (label creep); the card's completeness is the
+analysis's.
+
+#### DF-3 · Labels enforced at every egress
+The same labels travel with the values at run time. At every tool call, model request, proposal
+and note write, the labels of the outgoing data are checked against the plan's recipient set, and a
+labelled value bound for a recipient the plan does not name is refused before it leaves, in both
+runtimes. Exact-value matching (P-13) stays as the second line for values that enter from outside
+the store. *Bounds:* A-MODEL laundering a granted field by encoding or paraphrase into an approved
+tool's arguments bound for the wrong recipient (the exfiltration channels of E10); A-PKG's graph
+routing a field somewhere the card did not say. *Residual:* a recipient the plan **does** name
+receives the field; inference from unlabelled data; covert channels; the false-refusal cost of
+conservative labels, to be measured.
+
+#### DF-4 · Declassification only through a declared consent step that shows the value
+A labelled value may reach a recipient outside its set only when a consent step the publisher
+declared shows the value and the recipient and the person accepts, in that turn; the decision is
+recorded with the labels. *Bounds:* a silent widening of the recipient set. *Residual:* the
+person's reading of the card (P-16's residual).
+
+#### DF-5 · Sensitivity tiers with defaults
+Every type carries a tier (P, I, S); the person may raise it, never lower it below the taxonomy's;
+a signed policy may tighten and allow-list recipients, never loosen. Hosted models may see tier I
+only if the person allowed it once in Settings; tier S never (as today). *Bounds:* A-PROV as a
+recipient of identifying data under a default the person did not choose. *Residual:* a person who
+allows hosted models for tier I has allowed it for every package; what the provider retains is
+outside the runtime (W8).
+
+#### DF-6 · Remembered decisions ("connections") with expiry
+A decision such as "this publisher may use my Home travel profile (home airport, cabin) and send it
+to its origin" is remembered per publisher key, package-id scope, type, fields and recipients; it
+is revocable, shown under Memory → Connections, revoked automatically after 90 days of non-use,
+and invalidated when any element changes: a new version that adds a recipient, a field or a tier
+asks again; one that discloses nothing new inherits the connection. This is the revocable store
+whose absence is why `always` is refused today, narrower than `always`. *Bounds:* consent fatigue
+as a channel (a person who clicks yes because they are asked too often). *Residual:* a remembered
+decision is a decision; revocation is the person's act.
+
+#### DF-7 · The disclosure ledger
+Per record, every recipient it went to, from the audit chains, with time, package and version: the
+person's right to know, kept locally. *Bounds:* A-PKG's claim about what it did with a record.
+*Residual:* local, not attested (P-11).
+
+#### DF-8 · The request budget
+A tier-P field that goes only to the publishing origin and the person's local model is used
+without a card under the default preset, named in the run summary with one-click undo and recorded
+in the ledger; everything a publisher's package needs is one first-use card, remembered as one
+connection; later runs are silent until something new is disclosed; global settings answer the
+hosted-model question once; a disclosure that a consent step already shows (a sealed e-mail on the
+purchase card) is not asked twice; payments stay confirmed in the moment. Prompts per 100 runs,
+over a simulated week with many packages, is a design target and a reported metric: at most one
+card per new publisher, zero on repeat use with nothing new. *Bounds:* fatigue. *Residual:* the
+default preset decides tier-P first-party use; a person who wants to be asked raises the tier.
+
+#### DF-9 · Provenance across publishers at recall
+A record proposed by publisher A carries A in its provenance; when publisher B asks for it, the
+card says so; a policy option withholds records proposed by one publisher from another unless the
+person agrees. *Bounds:* cross-agent memory poisoning at recall time (A-MEM), not only at write
+time. *Residual:* a well-known type the person filled in themselves is shared by design.
+
+#### DF-10 · Agent notes carry labels
+A package's notes carry the labels of what was written into them, so a granted field cannot be
+laundered into notes in one run and disclosed to an unapproved recipient in a later run; notes
+stay per package, widening to per publisher only when the person trusts the key at publisher
+scope. *Bounds:* persistence as a laundering path (Zombie Agents). *Residual:* the person's own
+text in a note is unlabelled.
+
+**Evidence planned.** A conformance family (a field routed to an unapproved tool; through a
+constructor; through a model; into notes; across a network role; after a version that adds a
+recipient); the enforcement catalog's memory family gains the recipients dimension; the false
+refusals of conservative labels and prompts per 100 runs are measured (the privacy paper's metrics);
+E10's "with Data Flow" arm reports leakage after the implementation. **What Data Flow does not
+bound:** what a model believes; a recipient the plan names; covert channels; the quality of the
+answer (W7).
+
+### 5.5 Against the privacy threats of RFC 6973
+
+| Threat | Today | Planned |
+|---|---|---|
+| Surveillance | TLS to every service; the provider of a hosted model sees the requests it is sent (the person's choice of route) | in-browser inference removes the provider from the local route |
+| Stored data compromise | the Chrome extension's secret store and sealed values at rest (P-19); the Python reference's memory folder is in clear by the operator's choice | — |
+| Intrusion | the address policy and the loopback-only control plane (P-8, P-19); bounded parsing (P-1) | — |
+| Misattribution | a package is attributed to a key, never to a name (P-1, P-2); nothing attributes a run to a person: the format carries no user identity | publisher credentials (W6) |
+| Correlation | an origin can correlate fetches by address and time; no identifier of the person travels; run ids are random; no cookie or credential is sent | — |
+| Identification | only what the signed graph routes reaches a recipient; sealed values never reach a model | tiers (DF-5); recipients before consent (DF-2) |
+| Secondary use | a provider's retention is outside the runtime; a tool origin's use of what it received is its own | tiers and the hosted-model setting (DF-5); attested hosting (W8) |
+| Disclosure | every egress mediated (§5.2) | labels at egress (DF-3); the ledger (DF-7) |
+| Exclusion | the person sees the agent page, the review sheet, the run record and the audit | the egress view (W4); connections and the ledger (DF-6, DF-7) |
+
+## 6. Unplanned calls and imports (planned; binds T47)
+
+The rule of D-319, as a design commitment with the user's gate. An agent may reach a service, a
+server or a module its package did not declare, but only through the runtime and only as a
+**request**.
+
+- **UC-1 Declared and approved.** A destination the package declared and the person approved at
+  authorization runs without a question; the person already decided (P-4, P-8).
+- **UC-2 Not declared.** The agent can only request it. The runtime shows a card with facts it
+  computed itself: the destination and, where known from a bundled list or the advisory feed, who
+  operates it; that the package did not declare it; which of the person's labelled data would leave
+  (DF-2, DF-3) and how much. The model's or the package's stated reason may be shown, marked as the
+  agent's words, never as a fact. The default answer is no. Choices: allow once, deny; remembering
+  applies only to destinations a package declares as open-ended, through connections (DF-6).
+- **UC-3 No person present.** On the agent host or in a background run, an unplanned request is
+  refused and recorded (P-10, P-11).
+- **UC-4 Amendments, never rewrites.** An approval is an appended, hash-linked amendment to the Run
+  Plan: the original plan stays the contract, every amendment names the person's decision, and
+  re-verification covers it (P-5). The plan is never rewritten.
+- **UC-5 Imports.** An import is a signed artifact (another package, a WebAssembly module) verified
+  by the same pipeline, whose requirements become the amendment (P-1, P-2, P-15), or code passed as
+  data to a signed interpreter inside WebAssembly with no imports; never script in the extension.
+- **UC-6 The cap.** Unplanned requests count against the request budget (DF-8); after a per-run
+  cap the rest are refused without a card and summarized at the end ("this agent tried 12 more
+  destinations"); a signed policy may forbid them altogether.
+- **UC-7 Where requests arise.** Tier-2 capability imports with run-time destinations, model-chosen
+  tool use, and open-ended declared capabilities such as following links. Nothing else can produce
+  a request: a tier-0 graph has no run-time destination.
+
+*Bounds:* A-MODEL's and A-PKG's reach beyond the declaration becomes a decision the person takes on
+facts the runtime computed; the Cohere case becomes a card the person refuses and the egress view
+keeps. *Residual:* social engineering through the agent's stated reason (shown as its words);
+fatigue, bounded by the cap; the card's facts must be computed without leaking (no lookup of the
+destination from the person's machine beyond a bundled list). *Evidence planned:* a conformance
+family (an undeclared destination; an import; the cap; an unattended run; an amendment replay) and
+enforcement cases for the catalog.
+
+## 7. Mapping to Privacy by Design and Trustworthy AI; the vocabulary
+
+### 7.1 Langheinrich's principles for privacy-aware ubiquitous systems (UbiComp 2001)
+
+| Principle | Where it lives | Properties |
+|---|---|---|
+| Notice | the agent page (permissions, tools, services, "at most"); the recipients card (planned) | P-4, P-7, P-12, DF-2 |
+| Choice and consent | grants and approvals; the person's choice of record; consent steps; requests (planned) | P-4, P-12, P-16, UC-2 |
+| Anonymity and pseudonymity | no user identity in the format; a package is attributed to a key; random run ids | P-1, P-2, §5.5 |
+| Proximity and locality | the person's own runtime and memory; local models; in-browser inference (planned) | P-12, P-13, §5.3 |
+| Adequate security | the contract: integrity, the envelope, mediation, fail closed | P-1…P-11, P-15, P-17 |
+| Access and recourse | the run record and the audit; the review sheet; the ledger and the egress view (planned) | P-11, P-14, DF-7 |
+
+### 7.2 The requirements of Trustworthy AI (the EU guidelines, 2019)
+
+| Requirement | Properties |
+|---|---|
+| Human agency and oversight | P-4, P-12, P-16; UC-2 and DF-6 (planned) |
+| Technical robustness and safety | P-1, P-3, P-5…P-10, P-15, P-17 |
+| Privacy and data governance | P-12, P-13, P-14; §5.4 (planned) |
+| Transparency | P-11; the agent page; the route card and the egress view (planned) |
+| Accountability | P-1, P-2, P-11 (signed packages, hash-linked records) |
+| Diversity, non-discrimination and fairness; societal and environmental well-being | outside a runtime's reach: the model's and the publisher's; stated so |
+
+### 7.3 Contextual integrity
+
+Nissenbaum's parameters map onto the recipients card: the **subject** is the person; the **sender**
+is the runtime acting for the person; the **recipient** is the origin, the provider or the peer
+role (§5.3); the **information type** is the record type and its tier (§5.1); the **transmission
+principle** is the grant, the connection or the consent step (P-4, P-16, DF-4, DF-6). A flow is
+appropriate when the plan's recipient set, shown before consent, is the one the person accepted;
+the enforcement at egress (DF-3) is what makes the shown set the real one.
+
+### 7.4 Vocabulary
+
+**Trustworthy** (of the system): collaboration among parties that do not trust each other, made
+safe by one trusted component, the person's runtime. **By construction**: a bound that holds
+because of what the runtime can express and admit, not because a party behaves. **Least privilege**:
+a run holds the intersection of what the package declared and what the person granted, and nothing
+widens it (P-4). **Data minimization**: requests by type and, planned, by field; the person as the
+minimizer (P-12, DF-1). **Contextual integrity**: §7.3. **Containment**: the effect of a compromised
+part is bounded to what that part was granted (§2.3). **Provenance**: which key signed what runs
+(P-1, P-2); which run proposed a record (P-14); which model answered a call (P-11). **Transparency**:
+the agent page before, the audit after (P-11). **Accountability**: signed packages and hash-linked
+records (P-1, P-11). **User agency**: the person decides every grant, record, consent and (planned)
+request, and can revoke what was remembered (P-4, P-12, P-16, DF-6).
 
 ## 8. Change log and the per-boundary notes
 
-*Written for gate 2.* Version 2 (this document) replaces the per-boundary threat model as the
-primary statement; [threat-model.md](threat-model.md) keeps the per-boundary implementation notes,
-each claim citing a property id.
+- **Version 2 (2026-11-01, T28).** This document created: the trusted computing base per component
+  and per extension, the adversary table with the compromised model, properties P-1…P-19 with
+  seven fields each, the "not protected" list, the privacy model with the planned Agent Data Flow
+  (DF-1…DF-10) and the planned rule for unplanned calls (UC-1…UC-7), the mappings. It replaces
+  the per-boundary threat model as the primary statement.
+- **Version 1** is [threat-model.md](threat-model.md): the per-boundary notes written with each
+  milestone from the format to Agent Delegation. They are kept as the implementation notes of this
+  model: each section states the properties it implements, and nothing a specification cites was
+  removed.
+
+**How this document changes.** A property's statement changes only with a new version of this
+document, a conformance case that exercises the change, and an entry here; an id is never reused;
+a planned section becomes normative when its task merges and its conformance family runs on both
+runtimes. `scripts/check_security_model.py` runs in CI and on the paper's text.

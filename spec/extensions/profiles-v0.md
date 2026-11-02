@@ -18,6 +18,8 @@ enforces any other. A profile cannot name anything the package does not declare,
 package's policy, and conveys no authority by being present (Agent Package v0, §3: extensions are
 noncritical).
 
+**Properties.** This specification implements P-4 (a profile groups declared authority and grants none) of [the security and privacy model](../../docs/security-and-privacy-model.md#3-properties); a change to one of them is a new version of both documents (D-336).
+
 ## 2. Declaration
 
 The value lives in the manifest's `extensions` object under the key `org.webagents:profiles-v0`:

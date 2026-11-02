@@ -1,8 +1,48 @@
-# Agent Package v0 threat model
+# Threat model: per-boundary implementation notes
 
-This prototype treats a downloaded package as untrusted data. Its publisher can request capabilities and provide instructions; the operator's runtime decides which requests receive authority. This is the central boundary in the supplied PDF, especially sections 2, 8–10, 13–14, and 18. The concrete mechanisms below are this project's experimental design, not an established OpenClaw or NANDA standard.
+**Read [the security and privacy model](security-and-privacy-model.md) first.** Since version 2 of that document
+(2026-11-01) it is the primary statement of what the runtime guarantees: the trusted computing base,
+the adversaries (the model included), the properties P-1…P-19 with their mechanisms in both
+runtimes, their conformance cases, their experiments and their residuals, and what is not
+protected. This file keeps the notes written boundary by boundary as each milestone landed, from the
+container to delegation networks. They are the implementation notes of the model's properties: each
+section below names the properties it implements, and every claim is read under the model's
+wording rule (the runtime bounds, contains or refuses; nothing here claims more than a property and
+its residual). Nothing a specification cites has been removed.
+
+## The properties these notes implement
+
+| Property | Implemented in the sections |
+|---|---|
+| P-1 integrity and provenance of what runs | Threats and controls; What signatures and identity mean; Browser control-plane boundary; Package execution boundary |
+| P-2 a valid signature is not a trusted publisher | What signatures and identity mean; Browser control-plane boundary; Agent Browser plugin boundary; Search and policy subscriptions |
+| P-3 data only | Threats and controls; workflow.v0 boundary; Code in packages |
+| P-4 declared at most, granted no more | Browser control-plane boundary; Agent Browser plugin boundary; Run surface boundary; Package execution boundary; Tool broker boundary |
+| P-5 prepare, re-verify, then run | Browser control-plane boundary; Run surface boundary; Model-router bridge boundary; Package execution boundary |
+| P-6 a model's output is data | Run surface boundary; Model-router bridge boundary; workflow.v0 boundary |
+| P-7 control flow is the signed graph | workflow.v0 boundary; Delegation networks |
+| P-8 tools only through bindings under the address policy | Threats and controls; Browser control-plane boundary; Tool broker boundary; Scholarly search, selected files and pacing; Chrome Agent Browser |
+| P-9 budgets and conservative accounting | Threats and controls; Model-router bridge boundary; Package execution boundary; Tool broker boundary; Conversations and consent; Delegation networks |
+| P-10 fail closed | Model-router bridge boundary; Tool broker boundary |
+| P-11 a hash-linked audit | Threats and controls; Package execution boundary; Scholarly search, selected files and pacing; Conversations and consent |
+| P-12 the person's data by type | Threats and controls; Run surface boundary; Scholarly search, selected files and pacing; User memory |
+| P-13 sealed values | Threats and controls; User memory |
+| P-14 memory through reviewed proposals | User memory |
+| P-15 compute isolation | Code in packages |
+| P-16 consent bound to constructed facts | Conversations and consent; Conversations in Chrome |
+| P-17 confinement across roles | Threats and controls; workflow.v0 boundary; Delegation networks |
+| P-18 inputs from the web grant nothing | Threats and controls; Browser control-plane boundary; Scholarly search, selected files and pacing; Search and policy subscriptions |
+| P-19 least privilege and secrets at rest (the extension) | Agent Browser plugin boundary; Chrome Agent Browser; Native helper and macOS installer; Conversations in Chrome |
+
+The original framing of the first note (2025): this prototype treats a downloaded package as
+untrusted data. Its publisher can request capabilities and provide instructions; the operator's
+runtime decides which requests receive authority. This is the central boundary in Ramesh Raskar's
+vision deck (sections 2, 8–10, 13–14 and 18). The concrete mechanisms below are this project's
+design, not an established OpenClaw or NANDA standard.
 
 ## Assets, actors, and boundaries
+
+*Properties: the model's §1 (the trusted computing base) and §2 (the adversaries) ([the model](security-and-privacy-model.md#3-properties)).*
 
 Protect the operator's selected files, private document contents, model credentials, host filesystem, model/remote-call budget, and integrity of scientific outputs. Relevant adversaries include a malicious publisher with a valid signing key, an archive distributor who tampers with an artifact, an upstream provider carrying prompt injection, a compromised document, and an agent response that invents claims or requests undeclared capabilities.
 
@@ -12,30 +52,34 @@ Boundaries are: source tree → validated archive; archive → cryptographically
 
 ## Threats and controls
 
+*Properties: P-1, P-2, P-3, P-4, P-7, P-8, P-9, P-11, P-12, P-13, P-17, P-18; the two scientific-judgment rows are the model's §4 (answer quality) ([the model](security-and-privacy-model.md#3-properties)).*
+
 | Threat | Control and remaining limit |
 |---|---|
-| Tampered payload or forged package | Canonical content hashes and Ed25519 verification cover the signed integrity statement. Trusted-key pinning is external to the artifact. A signature does not prove safety, expertise, ownership of a real-world identity, or independent review. |
-| Publisher substitutes its own trust root | A self-included public key establishes only a signature/key relationship. Trusted execution and staging require an operator-selected key. There is no automatic Internet PKI, transparency log, key revocation, or NANDA authority in v0. |
-| Archive traversal, symlink, duplicate, or decompression attack | Generic archive validation rejects unsafe entries and applies resource limits before use. ZIP_STORED avoids compressed expansion. Staging writes verified members with no-follow directory descriptors and exclusive creation into a new workspace. |
-| Verify/load race | The OpenClaw adapter captures archive/key bytes once, then verifies, loads, and stages that snapshot. Untrusted source paths are not reread after verification. Runtime callers should likewise use one verified `Package` snapshot. |
-| Competing manifest/graph truth | Strict, versioned canonical JSON; references and graph constraints are checked. HOCON is not an additional executable representation. Unknown security fields fail closed; noncritical namespaced extensions cannot grant authority. |
-| Permissions hidden in natural-language skills | Tool bindings, endpoints, network domains, worker role permissions, state access, and budgets are machine-readable. Skill text cannot grant permissions. Host-handler code must stay behind runtime checks. |
-| SSRF or endpoint redirection | The bundled HTTP handler requires explicit HTTPS/443 endpoints, rejects any non-global DNS result, pins the connection to a validated address, verifies TLS for the original host, and disables redirects/proxies. Its killable child bounds DNS/connect/read duration and response size. Runtime configuration overrides cannot expand declared tool domains. Other trusted host handlers must implement equivalent controls. |
-| Secret theft from package installation | Packages contain no credentials. The adapter writes no personal OpenClaw configuration and never reads provider auth stores. Public keys are safe to distribute. Host credentials are never injected into downloaded instructions. |
-| Recursive or excessive delegation | Package-declared worker roles, coordinator ownership, bounded depth, instance caps, and parallelism checks. Remote/NANDA worker execution is not enabled merely because future metadata can describe it. |
-| Concurrent budget overspend | Runtime reservations and counters must be atomic across workers and count failed attempts. A provider with only advisory token limits cannot establish a hard external spending cap. Missing usage is unknown, not zero. |
-| Cross-worker data leakage | Workers receive declared state views and return checked patches. Local documents require explicit selection/grants. Session-state declarations are not encryption, physical memory zeroization, or OS-level process isolation. |
-| Prompt injection in papers or upstream metadata | Treat abstracts, PDFs, titles, tool responses, and search snippets as evidence data. They cannot change tool grants or worker authority. Semantic model compliance remains imperfect; capability enforcement must not rely on model obedience. |
-| Fabricated citation or scientifically unsupported claim | Preserve resolver statuses/provenance; accept only resolved citation records. Track evidence IDs, document scope, locations, claims, and verification results. Mechanical link checks do not prove entailment; semantic judgments require separate evaluation. |
-| False full-text confidence | Distinguish metadata, abstract, and selected full-text evidence. A verified DOI does not verify a scientific result. A quoted passage alone does not establish the quality or correctness of the underlying study. |
-| OpenClaw skill overrides or executable dispatch | Digest-prefixed host-generated frontmatter, new workspace only, no copied command-dispatch metadata. Original package instructions remain referenced data. No claim that workspace skills enforce package policy. |
-| Package claims or substitutes a person's resource | A package requests a *type* (`personal.read`); the host lists what it holds and the person picks one, frozen into the receipt and plan by opaque id and keyed digest. Host-resource tools take no arguments, so nothing a package or model sends can name another resource; the broker resolves only the plan's grant for that type and a permission the calling tool links. A sealed value of a resource not granted is refused in every tool call, and a granted one in calls whose tool does not link its permission. A changed or removed resource makes the plan stale before execution and is refused at call time. Limits: sealing is exact-value matching over host-held values, not general DLP; unsealed fields (preferences) are ordinary data; a granted value may still go wherever the package's signed tool declarations say it may. |
-| Personal data reaching a model or a disk | A package's graph decides which state each model role reads, and the interpreter checks those read sets statically; WebAir keeps host resources in a model-less role and clears them from state before the run ends. The host does not inspect model inputs: a package that routed a granted value into a model step would be honoured, visibly, in its signed graph. Digests are HMAC-SHA256 under a process-local key, so a receipt, plan or audit cannot be checked against a guessed record. |
-| Operator bindings file adds a hostile endpoint | `tools.bindingsFile` is operator configuration, trusted like every other plugin setting. It can only add entries of the service-neutral JSON POST adapter (one HTTPS origin on 443, one path), never a category, adapter, local implementation, header, query or credential value, and cannot shadow an entry the host already serves. Each entry still has to land inside the package's declared domain, path, method and schema digests, be approved by the person, and pass the broker's fixed destination policy (public addresses only, pinned socket, no redirects). Limit: an operator who points an entry at a hostile service that the package also declares is trusted by construction, as with `tools.bindings` retargeting. |
-| Replayed one-time authority | `once` is consumed at first use within a run, and the first execution lease spends the receipt across runs; a second run needs a new decision. |
-| Audit leaks or false attestation | Audit records identifiers, status, hashes, and available usage rather than raw private documents. Eval results record runner/provenance and remain distinct from third-party certification. Logs and receipts are local evidence, not externally anchored tamper-proof records. |
+| Tampered payload or forged package | Canonical content hashes and Ed25519 verification cover the signed integrity statement. Trusted-key pinning is external to the artifact. A signature does not prove safety, expertise, ownership of a real-world identity, or independent review. (P-1) |
+| Publisher substitutes its own trust root | A self-included public key establishes only a signature/key relationship. Trusted execution and staging require an operator-selected key. There is no automatic Internet PKI, transparency log, key revocation, or NANDA authority in v0. (P-2) |
+| Archive traversal, symlink, duplicate, or decompression attack | Generic archive validation rejects unsafe entries and applies resource limits before use. ZIP_STORED avoids compressed expansion. Staging writes verified members with no-follow directory descriptors and exclusive creation into a new workspace. (P-1) |
+| Verify/load race | The OpenClaw adapter captures archive/key bytes once, then verifies, loads, and stages that snapshot. Untrusted source paths are not reread after verification. Runtime callers should likewise use one verified `Package` snapshot. (P-1, P-5) |
+| Competing manifest/graph truth | Strict, versioned canonical JSON; references and graph constraints are checked. HOCON is not an additional executable representation. Unknown security fields fail closed; noncritical namespaced extensions cannot grant authority. (P-3) |
+| Permissions hidden in natural-language skills | Tool bindings, endpoints, network domains, worker role permissions, state access, and budgets are machine-readable. Skill text cannot grant permissions. Host-handler code must stay behind runtime checks. (P-3, P-4) |
+| SSRF or endpoint redirection | The bundled HTTP handler requires explicit HTTPS/443 endpoints, rejects any non-global DNS result, pins the connection to a validated address, verifies TLS for the original host, and disables redirects/proxies. Its killable child bounds DNS/connect/read duration and response size. Runtime configuration overrides cannot expand declared tool domains. Other trusted host handlers must implement equivalent controls. (P-8) |
+| Secret theft from package installation | Packages contain no credentials. The adapter writes no personal OpenClaw configuration and never reads provider auth stores. Public keys are safe to distribute. Host credentials are never injected into downloaded instructions. (P-8, P-19) |
+| Recursive or excessive delegation | Package-declared worker roles, coordinator ownership, bounded depth, instance caps, and parallelism checks. Remote/NANDA worker execution is not enabled merely because future metadata can describe it. (P-7) |
+| Concurrent budget overspend | Runtime reservations and counters must be atomic across workers and count failed attempts. A provider with only advisory token limits cannot establish a hard external spending cap. Missing usage is unknown, not zero. (P-9) |
+| Cross-worker data leakage | Workers receive declared state views and return checked patches. Local documents require explicit selection/grants. Session-state declarations are not encryption, physical memory zeroization, or OS-level process isolation. (P-17) |
+| Prompt injection in papers or upstream metadata | Treat abstracts, PDFs, titles, tool responses, and search snippets as evidence data. They cannot change tool grants or worker authority. Semantic model compliance remains imperfect; capability enforcement must not rely on model obedience. (P-6, P-18; the residual is §4 of the model) |
+| Fabricated citation or scientifically unsupported claim | Preserve resolver statuses/provenance; accept only resolved citation records. Track evidence IDs, document scope, locations, claims, and verification results. Mechanical link checks do not prove entailment; semantic judgments require separate evaluation. (§4 of the model (answer quality)) |
+| False full-text confidence | Distinguish metadata, abstract, and selected full-text evidence. A verified DOI does not verify a scientific result. A quoted passage alone does not establish the quality or correctness of the underlying study. (§4 of the model (answer quality)) |
+| OpenClaw skill overrides or executable dispatch | Digest-prefixed host-generated frontmatter, new workspace only, no copied command-dispatch metadata. Original package instructions remain referenced data. No claim that workspace skills enforce package policy. (P-3) |
+| Package claims or substitutes a person's resource | A package requests a *type* (`personal.read`); the host lists what it holds and the person picks one, frozen into the receipt and plan by opaque id and keyed digest. Host-resource tools take no arguments, so nothing a package or model sends can name another resource; the broker resolves only the plan's grant for that type and a permission the calling tool links. A sealed value of a resource not granted is refused in every tool call, and a granted one in calls whose tool does not link its permission. A changed or removed resource makes the plan stale before execution and is refused at call time. Limits: sealing is exact-value matching over host-held values, not general DLP; unsealed fields (preferences) are ordinary data; a granted value may still go wherever the package's signed tool declarations say it may. (P-12, P-13) |
+| Personal data reaching a model or a disk | A package's graph decides which state each model role reads, and the interpreter checks those read sets statically; WebAir keeps host resources in a model-less role and clears them from state before the run ends. The host does not inspect model inputs: a package that routed a granted value into a model step would be honoured, visibly, in its signed graph. Digests are HMAC-SHA256 under a process-local key, so a receipt, plan or audit cannot be checked against a guessed record. (P-13, P-17; the recipients of §5.3) |
+| Operator bindings file adds a hostile endpoint | `tools.bindingsFile` is operator configuration, trusted like every other plugin setting. It can only add entries of the service-neutral JSON POST adapter (one HTTPS origin on 443, one path), never a category, adapter, local implementation, header, query or credential value, and cannot shadow an entry the host already serves. Each entry still has to land inside the package's declared domain, path, method and schema digests, be approved by the person, and pass the broker's fixed destination policy (public addresses only, pinned socket, no redirects). Limit: an operator who points an entry at a hostile service that the package also declares is trusted by construction, as with `tools.bindings` retargeting. (P-8; delegated trust, the model's §1.5) |
+| Replayed one-time authority | `once` is consumed at first use within a run, and the first execution lease spends the receipt across runs; a second run needs a new decision. (P-5) |
+| Audit leaks or false attestation | Audit records identifiers, status, hashes, and available usage rather than raw private documents. Eval results record runner/provenance and remain distinct from third-party certification. Logs and receipts are local evidence, not externally anchored tamper-proof records. (P-11) |
 
 ## What signatures and identity mean
+
+*Properties: P-1, P-2 ([the model](security-and-privacy-model.md#3-properties)).*
 
 `package_id` and `publisher.id` are signed declarations. The external public-key pin determines which key the operator accepts for this package. Acceptance of a key is not a claim that its publisher string has been independently verified. A public key generated for the reference demo is a development trust root, not a university, OpenClaw, or third-party certification.
 
@@ -45,11 +89,15 @@ The package digest identifies the canonical integrity statement; the archive SHA
 
 ## File and memory handling
 
+*Properties: P-11, P-12, P-14, P-18 ([the model](security-and-privacy-model.md#3-properties)).*
+
 The package can describe memory scopes from ephemeral to enterprise, but the reference workflow uses session-scoped state. It does not silently establish a cross-session personal memory store; the user-owned memory of `memory.v0` (§ User memory) is written only through proposals the person accepts. An explicitly requested output directory can contain research state, evidence excerpts, and audit artifacts; this is a durable export and must not be described as automatic ephemeral deletion. Raw private PDF text should not be included in generic traces, error strings, package artifacts, or attestations.
 
 User-selected PDF paths authorize reading only those files through the host reader. A path found inside a paper is data, not a new file grant. Outputs must be new and have no symlink ancestors. The PDF reader enforces byte/page/text limits and runs parsing in a killable child with CPU/time limits; address-space limits are attempted but may be unavailable on macOS. These controls do not constitute an OS security sandbox. Package JSON-schema validation is in-process and is not CPU-isolated against expensive regular expressions or combinatorial schemas.
 
 ## Deployment and research limits
+
+*Properties: the model's §4 (what is not protected) ([the model](security-and-privacy-model.md#3-properties)).*
 
 The prototype does not provide network namespace isolation, OS sandboxing, remote publisher reputation, key revocation, independent certification, enterprise memory encryption, payment enforcement, or Internet-scale dependency resolution. Host handlers must not call undeclared network services, arbitrary subprocesses, or persistent storage behind the runtime's back. Models can still make poor screening, synthesis, or evidence judgments within their authorized surface.
 
@@ -59,6 +107,8 @@ Before production use, the next security milestone is an independently reviewed 
 
 
 ## Browser control-plane boundary
+
+*Properties: P-1, P-2, P-4, P-5, P-8, P-18, P-19 ([the model](security-and-privacy-model.md#3-properties)).*
 
 The [agent browser control plane](browser-control-plane.md) adds a trusted local
 service in front of the runtime. It opens, validates, verifies, inspects and
@@ -81,6 +131,8 @@ runtime's `always` is not persistent, and no host authorization store exists yet
 
 
 ## Agent Browser plugin boundary
+
+*Properties: P-2, P-4, P-5, P-19 (the reference shell) ([the model](security-and-privacy-model.md#3-properties)).*
 
 The [Agent Browser feature plugin](openclaw-agent-browser.md) puts a native
 OpenClaw Control UI page in front of the control plane. It adds a browser-facing
@@ -107,6 +159,8 @@ below.
 
 ## Run surface boundary (3C)
 
+*Properties: P-4, P-5, P-6, P-12 ([the model](security-and-privacy-model.md#3-properties)).*
+
 The page's Run button starts the open package's prepared run plan. A page is
 the least trusted caller that can reach `execution.start`, so the start's input
 is the whole attack surface and it is closed:
@@ -131,6 +185,8 @@ plugin's state directory with no retention policy beyond the 32 newest.
 
 ## Model-router bridge boundary
 
+*Properties: P-5, P-6, P-9, P-10 ([the model](security-and-privacy-model.md#3-properties)).*
+
 [The bridge](model-router-bridge.md) is the first component in this project that
 can spend money, so it is the first one that needs its own entries here. It runs
 in `agentpkg.hostbridge`, a namespace the control plane cannot import.
@@ -150,8 +206,8 @@ in `agentpkg.hostbridge`, a namespace the control plane cannot import.
 | A host that answers with a different model | Refused after the fact by both the Gateway side and the router, rather than returned as a degraded result. |
 
 Two things remain out of scope, as elsewhere in this prototype. A provider that
-misreports usage cannot be retroactively prevented from overspending — the
-violation is recorded and halts further dispatch. And binding an exact model
+misreports usage cannot be stopped after the fact from overspending once; the
+violation is recorded and halts further dispatch (P-9). And binding an exact model
 requires the operator to set
 `plugins.entries.agent-browser.llm.allowModelOverride`, which is a
 plugin-wide grant at the OpenClaw layer; the per-run-plan discipline is entirely
@@ -159,6 +215,8 @@ this project's preflight.
 
 
 ## Package execution boundary
+
+*Properties: P-1, P-4, P-5, P-9, P-11 ([the model](security-and-privacy-model.md#3-properties)).*
 
 [Execution](package-execution.md) is the first thing in this project that runs a
 downloaded package's own instructions. It lives in `agentpkg.execution`, a third
@@ -189,6 +247,8 @@ OpenClaw layer; the per-run-plan discipline is this project's own.
 
 ## Tool broker boundary
 
+*Properties: P-4, P-8, P-9, P-10 ([the model](security-and-privacy-model.md#3-properties)).*
+
 [The broker](tool-broker.md) is the first thing that lets a downloaded
 package's data leave this host. Its Python half lives in
 `agentpkg.toolbridge`, a fourth trusted namespace that the control plane cannot
@@ -218,6 +278,8 @@ the work behind it.
 
 ## Scholarly search, selected files and pacing (3B4)
 
+*Properties: P-8, P-11, P-12, P-18 ([the model](security-and-privacy-model.md#3-properties)).*
+
 The broker gained its first adapter that shapes a request from package
 values, its first capability over a person's own files, and a pacer. Each one
 is a new way for package data to reach something, so each gets an entry.
@@ -238,6 +300,8 @@ is a new way for package data to reach something, so each gets an entry.
 
 ## workflow.v0 boundary
 
+*Properties: P-3, P-6, P-7, P-9, P-17 ([the model](security-and-privacy-model.md#3-properties)).*
+
 The generic interpreter accepts only the closed graph/data-constructor vocabulary.
 It rejects cycles, unapproved roles/tools, cross-role state projections, undeclared
 writes and unordered state conflicts before dispatch where statically possible.
@@ -250,6 +314,8 @@ and pathological schema CPU use remain outside an OS-enforced sandbox.
 See [the execution profile](../spec/workflow-v0.md) for precise limits.
 
 ## Chrome Agent Browser (T7)
+
+*Properties: P-8 (its residual: no resolver in the extension), P-19 ([the model](security-and-privacy-model.md#3-properties)).*
 
 The Chrome Agent Browser ([guide](chrome-agent-browser.md)) applies the boundaries above with the
 reference runtime's semantics, ported to a portable TypeScript core, inside a Manifest V3
@@ -347,6 +413,8 @@ not that its workflow is safe, and the extension's own integrity rests on how it
 
 ## Search and policy subscriptions (T8)
 
+*Properties: P-2, P-18 ([the model](security-and-privacy-model.md#3-properties)).*
+
 The Chrome Agent Browser can search signed agent indexes and follow one signed policy bundle
 ([guide](chrome-agent-browser.md#9-finding-agents-and-following-a-policy-t8);
 formats in [`spec/extensions/`](../spec/extensions/)). Both are new inputs from the web; this is
@@ -386,6 +454,8 @@ candidate and returns nothing in this build. Certification and evaluation fields
 would be shown as the registry's claims, never as trust.
 
 ## Native helper and macOS installer (T17)
+
+*Properties: P-19 ([the model](security-and-privacy-model.md#3-properties)).*
 
 The helper is optional (D-181): the extension is complete without it, and every path below falls
 back to the passphrase. It is a Swift binary (`native-helper/`) that Chrome starts through native
@@ -447,6 +517,8 @@ uninstaller removes all of it and never Ollama or its models.
 
 ## User memory (T18, `memory.v0`)
 
+*Properties: P-12, P-13, P-14 ([the model](security-and-privacy-model.md#3-properties)).*
+
 [`spec/memory-v0.md`](../spec/memory-v0.md) replaces the personal vault with a user-owned graph of
 Markdown records that packages may read by type, propose additions to, and keep private notes in.
 The assets are the records themselves (a person's identities, instruments, profiles and
@@ -461,7 +533,7 @@ limit the design accepts; the spec's rule numbers (M-n) are the normative text.
 | Memory as an exfiltration channel: a run proposes a record whose fields or body encode data the person did not mean to keep, or a package declares a type whose schema invites a secret ("backup code", "card number") | A run writes nothing: proposals are reviewed one by one with the package's own rationale, the fields and the body in full, and provenance (package, version, run) on every accepted record (M-41, M-42). A proposal may name only the types the package declared, is bounded (8 per run, 16,384 characters of body each; M-39, M-40), and can carry no sealed value in any place: a sealed *field* is refused by name, and the whole document is scanned for the sealed *values* the run holds before the file is written, so an e-mail copied into a preference's value or a card token into a body fails the run and never reaches the Run Record (M-40 steps 3 and 7). A custom type cannot declare sealed fields (the policy schema admits no `sealed_fields`), cannot carry a property named like a sealed one (`email`, `phone`, `date_of_birth`, `payment_method_id`) at any depth of its schema whatever its other fields, and must have a closed schema (every object lists its properties with `additionalProperties: false`, no combinator or pattern that could hide a name), so the name check sees every name an instance can hold, cannot take a well-known id, and is shown and approved at first use (M-18, M-19). Limit: a person who accepts an opaque proposal has accepted it; review is the control, not inspection of meaning; a value the package paraphrases or encodes is not caught by an exact-value scan; the name rule guards against a careless schema, not a hostile one (a field renamed `e_mail` passes it), and review is the control for what such a field holds. |
 | Poisoning: a proposal or an agent document plants an instruction that the next run's model reads as if it came from the person; a record the person imported from elsewhere does the same | Recalled bodies, agent documents and proposals are **data** in the model request (`data`, never `instructions`), framed by the host as untrusted content the person stored, and nothing in a record can name a tool, a permission or a destination (workflow.v0 §7, §8). The agent document is one package's own and reaches only that package (M-49, M-51); the person sees and clears it. Recall needs a declared type: no package reads a note it did not ask for by type (M-33, M-35). Limit: semantic compliance is the model's; a model that follows text inside a record can still misuse the authority the run already has, exactly as with a poisoned document today. |
 | Cross-package leakage: one package reads what another proposed or wrote | Recall is per type, and only the person moves a record from "proposed by A" to "granted to B": a grant is one record, by id and digest, chosen at authorization (M-12, M-34). Custom types are qualified by the declaring package id, so no package can read another's custom records by naming the local id (M-18). Agent documents are never recall candidates (M-49), and their bodies are stored exactly as written, never resolved against the store, so a package cannot probe titles or ids through its own notes (M-3, N20); the view of a granted record carries a record id only for records the run was granted, a link to any other record being rendered as the text the person wrote without its id, escaped when that text is id-shaped, and a dangling link as `[[missing record]]`, which says only that the granted record links to nothing (M-15); acceptance restores those links by position when an update echoes the body (M-42); a proposal's body links are held to the run's grants like its `links` (M-40 step 6, M-42). The package layer of the graph shows the person which packages touched which records (M-23, M-29). Limit: a well-known type is shared by design; a travel profile granted to two airlines is known to both. |
-| A sealed value reaches a model or a service that was not granted it | Two egress scans in both runtimes: every tool call's arguments and every model request body are searched for the run's **scan set**, the sealed values of every record of the store when the run was opened with the store (its plan grants a memory record or binds a memory tool, which needs the store unlocked under D-195) and nothing otherwise; a value not granted to the run may go nowhere, a granted one only to a tool linking its permission, and never into a model request (M-36, M-37). A run opened without the store holds no sealed value, so the empty set is sufficient and such a run runs while the store is locked. Limit: exact-value matching over host-held values, not data-loss prevention; a paraphrase or a derived value is not caught; a value that enters the run from outside the store (the task, a tool's answer) is not the guard's; unsealed fields are ordinary data. |
+| A sealed value reaches a model or a service that was not granted it | Two egress scans in both runtimes: every tool call's arguments and every model request body are searched for the run's **scan set**, the sealed values of every record of the store when the run was opened with the store (its plan grants a memory record or binds a memory tool, which needs the store unlocked under D-195) and nothing otherwise; a value not granted to the run may go nowhere, a granted one only to a tool linking its permission, and never into a model request (M-36, M-37). A run opened without the store holds no sealed value, so the empty set is sufficient and such a run runs while the store is locked. Limit: exact-value matching over host-held values, not a general data-loss control; a paraphrase or a derived value is not caught; a value that enters the run from outside the store (the task, a tool's answer) is not the guard's; unsealed fields are ordinary data. |
 | The export file: a folder in clear on disk, synced or shared | Sealed values are omitted by default and written as `sealed:omitted`; including them needs the unlocked store and a confirmation that names what will be in clear (M-56). The folder carries ids, provenance and links, so a leaked export says what the person kept and from which runs. There is no encrypted export: the format's purpose is to be read by an editor. Limit: once exported in clear, the file is the person's to protect. |
 | The unlocked store: a process running as the user while the memory is unlocked | As for the secret store (§ Chrome, storage at rest): sealed values are ciphertext at rest under the master key (M-10); everything else (titles, unsealed fields, bodies, links) is in clear in the profile directory, by design, so that a locked store still shows the graph, read-only: every write needs the unlocked store (M-10). The idle lock bounds the time the master key is resident; a run is opened with the store only when its plan needs it (D-195), and its tools answer only with the records the plan granted (M-35). Limit: a compromised account reads Chrome's memory; the design defends data at rest. |
 | Silent accumulation: a memory that grows until it is a liability | Caps refuse new records and never evict (M-47); superseded, expired, unused and dangling records are listed for the person to delete (M-46); replacement by identity is offered, never applied (M-44). Limit: the person must act; the host proposes tidying and does not tidy. |
@@ -471,11 +543,13 @@ limit the design accepts; the spec's rule numbers (M-n) are the normative text.
 What the memory does not claim: provenance is local (a record says which run proposed it; nothing
 attests the run to a third party); acceptance is consent to keep, not verification of truth; the
 text index and the graph index are derived and may lag a write until rebuilt; and none of this
-prevents a person from typing a secret into a note, which the host will then hold in clear like any
+stops a person from typing a secret into a note, which the host will then hold in clear like any
 body. The memory family of the enforcement catalog v2 (D-189) starts from the negative cases of the
 spec's §10.
 
 ## Code in packages (T21, `compute.v0`)
+
+*Properties: P-3, P-15 ([the model](security-and-privacy-model.md#3-properties)).*
 
 [`spec/compute-v0.md`](../spec/compute-v0.md) lets a package ship WebAssembly core modules and run
 them from `compute` nodes. Until now no package code ran anywhere (the paper's claim: a
@@ -514,6 +588,8 @@ family of the enforcement catalog v2 (D-189) starts from the negative cases of t
 listed in `examples/compute/cases/cases.json`.
 
 ## Conversations and consent (T23, `conversation.v0`)
+
+*Properties: P-9, P-11, P-16 ([the model](security-and-privacy-model.md#3-properties)).*
 
 [`spec/conversation-v0.md`](../spec/conversation-v0.md) lets a package declare a conversation
 over its graph: a persistent state, one turn per message under one Run Plan, and consent steps
@@ -554,6 +630,8 @@ cases of the spec's §10, listed in `examples/conversation/cases/cases.json`.
 
 ### Conversations in Chrome (T24)
 
+*Properties: P-16, P-19 ([the model](security-and-privacy-model.md#3-properties)).*
+
 The Chrome Agent Browser keeps a conversation as a record between turns and runs each turn as a
 run ([guide §13](chrome-agent-browser.md#13-conversations-and-consent-cards-t24)). What the host
 adds to the boundaries above:
@@ -568,6 +646,8 @@ adds to the boundaries above:
 | A conversation outspends its budget, or outlives a limit lowered to stop it | A turn runs under the lower of the run limits frozen at the conversation's start, which its reservation counted (V-10), and the current ones, Settings → Run limits with the policy's caps (D-102, D-275): raising a limit never lets a turn spend past its reservation, and lowering one binds every later turn. Limit: a turn already running keeps the limits it started with. |
 
 ## Delegation networks (T25, `network.v0`)
+
+*Properties: P-7, P-9, P-17 ([the model](security-and-privacy-model.md#3-properties)).*
 
 [`spec/network-v0.md`](../spec/network-v0.md) lets a model choose, at run time, which role runs
 next. Until now the model filled in answers inside a graph fixed before signing; a network gives

@@ -19,6 +19,8 @@ makes says so (`decided_by: policy <id>@<version>`), and the person can override
 contains, or than the person's own preset allows (§5.3). It conveys no authority by being fetched:
 only a subscription the person made, verified against a key the person pinned, applies.
 
+**Properties.** This specification implements P-2 and P-18 (a signed document is metadata or delegated trust; it grants nothing by itself) of [the security and privacy model](../../docs/security-and-privacy-model.md#3-properties); a change to one of them is a new version of both documents (D-336).
+
 ## 2. Content
 
 | Field | Type | Meaning |

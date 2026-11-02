@@ -301,6 +301,8 @@ uses_left is above zero, or done where may_end is true."; a re-ask is another at
 logical model call (`model.called` with `attempt` > 1), charged to the role's tokens and remote
 calls, which the envelope bounds, and every attempt's decision is recorded.
 
+**Properties.** This specification implements P-7, P-9 and P-17 of [the security and privacy model](../docs/security-and-privacy-model.md#3-properties); a change to one of them is a new version of both documents (D-336).
+
 ## 5. Audit
 
 R-18. Beside workflow.v0's events: `network.started {node_id, entry, bound, tokens_left,

@@ -303,7 +303,7 @@ def check_gap_list(none_experiment: list[str], report: dict) -> None:
         return
     text = read(EVIDENCE_MATRIX)
     match = re.search(
-        r"^## .*\bgaps?\b.*$(.*?)(?=^## |\Z)",
+        r"^## [^\n]*\bgaps?\b[^\n]*$(.*?)(?=^## |\Z)",
         text,
         re.MULTILINE | re.DOTALL | re.IGNORECASE,
     )

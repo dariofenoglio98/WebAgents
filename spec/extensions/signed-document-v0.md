@@ -12,6 +12,8 @@ only because a key the person pinned signed them. Unlike an `agent.pkg`, they ar
 carry no executable behaviour; they need one small signed envelope, shared by both, so that the
 same verification code and the same refusals apply to both.
 
+**Properties.** This specification implements P-2 and P-18 (a signed document is metadata or delegated trust; it grants nothing by itself) of [the security and privacy model](../../docs/security-and-privacy-model.md#3-properties); a change to one of them is a new version of both documents (D-336).
+
 ## 2. Envelope and signature
 
 ```json
