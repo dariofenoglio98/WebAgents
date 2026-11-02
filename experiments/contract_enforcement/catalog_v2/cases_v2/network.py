@@ -57,8 +57,11 @@ def _spec(case: dict):
             "decl_validation",
         ),
         "bound-exceeds-budget": (
+            # R-22 refuses publishing a network whose worst case exceeds its own budget; at run
+            # time the worst case is computed under the budget and the budget still caps the
+            # walk, so the refusal has no run-time effect of its own: admission.
             {"stage": stage, "code": code},
-            {"class": "effect", "predicate": "envelope_overcommitted"},
+            {"class": "admission", "predicate": "executed"},
             "the worst case against the package's budget (R-24)",
             "envelope_reservation",
         ),
@@ -158,6 +161,8 @@ def _spec(case: dict):
         "boundary": boundary,
         "guard": guard,
         "primary_ablation": ablation,
+        # The route's enum is the route answer's own output schema, which no profile removes.
+        "ablation_removes_guard": cid != "target-not-in-enum",
     }
 
 
@@ -184,6 +189,7 @@ def cases() -> list[Case]:
                 boundary=spec.get("boundary", {}),
                 guard=spec.get("guard", "none (control)"),
                 primary_ablation=spec.get("primary_ablation"),
+                ablation_removes_guard=spec.get("ablation_removes_guard", True),
                 matched_control=None if control else CONTROL,
             )
         )

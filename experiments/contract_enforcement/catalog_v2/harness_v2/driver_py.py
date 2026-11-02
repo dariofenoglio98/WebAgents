@@ -254,19 +254,33 @@ class Driver:
         self.seams = None
         self._engine_turn = None
         self._engine_available = True
+        self.observe = True
 
         def default_engine():
             # The runtime asks here for its engine (`Runtime._prepare_compute`). A host without
             # an engine is a host configuration the case states (`engine: false`).
             if not self._engine_available:
                 raise compute_engine.EngineUnavailable("no engine on this host")
-            return RecordingEngine(self._production_default_engine(), self.seams, self._engine_turn)
+            engine = self._production_default_engine()
+            if not self.observe:
+                return engine
+            return RecordingEngine(engine, self.seams, self._engine_turn)
 
         compute_engine.default_engine = default_engine
+
+    def _router(self, router, taints, turn):
+        return RecordingRouter(router, self.seams, taints, turn) if self.observe else router
+
+    def _handlers(self, package, handlers, taints, turn):
+        if not self.observe:
+            return handlers
+        return recording_handlers(package, handlers, self.seams, taints, turn)
 
     async def run_case(self, case: dict) -> dict:
         self.seams = {"model": [], "tool": [], "compute": [], "consent": []}
         self._engine_available = bool(case.get("engine", True))
+        # `observe: false` runs the same composition with the raw objects (driver identity).
+        self.observe = case.get("observe", True) is not False
         self._engine_turn = None
         record = {
             "id": case["id"],
@@ -343,10 +357,8 @@ class Driver:
                     package,
                     input_value,
                     grants=case["grants"],
-                    handlers=recording_handlers(
-                        package, handlers, self.seams, case.get("taints", []), None
-                    ),
-                    router=RecordingRouter(router, self.seams, case.get("taints", []), None),
+                    handlers=self._handlers(package, handlers, case.get("taints", []), None),
+                    router=self._router(router, case.get("taints", []), None),
                     approved_tools=approved,
                     memory=memory_run,
                     # As the production runner hands them to the interpreter
@@ -438,8 +450,8 @@ class Driver:
                     package, mode="fixture", decisions=grants
                 )
                 return {
-                    "router": RecordingRouter(router, self.seams, taints, turn),
-                    "handlers": recording_handlers(package, handlers, self.seams, taints, turn),
+                    "router": self._router(router, taints, turn),
+                    "handlers": self._handlers(package, handlers, taints, turn),
                     "memory": memory_run,
                 }
 
@@ -451,7 +463,7 @@ class Driver:
                     if case.get("consent_host")
                     else TranscriptConsent(decisions)
                 )
-                return RecordingConsent(inner, self.seams)
+                return RecordingConsent(inner, self.seams) if self.observe else inner
 
             def on_turn(index, report, status):
                 records = artifact_records(report, package if status == "completed" else None)

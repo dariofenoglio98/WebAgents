@@ -94,7 +94,11 @@ function taintFlags(value: unknown, taints: readonly string[]): string[] {
   return taints.filter((taint) => text.includes(taint));
 }
 
+// `observe: false` in a case runs the same composition with the raw objects (the driver-identity test).
+let observing = true;
+
 function recordingRouter(router: ModelRouter, seams: Seams, taints: readonly string[], turn: number | null): ModelRouter {
+  if (!observing) return router;
   return new Proxy(router, {
     get(target, property, receiver) {
       if (property === "complete") {
@@ -119,6 +123,7 @@ function recordingRouter(router: ModelRouter, seams: Seams, taints: readonly str
 }
 
 function recordingHandlers(pkg: Package, handlers: Record<string, ToolHandler>, seams: Seams, taints: readonly string[], turn: number | null): Record<string, ToolHandler> {
+  if (!observing) return handlers;
   const toolOf: Record<string, string> = {};
   for (const [toolId, tool] of Object.entries(pkg.tools)) toolOf[String((tool as JsonObject).binding)] = toolId;
   const wrapped: Record<string, ToolHandler> = {};
@@ -164,6 +169,7 @@ function outcomeFacts(outcome: ComputeOutcome): JsonObject {
 }
 
 function recordingEngine(engine: ComputeEngine, seams: Seams, turn: number | null): ComputeEngine {
+  if (!observing) return engine;
   return {
     get id() {
       return engine.id;
@@ -188,6 +194,7 @@ function recordingEngine(engine: ComputeEngine, seams: Seams, turn: number | nul
 }
 
 function recordingConsent(host: ConsentHost, seams: Seams): ConsentHost {
+  if (!observing) return host;
   return {
     get used() {
       return host.used;
@@ -260,6 +267,7 @@ function refusal(phase: string, error: unknown): JsonObject {
 const DEFAULT_LIMITS_FOR = (limits: JsonObject | null): JsonObject => (limits === null ? (normalizeHostLimits(null) as unknown as JsonObject) : limits);
 
 async function runCase(input: CaseInput): Promise<JsonObject> {
+  observing = input.observe !== false;
   const seams: Seams = { model: [], tool: [], compute: [], consent: [] };
   const record: JsonObject = { id: input.id, runtime: "ts", refusal: null, result: null, audit: [], exports: {}, seams: seams as unknown as JsonObject, guard: [], harness_error: null };
   const guardBefore = guardRefusals.length;

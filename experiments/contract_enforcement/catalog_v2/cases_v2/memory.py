@@ -82,8 +82,8 @@ VARIANTS = {
         {
             "expected": {"stage": "start", "code": "binding_schema_mismatch"},
             "boundary": {"class": "effect", "predicate": "tool_called", "tool": "profile"},
-            "guard": "memory binding check (view schema)",
-            "primary_ablation": "decl_validation",
+            "guard": "memory binding check (M-16: a read's output is the type's view)",
+            "primary_ablation": None,
         },
     ),
     "n7-two-agent-writes": (
@@ -110,7 +110,11 @@ VARIANTS = {
     ),
     "n10-publisher-scoped": (
         "A publisher-scoped memory (only agent-scoped is defined)",
-        _admission("agent_memory_scope", "memory declarations"),
+        _admission(
+            "agent_memory_scope",
+            "memory declarations (kept: re-run when a memory run opens)",
+            removes=False,
+        ),
     ),
     "n11-sealed-value-to-a-model": (
         "A granted sealed value placed in a model step's input",
@@ -143,11 +147,19 @@ VARIANTS = {
     ),
     "n16-custom-type-shadows-sealed": (
         "A custom type that shadows a sealed field of a host type",
-        _admission("custom_type_shadows_sealed_type", "memory declarations"),
+        _admission(
+            "custom_type_shadows_sealed_type",
+            "memory declarations (kept: re-run when a memory run opens)",
+            removes=False,
+        ),
     ),
     "n17-custom-type-reserved": (
         "A custom type under a reserved id",
-        _admission("custom_type_reserved", "memory declarations"),
+        _admission(
+            "custom_type_reserved",
+            "memory declarations (kept: re-run when a memory run opens)",
+            removes=False,
+        ),
     ),
     "n19-lower-index-first": (
         "Two refused proposals: the lower index is reported first",
@@ -155,7 +167,11 @@ VARIANTS = {
     ),
     "n21-custom-type-open": (
         "A custom type schema that admits undeclared properties",
-        _admission("custom_type_schema_open", "memory declarations"),
+        _admission(
+            "custom_type_schema_open",
+            "memory declarations (kept: re-run when a memory run opens)",
+            removes=False,
+        ),
     ),
     "n22-marker-line": (
         "A proposal body carrying the host's link-marker line",
@@ -193,7 +209,11 @@ VARIANTS = {
     ),
     "agent-family-read": (
         "A memory.read of an agent. type (its binding would be a reserved agent tool)",
-        _admission("memory_type_reserved", "memory declarations"),
+        _admission(
+            "memory_type_reserved",
+            "memory declarations (kept: re-run when a memory run opens)",
+            removes=False,
+        ),
     ),
 }
 CONTROLS = {

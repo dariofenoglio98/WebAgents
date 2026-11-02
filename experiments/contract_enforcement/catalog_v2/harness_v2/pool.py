@@ -22,7 +22,9 @@ from pathlib import Path
 
 from .paths import HERE
 
-CASE_TIMEOUT_SECONDS = 120
+# Above the longest deadline a probe declares (120 s), so that a run held to its deadline ends by
+# the runtime's own refusal, not by the harness.
+CASE_TIMEOUT_SECONDS = 300
 
 
 class WorkerError(RuntimeError):

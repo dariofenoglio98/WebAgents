@@ -85,11 +85,20 @@ def _spec(case: dict) -> dict:
         "transcript-step-unknown": (
             {"stage": stage, "code": code},
             {"class": "admission", "predicate": "executed"},
-            "transcript against the plan",
+            "transcript against the plan (an unknown step: kept, see CONSENT_GATE)",
             "consent_gate",
         ),
         "transcript-accepts-denied": (
-            {"stage": stage, "code": code},
+            # Without the transcript check the plan still decides the step (its permission is
+            # denied: the step is not asked) and the graph's own path avoids the tool.
+            {
+                "stage": stage,
+                "code": code,
+                "block_event": {
+                    "action": "consent.decided",
+                    "fields": {"accepted": False, "decided_by": "plan"},
+                },
+            },
             {"class": "effect", "predicate": "tool_called", "tool": TOOL},
             "transcript against the plan (an accepted step for a denied permission)",
             "consent_gate",
@@ -222,6 +231,9 @@ def _spec(case: dict) -> dict:
         "boundary": boundary,
         "guard": guard,
         "primary_ablation": ablation,
+        # The unknown-step check stays in -Consent gate: without it the check reads the
+        # permissions of a step that does not exist (a crash, not a run).
+        "ablation_removes_guard": cid != "transcript-step-unknown",
     }
 
 
@@ -281,6 +293,7 @@ def cases() -> list[Case]:
                 boundary=spec.get("boundary", {}),
                 guard=spec.get("guard", "none (control)"),
                 primary_ablation=spec.get("primary_ablation"),
+                ablation_removes_guard=spec.get("ablation_removes_guard", True),
                 matched_control=matched,
                 limits=case.get("limits"),
                 transcript=conversation.transcript_of(case),

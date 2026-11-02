@@ -32,6 +32,7 @@ MODULE_GATE = {
     "module-threads",
     "module-hash-mismatch",
 }
+DECODER_FEATURES = {"module-simd", "module-threads"}
 DECLARATION_EFFECT = {"permission-missing", "permission-resources"}
 DECLARATION_ADMISSION = {
     "module-undeclared-member",
@@ -65,6 +66,9 @@ def _spec(case: dict) -> dict:
             "boundary": {"class": "effect", "predicate": "module_ran"},
             "guard": "module gate (static module check)",
             "primary_ablation": "module_gate",
+            # SIMD and atomic instructions are refused inside the module decoder, which has no
+            # single-line site (harness_v2/ablations.py, MODULE_GATE).
+            "ablation_removes_guard": cid not in DECODER_FEATURES,
         }
     if cid in DECLARATION_EFFECT:
         return {

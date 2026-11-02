@@ -123,7 +123,7 @@ class Case:
             "property": self.property_id,
         }
 
-    def driver_input(self, archive: str, trust_key: str) -> dict:
+    def driver_input(self, archive: str, trust_key: str, *, observe: bool = True) -> dict:
         """What a driver receives: no expectation, no boundary, nothing the oracle decides with."""
         return {
             "id": self.id,
@@ -137,6 +137,7 @@ class Case:
             "consent_host": self.consent_host,
             "engine": self.engine,
             "taints": list(self.taints),
+            "observe": observe,
         }
 
 

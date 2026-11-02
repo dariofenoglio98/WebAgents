@@ -36,7 +36,7 @@ def parametric_cases(seed: int, per_template: int) -> list[Case]:
 
 SMOKE_PICKS = {
     "M": ["M.n11-sealed-value-to-a-model", "M.m36-sealed-value-to-a-tool", "M.fixture"],
-    "C": ["C.module-import", "C.deadline", "C.echo"],
+    "C": ["C.module-no-memory-maximum", "C.deadline", "C.echo"],
     "V": ["V.tool-after-denied-consent", "V.turn-beyond-cap", "V.two-turns-one-consent"],
     "N": ["N.hops-exhausted", "N.reservation-refused", "N.fixture-walk"],
 }
