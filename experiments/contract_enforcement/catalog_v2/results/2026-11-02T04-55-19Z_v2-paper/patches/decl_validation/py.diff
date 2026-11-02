@@ -1,0 +1,39 @@
+--- a/validation.py
++++ b/validation.py
+@@ -189,5 +189,5 @@
+     from . import __version__
+ 
+-    if release(manifest["runtime"]["minimum_version"]) > release(__version__):
++    if False:  # ABLATED D.min_version
+         raise ValidationError(
+             f"manifest runtime.minimum_version exceeds reference runtime {__version__}"
+@@ -350,5 +350,5 @@
+                 f"worker {role}: state view refers to keys absent from state schema"
+             )
+-    check_memory_graph(manifest, graph, memory_declared)
++    pass  # ABLATED D.memory_graph
+     if workflow:
+         from .workflow_validation import validate_workflow
+--- a/workflow_validation.py
++++ b/workflow_validation.py
+@@ -89,5 +89,5 @@
+     # compute.v0 (agentpkg 0.5.0): the modules, the members, the nodes' functions and the
+     # permission agree before anything else is checked; a graph without any of it passes.
+-    check_compute_declarations(manifest, graph, policy, files)
++    pass  # ABLATED D.compute
+     schema_paths = {s["path"] for s in manifest["schemas"]}
+     documents = {p: parse_json(files[p], p) for p in schema_paths}
+@@ -322,5 +322,5 @@
+     from .delegation.declarations import check_network_declarations
+ 
+-    check_network_declarations(
++    (lambda *_a, **_k: None)(  # ABLATED D.network
+         manifest,
+         graph,
+@@ -337,5 +337,5 @@
+     # that links a consented permission, and the fixture transcript; a graph without a
+     # conversation passes (and may hold no consent step).
+-    check_conversation_declarations(
++    (lambda *_a, **_k: None)(  # ABLATED D.conversation
+         manifest,
+         graph,

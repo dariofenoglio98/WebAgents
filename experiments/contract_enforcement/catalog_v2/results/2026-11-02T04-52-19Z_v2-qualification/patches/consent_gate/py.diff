@@ -1,0 +1,25 @@
+--- a/conversation/transcript.py
++++ b/conversation/transcript.py
+@@ -52,5 +52,5 @@
+                 )
+             denied = [p for p in node["permissions"] if grants.get(p, "deny") == "deny"]
+-            if accepted and denied:
++            if False:  # ABLATED V.transcript_denied
+                 raise ValidationError(
+                     f"consent_not_authorized: turn {index} accepts consent step {step!r}, whose "
+--- a/runtime.py
++++ b/runtime.py
+@@ -273,5 +273,5 @@
+         # A `once` grant is spent by its first use in the conversation (V-13): a later turn
+         # starts with what the earlier ones consumed.
+-        self._once_used = set(turn.spent) if turn is not None else set()
++        self._once_used = set()  # ABLATED V.once_across_turns
+         # The gate (V-9): a tool linking a permission a consent step decides is dispatched only
+         # after that step was accepted in this turn; `_consents` holds this turn's decisions.
+@@ -574,5 +574,5 @@
+             async with self._lock:
+                 self._authorize(tool["permissions"], context=ctx)
+-                self._check_consent(ctx, tool_id, tool["permissions"])
++                pass  # ABLATED V.gate
+                 self._scan_tool_arguments(ctx, tool_id, tool, payload)
+                 cap = self.budget["max_calls_per_tool"].get(tool_id, 0)

@@ -1,0 +1,60 @@
+--- a/memory/proposals.py
++++ b/memory/proposals.py
+@@ -65,5 +65,5 @@
+     """
+     aliases = aliases or {}
+-    failure = first_failure("memory-proposals.schema.json", document)
++    failure = None  # ABLATED P.schema
+     if failure is not None:
+         where = "/".join(str(part) for part in failure.absolute_path) or "<root>"
+@@ -78,5 +78,5 @@
+         where = f"proposal {index}"
+         type_id = aliases.get(proposal["type"], proposal["type"])
+-        if type_id not in declared or type_id in RESERVED_TYPES:
++        if False:  # ABLATED P.type
+             raise ProposalRefusal(
+                 "permission_denied",
+@@ -98,5 +98,5 @@
+         extra = tuple(target.get("sealed") or []) if target is not None and target_granted else ()
+         for pointer in (*type_def["sealed_fields"], *extra):
+-            if pointer_get(proposal["fields"], pointer) is not None:
++            if False:  # ABLATED P.sealed_field
+                 raise ProposalRefusal(
+                     "schema_validation",
+@@ -115,5 +115,5 @@
+                 index,
+             )
+-        if proposal["action"] == "update" and granted.get(proposal["target"]) != type_id:
++        if False:  # ABLATED P.target
+             raise ProposalRefusal(
+                 "permission_denied",
+@@ -130,5 +130,5 @@
+             if to.startswith("#"):
+                 sibling = int(to[1:])
+-                if sibling == index or sibling >= len(proposals):
++                if False:  # ABLATED P.sibling
+                     raise ProposalRefusal(
+                         "schema_validation",
+@@ -137,5 +137,5 @@
+                         index,
+                     )
+-            elif to != SELF_ID and to not in granted:
++            elif False:  # ABLATED P.link
+                 raise ProposalRefusal(
+                     "permission_denied",
+@@ -144,5 +144,5 @@
+                     index,
+                 )
+-    hit = find_sealed(document, scan)
++    hit = None  # ABLATED P.sealed_value
+     if hit == INCOMPLETE:
+         raise ProposalRefusal(
+--- a/memory/run.py
++++ b/memory/run.py
+@@ -94,5 +94,5 @@
+         return proposed_facts(
+             document,
+-            write_denied=self.write_denied,
++            write_denied=False,  # ABLATED P.write_denied
+             policy_refuses=self.policy_refuses_proposals,
+         )
