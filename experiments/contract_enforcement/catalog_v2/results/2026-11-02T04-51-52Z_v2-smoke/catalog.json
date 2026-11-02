@@ -1,0 +1,1145 @@
+{
+ "schema": "contract-enforcement.catalog.v2",
+ "preset": "smoke",
+ "seed": 20261101,
+ "catalog_sha256": "9bd3c1e79ff7d4c33e168cecb44d765963d491c99d508b8bb68bfd40edc5a515",
+ "cases": [
+  {
+   "id": "M.n11-sealed-value-to-a-model",
+   "family": "M",
+   "kind": "violation",
+   "title": "A granted sealed value placed in a model step's input",
+   "origin": "memory probe variant n11-sealed-value-to-a-model (spec/memory-v0.md §10)",
+   "source": {
+    "probe": "memory",
+    "variant": "n11-sealed-value-to-a-model"
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "run",
+   "grants": {
+    "model.reasoning": "session",
+    "memory.session": "session",
+    "memory.profile": "session",
+    "identity.read": "session",
+    "memory.remember": "session",
+    "memory.agent": "session"
+   },
+   "approve": [
+    "echo",
+    "identity",
+    "notes-read",
+    "notes-write",
+    "profile"
+   ],
+   "limits": null,
+   "transcript": null,
+   "consent_host": null,
+   "engine": true,
+   "taints": [
+    "alex.traveler@example.com",
+    "demo-visa-4242"
+   ],
+   "expected": {
+    "stage": "run",
+    "code": "permission_denied",
+    "node": "remember"
+   },
+   "boundary": {
+    "class": "effect",
+    "predicate": "model_taint",
+    "taint": "alex.traveler@example.com"
+   },
+   "guard": "M-36 egress scan (model request)",
+   "primary_ablation": "egress_scan",
+   "ablation_removes_guard": true,
+   "matched_control": "M.fixture",
+   "parametric": null,
+   "property": null,
+   "archive_sha256": "7ed4029ca983f6361e5c36b1def3ccd059d0bd472a52e86a305876328dadb74d"
+  },
+  {
+   "id": "M.m36-sealed-value-to-a-tool",
+   "family": "M",
+   "kind": "violation",
+   "title": "A granted sealed value sent to a tool that does not link its permission",
+   "origin": "memory probe variant m36-sealed-value-to-a-tool (spec/memory-v0.md §10)",
+   "source": {
+    "probe": "memory",
+    "variant": "m36-sealed-value-to-a-tool"
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "run",
+   "grants": {
+    "model.reasoning": "session",
+    "memory.session": "session",
+    "memory.profile": "session",
+    "identity.read": "session",
+    "memory.remember": "session",
+    "memory.agent": "session",
+    "probe.send": "session"
+   },
+   "approve": [
+    "echo",
+    "identity",
+    "notes-read",
+    "notes-write",
+    "profile"
+   ],
+   "limits": null,
+   "transcript": null,
+   "consent_host": null,
+   "engine": true,
+   "taints": [
+    "alex.traveler@example.com",
+    "demo-visa-4242"
+   ],
+   "expected": {
+    "stage": "run",
+    "code": "permission_denied",
+    "node": "echo"
+   },
+   "boundary": {
+    "class": "effect",
+    "predicate": "tool_taint",
+    "taint": "alex.traveler@example.com",
+    "tools": [
+     "echo"
+    ]
+   },
+   "guard": "M-36 egress scan (tool arguments)",
+   "primary_ablation": "egress_scan",
+   "ablation_removes_guard": true,
+   "matched_control": "M.m36-granted-sealed-value",
+   "parametric": null,
+   "property": null,
+   "archive_sha256": "25f28276a71aa6bd8a1d2e3f7d2a22735e2d7e4133d7caef164b09c5331ab475"
+  },
+  {
+   "id": "M.fixture",
+   "family": "M",
+   "kind": "control",
+   "title": "Control: the memory probe (every memory.v0 permission) completes",
+   "origin": "memory probe variant fixture (spec/memory-v0.md §10)",
+   "source": {
+    "probe": "memory",
+    "variant": "fixture"
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "run",
+   "grants": {
+    "model.reasoning": "session",
+    "memory.session": "session",
+    "memory.profile": "session",
+    "identity.read": "session",
+    "memory.remember": "session",
+    "memory.agent": "session"
+   },
+   "approve": [
+    "echo",
+    "identity",
+    "notes-read",
+    "notes-write",
+    "profile"
+   ],
+   "limits": null,
+   "transcript": null,
+   "consent_host": null,
+   "engine": true,
+   "taints": [
+    "alex.traveler@example.com",
+    "demo-visa-4242"
+   ],
+   "expected": {
+    "stage": "run",
+    "code": "completed"
+   },
+   "boundary": {},
+   "guard": "none (control)",
+   "primary_ablation": null,
+   "ablation_removes_guard": true,
+   "matched_control": null,
+   "parametric": null,
+   "property": null,
+   "archive_sha256": "d84eb93c854aa1c6c73c33fe1697c2d8fd11d64e2c2f3e84431f9d85d3f59db4"
+  },
+  {
+   "id": "C.module-no-memory-maximum",
+   "family": "C",
+   "kind": "violation",
+   "title": "A memory without a declared maximum: the maximum is the module's memory bound",
+   "origin": "examples/compute/cases/cases.json#module-no-memory-maximum",
+   "source": {
+    "probe": "compute",
+    "case": {
+     "id": "module-no-memory-maximum",
+     "title": "A memory without a declared maximum: the maximum is the module's memory bound",
+     "module": "no-memory-maximum",
+     "stage": "validation",
+     "code": "module_memory_undeclared_maximum"
+    }
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "run",
+   "grants": {
+    "memory.session": "session",
+    "compute.modules": "session"
+   },
+   "approve": [],
+   "limits": null,
+   "transcript": null,
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "validation",
+    "code": "module_memory_undeclared_maximum"
+   },
+   "boundary": {
+    "class": "effect",
+    "predicate": "module_ran"
+   },
+   "guard": "module gate (static module check)",
+   "primary_ablation": "module_gate",
+   "ablation_removes_guard": true,
+   "matched_control": "C.echo",
+   "parametric": null,
+   "property": null,
+   "archive_sha256": "b91458291d3dc47265f5b825782105a5ef3503ee75b7532767dce7e2c7344b98"
+  },
+  {
+   "id": "C.deadline",
+   "family": "C",
+   "kind": "violation",
+   "title": "A module that never returns, under a wall bound of half a second",
+   "origin": "examples/compute/cases/cases.json#deadline",
+   "source": {
+    "probe": "compute",
+    "case": {
+     "id": "deadline",
+     "title": "A module that never returns, under a wall bound of half a second",
+     "module": "loop-forever",
+     "stage": "run",
+     "code": "compute_error",
+     "reason": "deadline",
+     "node_limits": {
+      "wall_seconds": 0.5,
+      "fuel": 1000000000000
+     }
+    }
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "run",
+   "grants": {
+    "memory.session": "session",
+    "compute.modules": "session"
+   },
+   "approve": [],
+   "limits": null,
+   "transcript": null,
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "run",
+    "code": "compute_error",
+    "node": "compute",
+    "reason": "deadline"
+   },
+   "boundary": {
+    "class": "effect",
+    "predicate": "compute_overran",
+    "ms": 5000
+   },
+   "guard": "fuel and wall bounds of a call",
+   "primary_ablation": "compute_limits",
+   "ablation_removes_guard": true,
+   "matched_control": "C.echo",
+   "parametric": null,
+   "property": null,
+   "archive_sha256": "fe686ee03d8bbc35bfebe5f91314ff0f15ba17b0beee8c3cf72096c2019da239"
+  },
+  {
+   "id": "C.echo",
+   "family": "C",
+   "kind": "control",
+   "title": "Control: the smallest conforming module answers its input",
+   "origin": "examples/compute/cases/cases.json#echo",
+   "source": {
+    "probe": "compute",
+    "case": {
+     "id": "echo",
+     "title": "Control: the smallest conforming module answers its input",
+     "module": "echo",
+     "stage": "run",
+     "code": "completed"
+    }
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "run",
+   "grants": {
+    "memory.session": "session",
+    "compute.modules": "session"
+   },
+   "approve": [],
+   "limits": null,
+   "transcript": null,
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "run",
+    "code": "completed"
+   },
+   "boundary": {},
+   "guard": "none (control)",
+   "primary_ablation": null,
+   "ablation_removes_guard": true,
+   "matched_control": null,
+   "parametric": null,
+   "property": null,
+   "archive_sha256": "f4e3b32838a7c05d8db4a52debd24910166a1f7c9699614282adf9e62aae8bd2"
+  },
+  {
+   "id": "V.tool-after-denied-consent",
+   "family": "V",
+   "kind": "violation",
+   "title": "A tool called after its consent step was denied",
+   "origin": "examples/conversation/cases/cases.json#tool-after-denied-consent",
+   "source": {
+    "probe": "conversation",
+    "case": {
+     "id": "tool-after-denied-consent",
+     "title": "A tool called after its consent step was denied",
+     "stage": "run",
+     "code": "permission_denied",
+     "reason": "consent_denied",
+     "variant": "tool-after-denied-consent",
+     "transcript": [
+      [
+       "order A",
+       {
+        "confirm": false
+       }
+      ]
+     ],
+     "expect": {
+      "turns": [
+       "failed"
+      ],
+      "node": "place",
+      "tool_called": false
+     }
+    }
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "converse",
+   "grants": {
+    "model.reasoning": "session",
+    "memory.session": "session",
+    "orders.place": "session"
+   },
+   "approve": [
+    "place"
+   ],
+   "limits": null,
+   "transcript": {
+    "schema": "conversation.transcript.v0",
+    "turns": [
+     {
+      "message": {
+       "text": "order A"
+      },
+      "consents": {
+       "confirm": false
+      }
+     }
+    ]
+   },
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "run",
+    "code": "permission_denied",
+    "reason": "consent_denied",
+    "node": "place"
+   },
+   "boundary": {
+    "class": "effect",
+    "predicate": "gated_tool_unconsented",
+    "tool": "place",
+    "permissions": [
+     "orders.place"
+    ]
+   },
+   "guard": "V-9 consent gate",
+   "primary_ablation": "consent_gate",
+   "ablation_removes_guard": true,
+   "matched_control": "V.two-turns-one-consent",
+   "parametric": null,
+   "property": null,
+   "archive_sha256": "4580c61b4392914f416cdcea32a872e5f41d9e03ccaac7301afdac3ca6b5380b"
+  },
+  {
+   "id": "V.turn-beyond-cap",
+   "family": "V",
+   "kind": "violation",
+   "title": "A turn beyond max_turns (the host lowered it to 1)",
+   "origin": "examples/conversation/cases/cases.json#turn-beyond-cap",
+   "source": {
+    "probe": "conversation",
+    "case": {
+     "id": "turn-beyond-cap",
+     "title": "A turn beyond max_turns (the host lowered it to 1)",
+     "stage": "turn",
+     "reason": "conversation_turn_limit",
+     "limits": {
+      "conversation_max_turns": 1
+     },
+     "transcript": [
+      [
+       "order A",
+       {
+        "confirm": true
+       }
+      ],
+      "hello"
+     ],
+     "expect": {
+      "turns": [
+       "completed",
+       "refused"
+      ],
+      "ended": "max_turns"
+     }
+    }
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "converse",
+   "grants": {
+    "model.reasoning": "session",
+    "memory.session": "session",
+    "orders.place": "session"
+   },
+   "approve": [
+    "place"
+   ],
+   "limits": {
+    "conversation_max_turns": 1
+   },
+   "transcript": {
+    "schema": "conversation.transcript.v0",
+    "turns": [
+     {
+      "message": {
+       "text": "order A"
+      },
+      "consents": {
+       "confirm": true
+      }
+     },
+     {
+      "message": {
+       "text": "hello"
+      }
+     }
+    ]
+   },
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "turn",
+    "code": "conversation_turn_limit"
+   },
+   "boundary": {
+    "class": "effect",
+    "predicate": "turn_ran",
+    "turn": 2
+   },
+   "guard": "conversation turn cap",
+   "primary_ablation": "conversation_bounds",
+   "ablation_removes_guard": true,
+   "matched_control": "V.two-turns-one-consent",
+   "parametric": null,
+   "property": null,
+   "archive_sha256": "133d3b4f0982c7effc929928ae4caf5a3b41e468ccf865e9e5ae1c8ceff078a9"
+  },
+  {
+   "id": "V.two-turns-one-consent",
+   "family": "V",
+   "kind": "control",
+   "title": "Control: an order confirmed, then goodbye",
+   "origin": "examples/conversation/cases/cases.json#two-turns-one-consent",
+   "source": {
+    "probe": "conversation",
+    "case": {
+     "id": "two-turns-one-consent",
+     "title": "Control: an order confirmed, then goodbye",
+     "stage": "run",
+     "code": "completed",
+     "transcript": [
+      [
+       "order A",
+       {
+        "confirm": true
+       }
+      ],
+      "done"
+     ],
+     "expect": {
+      "turns": [
+       "completed",
+       "completed"
+      ],
+      "tool_calls": 1,
+      "ended": "package",
+      "orders_after": 1
+     }
+    }
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "converse",
+   "grants": {
+    "model.reasoning": "session",
+    "memory.session": "session",
+    "orders.place": "session"
+   },
+   "approve": [
+    "place"
+   ],
+   "limits": null,
+   "transcript": {
+    "schema": "conversation.transcript.v0",
+    "turns": [
+     {
+      "message": {
+       "text": "order A"
+      },
+      "consents": {
+       "confirm": true
+      }
+     },
+     {
+      "message": {
+       "text": "done"
+      }
+     }
+    ]
+   },
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "run",
+    "code": "completed"
+   },
+   "boundary": {},
+   "guard": "none (control)",
+   "primary_ablation": null,
+   "ablation_removes_guard": true,
+   "matched_control": null,
+   "parametric": null,
+   "property": null,
+   "archive_sha256": "47a77f60600ca2590cfde5fc0a9fbbe7179d27bf2f1495ae67413a28b1963578"
+  },
+  {
+   "id": "N.hops-exhausted",
+   "family": "N",
+   "kind": "violation",
+   "title": "The model hands off at the hop cap",
+   "origin": "examples/network/cases/cases.json#hops-exhausted",
+   "source": {
+    "probe": "network",
+    "case": {
+     "id": "hops-exhausted",
+     "title": "The model hands off at the hop cap",
+     "stage": "run",
+     "code": "model_error",
+     "reason": "hops_exhausted",
+     "variant": "hops-exhausted",
+     "expect": {
+      "node": "delegate",
+      "route": "delegate/Desk/route",
+      "chosen_by": "model",
+      "activations": {
+       "Desk": 2,
+       "Lookup": 1
+      }
+     }
+    }
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "run",
+   "grants": {
+    "model.reasoning": "session",
+    "memory.session": "session",
+    "desk.read": "session"
+   },
+   "approve": [
+    "lookup"
+   ],
+   "limits": null,
+   "transcript": null,
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "run",
+    "code": "model_error",
+    "reason": "hops_exhausted",
+    "node": "delegate"
+   },
+   "boundary": {
+    "class": "effect",
+    "predicate": "beyond_envelope"
+   },
+   "guard": "R-11 hop cap",
+   "primary_ablation": "transition_check",
+   "ablation_removes_guard": true,
+   "matched_control": "N.fixture-walk",
+   "parametric": null,
+   "property": null,
+   "archive_sha256": "13e4a3bbdc57d49ed140d861c4577db4d81969d7690b2f6346a18b9815452390"
+  },
+  {
+   "id": "N.reservation-refused",
+   "family": "N",
+   "kind": "violation",
+   "title": "The run has less left than the network's worst case when the node starts",
+   "origin": "examples/network/cases/cases.json#reservation-refused",
+   "source": {
+    "probe": "network",
+    "case": {
+     "id": "reservation-refused",
+     "title": "The run has less left than the network's worst case when the node starts",
+     "stage": "run",
+     "code": "budget_exhausted",
+     "reason": "tokens",
+     "variant": "reservation-refused",
+     "expect": {
+      "node": "delegate",
+      "refused_before_start": true,
+      "activations": {}
+     }
+    }
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "run",
+   "grants": {
+    "model.reasoning": "session",
+    "memory.session": "session",
+    "desk.read": "session"
+   },
+   "approve": [
+    "lookup"
+   ],
+   "limits": null,
+   "transcript": null,
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "run",
+    "code": "budget_exhausted",
+    "reason": "tokens",
+    "node": "delegate"
+   },
+   "boundary": {
+    "class": "effect",
+    "predicate": "envelope_overcommitted"
+   },
+   "guard": "R-17 reservation before the first activation",
+   "primary_ablation": "envelope_reservation",
+   "ablation_removes_guard": true,
+   "matched_control": "N.fixture-walk",
+   "parametric": null,
+   "property": null,
+   "archive_sha256": "f8af2dac3049acc8c8d49af4a467db54b5660e2738449a1c76f2e90af95fb78b"
+  },
+  {
+   "id": "N.fixture-walk",
+   "family": "N",
+   "kind": "control",
+   "title": "Control: the fixture walk (Desk, Lookup, Desk, Writer, Desk, done) completes within the envelope",
+   "origin": "examples/network/cases/cases.json#fixture-walk",
+   "source": {
+    "probe": "network",
+    "case": {
+     "id": "fixture-walk",
+     "title": "Control: the fixture walk (Desk, Lookup, Desk, Writer, Desk, done) completes within the envelope",
+     "stage": "run",
+     "code": "completed",
+     "expect": {
+      "activations": {
+       "Desk": 3,
+       "Lookup": 1,
+       "Writer": 1
+      },
+      "hops": 4,
+      "tool_calls": 1,
+      "model_calls": 7,
+      "committed": 5
+     }
+    }
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "run",
+   "grants": {
+    "model.reasoning": "session",
+    "memory.session": "session",
+    "desk.read": "session"
+   },
+   "approve": [
+    "lookup"
+   ],
+   "limits": null,
+   "transcript": null,
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "run",
+    "code": "completed"
+   },
+   "boundary": {},
+   "guard": "none (control)",
+   "primary_ablation": null,
+   "ablation_removes_guard": true,
+   "matched_control": null,
+   "parametric": null,
+   "property": null,
+   "archive_sha256": "755d83ecf38cd1b20ced3cc9d7ae01f32b85cabeefd20a14c64f8e6409af7a1b"
+  },
+  {
+   "id": "C.param.compute-pages-13",
+   "family": "C",
+   "kind": "violation",
+   "title": "Host page ceiling 13 for a module that declares 16 pages",
+   "origin": "parametric template compute-pages",
+   "source": {
+    "probe": "compute",
+    "case": {
+     "id": "echo",
+     "title": "Control: the smallest conforming module answers its input",
+     "module": "echo",
+     "stage": "run",
+     "code": "completed"
+    }
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "run",
+   "grants": {
+    "memory.session": "session",
+    "compute.modules": "session"
+   },
+   "approve": [],
+   "limits": {
+    "compute_memory_pages": 13
+   },
+   "transcript": null,
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "admission",
+    "code": "execution_compute_limit_exceeded"
+   },
+   "boundary": {
+    "class": "effect",
+    "predicate": "module_ran"
+   },
+   "guard": "host page ceiling (refused, never lowered)",
+   "primary_ablation": "compute_limits",
+   "ablation_removes_guard": true,
+   "matched_control": "C.echo",
+   "parametric": {
+    "template": "compute-pages",
+    "value": 13,
+    "need": 16
+   },
+   "property": null,
+   "archive_sha256": "f4e3b32838a7c05d8db4a52debd24910166a1f7c9699614282adf9e62aae8bd2"
+  },
+  {
+   "id": "C.param.compute-time-loop-0.2",
+   "family": "C",
+   "kind": "violation",
+   "title": "A wall bound of 0.2 s on a module that never returns",
+   "origin": "parametric template compute-time",
+   "source": {
+    "probe": "compute",
+    "case": {
+     "id": "param-time-loop-0.2",
+     "title": "A module that never returns, under a wall bound of half a second",
+     "module": "loop-forever",
+     "stage": "run",
+     "code": "compute_error",
+     "reason": "deadline",
+     "node_limits": {
+      "wall_seconds": 0.2,
+      "fuel": 1000000000000
+     }
+    }
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "run",
+   "grants": {
+    "memory.session": "session",
+    "compute.modules": "session"
+   },
+   "approve": [],
+   "limits": null,
+   "transcript": null,
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "run",
+    "code": "compute_error",
+    "reason": "deadline",
+    "node": "compute"
+   },
+   "boundary": {
+    "class": "effect",
+    "predicate": "compute_overran",
+    "ms": 4200
+   },
+   "guard": "wall bound of a call",
+   "primary_ablation": "compute_limits",
+   "ablation_removes_guard": true,
+   "matched_control": "C.echo",
+   "parametric": {
+    "template": "compute-time",
+    "value": 0.2,
+    "need": null
+   },
+   "property": null,
+   "archive_sha256": "5499525925fe782555097d607693cc435947fabdeffbfd2483a8faccaff49349"
+  },
+  {
+   "id": "V.param.conversation-tokens-3824",
+   "family": "V",
+   "kind": "violation",
+   "title": "Host conversation_total_tokens = 3824 for a conversation that needs 4218",
+   "origin": "parametric template conversation-tokens",
+   "source": {
+    "probe": "conversation",
+    "case": {
+     "id": "two-turns-one-consent",
+     "title": "Control: an order confirmed, then goodbye",
+     "stage": "run",
+     "code": "completed",
+     "transcript": [
+      [
+       "order A",
+       {
+        "confirm": true
+       }
+      ],
+      "done"
+     ],
+     "expect": {
+      "turns": [
+       "completed",
+       "completed"
+      ],
+      "tool_calls": 1,
+      "ended": "package",
+      "orders_after": 1
+     }
+    }
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "converse",
+   "grants": {
+    "model.reasoning": "session",
+    "memory.session": "session",
+    "orders.place": "session"
+   },
+   "approve": [
+    "place"
+   ],
+   "limits": {
+    "conversation_total_tokens": 3824
+   },
+   "transcript": {
+    "schema": "conversation.transcript.v0",
+    "turns": [
+     {
+      "message": {
+       "text": "hello"
+      }
+     },
+     {
+      "message": {
+       "text": "hello"
+      }
+     }
+    ]
+   },
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "turn",
+    "code": "conversation_budget_exhausted"
+   },
+   "boundary": {
+    "class": "effect",
+    "predicate": "turn_ran",
+    "turn": 2
+   },
+   "guard": "conversation token budget",
+   "primary_ablation": "conversation_bounds",
+   "ablation_removes_guard": true,
+   "matched_control": "V.two-turns-one-consent",
+   "parametric": {
+    "template": "conversation-tokens",
+    "value": 3824,
+    "need": 4218
+   },
+   "property": null,
+   "archive_sha256": "47a77f60600ca2590cfde5fc0a9fbbe7179d27bf2f1495ae67413a28b1963578"
+  },
+  {
+   "id": "V.param.conversation-turns-1",
+   "family": "V",
+   "kind": "violation",
+   "title": "Host conversation_max_turns = 1 for a conversation that needs 3",
+   "origin": "parametric template conversation-turns",
+   "source": {
+    "probe": "conversation",
+    "case": {
+     "id": "two-turns-one-consent",
+     "title": "Control: an order confirmed, then goodbye",
+     "stage": "run",
+     "code": "completed",
+     "transcript": [
+      [
+       "order A",
+       {
+        "confirm": true
+       }
+      ],
+      "done"
+     ],
+     "expect": {
+      "turns": [
+       "completed",
+       "completed"
+      ],
+      "tool_calls": 1,
+      "ended": "package",
+      "orders_after": 1
+     }
+    }
+   },
+   "extra": null,
+   "pre": null,
+   "tamper": null,
+   "mode": "converse",
+   "grants": {
+    "model.reasoning": "session",
+    "memory.session": "session",
+    "orders.place": "session"
+   },
+   "approve": [
+    "place"
+   ],
+   "limits": {
+    "conversation_max_turns": 1
+   },
+   "transcript": {
+    "schema": "conversation.transcript.v0",
+    "turns": [
+     {
+      "message": {
+       "text": "hello"
+      }
+     },
+     {
+      "message": {
+       "text": "hello"
+      }
+     },
+     {
+      "message": {
+       "text": "done"
+      }
+     }
+    ]
+   },
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "turn",
+    "code": "conversation_turn_limit"
+   },
+   "boundary": {
+    "class": "effect",
+    "predicate": "turn_ran",
+    "turn": 2
+   },
+   "guard": "conversation turn cap",
+   "primary_ablation": "conversation_bounds",
+   "ablation_removes_guard": true,
+   "matched_control": "V.two-turns-one-consent",
+   "parametric": {
+    "template": "conversation-turns",
+    "value": 1,
+    "need": 3
+   },
+   "property": null,
+   "archive_sha256": "47a77f60600ca2590cfde5fc0a9fbbe7179d27bf2f1495ae67413a28b1963578"
+  },
+  {
+   "id": "N.param.network-hops-2",
+   "family": "N",
+   "kind": "violation",
+   "title": "The network's hops cap at 2 for a walk that needs 4",
+   "origin": "parametric template network-cap",
+   "source": {
+    "probe": "network",
+    "case": {
+     "id": "fixture-walk",
+     "title": "Control: the fixture walk (Desk, Lookup, Desk, Writer, Desk, done) completes within the envelope",
+     "stage": "run",
+     "code": "completed",
+     "expect": {
+      "activations": {
+       "Desk": 3,
+       "Lookup": 1,
+       "Writer": 1
+      },
+      "hops": 4,
+      "tool_calls": 1,
+      "model_calls": 7,
+      "committed": 5
+     }
+    }
+   },
+   "extra": null,
+   "pre": "network hops cap = 2",
+   "tamper": null,
+   "mode": "run",
+   "grants": {
+    "model.reasoning": "session",
+    "memory.session": "session",
+    "desk.read": "session"
+   },
+   "approve": [
+    "lookup"
+   ],
+   "limits": null,
+   "transcript": null,
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "run",
+    "code": "model_error",
+    "reason": "hops_exhausted",
+    "node": "delegate"
+   },
+   "boundary": {
+    "class": "effect",
+    "predicate": "beyond_envelope"
+   },
+   "guard": "network hops cap",
+   "primary_ablation": "transition_check",
+   "ablation_removes_guard": true,
+   "matched_control": "N.fixture-walk",
+   "parametric": {
+    "template": "network-cap",
+    "kind": "hops",
+    "value": 2,
+    "need": 4
+   },
+   "property": null,
+   "archive_sha256": "029df82458f2c2d57d672d20b289f3b1da09f4a92c3224b14559bcf65522deea"
+  },
+  {
+   "id": "M.param.agent-write-27971",
+   "family": "M",
+   "kind": "control",
+   "title": "An agent document body of 27971 characters (cap 32768)",
+   "origin": "parametric template agent-write",
+   "source": {
+    "probe": "memory",
+    "variant": "fixture"
+   },
+   "extra": "agent document body of 27971 characters",
+   "pre": null,
+   "tamper": null,
+   "mode": "run",
+   "grants": {
+    "model.reasoning": "session",
+    "memory.session": "session",
+    "memory.profile": "session",
+    "identity.read": "session",
+    "memory.remember": "session",
+    "memory.agent": "session"
+   },
+   "approve": [
+    "echo",
+    "identity",
+    "notes-read",
+    "notes-write",
+    "profile"
+   ],
+   "limits": null,
+   "transcript": null,
+   "consent_host": null,
+   "engine": true,
+   "taints": [],
+   "expected": {
+    "stage": "run",
+    "code": "completed"
+   },
+   "boundary": {},
+   "guard": "none",
+   "primary_ablation": null,
+   "ablation_removes_guard": true,
+   "matched_control": null,
+   "parametric": {
+    "template": "agent-write",
+    "value": 27971,
+    "need": 32768
+   },
+   "property": null,
+   "archive_sha256": "f455bd1bf73cd4fb8eec2b2e67fd69a5523820a95f1480c7f2499c319b4eb1c9"
+  }
+ ]
+}

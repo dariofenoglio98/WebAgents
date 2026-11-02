@@ -1,0 +1,585 @@
+{
+  "experiment": "contract_enforcement/catalog_v2",
+  "version": "2.0.0",
+  "experiment_sha256": "a3f8121276b5504355d8ef61bb4c0433f3c8776e24ebd0c3c5fec77689fd5a7c",
+  "git": {
+    "commit": "4d7126b4eeb3c83a8b99ff515913241326e05642",
+    "branch": "task/T30",
+    "dirty": false,
+    "dirty_fingerprint": null
+  },
+  "preset": "smoke",
+  "seed": 20261101,
+  "jobs": 6,
+  "runtimes": [
+    "py",
+    "ts"
+  ],
+  "profiles": [
+    {
+      "name": "full",
+      "label": "Full system",
+      "description": "Every mechanism in place; no patch.",
+      "sites": {
+        "py": [],
+        "ts": []
+      }
+    },
+    {
+      "name": "egress_scan",
+      "label": "-Egress scan",
+      "description": "M-36's scans of the run's sealed values in a tool's arguments and in a model request (N11). The shared scanner stays: the proposals check (M-40 step 7) uses it too.",
+      "sites": {
+        "py": [
+          {
+            "site": "E.tool_arguments",
+            "file": "runtime.py",
+            "note": ""
+          },
+          {
+            "site": "E.model_request",
+            "file": "runtime.py",
+            "note": ""
+          }
+        ],
+        "ts": [
+          {
+            "site": "E.tool_arguments",
+            "file": "core/workflow/runtime.ts",
+            "note": ""
+          },
+          {
+            "site": "E.model_request",
+            "file": "core/workflow/runtime.ts",
+            "note": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "module_gate",
+      "label": "-Module gate",
+      "description": "The static module check (compute.v0 C-19): no imports, exactly one memory with a declared maximum, the memory, alloc and node-function exports with their signatures, the declared SHA-256, and the feature refusals a single line can lift (shared-memory limits, tail calls' return_call, the v128 type). SIMD and atomic instructions are refused inside the decoder (no single-line site); the container rules stay; agentpkg's wasmtime configuration repeats the feature refusals at compile (the engine's own, kept).",
+      "sites": {
+        "py": [
+          {
+            "site": "G.imports",
+            "file": "compute/module.py",
+            "note": ""
+          },
+          {
+            "site": "G.memory_count",
+            "file": "compute/module.py",
+            "note": ""
+          },
+          {
+            "site": "G.maximum",
+            "file": "compute/module.py",
+            "note": ""
+          },
+          {
+            "site": "G.memory_export",
+            "file": "compute/module.py",
+            "note": ""
+          },
+          {
+            "site": "G.alloc",
+            "file": "compute/module.py",
+            "note": ""
+          },
+          {
+            "site": "G.run",
+            "file": "compute/module.py",
+            "note": ""
+          },
+          {
+            "site": "G.hash",
+            "file": "compute/declarations.py",
+            "note": ""
+          },
+          {
+            "site": "G.shared",
+            "file": "compute/module.py",
+            "note": ""
+          },
+          {
+            "site": "G.tail_call",
+            "file": "compute/module.py",
+            "note": ""
+          },
+          {
+            "site": "G.v128",
+            "file": "compute/module.py",
+            "note": ""
+          }
+        ],
+        "ts": [
+          {
+            "site": "G.imports",
+            "file": "core/compute/module.ts",
+            "note": ""
+          },
+          {
+            "site": "G.memory_count",
+            "file": "core/compute/module.ts",
+            "note": ""
+          },
+          {
+            "site": "G.maximum",
+            "file": "core/compute/module.ts",
+            "note": ""
+          },
+          {
+            "site": "G.memory_export",
+            "file": "core/compute/module.ts",
+            "note": ""
+          },
+          {
+            "site": "G.alloc",
+            "file": "core/compute/module.ts",
+            "note": ""
+          },
+          {
+            "site": "G.run",
+            "file": "core/compute/module.ts",
+            "note": ""
+          },
+          {
+            "site": "G.hash",
+            "file": "core/compute/declarations.ts",
+            "note": ""
+          },
+          {
+            "site": "G.shared",
+            "file": "core/compute/module.ts",
+            "note": ""
+          },
+          {
+            "site": "G.tail_call",
+            "file": "core/compute/module.ts",
+            "note": ""
+          },
+          {
+            "site": "G.v128",
+            "file": "core/compute/module.ts",
+            "note": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "consent_gate",
+      "label": "-Consent gate",
+      "description": "V-9's per-permission gate before a gated tool, V-13's once spent across turns (the next turn forgets what earlier turns spent: the step is asked again and the tool may use it again), and the transcript-against-plan check's consent_not_authorized. Within a turn, `once` and a denied grant stay (the permission mediator). The transcript check's unknown step stays: without it the check reads the step's permissions of nothing.",
+      "sites": {
+        "py": [
+          {
+            "site": "V.gate",
+            "file": "runtime.py",
+            "note": ""
+          },
+          {
+            "site": "V.once_across_turns",
+            "file": "runtime.py",
+            "note": ""
+          },
+          {
+            "site": "V.transcript_denied",
+            "file": "conversation/transcript.py",
+            "note": ""
+          }
+        ],
+        "ts": [
+          {
+            "site": "V.gate",
+            "file": "core/workflow/runtime.ts",
+            "note": ""
+          },
+          {
+            "site": "V.once_across_turns",
+            "file": "core/workflow/runtime.ts",
+            "note": ""
+          },
+          {
+            "site": "V.transcript_denied",
+            "file": "core/conversation/transcript.ts",
+            "note": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "transition_check",
+      "label": "-Transition check",
+      "description": "network.v0's run-time transition checks: the hop cap, an edge's max_uses (model and fixed routes), a role's max_activations, and the write view of a role's patch. The route's enum is enforced by the route answer's own output schema (and its edge lookup), which no profile removes; the read view is structural (a role's environment holds its view only).",
+      "sites": {
+        "py": [
+          {
+            "site": "T.hops",
+            "file": "delegation/runner.py",
+            "note": ""
+          },
+          {
+            "site": "T.edge",
+            "file": "delegation/runner.py",
+            "note": ""
+          },
+          {
+            "site": "T.role",
+            "file": "delegation/runner.py",
+            "note": ""
+          },
+          {
+            "site": "T.write_view",
+            "file": "delegation/runner.py",
+            "note": ""
+          }
+        ],
+        "ts": [
+          {
+            "site": "T.hops",
+            "file": "core/network/runner.ts",
+            "note": ""
+          },
+          {
+            "site": "T.edge",
+            "file": "core/network/runner.ts",
+            "note": ""
+          },
+          {
+            "site": "T.role",
+            "file": "core/network/runner.ts",
+            "note": ""
+          },
+          {
+            "site": "T.write_view",
+            "file": "core/network/runner.ts",
+            "note": ""
+          }
+        ]
+      }
+    }
+  ],
+  "builds": {
+    "py/full": {
+      "key": "b7e83baec002eec531e1",
+      "source_sha256": "95768e0ed613093e2cb59e691a14a3f3f10810e580a22cb7dc21011e5c5d6f7e",
+      "patches": [],
+      "patch_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ts/full": {
+      "key": "ba098f6fb0241481bd81",
+      "source_sha256": "51d6f626f6e0781f7a2a37729963a81b8ff8f1a8672a5e7caa3a28f74cc398ec",
+      "patches": [],
+      "tools": "tsc 5.9.3; esbuild 0.28.2; node v26.9.0",
+      "driver_sha256": "eee426e37281cd56dc3e4559ac0af60627b95f8727deae4a0f38ceaaf1aef775",
+      "patch_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "py/egress_scan": {
+      "key": "f9b09550009f034986b0",
+      "source_sha256": "d322e333659658c702fe70acaa7b0295c527aea26695da8c3505aa576080341f",
+      "patches": [
+        {
+          "site": "E.tool_arguments",
+          "file": "runtime.py",
+          "find_sha256": "148fe005d034b147684ca27643f49b5a7c910e73691f5fdb263c97844443235c",
+          "replace_sha256": "6d649a9a14737f90019dbfd617b0b4673d68057f52316d6f8d0eb3901920b74b"
+        },
+        {
+          "site": "E.model_request",
+          "file": "runtime.py",
+          "find_sha256": "0c023afbd30a0490a325c67cb083da19fc27389d973c73d4aa039ceadddc13de",
+          "replace_sha256": "a8b616fe7e0e29298e0f923ab28a1cbb9d3bc14463dbcab0993617484569f1ba"
+        }
+      ],
+      "patch_diff_sha256": "81efc15ac1b1508e78bf39b3a16eb4c74e0630e2055fde8eaab71733e8355071"
+    },
+    "ts/egress_scan": {
+      "key": "f8b764d20e16cdd85697",
+      "source_sha256": "f64d9cbc380582857dbdf6c33a8fcd761de67913668c7cec895e84216c7f6a5e",
+      "patches": [
+        {
+          "site": "E.tool_arguments",
+          "file": "core/workflow/runtime.ts",
+          "find_sha256": "1ec5c5f71508b3fece17d15b6af6887fecdd9e1c8be2e87c99b84dfdd76454ec",
+          "replace_sha256": "7323865a1ee8b8b7189253458ca0cf391620d4c314d7c6874515c82de977f3ed"
+        },
+        {
+          "site": "E.model_request",
+          "file": "core/workflow/runtime.ts",
+          "find_sha256": "c15d87beae294ba655819e06406b3098e5086538d69e21356573a313a3126dac",
+          "replace_sha256": "0dfdc2e4af6b3bb57fe1d616df386d77ae41bb7de7917f61b42eb7b335a394b0"
+        }
+      ],
+      "tools": "tsc 5.9.3; esbuild 0.28.2; node v26.9.0",
+      "driver_sha256": "ed26f08686b4740a9fbcb4663a52b5f09bd0acadc4311be5e1663cc46f97f3d5",
+      "patch_diff_sha256": "67c1145fcdca889cf1b9d570166b267a108e0684425d54dfdc92214fe0a3c47d"
+    },
+    "py/module_gate": {
+      "key": "2a2bcccb322783c0b3a8",
+      "source_sha256": "b3961192aeabc597515f4cdbd7c5ed9185a11c50bf605ebe0f0713e5bc0d3c60",
+      "patches": [
+        {
+          "site": "G.imports",
+          "file": "compute/module.py",
+          "find_sha256": "b529206bccd6adadc02b7dd9d0ae4567866733eb114d979e0c53791bfbf5e8cd",
+          "replace_sha256": "cca51a9a575cc765971badfc0e75c34f10e80474a11b388f3c46d2d0be41038d"
+        },
+        {
+          "site": "G.memory_count",
+          "file": "compute/module.py",
+          "find_sha256": "93879b32db9ef45b61286abec2b78a7fdf7efd5e06e2e0f4467a8a901db110b2",
+          "replace_sha256": "cfe156b01775d1adbad6505291304646c1081796829596f8e1ea9860db9d79e8"
+        },
+        {
+          "site": "G.maximum",
+          "file": "compute/module.py",
+          "find_sha256": "c2c0024f6b6e8b08d3aa88e6dba4dd07f02cf61221f693c75d2da434a09f033e",
+          "replace_sha256": "b1e7ba306c7bcf4c63cb72a2b91d50e5ccf5b29f62455cdb05cec1a8a194d160"
+        },
+        {
+          "site": "G.memory_export",
+          "file": "compute/module.py",
+          "find_sha256": "081c20ec4f4eb4a0e711999b64463b6f6341aef83673a043bb1e10fa454dc74c",
+          "replace_sha256": "d9518b6d2044597cb6e714cce6bc575680fdbe4fd5f529a9709b76df4d57d4b0"
+        },
+        {
+          "site": "G.alloc",
+          "file": "compute/module.py",
+          "find_sha256": "f823ff4aa0db323da1eb5f8adf9f35d6d2650a4f439594b2c8153008f7c295dc",
+          "replace_sha256": "417e7c5a2b2c125c35dc0618bd07e91ba0f2efd2d18b81f46351b26cbcdbd35e"
+        },
+        {
+          "site": "G.run",
+          "file": "compute/module.py",
+          "find_sha256": "6a5f356c0afe139f4677b347ed46a20f8f01ec2d221e854ceab2fd8a26a758f2",
+          "replace_sha256": "10f59b70631fd45aeb85b18b1354fd9c96f139c9cc0730c7a5bd6d16a16bad83"
+        },
+        {
+          "site": "G.hash",
+          "file": "compute/declarations.py",
+          "find_sha256": "2f3701c1bd4419ac8ca28e6e4712e204ab15bcb2f7d047c38c34f416f6f01ab3",
+          "replace_sha256": "c6d4aa40ab3abf9e0a477bbe65ff59dce2ffa1be677d1cfe73cca1d9752ad4d5"
+        },
+        {
+          "site": "G.shared",
+          "file": "compute/module.py",
+          "find_sha256": "826b2d6352c7b496e05fb58d8144cebbf95837b8331550c6ac9e24f3ef2c7a38",
+          "replace_sha256": "da00dc53d8cf225d66f560d099ace9305b0abf51c6828e29dc0c24a79b57f7cf"
+        },
+        {
+          "site": "G.tail_call",
+          "file": "compute/module.py",
+          "find_sha256": "b8119287b2b04736b847824e27210aae018580cfea4f1930f64adc732a1891db",
+          "replace_sha256": "3805c53429235da7b79323b1fa4b34f2d40841544c962974cc8ee5ae2aea1aa7"
+        },
+        {
+          "site": "G.v128",
+          "file": "compute/module.py",
+          "find_sha256": "2bc0937f40fe363a17df4b38587b67de3ff38b7cd8d1b377c523ce147c4679c1",
+          "replace_sha256": "1dd625eb601ab21efb68e8b1c79fe442a6266fdc59bd4b74bfc04fef6f1a930e"
+        }
+      ],
+      "patch_diff_sha256": "9876b62b93684c93a8556b9d64f3b7f3c666b25a179ae78137e3e74f4dc72c5e"
+    },
+    "ts/module_gate": {
+      "key": "cf84bdef086abe5ba144",
+      "source_sha256": "e2071e1f68b6fa3aa1906bf5018b16d3f02b534790072c5f519ec5ba9820ee60",
+      "patches": [
+        {
+          "site": "G.imports",
+          "file": "core/compute/module.ts",
+          "find_sha256": "21c889d76f462edc91c218b45f20255b763ddad4eb4e17ed7d6bca41ab0e03dd",
+          "replace_sha256": "0897431f90d48077ca889039e62df4917649a1f077893cf1cc1055d57db88221"
+        },
+        {
+          "site": "G.memory_count",
+          "file": "core/compute/module.ts",
+          "find_sha256": "db542088c6147a0ab30b1119ec244b26219e0ba13fdfc2ec1de49a44494ebf9e",
+          "replace_sha256": "b7caf0a2cf343d5534a5263c533e3bccf4b71c21cf40b7d5d78db78f84931c85"
+        },
+        {
+          "site": "G.maximum",
+          "file": "core/compute/module.ts",
+          "find_sha256": "9b32f184240a6bde1aeb710ad1ea731feb4cd478d3c1f2c654be88dcdc74c720",
+          "replace_sha256": "c4eaa06036b781dfe0e46eeb22c09a1349815912ef23fbd47845a4c260afced7"
+        },
+        {
+          "site": "G.memory_export",
+          "file": "core/compute/module.ts",
+          "find_sha256": "018ec61ab490cdc6f459a26f1f348c90f43612a93c60f3c8e61c8841709bcf93",
+          "replace_sha256": "500408a9141dd589ce3bde44af52423fe470d2961f4eae10e36b2af1f05ab639"
+        },
+        {
+          "site": "G.alloc",
+          "file": "core/compute/module.ts",
+          "find_sha256": "c24832e70455b1cb5e94ce8d62708bcd8d6a8407a03a89352dc8139ec25dcea9",
+          "replace_sha256": "1a2d59d290256687e015bc7b87b980d88561be8c098414046aeacf88265078f8"
+        },
+        {
+          "site": "G.run",
+          "file": "core/compute/module.ts",
+          "find_sha256": "873aa3541c0ccb19a7241ba541b0e7f27b211d56348825732c083d65ff78493a",
+          "replace_sha256": "ed30e3ff52437818b249d93e5c386063202b43ca636af363a8d402c98e521563"
+        },
+        {
+          "site": "G.hash",
+          "file": "core/compute/declarations.ts",
+          "find_sha256": "dcc903680e79d9c5a1a7141f5bbfbcac7e22bd2265c4ebac697430c85a862f9e",
+          "replace_sha256": "00030e2ceeea4f8bd56c7dc2b26fc93341f8c08ed6f5894977bb31357ad76939"
+        },
+        {
+          "site": "G.shared",
+          "file": "core/compute/module.ts",
+          "find_sha256": "cecf50ef4f94682ce70210bb12a68acd24f30df931db2285eff0ebd0033d4fa8",
+          "replace_sha256": "0f67b1908953284001006063663ea72b73fe3b695c5bab12955b68f3e4e9c203"
+        },
+        {
+          "site": "G.tail_call",
+          "file": "core/compute/module.ts",
+          "find_sha256": "a3860969de314d6236dde17989b9505cc652746d937f53d71fc724b285805770",
+          "replace_sha256": "f41c4a6650dc454794438eb87fd54cb8b447a43ee6cc9eca6e0845a65283eb33"
+        },
+        {
+          "site": "G.v128",
+          "file": "core/compute/module.ts",
+          "find_sha256": "746038b84f4528d39029cbc30255552825e75be5cb5ca232585e5918c937a3da",
+          "replace_sha256": "a26a136fc34ee4f3a732c8862b0607624ffb5c6dc8d3e20020f9dcb8ee963af0"
+        }
+      ],
+      "tools": "tsc 5.9.3; esbuild 0.28.2; node v26.9.0",
+      "driver_sha256": "d25cc8faa23af8b6a7023f8de7a813d50a51859c00d970ff932dbe6f68e256ad",
+      "patch_diff_sha256": "e49dc7be67484392ef761ecbb907739a7f13b537d9fde78e5f3e268afc1a3df6"
+    },
+    "py/consent_gate": {
+      "key": "dceddbe4cc5b9c1220c4",
+      "source_sha256": "76b05c410f14d17ddae4712d909bbeaf5c0c127ee9603c9aeeab1df7b4cd9386",
+      "patches": [
+        {
+          "site": "V.gate",
+          "file": "runtime.py",
+          "find_sha256": "f67d772befd9d3e0be4820256f2ed250eb7d8aa6d6d39d5703d63d9382f9b32c",
+          "replace_sha256": "f627602ea3d2896eefc06ad79b0bb052381a039fc4ed062f65c9a50319a29904"
+        },
+        {
+          "site": "V.once_across_turns",
+          "file": "runtime.py",
+          "find_sha256": "2cb9551ddf1c179157cabbbc49e5760d4719fad4794ad238bff82fb9ea775300",
+          "replace_sha256": "5c6729004a002c50d4875ea2cea07db2c9c7472b5f99abd0b40c98d238b5d6c0"
+        },
+        {
+          "site": "V.transcript_denied",
+          "file": "conversation/transcript.py",
+          "find_sha256": "642576709c0b1c59a9ccaeba8070826b977d9e1ee7c043afe1b9d542f7cfe18f",
+          "replace_sha256": "2c226b789ae81659876d734a76da17ff117f036c04f0e1219c11a60288bdb08d"
+        }
+      ],
+      "patch_diff_sha256": "afd812ba078f5135ac428695c50b6f4f12c36d845c352ad652a20e93aa57ba9c"
+    },
+    "ts/consent_gate": {
+      "key": "b723cca542e0bcee5b3f",
+      "source_sha256": "cb7de3ceab986bd7c311637af45eea7f3e79b4ea430a4040bc158888356d6268",
+      "patches": [
+        {
+          "site": "V.gate",
+          "file": "core/workflow/runtime.ts",
+          "find_sha256": "4cb1e8aab4351b3fb0acd234ba5412fa243027ae798170b95e1c3448bfbc2d4c",
+          "replace_sha256": "25edee6c7f8033ad73853b7b1b3ce88d64b07177688782babf170b0da7e3add1"
+        },
+        {
+          "site": "V.once_across_turns",
+          "file": "core/workflow/runtime.ts",
+          "find_sha256": "9a295a11043049d89cca280525630170fc3bcd227d5de1b9a9cf47d23b2717bf",
+          "replace_sha256": "1874b7c20990e9a2b5ecafc98e3e986f521d298b424dc89f3e624e38b5c60085"
+        },
+        {
+          "site": "V.transcript_denied",
+          "file": "core/conversation/transcript.ts",
+          "find_sha256": "c6ac30b576d8e9483e0f7e7e55529bfc37bc63e7ba385546a87e8891259d9d6a",
+          "replace_sha256": "441ed816e3b6c338e1ba2b95800f5b424c09a32195db1f8e0d0147a7a92fd1e3"
+        }
+      ],
+      "tools": "tsc 5.9.3; esbuild 0.28.2; node v26.9.0",
+      "driver_sha256": "dd092395a3591afb66df345839915c5213fdf818367cacb9bf269c78a389cbba",
+      "patch_diff_sha256": "d8085eedab261f595dde0172114730ab0a17b111956ad2a07fd7cb566e4f943b"
+    },
+    "py/transition_check": {
+      "key": "fd57550fd89f0407406c",
+      "source_sha256": "08400af799ceec00355d593082660edbd1ce8381368a8ac2460b1bdfd8d18c75",
+      "patches": [
+        {
+          "site": "T.hops",
+          "file": "delegation/runner.py",
+          "find_sha256": "859b7bb629da788046ec625e0c373ebadd0be942aa46b000962772ea31de83c6",
+          "replace_sha256": "8aab820780ca285ce480a67a1f6d1a1f5d02963deccf59df6602b6862ee52edf"
+        },
+        {
+          "site": "T.edge",
+          "file": "delegation/runner.py",
+          "find_sha256": "3bc5a1fbd01662193be11f18612f7ad5ed98f3d4a67d3d81bbe942dfbf930f27",
+          "replace_sha256": "a2046e88c19bcc017e7db63e2678d770d1192035614eb52a34bbb8b0142dc7b0"
+        },
+        {
+          "site": "T.role",
+          "file": "delegation/runner.py",
+          "find_sha256": "d9876889c019c6c7b4963fb66fc2c02579629d9c8e90f94e2099db46f7e67a3a",
+          "replace_sha256": "6b13fca5ddb470e15ee9ba3690479b76ee087595df3a2f3cf57cb7174ed71498"
+        },
+        {
+          "site": "T.write_view",
+          "file": "delegation/runner.py",
+          "find_sha256": "940b3589a6bf1bfbec9155c248d09e243e5f98aa6dd0eb1483f5c0335f56cbbb",
+          "replace_sha256": "c1bbd2d99eecd70d069ff349bdad4d5ba313fd530a7175e244aea096f516eab6"
+        }
+      ],
+      "patch_diff_sha256": "030e0b844f3623426126632c66d9092787ebb3e7f2013a2be2e37e2dacc6c749"
+    },
+    "ts/transition_check": {
+      "key": "a9fa31fafe9b880f99fa",
+      "source_sha256": "cac72f000dd10dee4df8d46f56c96a70f8cd6c41f6b99eae98a3d63ab83daf88",
+      "patches": [
+        {
+          "site": "T.hops",
+          "file": "core/network/runner.ts",
+          "find_sha256": "797d0a70f994928ea6887af809121304a4af6a5bb3be756f28f1c53a9cecfb9c",
+          "replace_sha256": "adf0b4f3a519857b219f4d4fafd85b1ded74c8b9ba8dfdd1625fd477d1e4c8c5"
+        },
+        {
+          "site": "T.edge",
+          "file": "core/network/runner.ts",
+          "find_sha256": "372b7613e714c3e1bcf9e4fe1beb070db19e22155e09bd21b67be39aa240a81d",
+          "replace_sha256": "a0b9f58aae08e90068b49e958c9f3305f1d11b0fdfccb583fdc48e92cd457a93"
+        },
+        {
+          "site": "T.role",
+          "file": "core/network/runner.ts",
+          "find_sha256": "9868ade2316a90e62740826fa0f56bff1490ea5f6ecb40bd0af82770e21ad1d6",
+          "replace_sha256": "0345068c2c3560c5966cc5ac05e6d1f1a6ff58c84d9b04347ea99c6dcfbc6647"
+        },
+        {
+          "site": "T.write_view",
+          "file": "core/network/runner.ts",
+          "find_sha256": "5fc892df8979a0e104e3e7e12a314170fa2e2ccd123996e004d48f0522ad7154",
+          "replace_sha256": "74622e3a4d5287eff911edcaef88223ef7755c51605e1d32d6b4d3bbeaeb42b9"
+        }
+      ],
+      "tools": "tsc 5.9.3; esbuild 0.28.2; node v26.9.0",
+      "driver_sha256": "fe8adf2000b5bc08a5bf53d70763175e6cb0b4746f3b700d422a628407210b24",
+      "patch_diff_sha256": "c3a85545d9cde6378186deaabb51ffae9666c26361306aca25cfecc10cf5a5d9"
+    }
+  },
+  "production_sha256_before": {
+    "agentpkg/src/agentpkg": "95768e0ed613093e2cb59e691a14a3f3f10810e580a22cb7dc21011e5c5d6f7e",
+    "chrome-agent-browser/src": "51d6f626f6e0781f7a2a37729963a81b8ff8f1a8672a5e7caa3a28f74cc398ec"
+  },
+  "catalog_sha256": "9bd3c1e79ff7d4c33e168cecb44d765963d491c99d508b8bb68bfd40edc5a515",
+  "cases": 18,
+  "expected_executions": 180,
+  "machine": {
+    "platform": "darwin",
+    "python": "3.13.5",
+    "cpus": 14
+  },
+  "started_at": "2026-11-02T04:51:52.048794+00:00",
+  "builds_dir": "experiments/contract_enforcement/catalog_v2/.cache/builds"
+}

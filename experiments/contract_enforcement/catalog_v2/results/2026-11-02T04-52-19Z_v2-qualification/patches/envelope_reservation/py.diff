@@ -1,0 +1,25 @@
+--- a/delegation/declarations.py
++++ b/delegation/declarations.py
+@@ -294,5 +294,5 @@
+     bound = worst_case(graph, policy)
+     budget = policy["budget"]
+-    if bound["relaxation"]["tokens"] > budget["hard_tokens"]:
++    if False:  # ABLATED R.validation_tokens
+         raise _refuse(
+             "network_bound_exceeds_budget",
+@@ -300,5 +300,5 @@
+             f"package's hard_tokens of {budget['hard_tokens']}",
+         )
+-    if bound["relaxation"]["remote_calls"] > budget["max_remote_calls"]:
++    if False:  # ABLATED R.validation_remote
+         raise _refuse(
+             "network_bound_exceeds_budget",
+--- a/runtime.py
++++ b/runtime.py
+@@ -895,5 +895,5 @@
+             elif bound["remote_calls"] > remote_left:
+                 reason = "remote_calls"
+-            if reason is not None:
++            if False:  # ABLATED R.reservation
+                 self.record("network.refused", context=self._root, reason=reason, **facts)
+                 raise BudgetError(

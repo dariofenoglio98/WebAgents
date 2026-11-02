@@ -1,0 +1,10 @@
+{
+  "ended_at": "2026-11-02T04:58:49.239305+00:00",
+  "wall_seconds": 205.6,
+  "executions": 3880,
+  "production_sha256_after": {
+    "agentpkg/src/agentpkg": "95768e0ed613093e2cb59e691a14a3f3f10810e580a22cb7dc21011e5c5d6f7e",
+    "chrome-agent-browser/src": "51d6f626f6e0781f7a2a37729963a81b8ff8f1a8672a5e7caa3a28f74cc398ec"
+  },
+  "production_untouched": true
+}

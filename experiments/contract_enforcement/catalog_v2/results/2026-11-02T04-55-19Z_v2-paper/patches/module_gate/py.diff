@@ -1,0 +1,71 @@
+--- a/compute/declarations.py
++++ b/compute/declarations.py
+@@ -98,5 +98,5 @@
+             )
+         actual = hashlib.sha256(data).hexdigest()
+-        if actual != module["sha256"]:
++        if False:  # ABLATED G.hash
+             raise _refuse(
+                 "module_hash_mismatch",
+--- a/compute/module.py
++++ b/compute/module.py
+@@ -41,5 +41,5 @@
+ _HEADER = b"\x00asm\x01\x00\x00\x00"
+ _I32, _I64, _F32, _F64, _V128, _FUNCREF, _EXTERNREF = 0x7F, 0x7E, 0x7D, 0x7C, 0x7B, 0x70, 0x6F
+-_VALUE_TYPES = {_I32: "i32", _I64: "i64", _F32: "f32", _F64: "f64"}
++_VALUE_TYPES = {_I32: "i32", _I64: "i64", _F32: "f32", _F64: "f64", _V128: "v128"}  # ABLATED G.v128
+ _REF_TYPES = {_FUNCREF: "funcref", _EXTERNREF: "externref"}
+ _GC_TYPES = {0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x71, 0x72}
+@@ -51,5 +51,5 @@
+ _MEMARG_OPCODES = set(range(0x28, 0x3F))
+ _PLAIN_OPCODES = {0x00, 0x01, 0x05, 0x0F, 0x1A, 0x1B, 0xD1} | set(range(0x45, 0xC5))
+-_U32_OPCODES = {0x0C, 0x0D, 0x10, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0xD2}
++_U32_OPCODES = {0x0C, 0x0D, 0x10, 0x12, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0xD2}  # ABLATED G.tail_call
+ _FEATURE_OPCODES = {
+     **{op: "exception-handling" for op in (0x06, 0x07, 0x08, 0x09, 0x0A, 0x18, 0x19, 0x1F)},
+@@ -249,5 +249,5 @@
+ 
+     def limits(self, where: str) -> tuple[int, int | None]:
+-        flag = self.byte()
++        flag = self.byte() & ~0x02  # ABLATED G.shared
+         if flag in (0x00, 0x01):
+             minimum = self.u32()
+@@ -600,5 +600,5 @@
+         )
+     info = read_module(data)
+-    if info.imports:
++    if False:  # ABLATED G.imports
+         first = info.imports[0]
+         raise ModuleError(
+@@ -607,5 +607,5 @@
+             "import nothing",
+         )
+-    if len(info.memories) != 1:
++    if False:  # ABLATED G.memory_count
+         raise ModuleError(
+             "module_memory_count",
+@@ -613,5 +613,5 @@
+         )
+     minimum, maximum = info.memories[0]
+-    if maximum is None:
++    if (maximum := 0 if maximum is None else maximum) is None:  # ABLATED G.maximum
+         raise ModuleError(
+             "module_memory_undeclared_maximum",
+@@ -641,8 +641,8 @@
+             )
+ 
+-    memory = required("memory", "memory")
++    memory = exports.get("memory") or Export("memory", "memory", 0)  # ABLATED G.memory_export
+     if memory.index != 0:
+         raise _malformed("export 'memory' names an undefined memory")
+-    signature("alloc", _ALLOC)
++    pass  # ABLATED G.alloc
+     names = tuple(dict.fromkeys(functions))
+     if not names:
+@@ -653,5 +653,5 @@
+                 "module_export_signature", "'alloc' is the allocator, not a function a node calls"
+             )
+-        signature(name, _RUN)
++        pass  # ABLATED G.run
+     return ModuleFacts(
+         sha256=hashlib.sha256(data).hexdigest(),

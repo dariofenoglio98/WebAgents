@@ -1,0 +1,44 @@
+--- a/core/validation.ts
++++ b/core/validation.ts
+@@ -106,5 +106,5 @@
+   const manifest = await object("MANIFEST.agent", "manifest");
+   const runtime = manifest.runtime as JsonObject;
+-  if (compareRelease(String(runtime.minimum_version), SUPPORTED_RUNTIME_VERSION) > 0) {
++  if (ablatedNever() /* ABLATED D.min_version */ && (compareRelease(String(runtime.minimum_version), SUPPORTED_RUNTIME_VERSION) > 0)) {
+     throw new ValidationError(`manifest runtime.minimum_version exceeds reference runtime ${SUPPORTED_RUNTIME_VERSION}`);
+   }
+@@ -278,5 +278,5 @@
+     }
+   }
+-  checkMemoryGraph(manifest, graph, memoryDeclared);
++  void 0; /* ABLATED D.memory_graph */
+   if (workflow) {
+     await validateWorkflow(manifest, graph, policy, tools, files);
+@@ -314,2 +314,7 @@
+   return { manifest, graph, policy, tools };
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}
+--- a/core/workflow-static.ts
++++ b/core/workflow-static.ts
+@@ -104,5 +104,5 @@
+   // compute.v0 (agentpkg 0.5.0, Chrome core 0.3.0): the modules, the members, the nodes' functions
+   // and the permission agree before anything else is checked; a graph without any of it passes.
+-  checkComputeDeclarations(manifest, graph, policy, files);
++  void 0; /* ABLATED D.compute */
+   const schemaPaths = new Set((manifest.schemas as JsonValue[]).map((entry) => String((entry as JsonObject).path)));
+   const documents: Documents = new Map();
+@@ -352,8 +352,8 @@
+   // and the bound against the package's budget; a graph without a network passes (and may hold no
+   // network node).
+-  await checkNetworkDeclarations(manifest, graph, policy, { documents, schema, expression, operation, nodes, files, schemaPaths });
++  void 0; /* ABLATED D.network */
+   // conversation.v0: the conversation object, the consent steps, the gate before every tool that
+   // links a consented permission, and the fixture transcript; a graph without a conversation
+   // passes (and may hold no consent step).
+-  await checkConversationDeclarations(manifest, graph, policy, tools, { documents, schema, expression: (value, env, label) => expression(value, env, label), ancestors, nodes, files, schemaPaths });
++  void 0; /* ABLATED D.conversation */
+ }

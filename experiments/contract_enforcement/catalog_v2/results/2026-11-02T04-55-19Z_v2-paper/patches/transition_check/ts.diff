@@ -1,0 +1,33 @@
+--- a/core/network/runner.ts
++++ b/core/network/runner.ts
+@@ -90,5 +90,5 @@
+   const patched = async (roleId: string, patch: JsonObject): Promise<void> => {
+     const stateWrite = (rt.roles[roleId]!.state_write as JsonValue[]).map(String);
+-    if (Object.keys(patch).some((key) => !stateWrite.includes(key))) throw new PolicyError(`role ${roleId} state write exceeds its state_write view`);
++    if (ablatedNever() /* ABLATED T.write_view */ && (Object.keys(patch).some((key) => !stateWrite.includes(key)))) throw new PolicyError(`role ${roleId} state write exceeds its state_write view`);
+     const candidate = { ...deepCopy(state), ...deepCopy(patch) };
+     try {
+@@ -201,5 +201,5 @@
+   } else if (!declared) {
+     reason = "edge_undeclared";
+-  } else if (walk.hop >= (network.max_hops as number)) {
++  } else if (ablatedNever() /* ABLATED T.hops */ && (walk.hop >= (network.max_hops as number))) {
+     reason = "hops_exhausted";
+   } else {
+@@ -207,6 +207,6 @@
+     const edge = edges.find((item) => item.to === to)!;
+     const cap = rolesOf(network)[to]!.max_activations as number | undefined;
+-    if (walk.count(walk.uses, edgeKey(roleId, to)) >= (edge.max_uses as number)) reason = "edge_exhausted";
+-    else if (cap !== undefined && walk.count(walk.activations, to) >= cap) reason = "role_exhausted";
++    if (ablatedNever() /* ABLATED T.edge */ && (walk.count(walk.uses, edgeKey(roleId, to)) >= (edge.max_uses as number))) reason = "edge_exhausted";
++    else if (ablatedNever() /* ABLATED T.role */ && (cap !== undefined && walk.count(walk.activations, to) >= cap)) reason = "role_exhausted";
+     else {
+       facts.uses = walk.count(walk.uses, edgeKey(roleId, to)) + 1;
+@@ -268,2 +268,7 @@
+   }
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}

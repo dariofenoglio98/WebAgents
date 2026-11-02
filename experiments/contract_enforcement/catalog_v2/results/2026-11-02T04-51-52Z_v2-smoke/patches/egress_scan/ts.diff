@@ -1,0 +1,16 @@
+--- a/core/workflow/runtime.ts
++++ b/core/workflow/runtime.ts
+@@ -949,5 +949,5 @@
+     if (memory === null || memory.scan.length === 0) return;
+     if ((binding.startsWith("host.memory.") && !binding.startsWith("host.memory.agent.")) || binding.startsWith("host.resource.")) return;
+-    const hits = findAllSealed(payload, memory.scan);
++    const hits = [] as ReturnType<typeof findAllSealed>; /* ABLATED E.tool_arguments */
+     if (hits === "incomplete") {
+       this.record("permission.checked", { context: ctx, permission: null, grant: "deny", allowed: false, reason: "sealed_value_not_granted", tool: toolId, incomplete: true });
+@@ -979,5 +979,5 @@
+     const memory = this.memory;
+     if (memory === null || memory.scan.length === 0) return;
+-    const hit = findSealed(request, memory.scan);
++    const hit = null as ReturnType<typeof findSealed>; /* ABLATED E.model_request */
+     if (hit === null) return;
+     const facts: Record<string, JsonValue> = hit === "incomplete" ? { incomplete: true } : { record_id: hit.record_id, pointer: hit.pointer };
