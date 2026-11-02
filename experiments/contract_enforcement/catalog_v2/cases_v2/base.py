@@ -7,7 +7,8 @@ transcript, consent host, engine), what the full system is expected to do in eac
 (`expected`), the forbidden boundary the oracle evaluates (`boundary`, class `effect` or
 `admission`), the primary guard, the profile that removes it (`primary_ablation`) and whether that
 profile removes it at all (`ablation_removes_guard`: false for container rules, which every profile
-keeps), and the matched control. `property` is T28's property id, filled when T28 lands.
+keeps), and the matched control. `property_id` (recorded as `property`) is T28's property id,
+filled when T28 lands.
 
 Cases are plain data; `to_json` is what the catalog records, and its hash is the catalog hash.
 """
@@ -56,7 +57,7 @@ class Case:
     extra_name: str | None = None
     parametric: dict | None = None
     origin: str = ""
-    property: str | None = None
+    property_id: str | None = None
 
     def __post_init__(self):
         if self.family not in FAMILIES:
@@ -114,7 +115,7 @@ class Case:
             "ablation_removes_guard": self.ablation_removes_guard,
             "matched_control": self.matched_control,
             "parametric": self.parametric,
-            "property": self.property,
+            "property": self.property_id,
         }
 
     def driver_input(self, archive: str, trust_key: str) -> dict:
