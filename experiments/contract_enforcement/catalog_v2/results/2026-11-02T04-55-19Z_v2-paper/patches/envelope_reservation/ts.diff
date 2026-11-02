@@ -1,0 +1,38 @@
+--- a/core/network/declarations.ts
++++ b/core/network/declarations.ts
+@@ -232,8 +232,8 @@
+   const bound = worstCase(graph, policy);
+   const budget = policy.budget as JsonObject;
+-  if (bound.relaxation.tokens > (budget.hard_tokens as number)) {
++  if (ablatedNever() /* ABLATED R.validation_tokens */ && (bound.relaxation.tokens > (budget.hard_tokens as number))) {
+     throw refuse("network_bound_exceeds_budget", `the network's worst case is ${bound.relaxation.tokens} tokens, above the package's hard_tokens of ${budget.hard_tokens}`);
+   }
+-  if (bound.relaxation.remote_calls > (budget.max_remote_calls as number)) {
++  if (ablatedNever() /* ABLATED R.validation_remote */ && (bound.relaxation.remote_calls > (budget.max_remote_calls as number))) {
+     throw refuse("network_bound_exceeds_budget", `the network's worst case is ${bound.relaxation.remote_calls} remote calls, above the package's max_remote_calls of ${budget.max_remote_calls}`);
+   }
+@@ -315,2 +315,7 @@
+   };
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}
+--- a/core/workflow/runtime.ts
++++ b/core/workflow/runtime.ts
+@@ -927,5 +927,5 @@
+     if (bound.tokens > tokensLeft) reason = "tokens";
+     else if (bound.remote_calls > remoteLeft) reason = "remote_calls";
+-    if (reason !== null) {
++    if (ablatedNever() /* ABLATED R.reservation */ && (reason !== null)) {
+       this.record("network.refused", { context: this.root, reason, ...facts });
+       throw new BudgetError(`network ${nodeId}: its worst case (${bound.tokens} tokens, ${bound.remote_calls} remote calls) exceeds what the run has left (${tokensLeft} tokens, ${remoteLeft} remote calls)`);
+@@ -1267,2 +1267,7 @@
+   Object.assign(error, { code, audit_facts: facts });
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}

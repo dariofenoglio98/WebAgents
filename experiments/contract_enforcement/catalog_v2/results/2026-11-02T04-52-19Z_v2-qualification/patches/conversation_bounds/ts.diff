@@ -1,0 +1,40 @@
+--- a/core/conversation/runner.ts
++++ b/core/conversation/runner.ts
+@@ -148,9 +148,9 @@
+ export function reserveTurn(pkg: Package, limits: ConversationLimits, turnLimits: HostLimits, spent: Pick<Spent, "tokens" | "remote_calls">, turnsRun: number): "conversation_turn_limit" | "conversation_budget_exhausted" | null {
+   const turn = pkg.policy.budget as JsonObject;
+-  if (turnsRun >= limits.max_turns) return "conversation_turn_limit";
++  if (ablatedNever() /* ABLATED B.turn_cap */ && (turnsRun >= limits.max_turns)) return "conversation_turn_limit";
+   const hardTokens = Math.min(turn.hard_tokens as number, turnLimits.hard_tokens ?? (turn.hard_tokens as number));
+   const remote = Math.min(turn.max_remote_calls as number, turnLimits.max_remote_calls ?? (turn.max_remote_calls as number));
+-  if (spent.tokens + hardTokens > limits.hard_tokens) return "conversation_budget_exhausted";
+-  if (spent.remote_calls + remote > limits.max_remote_calls) return "conversation_budget_exhausted";
++  if (ablatedNever() /* ABLATED B.tokens */ && (spent.tokens + hardTokens > limits.hard_tokens)) return "conversation_budget_exhausted";
++  if (ablatedNever() /* ABLATED B.remote */ && (spent.remote_calls + remote > limits.max_remote_calls)) return "conversation_budget_exhausted";
+   return null;
+ }
+@@ -460,2 +460,7 @@
+   return chain.tail();
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}
+--- a/core/workflow/runtime.ts
++++ b/core/workflow/runtime.ts
+@@ -428,5 +428,5 @@
+       const caps = this.budget.max_calls_per_tool as JsonObject;
+       for (const [toolId, remaining] of Object.entries(turn.tool_caps ?? {})) {
+-        if (Object.hasOwn(caps, toolId)) caps[toolId] = Math.min(caps[toolId] as number, remaining);
++        if (ablatedNever() /* ABLATED B.tool_caps */ && (Object.hasOwn(caps, toolId))) caps[toolId] = Math.min(caps[toolId] as number, remaining);
+       }
+     }
+@@ -1267,2 +1267,7 @@
+   Object.assign(error, { code, audit_facts: facts });
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}

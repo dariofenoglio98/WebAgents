@@ -1,0 +1,28 @@
+--- a/conversation/runner.py
++++ b/conversation/runner.py
+@@ -211,5 +211,5 @@
+         conversation has left, else the turn is refused before any node runs."""
+         turn = self.package.policy["budget"]
+-        if index > self.limits.max_turns:
++        if False:  # ABLATED B.turn_cap
+             return "conversation_turn_limit"
+         hard_tokens = min(
+@@ -220,7 +220,7 @@
+             self.turn_limits.get("max_remote_calls", turn["max_remote_calls"]),
+         )
+-        if self.tokens + hard_tokens > self.limits.hard_tokens:
++        if False:  # ABLATED B.tokens
+             return "conversation_budget_exhausted"
+-        if self.remote_calls + remote > self.limits.max_remote_calls:
++        if False:  # ABLATED B.remote
+             return "conversation_budget_exhausted"
+         return None
+--- a/runtime.py
++++ b/runtime.py
+@@ -285,5 +285,5 @@
+         if turn is not None:
+             for tool_id, remaining in (turn.tool_caps or {}).items():
+-                if tool_id in self.budget["max_calls_per_tool"]:
++                if False:  # ABLATED B.tool_caps
+                     self.budget["max_calls_per_tool"][tool_id] = min(
+                         self.budget["max_calls_per_tool"][tool_id], remaining

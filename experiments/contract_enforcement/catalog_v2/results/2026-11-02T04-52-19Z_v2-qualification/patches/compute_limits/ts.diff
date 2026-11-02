@@ -1,0 +1,62 @@
+--- a/core/compute/engine.ts
++++ b/core/compute/engine.ts
+@@ -138,5 +138,5 @@
+         const onAbort = (): void => finish(() => reject(signal.reason));
+         // The wall bound is the CPU bound (D-250): the Worker is terminated and the call is `deadline`.
+-        const timer = setTimeout(() => finish(() => resolve({ output: null, reason: "deadline", trap_code: null, detail: null, memory_pages: null, elapsed_ms: Date.now() - started, fuel_consumed: null })), Math.max(0, limits.wall_seconds * 1000));
++        const timer = setTimeout(() => finish(() => resolve({ output: null, reason: "deadline", trap_code: null, detail: null, memory_pages: null, elapsed_ms: Date.now() - started, fuel_consumed: null })), 2147483647 /* ABLATED L.wall */);
+         signal.addEventListener("abort", onAbort, { once: true });
+         worker.onmessage = (event) => {
+--- a/core/compute/worker-body.ts
++++ b/core/compute/worker-body.ts
+@@ -103,6 +103,6 @@
+     const outLen = Number(value & 0xffffffffn);
+     const size = memory.buffer.byteLength;
+-    if (outLen === 0 || outPtr + outLen > size) return { ok: false, reason: "abi_violation", detail: "output_range", memory_pages: pagesOf(memory), elapsed_ms: elapsed() };
+-    if (outLen > MAX_OUTPUT_BYTES) return { ok: false, reason: "abi_violation", detail: "output_too_large", memory_pages: pagesOf(memory), elapsed_ms: elapsed() };
++    if (ablatedNever() /* ABLATED L.output_range */ && (outLen === 0 || outPtr + outLen > size)) return { ok: false, reason: "abi_violation", detail: "output_range", memory_pages: pagesOf(memory), elapsed_ms: elapsed() };
++    if (ablatedNever() /* ABLATED L.output_size */ && (outLen > MAX_OUTPUT_BYTES)) return { ok: false, reason: "abi_violation", detail: "output_too_large", memory_pages: pagesOf(memory), elapsed_ms: elapsed() };
+     const output = memory.buffer.slice(outPtr, outPtr + outLen);
+     return { ok: true, output, memory_pages: pagesOf(memory), elapsed_ms: elapsed() };
+@@ -113,2 +113,7 @@
+   }
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}
+--- a/core/execution/policy.ts
++++ b/core/execution/policy.ts
+@@ -196,5 +196,5 @@
+     const effective = loweredBy(host, operation.limits);
+     const maximum = facts[String(operation.module)]!.memory_max_pages;
+-    if (maximum > effective.memory_pages) {
++    if (ablatedNever() /* ABLATED L.layer_pages */ && (maximum > effective.memory_pages)) {
+       throw new ExecutionError(
+         COMPUTE_LIMIT_EXCEEDED,
+@@ -466,2 +466,7 @@
+   };
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}
+--- a/core/workflow/runtime.ts
++++ b/core/workflow/runtime.ts
+@@ -105,5 +105,5 @@
+     const effective = loweredBy(limits, operation.limits);
+     const maximum = facts[String(operation.module)]!.memory_max_pages;
+-    if (maximum > effective.memory_pages) {
++    if (ablatedNever() /* ABLATED L.preflight_pages */ && (maximum > effective.memory_pages)) {
+       throw refusal("compute_limit_exceeded", `node ${name} runs module ${pyRepr(String(operation.module))}, whose declared memory maximum of ${maximum} pages is above this host's ceiling of ${effective.memory_pages}`);
+     }
+@@ -1267,2 +1267,7 @@
+   Object.assign(error, { code, audit_facts: facts });
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}

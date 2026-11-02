@@ -1,0 +1,3 @@
+# Private patched copies of both runtimes, the bundled Node drivers and the signed probe
+# archives (content-addressed; recreated on demand). Never committed.
+.cache/

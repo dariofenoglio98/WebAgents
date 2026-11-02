@@ -1,0 +1,33 @@
+--- a/core/conversation/transcript.ts
++++ b/core/conversation/transcript.ts
+@@ -63,5 +63,5 @@
+         if (node === undefined) throw new ValidationError(`consent_step_unknown: turn ${index + 1} decides ${pyRepr(step)}, which is not a consent step of this package`);
+         const denied = (node.permissions as JsonValue[]).map(String).filter((permissionId) => (grants[permissionId] ?? "deny") === "deny");
+-        if (accepted && denied.length > 0) {
++        if (ablatedNever() /* ABLATED V.transcript_denied */ && (accepted && denied.length > 0)) {
+           throw new ValidationError(`consent_not_authorized: turn ${index + 1} accepts consent step ${pyRepr(step)}, whose permission(s) ${pyRepr(denied)} the plan denies; a transcript cannot widen a plan`);
+         }
+@@ -72,2 +72,7 @@
+   }
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}
+--- a/core/workflow/runtime.ts
++++ b/core/workflow/runtime.ts
+@@ -423,5 +423,5 @@
+     const turn = options.turn ?? null;
+     this.turn = turn;
+-    this.onceUsed = new Set(turn?.spent ?? []);
++    this.onceUsed = new Set<string>(); /* ABLATED V.once_across_turns */
+     this.gated = pkg.graph.conversation !== undefined && pkg.graph.conversation !== null ? gatedPermissions(pkg.graph) : {};
+     if (turn !== null) {
+@@ -732,5 +732,5 @@
+       }
+       this.authorize(permissionIds, { context: ctx });
+-      this.checkConsent(ctx, toolId, permissionIds);
++      void 0; /* ABLATED V.gate */
+       this.scanToolArguments(ctx, toolId, String(tool.binding), permissionIds, payload);
+       const caps = this.budget.max_calls_per_tool as JsonObject;

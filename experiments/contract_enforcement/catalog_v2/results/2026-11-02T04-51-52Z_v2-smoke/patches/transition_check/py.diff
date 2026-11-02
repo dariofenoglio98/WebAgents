@@ -1,0 +1,25 @@
+--- a/delegation/runner.py
++++ b/delegation/runner.py
+@@ -80,5 +80,5 @@
+         whole validated against `state_schema`, before the activation routes anything; a
+         failure fails the activation and nothing is committed or routed."""
+-        if set(patch) - set(rt.roles[role_id]["state_write"]):
++        if False:  # ABLATED T.write_view
+             raise PolicyError(f"role {role_id} state write exceeds its state_write view")
+         next_state = copy.deepcopy(state)
+@@ -204,12 +204,12 @@
+     elif not declared:
+         reason = "edge_undeclared"
+-    elif walk.hop >= network["max_hops"]:
++    elif False:  # ABLATED T.hops
+         reason = "hops_exhausted"
+     else:
+         edge = next(edge for edge in role["edges"] if edge["to"] == target)
+         cap = network["roles"][target].get("max_activations")
+-        if walk.uses[(role_id, target)] >= edge["max_uses"]:
++        if False:  # ABLATED T.edge
+             reason = "edge_exhausted"
+-        elif cap is not None and walk.activations[target] >= cap:
++        elif False:  # ABLATED T.role
+             reason = "role_exhausted"
+         else:

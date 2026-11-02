@@ -1,0 +1,16 @@
+--- a/runtime.py
++++ b/runtime.py
+@@ -928,5 +928,5 @@
+         if is_record_read_binding(binding) or binding.startswith(LEGACY_READ_BINDING_PREFIX):
+             return
+-        hits = find_all_sealed(payload, memory.scan)
++        hits = []  # ABLATED E.tool_arguments
+         denied = dict(context=ctx, allowed=False, tool=tool_id)
+         if hits == INCOMPLETE:
+@@ -988,5 +988,5 @@
+         if memory is None or not memory.scan:
+             return
+-        hit = find_sealed(request, memory.scan)
++        hit = None  # ABLATED E.model_request
+         if hit is None:
+             return

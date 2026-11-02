@@ -1,0 +1,69 @@
+--- a/core/memory/proposals.ts
++++ b/core/memory/proposals.ts
+@@ -93,10 +93,10 @@
+ export async function checkProposals(document: JsonValue, input: ProposalCheckInput): Promise<ProposalsDocument> {
+   const schemaProblem = await memorySchemaFailure(document, "memory-proposals.schema");
+-  if (schemaProblem !== null) throw new ProposalRefusal("schema_validation", null, `proposals.json does not match memory-proposals.schema.json: ${schemaProblem}`);
++  if (ablatedNever() /* ABLATED P.schema */ && (schemaProblem !== null)) throw new ProposalRefusal("schema_validation", null, `proposals.json does not match memory-proposals.schema.json: ${schemaProblem}`);
+   const parsed = document as unknown as ProposalsDocument;
+   for (const [index, proposal] of parsed.proposals.entries()) {
+     const where = `proposal ${index}`;
+     const typeId = resolveProposalType(proposal.type, input.aliases);
+-    if (!input.declared.has(typeId) || RESERVED_TYPES.has(typeId)) {
++    if (ablatedNever() /* ABLATED P.type */ && (!input.declared.has(typeId) || RESERVED_TYPES.has(typeId))) {
+       throw new ProposalRefusal("permission_denied", "memory_proposal_type_undeclared", `${where}: type ${proposal.type} is not one the package may propose`, index);
+     }
+@@ -108,5 +108,5 @@
+     const extra = target !== undefined && targetGranted ? [...(target.sealed ?? [])] : [];
+     for (const pointer of [...type.sealed_fields, ...extra]) {
+-      if (pointerGet(proposal.fields, pointer) !== undefined) throw new ProposalRefusal("schema_validation", "memory_proposal_sealed_field", `${where}: carries the sealed field ${pointer}`, index);
++      if (ablatedNever() /* ABLATED P.sealed_field */ && (pointerGet(proposal.fields, pointer) !== undefined)) throw new ProposalRefusal("schema_validation", "memory_proposal_sealed_field", `${where}: carries the sealed field ${pointer}`, index);
+     }
+     const failures = await failuresForSchema(sealedFreeSchema(type, extra), proposal.fields, `${where} fields`);
+@@ -115,5 +115,5 @@
+       throw new ProposalRefusal("schema_validation", null, `${where}: the fields do not match the ${type.display_name} schema at ${first.instancePath.join("/") || "<root>"} (rule: ${first.keyword})`, index);
+     }
+-    if (proposal.action === "update" && input.granted.get(proposal.target!) !== typeId) {
++    if (ablatedNever() /* ABLATED P.target */ && (proposal.action === "update" && input.granted.get(proposal.target!) !== typeId)) {
+       throw new ProposalRefusal("permission_denied", "memory_proposal_target_not_granted", `${where}: target ${proposal.target} is not a granted record of type ${proposal.type}`, index);
+     }
+@@ -123,11 +123,11 @@
+       if (to.startsWith("#")) {
+         const sibling = Number(to.slice(1));
+-        if (sibling === index || sibling >= parsed.proposals.length) throw new ProposalRefusal("schema_validation", null, `${where}: link ${to} names no other proposal`, index);
+-      } else if (to !== SELF_ID && !input.granted.has(to)) {
++        if (ablatedNever() /* ABLATED P.sibling */ && (sibling === index || sibling >= parsed.proposals.length)) throw new ProposalRefusal("schema_validation", null, `${where}: link ${to} names no other proposal`, index);
++      } else if (ablatedNever() /* ABLATED P.link */ && (to !== SELF_ID && !input.granted.has(to))) {
+         throw new ProposalRefusal("permission_denied", "memory_proposal_link_not_granted", `${where}: links to ${to}, which this run was not granted`, index);
+       }
+     }
+   }
+-  const hit = findSealed(document, input.scan);
++  const hit = null as ReturnType<typeof findSealed>; /* ABLATED P.sealed_value */
+   if (hit === "incomplete") throw new ProposalRefusal("permission_denied", "sealed_value_in_proposal", "proposals.json holds more strings than the scan reads, so it is refused unread");
+   if (hit !== null) throw new ProposalRefusal("permission_denied", "sealed_value_in_proposal", `proposals.json carries a sealed value of ${hit.record_id} at ${hit.pointer}`);
+@@ -332,2 +332,7 @@
+   current[parts[parts.length - 1]!] = next;
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}
+--- a/core/memory/run.ts
++++ b/core/memory/run.ts
+@@ -107,5 +107,5 @@
+     const types = [...new Set(parsed.proposals.map((proposal) => proposal.type))].sort();
+     let reason: ProposedFacts["reason"] = null;
+-    if (this.writeDenied) reason = "permission_denied";
++    if (ablatedNever() /* ABLATED P.write_denied */ && (this.writeDenied)) reason = "permission_denied";
+     else if (this.options.policyRefusesProposals) reason = "policy";
+     else if (this.options.memoryFull) reason = "memory_full";
+@@ -226,2 +226,7 @@
+   return new Map(custom.filter((type) => type.id.startsWith(prefix)).map((type) => [type.id.slice(prefix.length), type.id] as const));
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}

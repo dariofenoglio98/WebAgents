@@ -1,0 +1,46 @@
+--- a/compute/engine.py
++++ b/compute/engine.py
+@@ -238,6 +238,6 @@
+             raise ModuleError("module_invalid", "the module was not compiled before the call")
+         store = wasmtime.Store(self._engine)
+-        store.set_limits(memory_size=limits.memory_pages * PAGE_BYTES, memories=1, instances=1)
+-        store.set_fuel(limits.fuel)
++        store.set_limits(memories=1, instances=1)  # ABLATED L.store_pages
++        limits = type(limits)(limits.memory_pages, limits.wall_seconds, 1 << 62); store.set_fuel(limits.fuel)  # ABLATED L.fuel
+         store.set_epoch_deadline(math.ceil(limits.wall_seconds / TICK_SECONDS) + 1)
+         memory = None
+@@ -294,7 +294,7 @@
+                 out_ptr, out_len = value >> 32, value & 0xFFFFFFFF
+                 size = memory.data_len(store)
+-                if out_len == 0 or out_ptr + out_len > size:
++                if False:  # ABLATED L.output_range
+                     return outcome(reason="abi_violation", detail="output_range")
+-                if out_len > MAX_OUTPUT_BYTES:
++                if False:  # ABLATED L.output_size
+                     return outcome(reason="abi_violation", detail="output_too_large")
+                 return outcome(output=bytes(memory.read(store, out_ptr, out_ptr + out_len)))
+--- a/execution/policy.py
++++ b/execution/policy.py
+@@ -441,5 +441,5 @@
+         effective = host.lowered_by(operation.get("limits"))
+         maximum = facts[operation["module"]].memory_max_pages
+-        if maximum > effective.memory_pages:
++        if False:  # ABLATED L.layer_pages
+             raise ExecutionError(
+                 COMPUTE_LIMIT_EXCEEDED,
+--- a/runtime.py
++++ b/runtime.py
+@@ -334,5 +334,5 @@
+             effective = self.compute_limits.lowered_by(operation.get("limits"))
+             maximum = facts[operation["module"]].memory_max_pages
+-            if maximum > effective.memory_pages:
++            if False:  # ABLATED L.preflight_pages
+                 error = PolicyError(
+                     f"compute_limit_exceeded: node {name} runs module {operation['module']!r}, "
+@@ -682,5 +682,5 @@
+             # follows it shortly, so the abandoned call does not run on to the wall bound
+             # (B-224). The audit keeps the effective limits of C-34.
+-            deadline = min(limits.wall_seconds, operation["timeout_seconds"] + TIMEOUT_GRACE)
++            deadline = operation["timeout_seconds"] + TIMEOUT_GRACE  # ABLATED L.wall
+             outcome = await self.compute.call(
+                 module["sha256"], function, data, replace(limits, wall_seconds=deadline)

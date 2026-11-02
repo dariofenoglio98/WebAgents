@@ -687,20 +687,25 @@ jobs:
         with:
           node-version: "26"
           cache: npm
-          cache-dependency-path: openclaw-agent-browser/package-lock.json
-      - name: Install agentpkg and build the plugin
+          cache-dependency-path: |
+            openclaw-agent-browser/package-lock.json
+            chrome-agent-browser/package-lock.json
+      - name: Install agentpkg, build the plugin, install the Chrome core's toolchain
+        # catalog v2 (T30) bundles its Node driver over a private copy of the Chrome core with
+        # the core's own esbuild and type-checks it with the core's TypeScript.
         run: |
           python -m venv agentpkg/.venv
           agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev,compute]'
           (cd openclaw-agent-browser && npm ci && npm run build)
+          (cd chrome-agent-browser && npm ci)
       - name: Tests (no test may be skipped)
         # One pytest process per experiment: each puts its own directory first on
-        # sys.path, and both have an `analyze` module.
+        # sys.path, and the experiments have `analyze` modules of their own.
         run: |
-          for experiment in contract_overhead contract_enforcement; do
+          for experiment in contract_overhead contract_enforcement contract_enforcement/catalog_v2; do
             agentpkg/.venv/bin/python -m pytest "experiments/$experiment/tests" -rs \
-              --junitxml="$RUNNER_TEMP/$experiment.xml"
-            agentpkg/.venv/bin/python - "$RUNNER_TEMP/$experiment.xml" <<'PY'
+              --junitxml="$RUNNER_TEMP/${experiment//\//_}.xml"
+            agentpkg/.venv/bin/python - "$RUNNER_TEMP/${experiment//\//_}.xml" <<'PY'
           import sys
           import xml.etree.ElementTree as ET
           suites = ET.parse(sys.argv[1]).getroot()
