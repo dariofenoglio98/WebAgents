@@ -1,5 +1,5 @@
 /**
- * From a Run Plan's model binding to a provider adapter (D-023): four routes, each bound to
+ * From a Run Plan's model binding to a provider adapter (D-023): five routes, each bound to
  * exactly one model id, no fallback. The host supplies what the binding deliberately does not
  * carry: the transport, base URLs, the person's keys, and the built-in model port.
  *
@@ -11,6 +11,7 @@
 import { AdapterError } from "../workflow/errors.js";
 import { AnthropicAdapter } from "./adapters/anthropic.js";
 import { ChromeBuiltinAdapter, type BuiltinModelPort } from "./adapters/chrome-builtin.js";
+import { IN_BROWSER_PROVIDER, InBrowserAdapter, type InBrowserEnginePort } from "./adapters/in-browser.js";
 import { OllamaAdapter } from "./adapters/ollama.js";
 import { OpenAIAdapter, type OpenAIReasoningEffort } from "./adapters/openai.js";
 import { contextWindowFor, reasoningFor, type ModelBindingDescriptor } from "./binding.js";
@@ -24,6 +25,10 @@ export interface ProviderHostSettings {
   openai?: { apiKey?: string | null; baseUrl?: string; reasoningEffort?: OpenAIReasoningEffort };
   anthropic?: { apiKey?: string | null; baseUrl?: string; effort?: "low" | "medium" | "high" | "xhigh" | "max" };
   builtin?: BuiltinModelPort;
+  /** The in-browser engine's port (D-445), held by the shell that runs the engine Worker; absent on a host without one. */
+  inBrowser?: InBrowserEnginePort;
+  /** Whether the in-browser engine was loaded with thinking on (D-085). */
+  inBrowserThink?: boolean;
 }
 
 export function adapterFor(binding: ModelBindingDescriptor, host: ProviderHostSettings): ProviderAdapter {
@@ -40,6 +45,9 @@ export function adapterFor(binding: ModelBindingDescriptor, host: ProviderHostSe
     case "chrome-builtin":
       if (!host.builtin) throw new AdapterError("model_unavailable", "This host has no built-in model port");
       return new ChromeBuiltinAdapter(host.builtin, { contextWindow, reasoning });
+    case IN_BROWSER_PROVIDER:
+      if (!host.inBrowser) throw new AdapterError("model_unavailable", "This host runs no in-browser engine");
+      return new InBrowserAdapter(host.inBrowser, { entry: binding.model_id, contextWindow, reasoning, think: host.inBrowserThink ?? false, observer: host.observer ?? null });
     default:
       throw new AdapterError("selected_model_unavailable", `No adapter exists for provider ${JSON.stringify(binding.provider_id)}`);
   }

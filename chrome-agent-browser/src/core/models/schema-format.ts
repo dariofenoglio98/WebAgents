@@ -46,6 +46,8 @@ export interface ConstraintRules {
 
 /** Ollama's `format` constrains any root with the schema as given. */
 export const OLLAMA_RULES: ConstraintRules = { dropKeywords: [], closeObjects: false, arrayRoot: true };
+/** The in-browser engine (llama.cpp's grammar from `response_format.json_schema`, D-445): the schema as given, any root. */
+export const GGUF_GRAMMAR_RULES: ConstraintRules = { dropKeywords: [], closeObjects: false, arrayRoot: true };
 /** OpenAI's non-strict json_schema format: object roots, schema as given. */
 export const OPENAI_RULES: ConstraintRules = { dropKeywords: [], closeObjects: false, arrayRoot: false };
 /** Anthropic structured outputs: no numeric or string bounds, every object closed, object root. */

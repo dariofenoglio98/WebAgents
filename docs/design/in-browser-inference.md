@@ -212,7 +212,7 @@ the only thing the core knows.
 
 | Field | Meaning |
 |---|---|
-| `id` | `[a-z0-9][a-z0-9.-]{1,63}`, e.g. `qwen3-4b-q4_k_m` |
+| `id` | `[a-z0-9][a-z0-9._-]{1,63}`, e.g. `qwen3-4b-q4_k_m` |
 | `display_name`, `family`, `parameters` | "Qwen3 4B (Q4_K_M)", `qwen3`, `4000000000` |
 | `format`, `engine`, `quantization` | `gguf`, `wllama`, `Q4_K_M` |
 | `files[]` | in load order: `{ name, url, bytes, sha256 }`; a split model lists every part |
