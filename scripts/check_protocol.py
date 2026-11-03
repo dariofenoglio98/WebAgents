@@ -13,8 +13,10 @@ Prints JSON with `"passed"` and exits 1 on failure. Nothing here changes a file.
   is in 1…11; every numbered experiment id cited anywhere is one of E1…E10; a lettered id (EA, EL) is
   checked where experiments are named (the scope table's first column, the build map's cells and the
   section headings), so prose such as "EU" is never read as an experiment;
-* the build map (§7) names, in its rows' first cells, every task T30…T39 and T64, and names every
-  experiment, and every experiment's `**Built by.**` field names at least one task;
+* the scope table (§1) has a *Built by* column and a row naming at least one builder for every experiment;
+* the build map (§7) names, in its rows' first cells, every task T30…T39 and T64 (a row whose first cell
+  names no task is reported, not skipped), and names every experiment in a row of one of its builders;
+  every experiment's `**Built by.**` field names only known tasks, at least one of them a builder from §1;
 * the registration section (§9.1) and the amendments table (§9.2) exist;
 * the protocol contains no forbidden phrase (D-332): the patterns and the whitespace- and
   markup-collapsing reader are imported from `check_security_model.py`, so the two checks cannot drift;
@@ -114,6 +116,14 @@ def check(protocol_path: Path, model_path: Path) -> dict:
     model_text = read(model_path)
     known = defined_ids(model_text)
 
+    builders = _builders(text)
+    if builders is None:
+        problems.append("the scope table (§1) has no 'Built by' column")
+        builders = {}
+    for experiment in EXPERIMENTS + PLANNED_EXPERIMENTS:
+        if not builders.get(experiment):
+            problems.append(f"the scope table (§1) names no builder for {experiment}")
+
     # 1. Sections and fields.
     sections = experiment_sections(text)
     for experiment in EXPERIMENTS:
@@ -139,8 +149,22 @@ def check(protocol_path: Path, model_path: Path) -> dict:
                 f"{experiment}: fields are out of order ({', '.join(ordered)})"
             )
         built_by = _field_text(body, "Built by")
-        if built_by is not None and not TASK_RE.search(built_by):
-            problems.append(f"{experiment}: 'Built by' names no task")
+        if built_by is not None:
+            named = {f"T{n}" for n in TASK_RE.findall(built_by)}
+            if not named:
+                problems.append(f"{experiment}: 'Built by' names no task")
+            else:
+                unknown_tasks = sorted(named - set(TASKS))
+                if unknown_tasks:
+                    problems.append(
+                        f"{experiment}: 'Built by' names unknown tasks: {', '.join(unknown_tasks)}"
+                    )
+                own = builders.get(experiment)
+                if own and not named & own:
+                    problems.append(
+                        f"{experiment}: 'Built by' names none of its builders in the scope table "
+                        f"({', '.join(sorted(own))})"
+                    )
     for extra in sections:
         if extra in PLANNED_EXPERIMENTS:
             body = sections[extra]
@@ -173,14 +197,18 @@ def check(protocol_path: Path, model_path: Path) -> dict:
     if build_map is None:
         problems.append("the build map (§7) is missing")
     else:
-        rows = [line for line in build_map.splitlines() if line.startswith("| T")]
+        rows = _build_map_rows(build_map)
+        for row in rows:
+            if not TASK_RE.search(_first_cell(row)):
+                problems.append(
+                    f"a build map row names no task in its first cell: {_first_cell(row)!r}"
+                )
         named_tasks = {
             f"T{n}" for row in rows for n in TASK_RE.findall(_first_cell(row))
         }
         for task in TASKS:
             if task not in named_tasks:
                 problems.append(f"the build map does not name {task}")
-        builders = _builders(text)
         for experiment in EXPERIMENTS:
             # Only a row's Task and Builds cells name an experiment; its From cell cites sections.
             naming = [
@@ -249,15 +277,28 @@ def _first_cell(row: str) -> str:
     return cells[0] if cells else ""
 
 
-def _builders(text: str) -> dict[str, set[str]]:
-    """Experiment → the tasks its scope-table row (§1) names under *Built by*."""
+def _table_rows(section: str) -> list[str]:
+    """A section's table rows without the header and the separator row."""
+    rows = [line for line in section.splitlines() if line.startswith("|")]
+    return [row for row in rows[1:] if not re.fullmatch(r"\|[\s:|-]*", row.strip())]
+
+
+def _build_map_rows(build_map: str) -> list[str]:
+    return _table_rows(build_map)
+
+
+def _builders(text: str) -> dict[str, set[str]] | None:
+    """Experiment → the tasks its scope-table row (§1) names under *Built by*.
+
+    None when the scope table or its *Built by* column is missing (the caller reports it).
+    """
     scope = _section(text, "## 1. ") or ""
     rows = [line for line in scope.splitlines() if line.startswith("|")]
     if not rows:
-        return {}
+        return None
     header = _cells(rows[0])
     if "Built by" not in header:
-        return {}
+        return None
     column = header.index("Built by")
     builders: dict[str, set[str]] = {}
     for row in rows[1:]:
@@ -276,7 +317,7 @@ def _experiment_naming_cells(text: str) -> list[str]:
         _first_cell(line) for line in scope.splitlines() if line.startswith("| E")
     ]
     build_map = _section(text, "## 7. ") or ""
-    cells += [line for line in build_map.splitlines() if line.startswith("| T")]
+    cells += _build_map_rows(build_map)
     return cells
 
 

@@ -228,11 +228,62 @@ def test_build_map_requires_t30_t39_and_t64(checker, tmp_path, protocol_text, ta
 
 
 def test_build_map_reads_only_the_first_cell(checker, tmp_path, protocol_text):
+    # The first cell starts with "T" but names no task; T35 appears only in the Builds cell.
+    lines = protocol_text.splitlines(keepends=True)
+    index = next(i for i, line in enumerate(lines) if line.startswith("| T35 "))
+    lines[index] = "| The compromised model | E10 as T35 says | §4 |\n"
+    problems = _problems(checker, tmp_path, "".join(lines))
+    assert any("the build map does not name T35" in p for p in problems), problems
+    assert any(
+        "a build map row names no task in its first cell: 'The compromised model'" in p
+        for p in problems
+    ), problems
+
+
+def test_build_map_row_without_a_task_is_reported_not_skipped(checker, tmp_path, protocol_text):
     lines = protocol_text.splitlines(keepends=True)
     index = next(i for i, line in enumerate(lines) if line.startswith("| T35 "))
     lines[index] = "| the compromised model | as T35 says | §4 E10 |\n"
     problems = _problems(checker, tmp_path, "".join(lines))
     assert any("the build map does not name T35" in p for p in problems)
+    assert any("a build map row names no task in its first cell" in p for p in problems), problems
+
+
+def test_scope_table_without_built_by_column_fails(checker, tmp_path, protocol_text):
+    mutated = protocol_text.replace("| Paper table | Built by |", "| Paper table | Owner |", 1)
+    assert mutated != protocol_text
+    lines = mutated.splitlines(keepends=True)
+    index = next(i for i, line in enumerate(lines) if line.startswith("| T34 "))
+    del lines[index]
+    problems = _problems(checker, tmp_path, "".join(lines))
+    assert any("the scope table (§1) has no 'Built by' column" in p for p in problems), problems
+    assert any("the build map does not name T34" in p for p in problems)
+
+
+def test_scope_table_row_missing_fails(checker, tmp_path, protocol_text):
+    lines = protocol_text.splitlines(keepends=True)
+    index = next(i for i, line in enumerate(lines) if line.startswith("| E5 "))
+    del lines[index]
+    problems = _problems(checker, tmp_path, "".join(lines))
+    assert any("the scope table (§1) names no builder for E5" in p for p in problems), problems
+
+
+def test_built_by_must_name_a_builder_from_the_scope_table(checker, tmp_path, protocol_text):
+    start, end = _section_of(protocol_text, "E7")
+    body = protocol_text[start:end].replace("**Built by.** T38 ", "**Built by.** T37 ", 1)
+    assert body != protocol_text[start:end]
+    problems = _problems(checker, tmp_path, protocol_text[:start] + body + protocol_text[end:])
+    assert any(
+        "E7: 'Built by' names none of its builders in the scope table (T38)" in p for p in problems
+    ), problems
+
+
+def test_built_by_must_name_known_tasks(checker, tmp_path, protocol_text):
+    start, end = _section_of(protocol_text, "E7")
+    body = protocol_text[start:end].replace("**Built by.** T38 ", "**Built by.** T38 and T99 ", 1)
+    assert body != protocol_text[start:end]
+    problems = _problems(checker, tmp_path, protocol_text[:start] + body + protocol_text[end:])
+    assert any("E7: 'Built by' names unknown tasks: T99" in p for p in problems), problems
 
 
 def test_sha256_is_over_the_bytes(checker, tmp_path, protocol_text):
