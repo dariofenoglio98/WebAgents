@@ -5,7 +5,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { createReadStream, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:https";
 import { join } from "node:path";
 
@@ -43,9 +43,13 @@ export function serveFiles(tls, files, answer = null) {
       response.writeHead(404, { "content-type": "text/plain" });
       return response.end("not found");
     }
-    const bytes = file.bytes ?? readFileSync(file.path);
-    response.writeHead(200, { "content-type": file.type, "content-length": String(bytes.length), "cache-control": "no-cache", "x-content-type-options": "nosniff" });
-    return response.end(bytes);
+    // A file on disk is streamed (a model file can exceed Node's one-Buffer limit of 2 GiB; T40); bytes in memory are sent as before.
+    if (file.bytes === undefined) {
+      response.writeHead(200, { "content-type": file.type, "content-length": String(statSync(file.path).size), "cache-control": "no-cache", "x-content-type-options": "nosniff" });
+      return createReadStream(file.path).pipe(response);
+    }
+    response.writeHead(200, { "content-type": file.type, "content-length": String(file.bytes.length), "cache-control": "no-cache", "x-content-type-options": "nosniff" });
+    return response.end(file.bytes);
   });
   return new Promise((resolveServer) => server.listen(0, "127.0.0.1", () => resolveServer({ server, port: server.address().port, hits })));
 }

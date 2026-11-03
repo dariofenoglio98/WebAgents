@@ -24,7 +24,7 @@
  */
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createWriteStream, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, copyFileSync } from "node:fs";
+import { copyFileSync, createReadStream, createWriteStream, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, basename } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -70,6 +70,8 @@ for (const [path, hint] of [[join(EXTENSION, "manifest.json"), "run `npm run bui
 const startedAt = new Date();
 const log = (text) => process.stderr.write(`[${Math.round((Date.now() - startedAt.getTime()) / 1000)}s] ${text}\n`);
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+/** The digest of a file of any size, streamed (a 2.5 GB file is above Node's one-Buffer limit). */
+const sha256File = (path) => new Promise((resolveHash, rejectHash) => { const hash = createHash("sha256"); createReadStream(path).on("data", (chunk) => hash.update(chunk)).on("end", () => resolveHash(hash.digest("hex"))).on("error", rejectHash); });
 const report = { profile: "chrome-inbrowser-spike-t40-v0", recordedAt: startedAt.toISOString(), chrome: null, v8: null, headless: true, engine: { name: "wllama", version: WLLAMA_VERSION, wasm_sha256: sha256(readFileSync(WLLAMA_WASM)), wasm_bytes: statSync(WLLAMA_WASM).size }, model: null, offscreen: null, probe: null, load: null, completions: {}, checks: {}, failures: [], passed: false };
 const check = (name, condition, detail) => {
   report.checks[name] = condition ? "ok" : { failed: detail ?? null };
@@ -88,7 +90,9 @@ async function modelFile(spec) {
   const url = `https://huggingface.co/${owner}/${repo}/resolve/main/${file}`;
   mkdirSync(CACHE, { recursive: true });
   const local = join(CACHE, `${owner}__${repo}__${basename(file)}`);
-  if (!existsSync(local) || sha256(readFileSync(local)) !== expected) {
+  // A finished download whose hash was never checked (an earlier run that died after the download) is verified, not fetched again.
+  if (!existsSync(local) && existsSync(`${local}.part`) && (await sha256File(`${local}.part`)) === expected) renameSync(`${local}.part`, local);
+  if (!existsSync(local) || (await sha256File(local)) !== expected) {
     log(`downloading ${url} (${(sibling.size / 1e6).toFixed(0)} MB)`);
     const response = await fetch(url);
     if (!response.ok) throw new Error(`download failed: HTTP ${response.status}`);
@@ -96,10 +100,9 @@ async function modelFile(spec) {
       const out = createWriteStream(`${local}.part`);
       response.body.pipeTo(new WritableStream({ write: (chunk) => new Promise((ok) => out.write(chunk, ok)), close: () => new Promise((ok) => out.end(ok)) })).then(resolveWrite, rejectWrite);
     });
-    const digest = sha256(readFileSync(`${local}.part`));
+    const digest = await sha256File(`${local}.part`);
     if (digest !== expected) throw new Error(`downloaded ${file} has SHA-256 ${digest}, Hugging Face states ${expected}`);
-    copyFileSync(`${local}.part`, local);
-    rmSync(`${local}.part`);
+    renameSync(`${local}.part`, local);
   }
   return { owner, repo, file, url, local, bytes: statSync(local).size, sha256: expected, license: meta.cardData?.license ?? null, served: `https://${MODELS_HOST}/${basename(file)}` };
 }

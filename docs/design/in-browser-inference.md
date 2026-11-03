@@ -33,7 +33,7 @@ here unchanged:
 | The compatibility facts | `compatibility.ts` evaluates `capabilities.structured_output`, `capabilities.reasoning`, `limits.context_tokens`, `properties.local` with a basis each (`declared`, `host_default`, `derived`, `absent`) | one descriptor per catalog entry with those facts and their basis (§4) |
 | Usage accounting | `usage.ts::projectUsage`: a completion with neither a total nor both counts is `model_usage_unavailable` and the runtime charges the whole reservation; reasoning tokens must be in the output count (principle 7) | the engine's own prompt and completion counts, thinking tokens included |
 | Budgets | the plan's token and call budgets; `max_output_tokens` per node | the cap enforced by the engine (`max_tokens`); a `length` finish fails the node as truncated |
-| Cancellation and timeouts | the router's per-request deadline (`DEFAULT_REQUEST_TIMEOUT_SECONDS`), a run's cancel (`host.cancel`) | an abort that stops generation at once **[measured: 306 ms after the request, 2,000-token budget]** |
+| Cancellation and timeouts | the router's per-request deadline (`DEFAULT_REQUEST_TIMEOUT_SECONDS`), a run's cancel (`host.cancel`) | an abort that stops generation at once **[measured: 306 ms after the request on the 0.6B, 478 ms on the 4B, 2,000-token budget]** |
 | No silent fallback | principle 6: a model that is not available refuses the run with the reason | a load that fails or does not fit refuses before the run; never another model |
 | Determinism | not required (the answer is the model's; the authority is the contract's) | temperature 0 by default; nothing promised |
 | Privacy | the person's data goes to the bound model only; the observer (D-028) sees every request | the request never leaves the extension; the observer still sees it (§4) |
@@ -49,8 +49,8 @@ Versions read from the npm registry on 2026-11-02 **[V]**.
 | Structured output | `response_format.json_schema` on the OpenAI-compatible chat API, converted to a grammar **inside the engine** (llama.cpp's `oaicompat_chat_params_parse`); grammar-constrained sampling **[V, measured]** | `response_format: {type: "json_object", schema}` through XGrammar in the wasm model library **[V]** | experimental `@huggingface/transformers-structured-output` (v4.3, 2026-09-16), a logits processor; "one generated sequence at a time" **[V]** |
 | Code that ships | one wasm, 8,763,949 bytes (`esm/wasm/wllama.wasm`, SHA-256 `551f1343…`), plus a 375 KB bundle; **no eval, no `new Function`** **[measured: `engine.bundle_has_eval` false]** | the runtime (6.5 MB `lib/index.js`) and **one wasm model library per model, fetched at run time from `raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/`** (`modelLibURLPrefix`, `v0_2_87/base`) **[V]** | the runtime plus ORT's wasm (bundled or from a CDN); the WebGPU runtime rewritten in C++ **[V]** |
 | WebGPU features needed | runs on the core limits; uses f16 and subgroups when present (LlamaWeb kernels) | `shader-f16` for the `q4f16` entries | WebGPU EP; threads want cross-origin isolation |
-| Speed (this machine) | **[measured]** Qwen3-0.6B Q4_0: prefill 483 tok/s, decode 87 tok/s, load 2.5 s from a local file; §11 for the 4B class | Llama-3.1-8B q4f16: 41 tok/s on an M3 Max (arXiv 2412.15803) **[V]**; LlamaWeb: wllama decodes about 54 % faster than WebLLM, prefills at 49 % of it (arXiv 2605.20706) **[V]** | gpt-oss-20B q4f16 about 60 tok/s on a top M4 (vendor post) **[V]** |
-| Per-file limits | README: 2 GB per file ("ArrayBuffer restriction"), split with `llama-gguf-split` **[V]**; verified against the 2.5 GB Qwen3-4B file in §11 | model artifacts are sharded by MLC | ONNX external data above 2 GiB |
+| Speed (this machine) | **[measured]** Qwen3-0.6B Q4_0: prefill 490 tok/s, decode 89 tok/s, load 1,616 ms from a local file; Qwen3-4B Q4_K_M at a 16,384 context: prefill 131 tok/s, decode 37 tok/s, load 8,751 ms | Llama-3.1-8B q4f16: 41 tok/s on an M3 Max (arXiv 2412.15803) **[V]**; LlamaWeb: wllama decodes about 54 % faster than WebLLM, prefills at 49 % of it (arXiv 2605.20706) **[V]** | gpt-oss-20B q4f16 about 60 tok/s on a top M4 (vendor post) **[V]** |
+| Per-file limits | README: 2 GB per file ("ArrayBuffer restriction"), split with `llama-gguf-split` **[V]**; **the 2,497,280,256-byte Qwen3-4B file loads as one file** in Chrome 156 (the engine reads Blobs with async file access, so the cap in the README no longer applies here) **[measured]** | model artifacts are sharded by MLC | ONNX external data above 2 GiB |
 | Maintenance | llama.cpp synced per release; a research paper (LlamaWeb, UCSC and MSR) on its WebGPU kernels | MLC team; model list refreshed per release | Hugging Face with the ONNX Runtime team |
 | Worker model | creates its Worker from a `blob:` URL of bundled code; **runs under the extension's CSP** **[measured: blob and nested blob Workers run on `chrome-extension://`, WebGPU inside]** | `WebWorkerMLCEngine` over a Worker the caller creates | ORT spawns its own |
 | Remote-code reading (§10) | wasm bundled, weights are data: **clean**; the bundle carries two `cdn.jsdelivr.net` string constants for the Firefox/Safari compat build, never fetched in Chrome **[measured: `bundle_remote_urls`]** | **a model library wasm fetched from GitHub at run time is remote code**; bundling 5 curated libraries costs about 10–25 MB in the zip and still runs only MLC models | ORT wasm must be bundled (default is a CDN) |
@@ -86,8 +86,8 @@ origin is a secure context.
 
 **Who creates it.** The offscreen *page* (`execution-page.ts`), not a run's Worker: the engine must
 outlive a run so that the next run finds the model loaded (a 5 GB model takes seconds to tens of
-seconds to load from the cache; the spike's 0.6B took 2.5 s from a served file and 1.1 s on
-reload **[measured]**). `execution-page.ts` gains an `EngineHost` that owns at most one engine Worker
+seconds to load from the cache; the spike's 0.6B took 1,616 ms from a served file and 962 ms on
+reload, the 2.5 GB 4B 8,751 ms and 3,449 ms **[measured]**). `execution-page.ts` gains an `EngineHost` that owns at most one engine Worker
 and knows which catalog entry it holds.
 
 **How a run reaches it.** At `host.start`, when the plan's binding is `in-browser/<entry>`, the page
@@ -171,9 +171,9 @@ with `null`, type lists, `pattern`, `minimum`/`maximum`, `minLength`/`maxLength`
 `projectUsage` (a missing count is `model_usage_unavailable`, never zero); `constrained` true with the
 detail "llama.cpp grammar from the bundled output schema; the answer is parsed and validated by the
 router regardless". **Prompt cache off** for the accounting: with it on, the engine's `prompt_n` counts
-only uncached tokens **[measured: `prompt_n` 1, `cache_n` 2916 on the second call]**; the non-streamed
+only uncached tokens **[measured: `prompt_n` 1, `cache_n` 2,916 on the second call]**; the non-streamed
 `usage.prompt_tokens` with `cache_prompt: false` equals the streamed `prompt_n + cache_n`
-**[measured: 2,913 = 2,913 + 0]**. T41 may turn the cache back on once the adapter reports
+**[measured: 2,917 = 2,917 + 0]**. T41 may turn the cache back on once the adapter reports
 `prompt_n + cache_n` as the input count (a re-ask repeats the prompt, where the cache pays).
 
 **Errors** (`AdapterError` codes already in the vocabulary): `model_unavailable` (no port, the entry
@@ -245,8 +245,8 @@ typed):
 | `gpt-oss-20b-mxfp4` | `ggml-org/gpt-oss-20b-GGUF` `gpt-oss-20b-MXFP4.gguf` | 12,109,566,624 | 32 GB+ | the 20B MoE class |
 | `qwen3-30b-a3b-q4_k_m` | `Qwen/Qwen3-30B-A3B-GGUF` `Qwen3-30B-A3B-Q4_K_M.gguf` | 18,556,685,824 | 36 GB+ | the family of the only local model that met Literature Review's exact-copy contract (`qwen3:30b`, STATE.md §5) |
 
-Whether the entries above 2 GiB need split files is settled by the 4B measurement in §11; the
-policy either way: **the catalog never re-hosts weights.** An entry points at the publisher's own
+The 2.5 GB 4B file loads as one file (§11), so the entries above 2 GiB need no split in Chrome; the
+policy stands regardless: **the catalog never re-hosts weights.** An entry points at the publisher's own
 repository; if a file is too large for the engine and the repository ships no split, the entry is
 not curated until it does (an upstream request, not a mirror).
 
@@ -391,9 +391,9 @@ time, "even when they arrive as data". This design's reading, for the reviewer n
 
 | Risk | What is known | What T41 measures |
 |---|---|---|
-| **Prefill on long contexts** | 483 tok/s prefill on the 0.6B **[measured]**; LlamaWeb: 2–10× slower than native; a 16-page PDF node reserves up to 81,066 tokens (STATE.md §5) | the 4B and 8B entries at 16k and 32k contexts: prefill tok/s and the time of one Literature Review `extract` call; the docs state the minutes |
+| **Prefill on long contexts** | **the weak spot**: 131 tok/s prefill on the 4B, so the 2,917-token `interpret` prompt waits 22 s for its first token **[measured]** (490 tok/s on the 0.6B); LlamaWeb: 2–10× slower than native; a 16,000-token Literature Review call would wait about two minutes on the 4B and a 16-page PDF node reserves up to 81,066 tokens (STATE.md §5) | the 4B and 8B entries at 16k and 32k contexts: prefill tok/s and the time of one Literature Review `extract` call; the docs state the minutes |
 | **GPU memory on 8–16 GB machines** | the budget is an estimate (§6); a load that does not fit kills the Worker | U16: a 16 GB Mac and an 8 GB-VRAM Windows laptop with the 4B and 8B entries; the estimate's error |
-| **The 2 GB per-file limit** | README: 2 GB per file **[V]**; the 4B Q4_K_M file is 2.50 GB | §11 result below; if refused, the curated list keeps only sub-2 GiB files until the repositories ship splits (§5 policy) |
+| **The 2 GB per-file limit** | README: 2 GB per file **[V]**; the 2.50 GB 4B Q4_K_M file **loaded as one file** **[measured]** | the 5.0 GB 8B and the 12.1 GB gpt-oss-20b files; the limit is OPFS and the Blob path, not the README's |
 | **Thermal and battery** | no measurement; WebKit's objection to the Prompt API cites it | a 25-minute run's CPU/GPU time and the fan (observed); the docs say "plug in" |
 | **Threads** | the offscreen Worker is not cross-origin isolated, yet wllama reported `multithread: true` **[measured]**; the GPU does the work either way | whether `SharedArrayBuffer` is usable in extension Workers without COOP/COEP (Chrome's extension exemption **[U]**), and whether the manifest keys are needed |
 | **Safari and Firefox** | WebGPU in both; wllama needs its compat build there (JSPI, memory64) | out of scope for the extension shell (Chrome); noted for the reference browser (B-273) |
@@ -402,9 +402,14 @@ time, "even when they arrive as data". This design's reading, for the reviewer n
 | **Accounting under prompt caching** | counts are complete only with the cache off or `prompt_n + cache_n` **[measured]** | the adapter's test asserts the sum |
 | **Headless CI** | headless Chrome has WebGPU here with no flag **[measured]**; GitHub's runners have no GPU | the e2e harness runs locally; CI runs the fixture port |
 
-**The 4B-class measurement** (`Qwen/Qwen3-4B-GGUF` `Qwen3-4B-Q4_K_M.gguf`, 2,497,280,256 bytes,
-`--ctx 16384`): *pending at the time of writing; filled in from the scratch report when the
-background run completes.*
+**The 4B-class measurement** (`examples/verification/chrome-inbrowser-spike-t40-qwen3-4b.json`:
+`Qwen/Qwen3-4B-GGUF` `Qwen3-4B-Q4_K_M.gguf`, 2,497,280,256 bytes, digest verified, `--ctx 16384`): the
+single 2.5 GB file loads in 8,751 ms (36 layers, training context 40,960); the constrained `interpret`
+answer is valid and complete (2,917 prompt tokens, 114 completion tokens, `finish_reason` stop) at
+131 tok/s prefill and 37 tok/s decode, first token after 22 s; the unconstrained answer was valid JSON
+too; the abort stopped after 478 ms; reload after unload 3,449 ms. The 4B is the right default for a
+16 GB machine on WebAir-sized prompts; on Literature Review's prompts the prefill time, not the
+model, is what the person waits for.
 
 ### What the spike measured (the report, by path)
 
@@ -417,9 +422,10 @@ background run completes.*
 | Platform | secure context, `crossOriginIsolated` false, memory64 true, JSPI true, 14 hardware threads, storage quota 64.8 GB |
 | Engine | wllama 3.8.1, wasm 8,763,949 bytes, bundle 375 KB over 19 inputs, no eval |
 | Model | Qwen3-0.6B Q4_0, 428,970,080 bytes, SHA-256 verified against Hugging Face's LFS digest, served by a local HTTPS origin |
-| Load | 2,456 ms (n_ctx 8,192, 28 layers); reload after unload 1,056 ms |
-| Constrained `interpret` | 2,917 prompt tokens, 179 completion tokens, prefill 482.9 tok/s, decode 87.4 tok/s, `finish_reason` stop, valid against `plan.schema.json`, intent/destination/date/passengers as asked |
+| Load | 1,616 ms (n_ctx 8,192, 28 layers); reload after unload 962 ms |
+| Constrained `interpret` | 2,917 prompt tokens, 179 completion tokens, prefill 489.6 tok/s, decode 89.5 tok/s, `finish_reason` stop, valid against `plan.schema.json`, intent/destination/date/passengers as asked |
 | Unconstrained, same request | fenced ` ```json ` block: not parseable as given (the router's fenced reading would take it; the product validates either way) |
-| Non-streamed, cache off | `usage.prompt_tokens` 2,913 = streamed `prompt_n` + `cache_n`; valid |
-| Abort | stopped 306 ms after the request, 194 ms after the first token |
+| Non-streamed, cache off | `usage.prompt_tokens` 2,917 = streamed `prompt_n` + `cache_n`; valid |
+| Abort | stopped 306 ms after the request, 128 ms after the first token |
 | Thinking on (scratch run, not committed) | 425 completion tokens, `reasoning_content` separated, the answer valid; decode 83 tok/s |
+| The 4B class | `chrome-inbrowser-spike-t40-qwen3-4b.json`, above |
