@@ -27,6 +27,7 @@
   "devDependencies": {
     "@types/chrome": "^0.3.4",
     "@types/node": "^24.0.0",
+    "@wllama/wllama": "3.8.1",
     "esbuild": "0.28.2",
     "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.0.0",

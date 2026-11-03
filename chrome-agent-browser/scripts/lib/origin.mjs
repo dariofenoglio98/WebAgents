@@ -5,7 +5,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { createReadStream, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:https";
 import { join } from "node:path";
 
@@ -43,9 +43,31 @@ export function serveFiles(tls, files, answer = null) {
       response.writeHead(404, { "content-type": "text/plain" });
       return response.end("not found");
     }
-    const bytes = file.bytes ?? readFileSync(file.path);
-    response.writeHead(200, { "content-type": file.type, "content-length": String(bytes.length), "cache-control": "no-cache", "x-content-type-options": "nosniff" });
-    return response.end(bytes);
+    // A file on disk is streamed (a model file can exceed Node's one-Buffer limit of 2 GiB; T40); bytes in memory are sent as before.
+    if (file.bytes === undefined) {
+      // A vanished or unreadable file is a 500 for that request, never a crash of the shared harness (T40 review 1, nit 12).
+      let size;
+      try {
+        size = statSync(file.path).size;
+      } catch {
+        response.writeHead(500, { "content-type": "text/plain" });
+        return response.end("file unavailable");
+      }
+      const stream = createReadStream(file.path);
+      stream.on("error", () => {
+        if (!response.headersSent) {
+          response.writeHead(500, { "content-type": "text/plain" });
+          response.end("file unavailable");
+        } else response.destroy();
+      });
+      stream.once("open", () => {
+        response.writeHead(200, { "content-type": file.type, "content-length": String(size), "cache-control": "no-cache", "x-content-type-options": "nosniff" });
+        stream.pipe(response);
+      });
+      return undefined;
+    }
+    response.writeHead(200, { "content-type": file.type, "content-length": String(file.bytes.length), "cache-control": "no-cache", "x-content-type-options": "nosniff" });
+    return response.end(file.bytes);
   });
   return new Promise((resolveServer) => server.listen(0, "127.0.0.1", () => resolveServer({ server, port: server.address().port, hits })));
 }

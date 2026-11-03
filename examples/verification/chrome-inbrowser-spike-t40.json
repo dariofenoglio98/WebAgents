@@ -1,0 +1,229 @@
+{
+  "profile": "chrome-inbrowser-spike-t40-v0",
+  "recordedAt": "2026-11-03T03:00:57.937Z",
+  "chrome": "Chrome/156.0.8078.48",
+  "v8": "15.6.75.19",
+  "headless": true,
+  "engine": {
+    "name": "wllama",
+    "version": "3.8.1",
+    "wasm_sha256": "551f13439366eff11e057b1b91fe46a7fdac29d56d67372d4c5f19a549dfe70c",
+    "wasm_bytes": 8763949,
+    "bundle_bytes": 376188,
+    "bundle_inputs": 19,
+    "bundle_has_eval": false,
+    "bundle_remote_urls": [
+      "http://localhost",
+      "https://cdn.jsdelivr.net/npm/@wllama/wllama-compat@3.8.1/wasm/wllama.js",
+      "https://cdn.jsdelivr.net/npm/@wllama/wllama-compat@3.8.1/wasm/wllama.wasm"
+    ]
+  },
+  "model": {
+    "repository": "ggml-org/Qwen3-0.6B-GGUF",
+    "file": "Qwen3-0.6B-Q4_0.gguf",
+    "source_url": "https://huggingface.co/ggml-org/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_0.gguf",
+    "bytes": 428970080,
+    "sha256": "da2572f16c06133561ce56accaa822216f2391ef4d37fba427801cd6736417d4",
+    "license": "apache-2.0",
+    "served_as": "https://models.example/Qwen3-0.6B-Q4_0.gguf",
+    "local_copy": "examples/my-inbrowser-spike-cache/ggml-org__Qwen3-0.6B-GGUF__Qwen3-0.6B-Q4_0.gguf"
+  },
+  "offscreen": {
+    "created_by": "chrome.offscreen.createDocument from an extension page",
+    "target_type": "background_page",
+    "url": "chrome-extension://kjegegjdnpdcjhgamhjdphgemegefapb/execution.html"
+  },
+  "probe": {
+    "context": "dedicated Worker of the offscreen document",
+    "secure_context": true,
+    "origin": "chrome-extension://kjegegjdnpdcjhgamhjdphgemegefapb",
+    "has_webgpu": true,
+    "hardware_concurrency": 14,
+    "device_memory_hint_gb": 32,
+    "cross_origin_isolated": false,
+    "memory64": true,
+    "jspi": true,
+    "storage": {
+      "quota": 59208745273,
+      "usage": 1323321
+    },
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": "",
+      "is_fallback": null,
+      "features": [
+        "bgra8unorm-storage",
+        "clip-distances",
+        "core-features-and-limits",
+        "depth-clip-control",
+        "depth32float-stencil8",
+        "dual-source-blending",
+        "float32-blendable",
+        "float32-filterable",
+        "indirect-first-instance",
+        "primitive-index",
+        "rg11b10ufloat-renderable",
+        "shader-f16",
+        "subgroup-size-control",
+        "subgroups",
+        "texture-component-swizzle",
+        "texture-compression-astc",
+        "texture-compression-astc-sliced-3d",
+        "texture-compression-bc",
+        "texture-compression-bc-sliced-3d",
+        "texture-compression-etc2",
+        "texture-compression-unaligned",
+        "texture-formats-tier1",
+        "texture-formats-tier2",
+        "timestamp-query"
+      ],
+      "limits": {
+        "maxBufferSize": 4294967292,
+        "maxStorageBufferBindingSize": 4294967292,
+        "maxComputeWorkgroupStorageSize": 32768,
+        "maxComputeInvocationsPerWorkgroup": 1024,
+        "maxComputeWorkgroupsPerDimension": 65535
+      }
+    },
+    "device": true
+  },
+  "load": {
+    "load_ms": 1616,
+    "multithread": true,
+    "n_ctx": 8192,
+    "n_batch": 2048,
+    "n_ctx_train": 40960,
+    "n_vocab": 151936,
+    "n_layer": 28,
+    "n_embd": 1024,
+    "general_architecture": "qwen3",
+    "general_name": "Qwen3 0.6B",
+    "file_type": "2",
+    "progress_samples": 2,
+    "served_hits": 2,
+    "reload_ms": 962
+  },
+  "completions": {
+    "interpret_with_schema_grammar": {
+      "text": "{\n  \"intent\": \"search\",\n  \"search\": {\n    \"origin\": \"BOS\",\n    \"destination\": \"ZRH\",\n    \"date\": \"2026-12-09\",\n    \"passengers\": 2,\n    \"nonstop_only\": true,\n    \"max_price_usd\": 900,\n    \"cabin\": \"economy\"\n  },\n  \"unsupported_reason\": \"The message asks for a flight from Boston to Zurich on 9 December 2026, but no WebAir flight is available for that route at that time.\",\n  \"needs_travel_profile\": false,\n  \"fare_id\": null,\n  \"note\": \"Searching for a nonstop flight from Boston to Zurich on 9 December 2026 for two people, under $900.\"\n}",
+      "usage": null,
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 2917,
+        "prompt_ms": 5957.599,
+        "prompt_per_token_ms": 2.0423719574905728,
+        "prompt_per_second": 489.6267774987877,
+        "predicted_n": 179,
+        "predicted_ms": 1989.201,
+        "predicted_per_token_ms": 11.175286516853932,
+        "predicted_per_second": 89.48316434588561
+      },
+      "finish_reason": "stop",
+      "aborted": false,
+      "total_ms": 7976,
+      "first_token_ms": 6025,
+      "chars": 539,
+      "parsed_json": true,
+      "parse_error": null,
+      "schema_errors": [],
+      "schema_valid": true,
+      "prompt_tokens": 2917,
+      "completion_tokens": 179,
+      "prefill_tok_per_s": 489.6267774987877,
+      "decode_tok_per_s": 89.48316434588561
+    },
+    "interpret_without_grammar": {
+      "text": "```json\n{\n  \"intent\": \"search\",\n  \"search\": {\n    \"origin\": \"BOS\",\n    \"destination\": \"ZRH\",\n    \"date\": \"2026-12-09\",\n    \"passengers\": 2,\n    \"nonstop_only\": true,\n    \"max_price_usd\": 900,\n    \"cabin\": \"economy\"\n  },\n  \"unsupported_reason\": \"The message asks for a flight from Boston to Zurich on 9 December 2026, but no WebAir flight is available for that route at that time.\",\n  \"needs_travel_profile\": false,\n  \"fare_id\": null,\n  \"note\": \"Searching for a nonstop flight from Boston to Zurich on 9 December 2026 for two people, under $900.\"\n}\n```",
+      "usage": null,
+      "timings": {
+        "cache_n": 2916,
+        "prompt_n": 1,
+        "prompt_ms": 14.4,
+        "prompt_per_token_ms": 14.4,
+        "prompt_per_second": 69.44444444444444,
+        "predicted_n": 179,
+        "predicted_ms": 1973.7,
+        "predicted_per_token_ms": 11.088202247191012,
+        "predicted_per_second": 90.18594517910522
+      },
+      "finish_reason": "stop",
+      "aborted": false,
+      "total_ms": 1999,
+      "first_token_ms": 37,
+      "chars": 551,
+      "parsed_json": false,
+      "parse_error": "Unexpected token '`', \"```json\n{\n\"... is not valid JSON",
+      "schema_errors": null,
+      "schema_valid": false,
+      "prompt_tokens": 1,
+      "completion_tokens": 179,
+      "prefill_tok_per_s": 69.44444444444444,
+      "decode_tok_per_s": 90.18594517910522,
+      "note": "for comparison only; the product always validates and may re-ask (D-151)"
+    },
+    "interpret_with_schema_grammar_unstreamed_uncached": {
+      "text": "{\n  \"intent\": \"search\",\n  \"search\": {\n    \"origin\": \"BOS\",\n    \"destination\": \"ZRH\",\n    \"date\": \"2026-12-09\",\n    \"passengers\": 2,\n    \"nonstop_only\": true,\n    \"max_price_usd\": 900,\n    \"cabin\": \"economy\"\n  },\n  \"unsupported_reason\": \"The message asks for a flight from Boston to Zurich on 9 December 2026, but no WebAir flight is available for that route at that time.\",\n  \"needs_travel_profile\": false,\n  \"fare_id\": null,\n  \"note\": \"Searching for a nonstop flight from Boston to Zurich on 9 December 2026 for two people, under $900.\"\n}",
+      "usage": {
+        "completion_tokens": 179,
+        "prompt_tokens": 2917,
+        "total_tokens": 3096,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 2917,
+        "prompt_ms": 5917.6,
+        "prompt_per_token_ms": 2.0286595817620845,
+        "prompt_per_second": 492.93632553737996,
+        "predicted_n": 179,
+        "predicted_ms": 1979.901,
+        "predicted_per_token_ms": 11.123039325842697,
+        "predicted_per_second": 89.90348507324354
+      },
+      "finish_reason": "stop",
+      "aborted": false,
+      "total_ms": 7910,
+      "first_token_ms": null,
+      "chars": 539,
+      "reasoning_content": null,
+      "parsed_json": true,
+      "parse_error": null,
+      "schema_errors": [],
+      "schema_valid": true,
+      "prompt_tokens": 2917,
+      "completion_tokens": 179,
+      "prefill_tok_per_s": 492.93632553737996,
+      "decode_tok_per_s": 89.90348507324354
+    },
+    "abort_after_300ms": {
+      "text": "# The History of Aviation: A Journey Through Innovation and Discovery\n\n**Introduction",
+      "usage": null,
+      "timings": null,
+      "finish_reason": null,
+      "aborted": true,
+      "total_ms": 306,
+      "first_token_ms": 178,
+      "chars": 85
+    }
+  },
+  "checks": {
+    "the offscreen document's Worker has navigator.gpu and gets a non-fallback adapter with a device": "ok",
+    "the adapter offers shader-f16 and subgroups and 1 GiB buffers or more": "ok",
+    "the model loads in the Worker over the served file": "ok",
+    "under the schema grammar the answer is one JSON document valid against plan.schema.json": "ok",
+    "the constrained answer reads the request: intent search, ZRH, 2026-12-09, 2 passengers": "ok",
+    "the engine reports prompt and completion tokens and its timings": "ok",
+    "non-streamed, the engine reports usage.prompt_tokens and completion_tokens, and prompt_tokens equals the streamed run's prompt_n + cache_n": "ok",
+    "the non-streamed constrained answer is valid too": "ok",
+    "an abort stops generation at once (under 2 s, far from the 2,000-token budget)": "ok",
+    "after unload the Worker loads a model again": "ok"
+  },
+  "failures": [],
+  "passed": true,
+  "thinking": false,
+  "completedAt": "2026-11-03T03:01:20.937Z"
+}

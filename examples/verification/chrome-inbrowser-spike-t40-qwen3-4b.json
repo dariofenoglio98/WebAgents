@@ -1,0 +1,229 @@
+{
+  "profile": "chrome-inbrowser-spike-t40-v0",
+  "recordedAt": "2026-11-03T02:59:21.634Z",
+  "chrome": "Chrome/156.0.8078.48",
+  "v8": "15.6.75.19",
+  "headless": true,
+  "engine": {
+    "name": "wllama",
+    "version": "3.8.1",
+    "wasm_sha256": "551f13439366eff11e057b1b91fe46a7fdac29d56d67372d4c5f19a549dfe70c",
+    "wasm_bytes": 8763949,
+    "bundle_bytes": 376188,
+    "bundle_inputs": 19,
+    "bundle_has_eval": false,
+    "bundle_remote_urls": [
+      "http://localhost",
+      "https://cdn.jsdelivr.net/npm/@wllama/wllama-compat@3.8.1/wasm/wllama.js",
+      "https://cdn.jsdelivr.net/npm/@wllama/wllama-compat@3.8.1/wasm/wllama.wasm"
+    ]
+  },
+  "model": {
+    "repository": "Qwen/Qwen3-4B-GGUF",
+    "file": "Qwen3-4B-Q4_K_M.gguf",
+    "source_url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf",
+    "bytes": 2497280256,
+    "sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+    "license": "apache-2.0",
+    "served_as": "https://models.example/Qwen3-4B-Q4_K_M.gguf",
+    "local_copy": "examples/my-inbrowser-spike-cache/Qwen__Qwen3-4B-GGUF__Qwen3-4B-Q4_K_M.gguf"
+  },
+  "offscreen": {
+    "created_by": "chrome.offscreen.createDocument from an extension page",
+    "target_type": "background_page",
+    "url": "chrome-extension://kjegegjdnpdcjhgamhjdphgemegefapb/execution.html"
+  },
+  "probe": {
+    "context": "dedicated Worker of the offscreen document",
+    "secure_context": true,
+    "origin": "chrome-extension://kjegegjdnpdcjhgamhjdphgemegefapb",
+    "has_webgpu": true,
+    "hardware_concurrency": 14,
+    "device_memory_hint_gb": 32,
+    "cross_origin_isolated": false,
+    "memory64": true,
+    "jspi": true,
+    "storage": {
+      "quota": 62367088953,
+      "usage": 1323321
+    },
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": "",
+      "is_fallback": null,
+      "features": [
+        "bgra8unorm-storage",
+        "clip-distances",
+        "core-features-and-limits",
+        "depth-clip-control",
+        "depth32float-stencil8",
+        "dual-source-blending",
+        "float32-blendable",
+        "float32-filterable",
+        "indirect-first-instance",
+        "primitive-index",
+        "rg11b10ufloat-renderable",
+        "shader-f16",
+        "subgroup-size-control",
+        "subgroups",
+        "texture-component-swizzle",
+        "texture-compression-astc",
+        "texture-compression-astc-sliced-3d",
+        "texture-compression-bc",
+        "texture-compression-bc-sliced-3d",
+        "texture-compression-etc2",
+        "texture-compression-unaligned",
+        "texture-formats-tier1",
+        "texture-formats-tier2",
+        "timestamp-query"
+      ],
+      "limits": {
+        "maxBufferSize": 4294967292,
+        "maxStorageBufferBindingSize": 4294967292,
+        "maxComputeWorkgroupStorageSize": 32768,
+        "maxComputeInvocationsPerWorkgroup": 1024,
+        "maxComputeWorkgroupsPerDimension": 65535
+      }
+    },
+    "device": true
+  },
+  "load": {
+    "load_ms": 8751,
+    "multithread": true,
+    "n_ctx": 16384,
+    "n_batch": 2048,
+    "n_ctx_train": 40960,
+    "n_vocab": 151936,
+    "n_layer": 36,
+    "n_embd": 2560,
+    "general_architecture": "qwen3",
+    "general_name": "Qwen3 4B Instruct Awq",
+    "file_type": "15",
+    "progress_samples": 9,
+    "served_hits": 2,
+    "reload_ms": 3449
+  },
+  "completions": {
+    "interpret_with_schema_grammar": {
+      "text": "{\n  \"intent\": \"search\",\n  \"search\": {\n    \"origin\": \"BOS\",\n    \"destination\": \"ZRH\",\n    \"date\": \"2026-12-09\",\n    \"passengers\": 2,\n    \"nonstop_only\": true,\n    \"max_price_usd\": 900,\n    \"cabin\": \"economy\"\n  },\n  \"unsupported_reason\": null,\n  \"needs_travel_profile\": false,\n  \"fare_id\": null,\n  \"note\": null\n}",
+      "usage": null,
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 2917,
+        "prompt_ms": 22341.8,
+        "prompt_per_token_ms": 7.659170380527939,
+        "prompt_per_second": 130.56244349157186,
+        "predicted_n": 114,
+        "predicted_ms": 3038.601,
+        "predicted_per_token_ms": 26.890274336283188,
+        "predicted_per_second": 37.188166527951516
+      },
+      "finish_reason": "stop",
+      "aborted": false,
+      "total_ms": 25409,
+      "first_token_ms": 22370,
+      "chars": 310,
+      "parsed_json": true,
+      "parse_error": null,
+      "schema_errors": [],
+      "schema_valid": true,
+      "prompt_tokens": 2917,
+      "completion_tokens": 114,
+      "prefill_tok_per_s": 130.56244349157186,
+      "decode_tok_per_s": 37.188166527951516
+    },
+    "interpret_without_grammar": {
+      "text": "{\n  \"intent\": \"search\",\n  \"search\": {\n    \"origin\": \"BOS\",\n    \"destination\": \"ZRH\",\n    \"date\": \"2026-12-09\",\n    \"passengers\": 2,\n    \"nonstop_only\": true,\n    \"max_price_usd\": 900,\n    \"cabin\": \"economy\"\n  },\n  \"unsupported_reason\": null,\n  \"needs_travel_profile\": false,\n  \"fare_id\": null,\n  \"note\": null\n}",
+      "usage": null,
+      "timings": {
+        "cache_n": 2916,
+        "prompt_n": 1,
+        "prompt_ms": 30,
+        "prompt_per_token_ms": 30,
+        "prompt_per_second": 33.333333333333336,
+        "predicted_n": 114,
+        "predicted_ms": 3006.701,
+        "predicted_per_token_ms": 26.607973451327435,
+        "predicted_per_second": 37.5827193991022
+      },
+      "finish_reason": "stop",
+      "aborted": false,
+      "total_ms": 3048,
+      "first_token_ms": 67,
+      "chars": 310,
+      "parsed_json": true,
+      "parse_error": null,
+      "schema_errors": [],
+      "schema_valid": true,
+      "prompt_tokens": 1,
+      "completion_tokens": 114,
+      "prefill_tok_per_s": 33.333333333333336,
+      "decode_tok_per_s": 37.5827193991022,
+      "note": "for comparison only; the product always validates and may re-ask (D-151)"
+    },
+    "interpret_with_schema_grammar_unstreamed_uncached": {
+      "text": "{\n  \"intent\": \"search\",\n  \"search\": {\n    \"origin\": \"BOS\",\n    \"destination\": \"ZRH\",\n    \"date\": \"2026-12-09\",\n    \"passengers\": 2,\n    \"nonstop_only\": true,\n    \"max_price_usd\": 900,\n    \"cabin\": \"economy\"\n  },\n  \"unsupported_reason\": null,\n  \"needs_travel_profile\": false,\n  \"fare_id\": null,\n  \"note\": null\n}",
+      "usage": {
+        "completion_tokens": 114,
+        "prompt_tokens": 2917,
+        "total_tokens": 3031,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 2917,
+        "prompt_ms": 22015.7,
+        "prompt_per_token_ms": 7.547377442577991,
+        "prompt_per_second": 132.4963548740217,
+        "predicted_n": 114,
+        "predicted_ms": 2977.599,
+        "predicted_per_token_ms": 26.350433628318587,
+        "predicted_per_second": 37.95003961245285
+      },
+      "finish_reason": "stop",
+      "aborted": false,
+      "total_ms": 25005,
+      "first_token_ms": null,
+      "chars": 310,
+      "reasoning_content": null,
+      "parsed_json": true,
+      "parse_error": null,
+      "schema_errors": [],
+      "schema_valid": true,
+      "prompt_tokens": 2917,
+      "completion_tokens": 114,
+      "prefill_tok_per_s": 132.4963548740217,
+      "decode_tok_per_s": 37.95003961245285
+    },
+    "abort_after_300ms": {
+      "text": "",
+      "usage": null,
+      "timings": null,
+      "finish_reason": null,
+      "aborted": true,
+      "total_ms": 478,
+      "first_token_ms": null,
+      "chars": 0
+    }
+  },
+  "checks": {
+    "the offscreen document's Worker has navigator.gpu and gets a non-fallback adapter with a device": "ok",
+    "the adapter offers shader-f16 and subgroups and 1 GiB buffers or more": "ok",
+    "the model loads in the Worker over the served file": "ok",
+    "under the schema grammar the answer is one JSON document valid against plan.schema.json": "ok",
+    "the constrained answer reads the request: intent search, ZRH, 2026-12-09, 2 passengers": "ok",
+    "the engine reports prompt and completion tokens and its timings": "ok",
+    "non-streamed, the engine reports usage.prompt_tokens and completion_tokens, and prompt_tokens equals the streamed run's prompt_n + cache_n": "ok",
+    "the non-streamed constrained answer is valid too": "ok",
+    "an abort stops generation at once (under 2 s, far from the 2,000-token budget)": "ok",
+    "after unload the Worker loads a model again": "ok"
+  },
+  "failures": [],
+  "passed": true,
+  "thinking": false,
+  "completedAt": "2026-11-03T03:00:32.245Z"
+}

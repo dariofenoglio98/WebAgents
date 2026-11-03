@@ -1,0 +1,52 @@
+{
+  "profile": "chrome-inbrowser-gguf-headers-v0",
+  "recordedAt": "2026-11-03T04:26:20.930Z",
+  "script": "chrome-agent-browser/scripts/gguf-header-facts.mjs",
+  "files": [
+    {
+      "file": "Qwen3-4B-Q4_K_M.gguf",
+      "bytes": 2497280256,
+      "gguf_version": 3,
+      "tensors": 398,
+      "kv_count": 28,
+      "header_bytes": 5932859,
+      "general_name": "Qwen3 4B Instruct Awq",
+      "facts": {
+        "architecture": "qwen3",
+        "n_layer": 36,
+        "head_count": 32,
+        "n_kv_heads": 8,
+        "key_length": 128,
+        "value_length": 128,
+        "key_length_basis": "attention.key_length",
+        "embedding_length": 2560,
+        "embedding_over_head_count": 80,
+        "context_length": 40960,
+        "sliding_window": null
+      }
+    },
+    {
+      "file": "Qwen3-0.6B-Q4_0.gguf",
+      "bytes": 428970080,
+      "gguf_version": 3,
+      "tensors": 311,
+      "kv_count": 34,
+      "header_bytes": 5933267,
+      "general_name": "Qwen3 0.6B",
+      "facts": {
+        "architecture": "qwen3",
+        "n_layer": 28,
+        "head_count": 16,
+        "n_kv_heads": 8,
+        "key_length": 128,
+        "value_length": 128,
+        "key_length_basis": "attention.key_length",
+        "embedding_length": 1024,
+        "embedding_over_head_count": 64,
+        "context_length": 40960,
+        "sliding_window": null
+      }
+    }
+  ],
+  "passed": true
+}

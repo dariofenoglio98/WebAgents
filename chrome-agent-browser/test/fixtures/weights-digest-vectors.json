@@ -1,0 +1,45 @@
+{
+  "schema": "weights-digest-vectors-v0",
+  "rule": "sha256: + hex(SHA-256(join(sorted(file_sha256_hex), '\\n') + '\\n'))",
+  "vectors": [
+    {
+      "name": "one file",
+      "files": [
+        "0543cf94c5dce225bc7708829029e777b6a73381cda354ca07bd81199e4ddcca"
+      ],
+      "digest": "sha256:09c9bc833151fad5e5bc80156be38698b39c29fca28216900ed1c9fabad69eb8"
+    },
+    {
+      "name": "two files out of order",
+      "files": [
+        "2bb41b3bc344d2a5c1f31d662d86d78d7e98198b1eef7be3209d4f85da4ef14d",
+        "0543cf94c5dce225bc7708829029e777b6a73381cda354ca07bd81199e4ddcca"
+      ],
+      "digest": "sha256:6e0e6a24ce70a53dcd2c7635e10aa3e4e3e5a8d0a1ecef588f95159765d6d64b"
+    },
+    {
+      "name": "three files, a split model",
+      "files": [
+        "4f9916587c0adc68442f038d0eb45470debd195ceb44f755639c2c33f52dbe3a",
+        "eb3e7b3d38e59783e373b013e548aa81d28e7bdb9b6085c441e2fca3c327e4f0",
+        "e126b8357a1e348e9828519f18ed17a06955ae31147fe7f45093b6036e6a4bae"
+      ],
+      "digest": "sha256:5563790c2402fd80f63aa72e7b7f4c605f08b563e9ec995fa989d8b5c7cac0d1"
+    },
+    {
+      "name": "the spike's Qwen3-0.6B Q4_0 (Hugging Face's LFS digest, examples/verification/chrome-inbrowser-spike-t40.json)",
+      "files": [
+        "da2572f16c06133561ce56accaa822216f2391ef4d37fba427801cd6736417d4"
+      ],
+      "digest": "sha256:67a4dabae2cc428dec7cc444e1e3719393d7962ef0e82224742926115267667d"
+    },
+    {
+      "name": "all zero and all f sort bytewise",
+      "files": [
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "digest": "sha256:1c52cf998d9be14f48c81b643698f95bf1acd7bca1b1a3b4b71834bb41b10a46"
+    }
+  ]
+}
