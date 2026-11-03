@@ -65,7 +65,7 @@ run-time code fetch, so the Web Store reading is clean. WebLLM is faster at pref
 set but fetches a per-model wasm library from GitHub at run time, which is remote code under the
 Manifest V3 policy unless every curated library is bundled; Transformers.js's structured output is
 experimental and ONNX-only. Both stay candidates for a later *curated fast engine* behind the same
-port (B-267): the adapter contract names the engine per catalog entry (`engine: "wllama"`), so a
+port (B-270): the adapter contract names the engine per catalog entry (`engine: "wllama"`), so a
 second engine is a new entry format, not a new route.
 
 Pinned: `@wllama/wllama` 3.8.1 exact (`package.json` `devDependencies` for the spike; T41 moves it
@@ -101,7 +101,7 @@ route gets no port.
 
 **Single slot, serial calls (v1).** One model loaded at a time; one completion at a time (requests
 queue in arrival order; a map step's parallel workers wait, as they did behind Ollama's single slot,
-STATE.md §5). llama.cpp's `n_parallel` could serve several sequences later (B-268).
+STATE.md §5). llama.cpp's `n_parallel` could serve several sequences later (B-271).
 
 **Lifetime.** The model stays loaded while the offscreen document lives (no time limit, STATE.md
 §10) until: the person unloads it (Settings → Models → "Unload"), an idle timeout passes (default
@@ -259,7 +259,7 @@ picks a file; the shell reads the GGUF header after the download for the context
 (the API has no header), builds an entry with `curated: false`, `reasoning` from a family table
 (`qwen3`, `deepseek-r1`, `gpt-oss` → true; else absent, the person may state it), and the card says
 "Not reviewed by WebAgents: check the licence and the model's quality yourself." Only
-`huggingface.co` in v1; a second host is a new declared destination (B-269).
+`huggingface.co` in v1; a second host is a new declared destination (B-272).
 
 ## 6. Recommendations
 
@@ -396,7 +396,7 @@ time, "even when they arrive as data". This design's reading, for the reviewer n
 | **The 2 GB per-file limit** | README: 2 GB per file **[V]**; the 4B Q4_K_M file is 2.50 GB | §11 result below; if refused, the curated list keeps only sub-2 GiB files until the repositories ship splits (§5 policy) |
 | **Thermal and battery** | no measurement; WebKit's objection to the Prompt API cites it | a 25-minute run's CPU/GPU time and the fan (observed); the docs say "plug in" |
 | **Threads** | the offscreen Worker is not cross-origin isolated, yet wllama reported `multithread: true` **[measured]**; the GPU does the work either way | whether `SharedArrayBuffer` is usable in extension Workers without COOP/COEP (Chrome's extension exemption **[U]**), and whether the manifest keys are needed |
-| **Safari and Firefox** | WebGPU in both; wllama needs its compat build there (JSPI, memory64) | out of scope for the extension shell (Chrome); noted for the reference browser (B-270) |
+| **Safari and Firefox** | WebGPU in both; wllama needs its compat build there (JSPI, memory64) | out of scope for the extension shell (Chrome); noted for the reference browser (B-273) |
 | **memory64 and heap growth** | memory64 and JSPI available in the Worker **[measured]**; a wasm heap never shrinks | the Worker's memory after unload; whether a reload needs a new Worker (the spike reloaded in the same Worker in 1.1 s **[measured]**) |
 | **Small models and the contract** | the 0.6B answered the `interpret` schema validly in every spike call, with a plausible but invented `unsupported_reason` string | the WebAir search e2e on the 4B (acceptance); Literature Review needs the 30B class, as with Ollama |
 | **Accounting under prompt caching** | counts are complete only with the cache off or `prompt_n + cache_n` **[measured]** | the adapter's test asserts the sum |
