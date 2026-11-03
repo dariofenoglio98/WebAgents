@@ -180,10 +180,26 @@ def check(protocol_path: Path, model_path: Path) -> dict:
         for task in TASKS:
             if task not in named_tasks:
                 problems.append(f"the build map does not name {task}")
-        map_text = "\n".join(rows)
+        builders = _builders(text)
         for experiment in EXPERIMENTS:
-            if not re.search(rf"\b{experiment}\b", map_text):
+            # Only a row's Task and Builds cells name an experiment; its From cell cites sections.
+            naming = [
+                row
+                for row in rows
+                if re.search(rf"\b{experiment}\b", " ".join(_cells(row)[:2]))
+            ]
+            if not naming:
                 problems.append(f"the build map does not name {experiment}")
+                continue
+            named_by = {
+                f"T{n}" for row in naming for n in TASK_RE.findall(_first_cell(row))
+            }
+            own = builders.get(experiment, set())
+            if own and not own & named_by:
+                problems.append(
+                    f"the build map names {experiment} only outside its builders' rows "
+                    f"({', '.join(sorted(own))}, from the scope table)"
+                )
 
     # 4. Registration and amendments.
     if _section(text, "### 9.1 Registration") is None:
@@ -224,9 +240,32 @@ def _field_text(body: str, field: str) -> str | None:
     return rest[: match.start()] if match else rest
 
 
+def _cells(row: str) -> list[str]:
+    return [cell.strip() for cell in row.strip().strip("|").split("|")]
+
+
 def _first_cell(row: str) -> str:
-    cells = row.split("|")
-    return cells[1] if len(cells) > 1 else ""
+    cells = _cells(row)
+    return cells[0] if cells else ""
+
+
+def _builders(text: str) -> dict[str, set[str]]:
+    """Experiment → the tasks its scope-table row (§1) names under *Built by*."""
+    scope = _section(text, "## 1. ") or ""
+    rows = [line for line in scope.splitlines() if line.startswith("|")]
+    if not rows:
+        return {}
+    header = _cells(rows[0])
+    if "Built by" not in header:
+        return {}
+    column = header.index("Built by")
+    builders: dict[str, set[str]] = {}
+    for row in rows[1:]:
+        cells = _cells(row)
+        match = re.match(r"(E\d+|E[A-Z])\b", cells[0]) if cells else None
+        if match and len(cells) > column:
+            builders[match.group(1)] = {f"T{n}" for n in TASK_RE.findall(cells[column])}
+    return builders
 
 
 def _experiment_naming_cells(text: str) -> list[str]:

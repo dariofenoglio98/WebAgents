@@ -138,6 +138,32 @@ def test_build_map_must_name_every_experiment(checker, tmp_path, protocol_text):
     assert any("the build map does not name E9" in p for p in problems)
 
 
+def test_build_map_ignores_the_from_cell(checker, tmp_path, protocol_text):
+    lines = protocol_text.splitlines(keepends=True)
+    index = next(i for i, line in enumerate(lines) if line.startswith("| T36 "))
+    lines[index] = "| T36 the browser comparison | the browser agent runs | §6, §3 E9 |\n"
+    problems = _problems(checker, tmp_path, "".join(lines))
+    assert any("the build map does not name E9" in p for p in problems)
+
+
+def test_build_map_names_each_experiment_in_a_builders_row(checker, tmp_path, protocol_text):
+    # Deleting T34's row leaves E5 named in T39's Builds cell ("the E5 claim's wording"),
+    # which is not E5's builder per the scope table.
+    lines = protocol_text.splitlines(keepends=True)
+    index = next(i for i, line in enumerate(lines) if line.startswith("| T34 "))
+    del lines[index]
+    problems = _problems(checker, tmp_path, "".join(lines))
+    assert any("the build map does not name T34" in p for p in problems)
+    assert any("names E5 only outside its builders' rows (T34" in p for p in problems), problems
+
+
+def test_builders_come_from_the_scope_table(checker, protocol_text):
+    builders = checker._builders(protocol_text)
+    assert builders["E5"] == {"T34"}
+    assert builders["E2"] == {"T31", "T32"}
+    assert builders["EL"] == {"T64"}
+
+
 def test_built_by_must_name_a_task(checker, tmp_path, protocol_text):
     start, end = _section_of(protocol_text, "E7")
     body = protocol_text[start:end].replace(
@@ -244,8 +270,8 @@ def test_forbidden_wording_matches_check_security_model(checker, tmp_path, proto
     assert any("forbidden phrase present" in p for p in problems), problems
 
 
-def test_forbidden_patterns_are_check_security_models(checker):
-    sys.path.insert(0, str(ROOT / "scripts"))
+def test_forbidden_patterns_are_check_security_models(checker, monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT / "scripts"))
     import check_security_model
 
     assert checker.FORBIDDEN is check_security_model.FORBIDDEN

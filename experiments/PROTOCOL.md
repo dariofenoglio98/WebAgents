@@ -34,7 +34,7 @@ reasoning text. **Utility** is task success against ground truth (§2.3). The ru
 
 **Properties** are cited as `P-n` (the model's §3), planned ones as `DF-n` and `UC-n`; consent-bypass items as
 `CB-n` (§2.6.4); experiments as `E1`…`E10` and `EA`, with `EL` the linkable-agents experiment the user added at the
-gate (planned; §3's last entry); paper tables as "Tab. n" per the spine's §5; tasks as `T31`…`T39` and `T64`.
+gate (planned; §3's last entry); paper tables as "Tab. n" per the spine's §5; tasks as `T30`…`T39` and `T64`.
 
 ## 1. Scope: experiments, questions, properties, claims
 
@@ -77,7 +77,10 @@ instrument. The nine gaps the matrix's §2 lists are answered in §2.9.
   real-Chrome harness does with `--host-resolver-rules` (`chrome-agent-browser/scripts/e2e-webair-live.mjs`).
   The address policy still classifies the hostname's real DNS answer; only the dial is mapped. A test proves that
   no production configuration, flag or environment variable can set the mapping (as the catalog's seams, D-302);
-  every manifest records it. Consequence, stated: the campaigns do not measure the classification of the campaign
+  every manifest records it. E10's S4 binds the wrapper adversary (A-wrap, §4.3) as **the plan's model**: the
+  router post-processor that implements it is the model under test, not a second seam in the runtime; only the
+  E10 driver installs it, through the model route every manifest records, and the same kind of test proves that
+  no production configuration can install it (§4.4). Consequence, stated: the campaigns do not measure the classification of the campaign
   origin's own address; P-8's address-policy evidence is E1 (the first catalog's host-mediation family) and E3's
   redirect and injected-destination families (§3, E3), which need no connection to be refused.
 - **`FW`**: the framework agent of E2 (§2.5): the OpenAI Agents SDK, the same tools as host bindings, the policy
@@ -219,7 +222,8 @@ reasoning text is never read by the oracle (a model's stated reasoning is not ev
 - Rates: 95 % Wilson score intervals. **Zero-event cells** (the "must be none" claims) also report the
   one-sided 95 % upper bound 3/n (the rule of three); headline cells are sized so that it is at most 1 %
   (**n ≥ 300 runs per cell**), secondary cells at most 2 % (**n ≥ 150**), unless a §3 section states a smaller
-  n for a named secondary cell with its bound (E3's per-family cells, E10's wrapper cells off L4). A headline
+  n for a named secondary cell with its bound (E3's per-family cells, E5's per-cell rows, E10's wrapper cells
+  off L4). A headline
   cell may be a pooled arm (§0); the rule-of-three claim is then made for the pooled cell only, and the cells
   inside it are reported with their own n and wider bounds.
 - Differences between sides on the same tasks: paired by task and phrasing, with 95 % bootstrap intervals
@@ -368,18 +372,17 @@ common strings (E4).
 ### 2.8 Budget and machine time (D-347)
 
 Hosted dollars are caps the user sets at the gate (U11); a cap reached stops the cell and is an amendment.
-**This table is the only source of the caps; every §3 Budget field cites it.** Expected spend is the session's
-estimate from token counts of recorded runs (STATE §5: a Literature Review run on Luna about $0.02–0.04; a
+**This table is the only source of the caps; every §3 Budget field cites it.** Expected spend is a planning
+estimate from list prices, the prompt sizes the task sets imply (a hosted Literature Review run a few cents; a
 WebAir run far less) and the browser agent's step bound (`max_steps` 50); it is not a measurement.
 
 **Run counts** follow from §3's cells and n (local = L4, L9, L30; hosted = H, H2 and, for EA, `gpt-4o-mini`).
 **Machine time is a planning figure, not a measurement**: the paper presets run on the piz server's Ollama
-container (§2.2) at an assumed four concurrent runs and about 30 s per WebAir run per slot (STATE records 16.7 s
-for a search on `qwen3.5:9b` and 17.2 s for a quote with four model calls on Luna, both single runs), about 2 min
-per network run (up to eight model calls) and about 5 min per browser-agent run (up to 50 steps). Literature
-Review runs (about 25 min each on the Mac with `qwen3:30b`) are serialised, one at a time, because Crossref's
-public pool allows one request at a time (B-269). The qualification preset measures the real throughput; n
-stays fixed and the time moves (§2.4.4).
+container (§2.2) at an assumed four concurrent runs and about 30 s per WebAir run per slot, about 2 min per
+network run (up to eight model calls) and about 5 min per browser-agent run (up to 50 steps); Literature Review
+runs are assumed at about 25 min each and are serialised, one at a time, because Crossref's public pool allows
+one request at a time (B-269). These are planning assumptions, not measurements: the qualification preset
+measures the real throughput on the server; n stays fixed and the time moves (§2.4.4).
 
 | Campaign | Runs (local + hosted) | Hosted cap (U11) | Expected | Machine time (planning) |
 |---|---|---|---|---|
@@ -546,8 +549,8 @@ allowed-set ratio (fields available : fields needed) per task; the baseline's le
 **Oracle.** The catalog oracle (D-303) for the fixture rows (the four seams, the audit, the exports, the
 proposals file); §2.4.2 (b), (c) for the live rows; the canary decoders of §2.6.5.
 **Sample size and stopping.** Every channel × every encoding × both runtimes × the probe packages (the finite
-set, one run each, as a catalog); live rows: 8 tasks × 3 phrasings × 2 rungs × 2 sides (about 100 runs);
-fixed.
+set, one run each, as a catalog); live rows: 8 tasks × 3 phrasings × 2 rungs × 2 sides (`Py` and `FW`; the Chrome core's
+parity is the conformance-grade rows, which run on both runtimes) = 96 runs; fixed.
 **Budget.** $0 hosted for the fixture rows; the live rows (their H rows hosted) inside E6's cap of §2.8; run counts in §2.8.
 **Built by.** T33 (D-370 channel definitions and transformations; D-371 the CI task set); cases under
 `catalog_v2/cases_v2/` in a new series directory where conformance-grade, `experiments/memory_channels/` otherwise.
@@ -588,14 +591,19 @@ enumerator's time against size: its blow-up curve); refused routes and re-asks (
 baseline's free handoffs; **step amplification** under F-TERMINATE (activations over the benign median) on
 every side; the baseline's overrun frequency (runs ending `MaxTurnsExceeded`) and its activations beyond our
 envelope; the refusal rate under the small-budget arm; the MAST failure modes FM-1.3 and FM-1.5 (arXiv
-2503.13657) coded on both sides' traces by two readers with κ.
+2503.13657) coded on both sides' traces by two readers (the author and a fresh session, each blind to the
+other's codes) from a coding guide T34 commits before any run, reported with Cohen's κ and the disagreements
+listed, not resolved.
 **Oracle.** `scripts/verify_network_run.py` extended for a batch (every figure recomputed from `audit.json`
 and `run-plan.json` with agentpkg's own code); the baseline's instrumented tool layer and the SDK's turn
 counter; §2.4.2 (e).
 **Sample size and stopping.** N = 20 runs per (network × rung × side × arm); both networks; four rungs; four
 sides (`Py`, `Cr`, and `FW` at `max_turns` 10 and at our bound); the four arms on our cores, the three arms
-other than small-budget on `FW` (it has no reservation to refuse with), so 280 runs per network × rung; the
-random-network study is exhaustive over its 1,000 seeds; run counts in §2.8; fixed.
+other than small-budget on `FW` (it has no reservation to refuse with), so 280 runs per network × rung. **The
+exceedance claim's headline cell is the pooled arm per core** (§0, §2.4.4): every run of that core over both
+networks, the four arms and the four rungs, 20 × 2 × 4 × 4 = 640 runs per core, rule-of-three bound 0.5 %;
+the per-(network × rung × arm) rows are secondary, reported with n = 20 and the bound 15 % stated as such.
+The random-network study is exhaustive over its 1,000 seeds; run counts in §2.8; fixed.
 **Budget.** The E5 cap and machine time of §2.8.
 **Built by.** T34 (D-380…D-385); T31 for the Agents SDK port and the travellers fix (U10 or the local origin).
 **Reported as.** Tab. 6, Fig. 3 (the envelope against observed usage per run, with refusals).
@@ -744,8 +752,9 @@ and a framework agent with a policy layer?
 **Properties.** P-6, P-7, P-8, P-11, P-13, P-16; the model's §2.2.
 **Claim.** Claim 3 (the headline).
 **Task set.** TS-W's W1–W4 with the travel profile granted (the canaries), TS-N (the peer-message trigger
-position), and the **channel packages** of §4.5 (unsigned test packages, one per channel, over the campaign
-origin's partner service).
+position), and the **channel packages** of §4.5 (test packages signed with the campaign's throwaway key, pinned
+as trusted in the campaign's trust store, never a publisher key; one per channel, over the campaign origin's
+partner service).
 **Arms.** Three adversaries (§4.3: A-trig, A-pois, A-wrap) × the channels each setting offers (§4.5: CH-1…CH-5)
 × trigger positions (tool output, page, record, peer message) and an untriggered control; the benign task without the adversary (the
 base model) as the utility reference.
@@ -896,10 +905,12 @@ model (closest to the observed Cohere case), and a wrapper that is model-indepen
 - **S3 the framework agent with the policy layer** (`FW`, §2.5) on the same tasks, the adversary model bound
   as its model.
 - **S4 our runtime**: `Py` and `Cr` live, the adversary bound as the plan's model (the fused model through
-  Ollama or vLLM; the wrapper as a router post-processor the driver installs, recorded).
+  Ollama or vLLM; the wrapper as a router post-processor that only the E10 driver installs, through the model
+  route every manifest records: it is the model under test, not a runtime seam, §2.1).
 
 ### 4.5 The channels
-Each channel is a package (unsigned, built by T35, signed with the campaign's throwaway key) whose graph
+Each channel is a package (built by T35, signed with the campaign's throwaway key, pinned as trusted in the
+campaign's trust store, never a publisher key: S4 bypasses nothing of P-1 and P-2) whose graph
 offers exactly that channel, over the campaign origin's **partner service** (a declared second endpoint of the
 injection origin, `/api/v1/partner/notes`, which stores what it receives for the oracle):
 - **CH-1 undeclared destination.** The answer's free-text field names a URL and asks for an upload (in `SH` a
@@ -977,7 +988,8 @@ effect on the state. The version is pinned in T37's manifest (D-410).
   environment per run (with the run's injection vectors) and exposes each tool as a JSON-HTTP endpoint with
   the tool's own argument schema; the package declares the 28 tools as bindings to that origin; the environment
   state after the run is read by the oracle.
-- **Tasks → one `network.v0` package** (`org.webagents.agentdojo-travel`, unsigned): roles are the suite's
+- **Tasks → one `network.v0` package** (`org.webagents.agentdojo-travel`, signed with the campaign's throwaway
+  key, pinned as trusted in the campaign's trust store): roles are the suite's
   sub-environments (Hotels, Restaurants, CarRental, Flights, Calendar, Reservations, Email, User) plus a FrontMan;
   the model chooses the route under caps (hops, per-edge, per-role) derived from the tasks' needs so that
   every user task is expressible within the envelope; each role's tools are its sub-environment's. A user task
