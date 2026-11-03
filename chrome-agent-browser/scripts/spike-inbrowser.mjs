@@ -20,7 +20,10 @@
  *   4. the same request with no grammar, for comparison;
  *   5. a long unconstrained completion aborted after 300 ms: the engine stops at once (cancellation).
  *
- *   npm run build && node scripts/spike-inbrowser.mjs [--chrome path] [--model repo/file.gguf] [--ctx 8192] [--out report.json] [--keep]
+ *   npm run build && node scripts/spike-inbrowser.mjs [--chrome path] [--model repo/file.gguf] [--ctx 8192] [--out report.json] [--keep] [--thinking] [--cpu]
+ *
+ * `--cpu` loads with `n_gpu_layers: 0`: the CPU-only control. Every check passes on the CPU too, so
+ * the GPU run is told apart by its speed against this control (T40 review 1, nit 9).
  */
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -46,7 +49,7 @@ const SKILLS = ["travel-request", "webair-domain"].map((name) => join(ROOT, "age
 const MODELS_HOST = "models.example";
 const CACHE = join(ROOT, "examples", "my-inbrowser-spike-cache");
 
-const args = { chrome: process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", model: "ggml-org/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q4_0.gguf", ctx: 8192, out: join(ROOT, "examples", "verification", "chrome-inbrowser-spike-t40.json"), keep: false, thinking: false };
+const args = { chrome: process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", model: "ggml-org/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q4_0.gguf", ctx: 8192, out: join(ROOT, "examples", "verification", "chrome-inbrowser-spike-t40.json"), keep: false, thinking: false, cpu: false };
 for (let index = 2; index < process.argv.length; index += 1) {
   const argument = process.argv[index];
   if (argument === "--chrome") args.chrome = process.argv[(index += 1)];
@@ -55,6 +58,7 @@ for (let index = 2; index < process.argv.length; index += 1) {
   else if (argument === "--out") args.out = resolve(process.argv[(index += 1)]);
   else if (argument === "--keep") args.keep = true;
   else if (argument === "--thinking") args.thinking = true;
+  else if (argument === "--cpu") args.cpu = true;
   else {
     console.error(`unknown argument ${argument}`);
     process.exit(2);
@@ -180,7 +184,8 @@ async function main() {
     log(`WebGPU in the offscreen Worker: ${report.probe.has_webgpu} (${adapter?.architecture ?? "no adapter"}; f16 ${adapter?.features.includes("shader-f16")}, subgroups ${adapter?.features.includes("subgroups")})`);
 
     // 2. The model loads over WebGPU.
-    report.load = await ask({ kind: "load", url: model.served, nCtx: args.ctx, reasoning: args.thinking }, 600_000);
+    report.n_gpu_layers = args.cpu ? 0 : "engine default (all layers offloaded)";
+    report.load = await ask({ kind: "load", url: model.served, nCtx: args.ctx, reasoning: args.thinking, ...(args.cpu ? { nGpuLayers: 0 } : {}) }, 600_000);
     report.load.progress_samples = await cdp.evaluate(page, `__spike.progress.length`);
     report.load.served_hits = served.hits.length;
     check("the model loads in the Worker over the served file", typeof report.load.load_ms === "number" && report.load.n_ctx === args.ctx && report.load.n_vocab > 0, report.load);
@@ -225,7 +230,7 @@ async function main() {
 
     // 5. Unload frees the slot; a second load works (one model at a time, D-441).
     await ask({ kind: "unload" }, 30_000);
-    const reload = await ask({ kind: "load", url: model.served, nCtx: 2048, reasoning: false }, 600_000);
+    const reload = await ask({ kind: "load", url: model.served, nCtx: 2048, reasoning: false, ...(args.cpu ? { nGpuLayers: 0 } : {}) }, 600_000);
     check("after unload the Worker loads a model again", typeof reload.load_ms === "number" && reload.n_ctx === 2048, reload);
     report.load.reload_ms = reload.load_ms;
     await ask({ kind: "unload" }, 30_000);
