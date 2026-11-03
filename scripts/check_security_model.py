@@ -15,17 +15,22 @@ Reads `docs/security-and-privacy-model.md` and checks, offline and without impor
   property's Conformance field must be a known case id (bare ids included), an existing path or one
   of the few named non-case tokens, so a misspelt family or case fails; every `family/case` token
   elsewhere in the model with a known family must be known too; every spec-numbered case (memory
-  N1…N22, compute N-1…N-27, conversation N-1…N-43, network N-1…N-46) is in range; every rule id
-  (M-n, C-n, V-n, R-n) occurs in its specification; every CB-n is one of CB-1…CB-11;
+  N1…, compute, conversation and network N-1…, in any list the model writes with commas, semicolons,
+  ranges or "and") is an id its specification's text holds; every rule id (M-n, C-n, V-n, R-n)
+  occurs in its specification; every CB-n is one of CB-1…CB-11 (the consent-bypass list is in a
+  private survey, so the bound is a constant here, as is E1…E10);
 * every experiment id is one of E1…E10 or EA;
 * every `P-n`, `DF-n` and `UC-n` cited from the specifications, `docs/threat-model.md`,
-  `docs/README.md`, `README.md` and the model itself names a property, a Data Flow property or an
-  unplanned-call rule the model defines;
+  `docs/README.md`, `README.md` and the model itself is in the set of ids the model defines (a
+  removed id in the middle of a range is not citable);
 * the front map of `docs/threat-model.md` ("The properties these notes implement") agrees with the
-  `*Properties: …*` line under each of its sections, both ways;
+  `*Properties: …*` line under each of its sections, both ways, has no duplicate row, and names
+  every property the model defines;
 * the forbidden phrases ("protects against" in every inflection, "prevents all", "guarantees
-  security") appear in none of the public documents, matched over whitespace-collapsed text so a
-  line wrap hides nothing, and no form of "prevent" appears in the model itself (D-319, D-332);
+  security") appear in none of the public documents, matched over text with whitespace collapsed
+  and Markdown emphasis and code markers (`*`, `_`, `` ` ``) removed, so neither a line wrap nor
+  `**protects** against` hides one, and no form of "prevent" appears in the model itself (D-319,
+  D-332);
 * a property whose experiment field is "none" is listed in the evidence matrix's gap section when
   that private file is present (it is not in CI).
 
@@ -54,8 +59,10 @@ PUBLIC_DOCUMENTS = [
     "README.md",
     "docs/README.md",
 ]
-# Matched over whitespace-collapsed text: "protects against", "protect against", "protected
-# against", "protecting against", "prevents all", "prevent all", "guarantees security".
+# Matched over whitespace-collapsed text with emphasis and code markers removed: "protects
+# against", "protect against", "protected against", "protecting against", "prevents all",
+# "prevent all", "guarantees security".
+MARKUP = re.compile(r"[*_`]")
 FORBIDDEN = [
     re.compile(r"\bprotect(?:s|ed|ing)?\s+against\b", re.IGNORECASE),
     re.compile(r"\bprevents?\s+all\b", re.IGNORECASE),
@@ -96,14 +103,15 @@ CASE_ID = re.compile(r"`([a-z][a-z0-9.-]*)/([a-z0-9][a-z0-9_.-]*)`")
 # Tokens a Conformance field may name that are neither a case id nor a path.
 NON_CASE_TOKENS = {"npm run check-pack", "once"}
 SPEC_CASE = re.compile(
-    r"\b(memory|compute|conversation|network)\s+(N-?\d+(?:\s*(?:,|…|and)\s*N-?\d+)*)"
+    r"\b(memory|compute|conversation|network)\s+(N-?\d+(?:\s*(?:,|;|…|and)\s*N-?\d+)*)"
 )
-SPEC_CASE_RANGES = {
-    "memory": (1, 22),
-    "compute": (1, 27),
-    "conversation": (1, 43),
-    "network": (1, 46),
+SPEC_CASE_SPEC = {
+    "memory": "spec/memory-v0.md",
+    "compute": "spec/compute-v0.md",
+    "conversation": "spec/conversation-v0.md",
+    "network": "spec/network-v0.md",
 }
+SPEC_CASE_NUMBER = re.compile(r"\bN-?(\d+)\b")
 RULE_ID = re.compile(r"\b([MCVR])-(\d+)\b")
 RULE_SPEC = {
     "M": "spec/memory-v0.md",
@@ -130,6 +138,13 @@ def read(path: Path) -> str:
 @cache
 def read_cached(path: str) -> str:
     return read(Path(path))
+
+
+@cache
+def spec_case_numbers(family: str) -> frozenset[int]:
+    """The numbered negative cases (N1…, N-1…) the family's specification text holds."""
+    text = read_cached(str(ROOT / SPEC_CASE_SPEC[family]))
+    return frozenset(int(n) for n in SPEC_CASE_NUMBER.findall(text))
 
 
 def properties(text: str) -> list[dict]:
@@ -190,9 +205,9 @@ def known_case_ids(report_path: Path | None) -> tuple[set[str], set[str]]:
         for literal in re.findall(
             r'"([a-z][a-z0-9.-]*/[a-z0-9][a-z0-9_.-]*)"', read(run)
         ):
-            # A path literal in run.mjs is not a family; only ids whose family the report or a
-            # case list knows, or whose family looks like one, are added.
-            if literal.split("/", 1)[0] in families or "." not in literal:
+            # A path literal in run.mjs ("conformance/results") is not a case id: only a literal
+            # whose family the report or a case list knows is added.
+            if literal.split("/", 1)[0] in families:
                 ids.add(literal)
     return ids, families
 
@@ -220,8 +235,12 @@ def check_pointers(text: str, report: dict) -> None:
             missing_files.append(path)
             continue
         if symbol:
-            name = symbol.rsplit(".", 1)[-1]
-            if not re.search(r"\b" + re.escape(name) + r"\b", read(target)):
+            # `Class.method`: every component must occur in the file, so a renamed class fails.
+            body = read(target)
+            if any(
+                not re.search(r"\b" + re.escape(name) + r"\b", body)
+                for name in symbol.split(".")
+            ):
                 missing_symbols.append(f"{path}:{symbol}")
     report["pointers"] = {
         "count": len(seen),
@@ -256,10 +275,10 @@ def check_case_ids(text: str, props: list[dict], report: dict) -> None:
     out_of_range = []
     spec_count = 0
     for family, group in SPEC_CASE.findall(text):
-        low, high = SPEC_CASE_RANGES[family]
-        for number in re.findall(r"N-?(\d+)", group):
+        known_numbers = spec_case_numbers(family)
+        for number in SPEC_CASE_NUMBER.findall(group):
             spec_count += 1
-            if not low <= int(number) <= high:
+            if int(number) not in known_numbers:
                 out_of_range.append(f"{family} N-{number}")
     rule_missing = []
     rule_count = 0
@@ -328,35 +347,35 @@ def check_properties(props: list[dict], report: dict) -> list[str]:
     return none_experiment
 
 
-def defined_ids(text: str, props: list[dict]) -> dict[str, int]:
-    """The highest P-n, DF-n and UC-n the model defines."""
+def defined_ids(text: str, props: list[dict]) -> dict[str, set[int]]:
+    """The sets of P-n, DF-n and UC-n the model defines."""
     return {
-        "P": max((p["number"] for p in props), default=0),
-        "DF": max((int(n) for n in DF_HEADING.findall(text)), default=0),
-        "UC": max((int(n) for n in UC_HEADING.findall(text)), default=0),
+        "P": {p["number"] for p in props},
+        "DF": {int(n) for n in DF_HEADING.findall(text)},
+        "UC": {int(n) for n in UC_HEADING.findall(text)},
     }
 
 
 def check_citations(
-    text: str, props: list[dict], documents: list[Path], report: dict
+    model: Path, text: str, props: list[dict], documents: list[Path], report: dict
 ) -> None:
     """Every P-n, DF-n, UC-n cited from the model, the specs, the threat model and the READMEs."""
-    highest = defined_ids(text, props)
+    defined = defined_ids(text, props)
     unknown = []
     cited = 0
     missing = []
-    for path in [MODEL] + documents:
+    for path in [model] + documents:
         if not path.is_file():
             missing.append(str(path))
             continue
-        body = read(path) if path != MODEL else text
+        body = read(path) if path != model else text
         label = str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
         for kind, number in CITATION.findall(body):
             cited += 1
-            if int(number) < 1 or int(number) > highest[kind]:
+            if int(number) not in defined[kind]:
                 unknown.append(f"{label}: {kind}-{number}")
     report["citations"] = {
-        "defined": highest,
+        "defined": {kind: len(ids) for kind, ids in defined.items()},
         "documents": len(documents),
         "cited": cited,
         "missing_documents": missing,
@@ -369,21 +388,25 @@ def normalize_section(name: str) -> str:
     return re.sub(r"\s*\([^)]*\)\s*$", "", name).strip().lower()
 
 
-def check_threat_model_map(path: Path, report: dict) -> None:
-    """The front map of the threat model against the per-section Properties lines."""
+def check_threat_model_map(path: Path, defined: set[str], report: dict) -> None:
+    """The front map of the threat model against the per-section Properties lines, with no
+    duplicate row and a row for every property the model defines."""
     if not path.is_file():
         report["threat_model_map"] = {"status": "missing", "passed": False}
         return
     lines = read(path).splitlines()
     mapped: dict[str, set[str]] = {}
     declared: dict[str, set[str]] = {}
+    duplicates: list[str] = []
     heading = None
     for line in lines:
         row = MAP_ROW.match(line)
         if row:
-            mapped[row.group(1)] = {
+            if row.group(1) in mapped:
+                duplicates.append(row.group(1))
+            mapped.setdefault(row.group(1), set()).update(
                 normalize_section(s) for s in row.group(2).split(";") if s.strip()
-            }
+            )
             continue
         head = SECTION_HEADING.match(line)
         if head:
@@ -405,29 +428,42 @@ def check_threat_model_map(path: Path, report: dict) -> None:
                     "only_in_sections": only_sections,
                 }
             )
+    unmapped = sorted(defined - set(mapped), key=lambda p: int(p[2:]))
     report["threat_model_map"] = {
         "status": "checked",
         "mapped": len(mapped),
         "sections_declaring": len({s for v in declared.values() for s in v}),
         "mismatches": mismatches,
-        "passed": bool(mapped) and bool(declared) and not mismatches,
+        "duplicate_rows": sorted(set(duplicates), key=lambda p: int(p[2:])),
+        "unmapped": unmapped,
+        "passed": bool(mapped)
+        and bool(declared)
+        and not mismatches
+        and not duplicates
+        and not unmapped,
     }
 
 
 def collapsed(text: str):
-    """The text with every run of whitespace as one space, and a function from an index in that
-    text to the line of the original: one entry per word, not per character."""
+    """The text with every run of whitespace as one space and the Markdown emphasis and code
+    markers removed from every word, and a function from an index in that text to the line of the
+    original: one entry per word, not per character. A word that was only markers is dropped, so
+    `**protects** against`, `protects *against*` and `` `protects` against `` all read "protects
+    against"; a word only shrinks, so an index inside it stays on its line."""
     parts: list[str] = []
     starts: list[int] = []
     originals: list[int] = []
     position = 0
     for match in re.finditer(r"\S+", text):
+        word = MARKUP.sub("", match.group(0))
+        if not word:
+            continue
         if parts:
             position += 1
         starts.append(position)
         originals.append(match.start())
-        parts.append(match.group(0))
-        position += len(match.group(0))
+        parts.append(word)
+        position += len(word)
     newlines = [m.start() for m in re.finditer("\n", text)]
 
     def line_at(index: int) -> int:
@@ -529,8 +565,8 @@ def run_checks(
     check_case_ids(text, props, report)
     check_experiments(text, report)
     docs = cited_documents() if documents is None else documents
-    check_citations(text, props, docs, report)
-    check_threat_model_map(threat_model, report)
+    check_citations(model, text, props, docs, report)
+    check_threat_model_map(threat_model, {p["id"] for p in props}, report)
     wording_documents = [
         str(d.relative_to(ROOT)) if d.is_relative_to(ROOT) else str(d) for d in docs
     ]

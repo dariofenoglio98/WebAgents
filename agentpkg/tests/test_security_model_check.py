@@ -4,6 +4,7 @@ defect it exists for (T28 review 1, finding 19d), and the committed model passes
 from __future__ import annotations
 
 import importlib.util
+import re
 import shutil
 from pathlib import Path
 
@@ -199,4 +200,103 @@ def test_gap_list_names_every_unmeasured_property(checker, model_text, tmp_path)
     matrix.write_text("# Matrix\n\n## 2. Gaps\n\nnothing here\n\n## 3. More\n", encoding="utf-8")
     report = run(checker, tmp_path, model_text, evidence_matrix=matrix)
     assert report["evidence_matrix"]["missing_from_gap_list"] == ["P-19"]
+    assert not report["passed"]
+
+
+# T28 review 2: the phrase hidden by Markdown, and the script's small gaps (items 2…8).
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "The runtime **protects** against X.",
+        "The runtime protects *against* X.",
+        "The runtime `protects` against X.",
+        "The runtime _protects_ ** against X.",
+    ],
+)
+def test_forbidden_phrase_hidden_by_markup(checker, model_text, tmp_path, sentence):
+    report = run(checker, tmp_path, model_text + "\n\n" + sentence + "\n")
+    hits = [h for h in report["wording"]["forbidden"] if h["file"] == str(tmp_path / "model.md")]
+    assert [h["phrase"] for h in hits] == ["protects against"]
+    assert hits[0]["line"] == model_text.count("\n") + 3
+    assert not report["passed"]
+
+
+def test_removed_id_inside_a_range_is_not_citable(checker, model_text, tmp_path):
+    text = replace_once(model_text, "#### DF-4 · ", "#### DF-four · ")
+    other = tmp_path / "spec.md"
+    other.write_text("See DF-4 and DF-10.\n", encoding="utf-8")
+    report = run(checker, tmp_path, text, documents=[other])
+    assert report["citations"]["defined"]["DF"] == 9
+    assert f"{other}: DF-4" in report["citations"]["unknown"]
+    assert not report["passed"]
+
+
+def test_citations_are_labelled_with_the_given_model(checker, model_text, tmp_path):
+    report = run(checker, tmp_path, model_text + "\n\nAlso P-99.\n")
+    assert report["citations"]["unknown"] == [f"{tmp_path / 'model.md'}: P-99"]
+    assert report["citations"]["missing_documents"] == []
+    assert not report["passed"]
+
+
+def test_spec_numbered_case_after_a_semicolon(checker, model_text, tmp_path):
+    text = replace_once(model_text, "conversation N-23; N-40", "conversation N-23; N-99")
+    report = run(checker, tmp_path, text)
+    assert report["case_ids"]["spec_numbered_out_of_range"] == ["conversation N-99"]
+    assert not report["passed"]
+
+
+def test_spec_numbered_cases_come_from_the_specifications(checker):
+    assert checker.spec_case_numbers("memory") == frozenset(range(1, 23))
+    assert checker.spec_case_numbers("compute") == frozenset(range(1, 28))
+    assert checker.spec_case_numbers("conversation") == frozenset(range(1, 44))
+    assert checker.spec_case_numbers("network") == frozenset(range(1, 47))
+
+
+def test_dotted_pointer_with_a_renamed_class(checker, model_text, tmp_path):
+    text = replace_once(
+        model_text,
+        "`agentpkg/src/agentpkg/runtime.py:Runtime.call_tool`",
+        "`agentpkg/src/agentpkg/runtime.py:Runtim.call_tool`",
+    )
+    report = run(checker, tmp_path, text)
+    assert report["pointers"]["missing_symbols"] == [
+        "agentpkg/src/agentpkg/runtime.py:Runtim.call_tool"
+    ]
+    assert not report["passed"]
+
+
+def test_run_mjs_path_literals_are_not_case_ids(checker, model_text):
+    report_path, error = checker.cited_report(model_text)
+    assert error is None
+    ids, families = checker.known_case_ids(report_path)
+    assert "conformance/results" not in ids and "agents/meeting-agenda" not in ids
+    assert {"memory", "compute", "conversation", "network"} <= families
+
+
+def test_threat_model_map_duplicate_row(checker, model_text, tmp_path):
+    copy = tmp_path / "threat-model.md"
+    lines = checker.read(checker.THREAT_MODEL).splitlines(keepends=True)
+    row = next(line for line in lines if line.startswith("| P-3 "))
+    index = lines.index(row)
+    copy.write_text("".join(lines[: index + 1] + [row] + lines[index + 1 :]), encoding="utf-8")
+    report = run(checker, tmp_path, model_text, threat_model=copy)
+    assert report["threat_model_map"]["duplicate_rows"] == ["P-3"]
+    assert report["threat_model_map"]["mismatches"] == []
+    assert not report["passed"]
+
+
+def test_threat_model_map_names_every_property(checker, model_text, tmp_path):
+    copy = tmp_path / "threat-model.md"
+    text = "".join(
+        line
+        for line in checker.read(checker.THREAT_MODEL).splitlines(keepends=True)
+        if not line.startswith("| P-19 ")
+    )
+    text = re.sub(r",? P-19\b(?: \(the reference shell\))?", "", text)
+    copy.write_text(text, encoding="utf-8")
+    report = run(checker, tmp_path, model_text, threat_model=copy)
+    assert report["threat_model_map"]["unmapped"] == ["P-19"]
+    assert report["threat_model_map"]["mismatches"] == []
     assert not report["passed"]

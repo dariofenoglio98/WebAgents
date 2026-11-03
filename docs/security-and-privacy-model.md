@@ -121,7 +121,7 @@ and it is one explicit, revocable choice (P-4, P-18). **An operator binding file
 every other host setting: it can only add entries of the service-neutral JSON-HTTP adapter, which
 still have to land inside the package's declared domain and be approved by the person. **A host
 adapter** the operator approved is inside the trusted base (§1.2). **A preset** (Chrome core)
-pre-decides, within the declaration, the decisions the person chose it for, never a payment and
+pre-accepts, within the declaration, the steps the person chose it for, never a payment and
 never a personal record (P-4, P-16).
 
 ### 1.6 Outside the trusted base
@@ -150,7 +150,7 @@ compromised, careless or merely faulty; the cause is never assumed and nothing d
 | **A-TOOL** a remote tool service, or its compromised response | what it answers to approved calls | the arguments of calls bound to it | any JSON, markup, text, status, headers | inject instructions; return out-of-contract data; redirect; stall | be reached without a declaration, binding and approval (P-8); redirect the runtime (P-8); be used outside its output schema (P-6, P-10); stall past the deadline (P-9); turn text into authority (P-18) |
 | **A-PEER** a peer role of a network (later: another publisher's package or a remote agent) | its message to the next role; its patch to the shared state within its view | its own view of the state and the message it received | a message under the declared schema; a route choice among the enum | steer the next role; read or write beyond its view; loop | read or write outside its view (P-17); route outside the edges and caps (P-7); call tools its worker was not given (P-4) |
 | **A-MEM** a memory record: poisoned, imported, or proposed by another publisher | its own content | — | text, fields, links that a later run reads as data | plant an instruction the next run follows; leak through a proposal; persist | be read as an instruction (P-14); name a tool, permission or destination (P-14); be recalled without a declared type and the person's choice (P-12); be written without review (P-14) |
-| **A-ISS** an index or policy issuer | what it lists; what its anchors trust; which defaults it sets | — | signed documents the person subscribed to | put a look-alike agent in front of the person; make an untrusted key trusted; loosen defaults | grant anything by listing (P-18); raise a limit, pick a record, pre-decide a payment or exceed what a package declares (P-18, P-16); override the person's own pins (P-2) |
+| **A-ISS** an index or policy issuer | what it lists; what its anchors trust; which defaults it sets | — | signed documents the person subscribed to | put a look-alike agent in front of the person; make an untrusted key trusted; loosen defaults | grant anything by listing (P-18); raise a limit, pick a record, pre-accept a payment or exceed what a package declares (P-18, P-16); override the person's own pins (P-2) |
 | **A-NET** an on-path or DNS adversary | DNS answers; the path (TLS assumed sound) | ciphertext | a rebinding answer; a private address for a public name | reach the person's network through the runtime | be followed to a non-public address or through a redirect where addresses are classified (P-8; the extension's limit and the reference shell's unpinned connection are stated there) |
 
 ### 2.2 The compromised model
@@ -832,9 +832,10 @@ before the call); every tool with write side effects must be gated, the host's o
 constructed, with their provenance, beside the model's sentence; the decision is the host's record
 of the person's answer. A step whose permission the plan denies, or whose `once` the conversation
 already spent, is not asked, and a transcript's yes for it is refused: a step narrows the plan and
-never widens it. In the Chrome core, a preset or a policy may pre-decide a step only for kinds
-that are neither `payment` nor `personal.read` (`NEVER_PRE_DECIDED_KINDS`), and a policy can only
-lower; the reference has no presets or policies and records whatever provenance its host reports.
+never widens it. In the Chrome core, a preset may pre-accept a step only for kinds that are
+neither `payment` nor `personal.read` (`NEVER_PRE_DECIDED_KINDS`), and a policy can only lower: it
+refuses pre-acceptance or denies the steps of a kind, `payment` included, with provenance `policy`;
+the reference has no presets or policies and records whatever provenance its host reports.
 A decision lives for its turn; the absence of a yes is a no.
 
 **Adversary.** A-MODEL skipping the ask or arguing for a yes; injected self-approval (A-ORIG,
@@ -920,7 +921,7 @@ no script, link or attachment handling, in a bounded child process (the referenc
 Worker (the extension). Indexes and policies are Chrome-core features with no Python counterpart. A
 signed policy is delegated trust and delegated defaults, pinned by the person at subscription: it
 may make a key trusted within its anchors' scope and lower limits; it can never raise a limit, pick
-a record, pre-decide a payment or exceed what a package declares, and unsubscribing withdraws
+a record, pre-accept a payment or exceed what a package declares, and unsubscribing withdraws
 everything it did.
 
 **Adversary.** A-ORIG (a compromised page or a visitor-injected `<link>`); A-ISS (a stale or
@@ -1333,6 +1334,14 @@ consent and (planned) request, and can revoke what was remembered (P-4, P-12, P-
   the model transport); §2.2 reads "spend past a reported overrun" and names denial; conformance
   cases moved to the property they test; §4 lists the reference shell's gaps; §5 states P-13's
   scope at every mention.
+- **Version 2, corrected after review 2 (2026-11-02, T28).** Wording only. P-16 and §1.5 say a preset
+  *pre-accepts* (a policy's `forbid_kinds` pre-decides a denial of any kind, `payment` included, so
+  the floor is on acceptance); the threat model's poisoning row carries P-14's sentences (the M-35
+  label unapplied, B-263), its nondeterminism row P-15's (the gate's instruction set and C-47's two
+  exceptions), and its consent-floor row the same pre-accept wording. The checking script reads a
+  phrase through Markdown emphasis and code markers, takes the spec-numbered case ids from the
+  specifications' text, checks a cited DF-n or UC-n against the set of defined ids, every component
+  of a dotted pointer, and the threat model's map for duplicate rows and for every property.
 - **Version 1** is [threat-model.md](threat-model.md): the per-boundary notes written with each
   milestone from the format to Agent Delegation. They are kept as the implementation notes of this
   model: each section states the properties it implements, and nothing a specification cites was
