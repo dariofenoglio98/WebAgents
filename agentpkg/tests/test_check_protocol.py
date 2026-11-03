@@ -118,6 +118,30 @@ def test_unknown_dataflow_and_consent_ids_fail(checker, tmp_path, protocol_text)
     assert any("undefined CB ids cited: CB-12" in p for p in problems)
 
 
+def test_a_range_cites_every_id_between_its_endpoints(checker, tmp_path, protocol_text):
+    assert {f"P-{n}" for n in range(12, 18)} <= checker.cited_ids("P-12…P-17")["P"]
+    assert checker.cited_ids("CB-2...CB-4")["CB"] == {"CB-2", "CB-3", "CB-4"}
+    # A model that defines P-1 and P-3 only: the range P-1…P-3 cites the undefined P-2.
+    model = tmp_path / "model.md"
+    model.write_text("## 3. Properties\n\n### P-1 · one\n\n### P-3 · three\n", encoding="utf-8")
+    path = tmp_path / "PROTOCOL.md"
+    path.write_text(protocol_text + "\nP-1…P-3\n", encoding="utf-8")
+    problems = checker.check(path, model)["problems"]
+    assert any(p.startswith("undefined P ids cited: P-2,") for p in problems), problems
+
+
+def test_defined_ids_are_check_security_models(checker, monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT / "scripts"))
+    import check_security_model
+
+    text = MODEL.read_text(encoding="utf-8")
+    theirs = check_security_model.defined_ids(text, check_security_model.properties(text))
+    ours = checker.defined_ids(text)
+    for kind, numbers in theirs.items():
+        assert ours[kind] == {f"{kind}-{n}" for n in numbers}
+    assert ours["CB"] == {f"CB-{n}" for n in range(1, 12)}
+
+
 def test_unknown_experiment_id_fails(checker, tmp_path, protocol_text):
     mutated = protocol_text.replace("Shared with E3:", "Shared with E13:", 1)
     assert mutated != protocol_text

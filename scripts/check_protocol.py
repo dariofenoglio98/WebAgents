@@ -9,7 +9,8 @@ Prints JSON with `"passed"` and exits 1 on failure. Nothing here changes a file.
   required field (`**Question.**` … `**Defects.**`, the list in `REQUIRED_FIELDS`), in that order; a planned
   experiment (`### EL`) needs only `**Question.**` and `**Status.**` until an amendment registers it;
 * every `P-n`, `DF-n` and `UC-n` cited is defined by the security and privacy model
-  (`docs/security-and-privacy-model.md`, its `### P-n` / `#### DF-n` / `UC-n` headings); every `CB-n`
+  (`docs/security-and-privacy-model.md`, read by `check_security_model.py`'s own `properties` and
+  `defined_ids`); a range such as `P-12…P-17` cites every id between its endpoints; every `CB-n`
   is in 1…11; every numbered experiment id cited anywhere is one of E1…E10; a lettered id (EA, EL) is
   checked where experiments are named (the scope table's first column, the build map's cells and the
   section headings), so prose such as "EU" is never read as an experiment;
@@ -36,7 +37,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_security_model import FORBIDDEN, collapsed
+from check_security_model import FORBIDDEN, collapsed, properties, read
+from check_security_model import defined_ids as model_defined_ids
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROTOCOL = ROOT / "experiments" / "PROTOCOL.md"
@@ -68,26 +70,32 @@ CB_RANGE = range(1, 12)
 
 SECTION_RE = re.compile(r"^### (E\d+|E[A-Z]) · ", re.MULTILINE)
 HEADING_RE = re.compile(r"^#{1,4} ", re.MULTILINE)
-PROPERTY_DEF_RE = re.compile(r"^### (P-\d+) · ", re.MULTILINE)
-DF_DEF_RE = re.compile(r"^#### (DF-\d+) · ", re.MULTILINE)
-UC_DEF_RE = re.compile(r"\*\*(UC-\d+) ", re.MULTILINE)
 CITATION_RE = re.compile(r"\b(P|DF|UC|CB)-(\d+)\b")
+# A range such as `P-12…P-17` or `CB-1…CB-11` cites every id between its endpoints.
+CITATION_RANGE_RE = re.compile(r"\b(P|DF|UC|CB)-(\d+)\s*(?:…|\.\.\.)\s*(?:\1-)?(\d+)\b")
 NUMBERED_EXPERIMENT_RE = re.compile(r"\bE(\d+)\b")
 LETTERED_EXPERIMENT_RE = re.compile(r"\bE([A-Z])\b")
 TASK_RE = re.compile(r"\bT(\d+)\b")
 
 
-def read(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
-
-
 def defined_ids(model_text: str) -> dict[str, set[str]]:
-    return {
-        "P": set(PROPERTY_DEF_RE.findall(model_text)),
-        "DF": set(DF_DEF_RE.findall(model_text)),
-        "UC": set(UC_DEF_RE.findall(model_text)),
-        "CB": {f"CB-{n}" for n in CB_RANGE},
-    }
+    """The P-n, DF-n and UC-n the model defines, by `check_security_model.py`'s own reading of its
+    headings (so the two checks cannot drift), and the consent-bypass items CB-1…CB-11."""
+    numbers = model_defined_ids(model_text, properties(model_text))
+    known = {kind: {f"{kind}-{n}" for n in ids} for kind, ids in numbers.items()}
+    known["CB"] = {f"CB-{n}" for n in CB_RANGE}
+    return known
+
+
+def cited_ids(text: str) -> dict[str, set[str]]:
+    """Every P/DF/UC/CB id the text cites, a range counting every id between its endpoints."""
+    cited: dict[str, set[str]] = {"P": set(), "DF": set(), "UC": set(), "CB": set()}
+    for kind, number in CITATION_RE.findall(text):
+        cited[kind].add(f"{kind}-{number}")
+    for kind, first, last in CITATION_RANGE_RE.findall(text):
+        for number in range(int(first), int(last) + 1):
+            cited[kind].add(f"{kind}-{number}")
+    return cited
 
 
 def experiment_sections(text: str) -> dict[str, str]:
@@ -178,9 +186,7 @@ def check(protocol_path: Path, model_path: Path) -> dict:
             problems.append(f"unknown experiment section {extra}")
 
     # 2. Citations.
-    cited: dict[str, set[str]] = {"P": set(), "DF": set(), "UC": set(), "CB": set()}
-    for kind, number in CITATION_RE.findall(text):
-        cited[kind].add(f"{kind}-{number}")
+    cited = cited_ids(text)
     for kind, ids in cited.items():
         unknown = sorted(ids - known[kind], key=lambda s: int(s.split("-")[1]))
         if unknown:
