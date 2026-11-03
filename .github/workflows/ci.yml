@@ -91,7 +91,8 @@ jobs:
                         verify_literature_023 verify_literature_024 verify_literature_025 \
                         verify_literature_026 verify_literature_027 \
                         verify_webair verify_webair_discovery check_memory_spec \
-                        verify_compute verify_conversation verify_network; do
+                        verify_compute verify_conversation verify_network \
+                        check_security_model; do
             report="$RUNNER_TEMP/$script.json"
             agentpkg/.venv/bin/python "scripts/$script.py" > "$report"
             # The scripts report failures in their JSON, not in their exit status.

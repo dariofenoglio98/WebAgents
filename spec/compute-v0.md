@@ -39,6 +39,8 @@ maximum is above the host's ceiling (refused, never lowered); any proposal outsi
 set of §3.3. A runtime that implements this specification refuses each of these before the
 boundary it protects, with the codes of §2–§6.
 
+**Properties.** This specification implements P-3 and P-15 of [the security and privacy model](../docs/security-and-privacy-model.md#3-properties); a change to one of them is a new version of both documents (D-336).
+
 ## 2. Declarations
 
 ### 2.1 The graph's modules

@@ -251,6 +251,8 @@ answer is data the step shows. It is not a second approval of a tool: the tool's
 plan's; the step confirms this use of it, with these facts. And it does not make a turn
 interactive beyond itself: the person's message is the only other input of a turn.
 
+**Properties.** This specification implements P-9, P-11 and P-16 of [the security and privacy model](../docs/security-and-privacy-model.md#3-properties); a change to one of them is a new version of both documents (D-336).
+
 ## 5. Budgets
 
 V-10. **Per turn, the package's budgets; per conversation, the object's; the turn is reserved

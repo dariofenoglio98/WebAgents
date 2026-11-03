@@ -838,6 +838,8 @@ policy's provenance like any other (D-102) and a policy can never grant: it only
 | run | `tool_request_invalid`, `tool_unavailable` | M-35 |
 | store | `store_locked`, `sealed_value_in_text`, `sealed_field_invalid`, `body_reserved_marker`, `memory_record_too_large`, `supersedes_cycle`, `superseded_twice`, `type_in_use`, `memory_full`, `frontmatter_invalid` | §2, §5, §7.3 |
 
+**Properties.** This specification implements P-12, P-13 and P-14 (and, planned, DF-1…DF-10 of its §5.4) of [the security and privacy model](../docs/security-and-privacy-model.md#3-properties); a change to one of them is a new version of both documents (D-336).
+
 ## 8. Export and import (D-215)
 
 ### 8.1 The folder

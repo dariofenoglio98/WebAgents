@@ -128,6 +128,8 @@ UTF8("Agent Package v0.1 publisher signature") || 0x00 || JCS(integrity_statemen
 
 Private keys are unencrypted PKCS#8 PEM in owner-only mode 0600 outside package sources/artifacts. Public keys are SubjectPublicKeyInfo PEM. `keygen` refuses overwrites and identical destinations. `sign` refuses group/world-readable private keys and symlink key files. Demo public keys are local provenance aids, not an independent certification or a production identity infrastructure. Revocation, rotation, transparency logs, certificate chains and threshold signatures are future work.
 
+**Properties.** This specification implements P-1, P-2 and P-3 of [the security and privacy model](../docs/security-and-privacy-model.md#3-properties); a change to one of them is a new version of both documents (D-336).
+
 ## 9. Evals, attestations, provenance, and installation
 
 Eval documents use `{spec_version,id,description,cases:[{id,input,assertions}],extensions}`. The package declares tests; installed trusted code implements their meanings. A generic package cannot execute arbitrary test code. Runtime eval output records what ran and distinguishes deterministic fixture assertions, live external results, and optional model judgments. Merely packaging an eval does not mean it passed.

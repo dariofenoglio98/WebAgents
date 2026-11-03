@@ -19,6 +19,8 @@ evaluated against the person's own trust store, and authorization starts from no
 index claimed (a digest, a signer) is only compared with what the bytes prove, and a difference is
 shown, not obeyed. An index's signature says who listed the agents, nothing about the agents.
 
+**Properties.** This specification implements P-2 and P-18 (a signed document is metadata or delegated trust; it grants nothing by itself) of [the security and privacy model](../../docs/security-and-privacy-model.md#3-properties); a change to one of them is a new version of both documents (D-336).
+
 ## 2. Content
 
 ```json

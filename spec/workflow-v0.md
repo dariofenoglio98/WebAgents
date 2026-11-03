@@ -163,6 +163,8 @@ The Agent Browser execution host installs one generic handler per bound tool: `a
 
 Fixture handlers are the same generic exact-input replay mechanism for every tool. A declared remote fixture tool counts against its remote-call budget even though it performs no network I/O. This exercises enforcement without spending real calls. Production networking retains the existing HTTPS allowlist, public DNS pinning, no-redirect transport and killable network child.
 
+**Properties.** This specification implements P-3, P-4, P-6, P-7, P-8, P-9, P-10, P-11 and P-17 of [the security and privacy model](../docs/security-and-privacy-model.md#3-properties); a change to one of them is a new version of both documents (D-336).
+
 ## 9. Failures, deadlines and cancellation
 
 The profile declares no automatic retries, repairs, exception-swallowing branches or partial-success maps. Tool `retries` must remain zero. The bounded re-asks of §7 and host retries of idempotent reads of §8 are host behaviour within every package bound; the package's semantics are unchanged by them, and a fixture run sees neither. A service response such as an unresolved lookup is ordinary schema-validated data; a raised provider exception is a failure.
