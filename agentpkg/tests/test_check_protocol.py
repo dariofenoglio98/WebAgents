@@ -158,6 +158,18 @@ def test_registration_section_required(checker, tmp_path, protocol_text):
     assert any("registration section" in p for p in problems)
 
 
+def test_planned_experiment_needs_question_and_status(checker, tmp_path, protocol_text):
+    start = protocol_text.index("### EL · ")
+    mutated = protocol_text[:start] + protocol_text[start:].replace("**Status.**", "**State.**", 1)
+    problems = _problems(checker, tmp_path, mutated)
+    assert any("EL (planned): field 'Status' is missing" in p for p in problems)
+
+
+def test_unknown_lettered_experiment_fails(checker, tmp_path, protocol_text):
+    problems = _problems(checker, tmp_path, protocol_text.replace("(E2 + E3)", "(E2 + EZ)", 1))
+    assert any("unknown experiment id cited: EZ" in p for p in problems)
+
+
 def test_forbidden_phrase_fails(checker, tmp_path, protocol_text):
     mutated = protocol_text.replace(
         "The runtime **bounds**", "The runtime **protects** against everything and **bounds**", 1

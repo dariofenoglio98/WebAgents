@@ -6,7 +6,8 @@
 Prints JSON with `"passed"` and exits 1 on failure. Nothing here changes a file. The checks:
 
 * every experiment section (`### E1` … `### E10`, `### EA`) exists exactly once and carries every
-  required field (`**Question.**` … `**Defects.**`, the list in `REQUIRED_FIELDS`), in that order;
+  required field (`**Question.**` … `**Defects.**`, the list in `REQUIRED_FIELDS`), in that order; a planned
+  experiment (`### EL`) needs only `**Question.**` and `**Status.**` until an amendment registers it;
 * every `P-n`, `DF-n` and `UC-n` cited is defined by the security and privacy model
   (`docs/security-and-privacy-model.md`, its `### P-n` / `#### DF-n` / `UC-n` headings); every `CB-n`
   is in 1…11; every experiment id cited is one of E1…E10, EA;
@@ -33,6 +34,9 @@ DEFAULT_PROTOCOL = ROOT / "experiments" / "PROTOCOL.md"
 DEFAULT_MODEL = ROOT / "docs" / "security-and-privacy-model.md"
 
 EXPERIMENTS = [f"E{n}" for n in range(1, 11)] + ["EA"]
+# Planned experiments: a section may exist with `Question` and `Status` only; registered by amendment.
+PLANNED_EXPERIMENTS = ["EL"]
+PLANNED_FIELDS = ["Question", "Status"]
 TASKS = [f"T{n}" for n in range(31, 39)]
 REQUIRED_FIELDS = [
     "Question",
@@ -59,13 +63,13 @@ FORBIDDEN_PHRASES = (
     "guarantees security",
 )
 
-SECTION_RE = re.compile(r"^### (E\d+|EA) · ", re.MULTILINE)
+SECTION_RE = re.compile(r"^### (E\d+|E[A-Z]) · ", re.MULTILINE)
 HEADING_RE = re.compile(r"^#{1,4} ", re.MULTILINE)
 PROPERTY_DEF_RE = re.compile(r"^### (P-\d+) · ", re.MULTILINE)
 DF_DEF_RE = re.compile(r"^#### (DF-\d+) · ", re.MULTILINE)
 UC_DEF_RE = re.compile(r"\*\*(UC-\d+) ", re.MULTILINE)
 CITATION_RE = re.compile(r"\b(P|DF|UC|CB)-(\d+)\b")
-EXPERIMENT_CITATION_RE = re.compile(r"\bE(\d+|A)\b")
+EXPERIMENT_CITATION_RE = re.compile(r"\bE(\d+|[A-Z])\b")
 TASK_RE = re.compile(r"\bT(\d+)\b")
 
 
@@ -141,7 +145,12 @@ def check(protocol_path: Path, model_path: Path) -> dict:
         if built_by is not None and not TASK_RE.search(built_by):
             problems.append(f"{experiment}: 'Built by' names no task")
     for extra in sections:
-        if extra not in EXPERIMENTS:
+        if extra in PLANNED_EXPERIMENTS:
+            body = sections[extra] or ""
+            for field in PLANNED_FIELDS:
+                if f"**{field}.**" not in body:
+                    problems.append(f"{extra} (planned): field {field!r} is missing")
+        elif extra not in EXPERIMENTS:
             problems.append(f"unknown experiment section {extra}")
 
     # 2. Citations.
@@ -154,7 +163,7 @@ def check(protocol_path: Path, model_path: Path) -> dict:
             problems.append(f"undefined {kind} ids cited: {', '.join(unknown)}")
     for number in set(EXPERIMENT_CITATION_RE.findall(text)):
         experiment = f"E{number}"
-        if experiment not in EXPERIMENTS:
+        if experiment not in EXPERIMENTS and experiment not in PLANNED_EXPERIMENTS:
             problems.append(f"unknown experiment id cited: {experiment}")
 
     # 3. The build map.
