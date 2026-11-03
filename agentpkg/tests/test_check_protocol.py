@@ -119,7 +119,9 @@ def test_unknown_dataflow_and_consent_ids_fail(checker, tmp_path, protocol_text)
 
 
 def test_unknown_experiment_id_fails(checker, tmp_path, protocol_text):
-    problems = _problems(checker, tmp_path, protocol_text.replace("(E2 + E3)", "(E2 + E13)", 1))
+    mutated = protocol_text.replace("Shared with E3:", "Shared with E13:", 1)
+    assert mutated != protocol_text
+    problems = _problems(checker, tmp_path, mutated)
     assert any("unknown experiment id cited: E13" in p for p in problems)
 
 
@@ -166,8 +168,56 @@ def test_planned_experiment_needs_question_and_status(checker, tmp_path, protoco
 
 
 def test_unknown_lettered_experiment_fails(checker, tmp_path, protocol_text):
-    problems = _problems(checker, tmp_path, protocol_text.replace("(E2 + E3)", "(E2 + EZ)", 1))
+    mutated = protocol_text.replace("| T37 EA |", "| T37 EZ |", 1)
+    assert mutated != protocol_text
+    problems = _problems(checker, tmp_path, mutated)
     assert any("unknown experiment id cited: EZ" in p for p in problems)
+
+
+def test_lettered_word_in_prose_is_not_an_experiment(checker, tmp_path, protocol_text):
+    mutated = protocol_text.replace(
+        "Every datum is invented;", "Every datum is invented (no EU or ES resident);", 1
+    )
+    assert mutated != protocol_text
+    report = _run(checker, tmp_path, mutated)
+    assert report["passed"], report["problems"]
+
+
+def test_duplicate_planned_section_is_reported_as_duplicate(checker, tmp_path, protocol_text):
+    start = protocol_text.index("### EL · ")
+    end = protocol_text.index("## 4. ")
+    mutated = protocol_text[:end] + protocol_text[start:end] + protocol_text[end:]
+    problems = _problems(checker, tmp_path, mutated)
+    assert any("EL appears more than once" in p for p in problems)
+    assert not any("EL (planned): field" in p for p in problems)
+
+
+@pytest.mark.parametrize("task", ["T30", "T39", "T64"])
+def test_build_map_requires_t30_t39_and_t64(checker, tmp_path, protocol_text, task):
+    lines = protocol_text.splitlines(keepends=True)
+    index = next(i for i, line in enumerate(lines) if line.startswith(f"| {task} "))
+    del lines[index]
+    problems = _problems(checker, tmp_path, "".join(lines))
+    assert any(f"the build map does not name {task}" in p for p in problems)
+
+
+def test_build_map_reads_only_the_first_cell(checker, tmp_path, protocol_text):
+    lines = protocol_text.splitlines(keepends=True)
+    index = next(i for i, line in enumerate(lines) if line.startswith("| T35 "))
+    lines[index] = "| the compromised model | as T35 says | §4 E10 |\n"
+    problems = _problems(checker, tmp_path, "".join(lines))
+    assert any("the build map does not name T35" in p for p in problems)
+
+
+def test_sha256_is_over_the_bytes(checker, tmp_path, protocol_text):
+    import hashlib
+
+    path = tmp_path / "PROTOCOL.md"
+    path.write_bytes(protocol_text.replace("\n", "\r\n").encode("utf-8"))
+    report = checker.check(path, MODEL)
+    assert report["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+    committed = checker.check(PROTOCOL, MODEL)["sha256"]
+    assert committed == hashlib.sha256(PROTOCOL.read_bytes()).hexdigest()
 
 
 def test_forbidden_phrase_fails(checker, tmp_path, protocol_text):
@@ -176,3 +226,26 @@ def test_forbidden_phrase_fails(checker, tmp_path, protocol_text):
     )
     problems = _problems(checker, tmp_path, mutated)
     assert any("forbidden phrase present: 'protects against'" in p for p in problems)
+
+
+@pytest.mark.parametrize(
+    "wording",
+    [
+        "The runtime is **protected** against everything and **bounds**",
+        "The runtime `protects` against everything and **bounds**",
+        "The runtime is protecting\nagainst everything and **bounds**",
+        "The runtime prevents all leaks and **bounds**",
+    ],
+)
+def test_forbidden_wording_matches_check_security_model(checker, tmp_path, protocol_text, wording):
+    mutated = protocol_text.replace("The runtime **bounds**", wording, 1)
+    assert mutated != protocol_text
+    problems = _problems(checker, tmp_path, mutated)
+    assert any("forbidden phrase present" in p for p in problems), problems
+
+
+def test_forbidden_patterns_are_check_security_models(checker):
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import check_security_model
+
+    assert checker.FORBIDDEN is check_security_model.FORBIDDEN
