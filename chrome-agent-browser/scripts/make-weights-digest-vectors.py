@@ -10,6 +10,8 @@ import pathlib
 
 HERE = pathlib.Path(__file__).resolve().parent
 OUT = HERE.parent / "test" / "fixtures" / "weights-digest-vectors.json"
+SPIKE = HERE.parent.parent / "examples" / "verification" / "chrome-inbrowser-spike-t40.json"
+SPIKE_SHA256 = json.loads(SPIKE.read_text())["model"]["sha256"]
 
 
 def digest(files: list[str]) -> str:
@@ -25,7 +27,8 @@ VECTORS = [
     {"name": "one file", "files": [h("part-1")]},
     {"name": "two files out of order", "files": [h("part-2"), h("part-1")]},
     {"name": "three files, a split model", "files": [h("00003-of-00003"), h("00001-of-00003"), h("00002-of-00003")]},
-    {"name": "the spike's Qwen3-0.6B Q4_0 (Hugging Face's LFS digest)", "files": ["da2572f16c061335" + h("spike")[16:]]},
+    # The real digest, copied by the script from the committed evidence (model.sha256), never typed.
+    {"name": "the spike's Qwen3-0.6B Q4_0 (Hugging Face's LFS digest, examples/verification/chrome-inbrowser-spike-t40.json)", "files": [SPIKE_SHA256]},
     {"name": "all zero and all f sort bytewise", "files": ["f" * 64, "0" * 64]},
 ]
 for vector in VECTORS:

@@ -1,7 +1,8 @@
 # In-browser inference: the default local route
 
-*Design document, T40 (2026-11-02). Status: at the gate. Decisions D-440…D-448 are recorded in
-`DECISIONS.md` when the gate approves them; the build is T41.*
+*Design document, T40 (2026-11-02). Status: approved at the gate on 2026-11-02 (D-440…D-448 in
+`DECISIONS.md`); revised after review 1 the same day (the KV cache's head widths, a fourth
+recommendation bin, an unknown fit refused, every number cited by its report); the build is T41.*
 
 A person installs the extension once. From then on, a package that needs a model can run on an
 open-weight model that the extension itself executes on the machine's GPU, inside the browser,
@@ -9,8 +10,10 @@ with no Ollama, no helper and no server (D-310, D-311). The model's weights are 
 evictable browser cache, never an installation. This document settles what T41 builds: the engine,
 where it runs, the contract the core sees, the catalog, the recommendations, consent and cache, the
 route card's words, the installer, the Web Store reading and the risks. Every fact marked
-**[measured]** comes from the spike report `examples/verification/chrome-inbrowser-spike-t40.json`
-(headless Chrome 156.0.8078.48 on this M3 Max, 36 GB), **[V]** from a primary source read on
+**[measured]** comes from a committed report in `examples/verification/`: the spike
+`chrome-inbrowser-spike-t40.json` (headless Chrome 156.0.8078.48 on this M3 Max, 36 GB), its runs
+with thinking on (`…-t40-thinking.json`) and on the 4B (`…-t40-qwen3-4b.json`), and the GGUF header
+facts of the two spike models (`chrome-inbrowser-gguf-headers-t40.json`); **[V]** from a primary source read on
 2026-11-02, **[S]** from a secondary source, **[U]** is unverified.
 
 The vision in one sentence (`private/documents/program/vision.md` §1): *an agent published anywhere
@@ -60,7 +63,7 @@ Versions read from the npm registry on 2026-11-02 **[V]**.
 ("any open-weight model"). (2) Its structured output is llama.cpp's own JSON-schema grammar, the path
 Ollama's `format` already uses for the accepted local Literature Review runs, and the spike shows it
 holds the contract: a WebAir `interpret` answer valid against `plan.schema.json` on a 0.6B model,
-with and without thinking **[measured]**. (3) It ships as one wasm the extension bundles, with no
+with and without thinking **[measured: `chrome-inbrowser-spike-t40.json`, `…-t40-thinking.json`]**. (3) It ships as one wasm the extension bundles, with no
 run-time code fetch, so the Web Store reading is clean. WebLLM is faster at prefill on its curated
 set but fetches a per-model wasm library from GitHub at run time, which is remote code under the
 Manifest V3 policy unless every curated library is bundled; Transformers.js's structured output is
@@ -114,12 +117,24 @@ context or model" and never retries by itself (principle 6).
 **GPU memory budget and "does it fit".** No web API reports GPU memory, and a load that does not fit
 ends as a dead Worker or a crawl, not an error. The design is therefore *estimate before, measure
 after*: before a load, `estimate = weights bytes + KV cache bytes + overhead` where
-`KV = 2 × n_layer × n_ctx × n_kv_heads × head_dim × 2 bytes (f16)` from the GGUF header (read by the
-shell from the cached file's first bytes: the GGUF key-value section lists `*.block_count`,
-`*.attention.head_count_kv`, `*.embedding_length`, `*.context_length`), overhead 15 % of the weights
-plus 512 MB; the budget is the machine class of §6; a load whose estimate exceeds the budget is
-refused *before the run* with both numbers in the message. After a successful load, the entry
-records "ran at n_ctx N on this machine" (`measured`), which outranks the estimate next time.
+`KV = n_layer × n_ctx × n_kv_heads × (key_length + value_length) × 2 bytes (f16)`, the K and the V
+widths per head taken separately, from the GGUF header the shell reads from the cached file's
+first bytes (the key-value section; T40's reference reader is `scripts/gguf-header-facts.mjs`):
+
+| Fact | GGUF key | Note |
+|---|---|---|
+| `n_layer` | `<arch>.block_count` | |
+| `n_kv_heads` | `<arch>.attention.head_count_kv` | a per-layer array counts at its largest; absent means `head_count` (no GQA) |
+| `key_length`, `value_length` | `<arch>.attention.key_length`, `<arch>.attention.value_length` | **the source of the head width.** Only when a header lacks them: `embedding_length / attention.head_count`, which is wrong for Qwen3 (1,024 / 16 = 64 on the 0.6B, 2,560 / 32 = 80 on the 4B, against a `key_length` of 128 in both **[measured: `chrome-inbrowser-gguf-headers-t40.json`]**), so the fallback is marked in the entry and the verdict says "estimated from the embedding width" |
+| `n_ctx_train` | `<arch>.context_length` | caps the chosen context |
+
+Every layer is counted at the full context, which overstates sliding-window models (gpt-oss,
+Gemma): the error is on the safe side. Overhead is 15 % of the weights plus 512 MB; the budget is
+the machine's (§6). A load whose estimate exceeds the budget is refused *before the run* with both
+numbers in the message; an entry whose header has not been read has **no** estimate and is not
+available ("GPU memory unknown: the model's header has not been read"): an unknown need is never a
+fit (principle 6). After a successful load, the entry records "ran at n_ctx N on this machine"
+(`measured`), which outranks the estimate at that context or below next time.
 
 **Context at load.** `n_ctx` is the entry's **chosen context**: the person's choice in Settings
 (default: the recommendation's largest value that fits, capped at the model's training context
@@ -130,7 +145,9 @@ changes the descriptor, so a frozen plan re-verifies against it (the existing re
 **Thinking.** The existing "Let local models think" switch (D-085) maps to wllama's `reasoning`
 load parameter; thinking tokens are separated by the engine (`reasoning_content`), the grammar
 binds the answer, and the completion count includes them **[measured: 425 completion tokens with
-thinking vs 179 without, both schema-valid]**. Changing the switch reloads the model.
+thinking (`chrome-inbrowser-spike-t40-thinking.json`) vs 179 without (`chrome-inbrowser-spike-t40.json`),
+both schema-valid; with thinking the non-streamed answer carries 1,194 characters of
+`reasoning_content` apart from the content]**. Changing the switch reloads the model.
 
 ## 4. The adapter contract in the core
 
@@ -180,19 +197,29 @@ only uncached tokens **[measured: `prompt_n` 1, `cache_n` 2,916 on the second ca
 is not loaded, the engine died: detail `engine_worker_died`), `model_request_invalid` (the request
 does not fit `n_ctx`: the engine's error, after the runtime's own reservation check),
 `model_usage_unavailable`, `model_response_invalid` (no text). No `model_transport_error`: there is no
-transport.
+transport. The adapter keeps an `AdapterError` the port throws and turns **anything else** into
+`model_unavailable` with `audit_facts.stage: "engine"`, so `model_request_invalid` and
+`engine_worker_died` exist only if the shell's port (T41) throws them as `AdapterError`s with those
+codes. A `finish_reason: "abort"` is the person's cancellation only when the run's signal has
+aborted; while the signal is live it is the engine stopping by itself (an idle unload, a slot
+change) and fails `model_unavailable` with `audit_facts.reason: "engine_aborted"`.
 
-**The facts the descriptor reports** (`catalog.ts::inBrowserDescriptor(entry, cache state,
-machine)`): `id: "in-browser/<entry>"`, `available` when the weights are cached, verified and the
-estimate fits (else `availability_reason` says which: "not downloaded (2.5 GB)", "digest mismatch:
-delete and download again", "needs about 7.1 GB of GPU memory; this machine's budget is 6 GB"),
+**The facts the descriptor reports** (`in-browser-catalog.ts::inBrowserDescriptor(entry, state,
+override)`, shipped by T40; `state` = `{cached, verified, loaded, chosen_context, budget: {bytes,
+basis}, measured}`): `id: "in-browser/<entry>"`, `available` when the weights are cached, verified
+and fit at the context the descriptor reports (the descriptor computes the estimate itself with
+`gpuMemoryEstimate(entry, context)` for that context; a load measured at that context or more
+outranks it; no header means no fit), else `availability_reason` says which: "not downloaded
+(2.5 GB)", "a cached file does not match the digest the catalog states: delete it and download
+again", "GPU memory unknown: the model's header has not been read", "needs about 7.1 GB of GPU
+memory at a 16,384-token context; this machine's budget is 6.0 GB (assumed)";
 `selectable` as `available`; `capabilities.structured_output` **derived** (the grammar plus the
 router's validation), `capabilities.reasoning` **declared** from the entry (`reasoning: true` for the
 Qwen3 family, as Ollama's `/api/show` declares `thinking`; a person's override in Settings stays
 `declared`), `tool_use` absent; `limits.context_tokens` = the chosen context (`declared`),
 `native_context_window` = `n_ctx_train`, `max_output_tokens` = the override or null; `properties`
-`local: true`, `privacy_class: "local"`, `cost_class: "free"`, `status: "cached" | "not_downloaded" |
-"loaded"`, tags `["local", "in-browser", "gguf", "curated" | "uncurated", "limits:settings"?]`.
+`local: true`, `privacy_class: "local"`, `cost_class: "free"`, `status: "loaded" | "cached" |
+"unverified" | "not_downloaded"`, tags `["local", "in-browser", "gguf", "curated" | "uncurated", "limits:settings"?]`.
 
 **Transport facts and the observer.** The route has no `HttpTransport`: no URL gate, no address
 policy, nothing to refuse. The `ModelRequestObserver` (D-028) is still called with
@@ -201,8 +228,9 @@ harness's "no sealed value in any model request" assertion covers this route too
 records the request. The egress view (T44) shows the route as **"stayed in this browser: no outbound
 call"**, from the absence of any `model.called` destination, not from a claim the adapter makes.
 
-**Fixture implementation.** `FixtureInBrowserPort` answers from a table keyed by `(entry, sha256 of
-system + user)` with recorded usage, for the adapter's tests; the core's boundary test
+**Fixture implementation.** `FixtureInBrowserPort(loaded, answer)` holds one entry (or none),
+answers from a function the test supplies (`(request, signal) → InBrowserCompletion`) and records
+every request it was given; `UnavailableInBrowserPort` is the port of a host without an engine; the core's boundary test
 (`test/core/boundary.test.ts`) keeps `navigator`, `self` and WebGPU out of `src/core`: the port is
 the only thing the core knows.
 
@@ -216,15 +244,22 @@ the only thing the core knows.
 | `display_name`, `family`, `parameters` | "Qwen3 4B (Q4_K_M)", `qwen3`, `4000000000` |
 | `format`, `engine`, `quantization` | `gguf`, `wllama`, `Q4_K_M` |
 | `files[]` | in load order: `{ name, url, bytes, sha256 }`; a split model lists every part |
-| `weights_digest` | §4 of D-447: the canonical hash of the sorted file digests |
+| `weights_digest` | D-447: the canonical hash of the sorted file digests (below) |
 | `bytes_total` | the sum |
 | `context` | `{ train: n_ctx_train, default: the recommended chosen context, max: min(train, 65536) }` |
 | `capabilities` | `{ structured_output: true, reasoning: boolean, tool_use: null }` (the engine gives the first; the family the second) |
 | `license` | `{ id: "apache-2.0", name, url }` as the repository's model card states it |
 | `source` | `{ repository: "Qwen/Qwen3-4B-GGUF", revision: "main", api: "https://huggingface.co/api/models/…" }` |
 | `curated` | `true` for the signed list, `false` for a pasted repository |
-| `gpu_memory_estimate_bytes` | at `context.default`, by the §3 formula, from the header values recorded in the entry (`n_layer`, `n_kv_heads`, `head_dim`) |
+| `header` | `{ n_layer, n_kv_heads, key_length, value_length }` from the GGUF header (§3's table), or null until read (a pasted entry before its download); the estimate is computed from it at the context in question (`gpuMemoryEstimate(entry, context)`), never stored |
 | `notes` | one line: what it is good for, what it is not |
+
+**The weights digest (D-447)** is `"sha256:" + hex(SHA-256(join(sorted(file_sha256_hex), "\n") + "\n"))`.
+It identifies the *set of files' bytes*, independent of file names, URLs, order and hosts: the same
+files from two repositories give the same digest. It does **not** identify the tensors: a split copy
+(`-00001-of-00002.gguf`, …) and a single-file copy of the same model are different bytes and have
+*different* weights digests, and so do two quantizations. Provenance (T42) pins the digest of the
+files the person actually runs.
 
 **The curated list is a signed document**, like the index and the policy bundles (D-442: the
 project's `webagents-catalog` key, `document sign --type model-catalog`, `version` monotone, shipped
@@ -269,7 +304,7 @@ picks a file; the shell reads the GGUF header after the download for the context
 |---|---|---|
 | GPU vendor, architecture, features, limits | `navigator.gpu.requestAdapter()` in the engine Worker | measured |
 | Memory hint | `navigator.deviceMemory` (8 GB cap on web pages; the extension context reported 32 on this 36 GB machine **[measured]**; treated as a hint either way) | hint |
-| Storage free | `navigator.storage.estimate()` (quota 64.8 GB here **[measured]**) | measured |
+| Storage free | `navigator.storage.estimate()` (quota 59.2 GB in the 0.6B run, 62.4 GB in the 4B run: it follows the disk's free space **[measured: `probe.storage.quota`]**) | measured |
 | A short kernel benchmark | a fixed WebGPU matmul (f16 when available, 2 × 512×512×512, under 300 ms) once per session; the result is a bandwidth class, not a tok/s promise | measured |
 | Measured speed per entry | after each load: prefill and decode tok/s of the first completion, kept per entry per machine | measured |
 | The package's requirements | the existing compatibility evaluation (`compatibility.ts`) | declared |
@@ -282,17 +317,25 @@ elsewhere a conservative `6 GB` until the person states more (an 8 GB discrete c
 GPU: §11). The number is shown with its basis next to every verdict ("budget 6 GB, assumed; state
 your GPU memory in Settings to change it").
 
-**The algorithm** ranks every entry (curated and pasted) into three bins with reasons:
+**The algorithm** ranks every entry (curated and pasted) into four bins with reasons. The bins are
+tried in this order and the first that applies wins; the card shows every reason that applies:
 
-1. `estimate = gpu_memory_estimate_bytes(entry, context)`; `context` = the largest of the entry's
-   `context.default`, then halves down to 4,096, at which the estimate fits `0.8 × budget`.
+1. `context` = the largest of the entry's `context.default`, then halves down to 4,096, at which
+   `gpuMemoryEstimate(entry, context)` fits `0.8 × budget` (a margin under the descriptor's hard
+   refusal at `1.0 × budget`, §4). An entry with no header yet (a pasted one before its download)
+   is binned on `bytes_total × 1.15 + 512 MB` alone and marked "estimate after download".
 2. **too large**: no context fits, or `bytes_total > storage free − 1 GB`. Reason: the numbers.
-3. **possible**: fits; the package's requirements evaluate `compatible` or `unverified`; no
-   measured speed yet, or measured decode under 8 tok/s, or the context that fits is below the
-   package's declared need.
-4. **recommended**: fits at the package's declared context (16,000 for the shipped packages) with
-   `compatible`; measured decode ≥ 8 tok/s when measured, else the kernel class is "fast" or
-   "medium"; already cached entries rank first, then smaller `bytes_total`.
+3. **not suitable**: fits, but the package's requirements evaluate `incompatible` against the
+   descriptor at that `context` (`compatibility.ts::evaluateModel`). Reason: its violated checks, in
+   its words: for example "the package requires `reasoning`; this entry states false", or "the
+   package needs a 16,000-token context; on this machine the model fits only at 8,192". A larger
+   machine may fix the second, never the first.
+4. **possible**: fits; `compatible` or `unverified`; and either `unverified`, or no measured speed
+   and a kernel class "slow" or unknown, or measured decode under 8 tok/s.
+5. **recommended**: fits; `compatible`; measured decode ≥ 8 tok/s when measured, else the kernel
+   class "fast" or "medium". Already cached entries rank first, then smaller `bytes_total`.
+
+With no package open (Settings → Models), step 3 is skipped and the bins speak of the machine only.
 
 The picker shows the bins with the reasons; nothing downloads by itself. The default suggestion on
 a fresh install is the smallest **recommended** curated entry for the opened package.
@@ -397,10 +440,11 @@ time, "even when they arrive as data". This design's reading, for the reviewer n
 | **Thermal and battery** | no measurement; WebKit's objection to the Prompt API cites it | a 25-minute run's CPU/GPU time and the fan (observed); the docs say "plug in" |
 | **Threads** | the offscreen Worker is not cross-origin isolated, yet wllama reported `multithread: true` **[measured]**; the GPU does the work either way | whether `SharedArrayBuffer` is usable in extension Workers without COOP/COEP (Chrome's extension exemption **[U]**), and whether the manifest keys are needed |
 | **Safari and Firefox** | WebGPU in both; wllama needs its compat build there (JSPI, memory64) | out of scope for the extension shell (Chrome); noted for the reference browser (B-273) |
-| **memory64 and heap growth** | memory64 and JSPI available in the Worker **[measured]**; a wasm heap never shrinks | the Worker's memory after unload; whether a reload needs a new Worker (the spike reloaded in the same Worker in 1.1 s **[measured]**) |
+| **memory64 and heap growth** | memory64 and JSPI available in the Worker **[measured]**; a wasm heap never shrinks | the Worker's memory after unload; whether a reload needs a new Worker (the spike reloaded in the same Worker in 962 ms **[measured: `load.reload_ms`]**) |
 | **Small models and the contract** | the 0.6B answered the `interpret` schema validly in every spike call, with a plausible but invented `unsupported_reason` string | the WebAir search e2e on the 4B (acceptance); Literature Review needs the 30B class, as with Ollama |
 | **Accounting under prompt caching** | counts are complete only with the cache off or `prompt_n + cache_n` **[measured]** | the adapter's test asserts the sum |
 | **Headless CI** | headless Chrome has WebGPU here with no flag **[measured]**; GitHub's runners have no GPU | the e2e harness runs locally; CI runs the fixture port |
+| **GPU or CPU** | the spike's checks pass on the CPU too: the CPU-only control (`--cpu`, `n_gpu_layers: 0`; `chrome-inbrowser-spike-t40-cpu-control.json`) passes all ten at 38.1 tok/s prefill and 8.7 tok/s decode, against 489.6 / 89.5 on WebGPU (`chrome-inbrowser-spike-t40.json`) **[measured]**: the speed is what shows the GPU did the work; llama.cpp's offload line is suppressed (`suppressNativeLog`) | the e2e harness records a fact that tells the two apart: a CPU-only control's decode speed beside the GPU run's, or the offload line through wllama's logger |
 
 **The 4B-class measurement** (`examples/verification/chrome-inbrowser-spike-t40-qwen3-4b.json`:
 `Qwen/Qwen3-4B-GGUF` `Qwen3-4B-Q4_K_M.gguf`, 2,497,280,256 bytes, digest verified, `--ctx 16384`): the
@@ -419,7 +463,7 @@ model, is what the person waits for.
 |---|---|
 | Context | headless Chrome 156.0.8078.48, the real offscreen document (`background_page` target, `execution.html`), a module Worker started in it; no Chrome flag |
 | WebGPU in that Worker | `has_webgpu` true; adapter `apple` / `metal-3`, not a fallback; features include `shader-f16`, `subgroups`, `subgroup-size-control`, `timestamp-query`; `maxBufferSize` 4,294,967,292; a device created |
-| Platform | secure context, `crossOriginIsolated` false, memory64 true, JSPI true, 14 hardware threads, storage quota 64.8 GB |
+| Platform | secure context, `crossOriginIsolated` false, memory64 true, JSPI true, 14 hardware threads, storage quota 59,208,745,273 bytes |
 | Engine | wllama 3.8.1, wasm 8,763,949 bytes, bundle 375 KB over 19 inputs, no eval |
 | Model | Qwen3-0.6B Q4_0, 428,970,080 bytes, SHA-256 verified against Hugging Face's LFS digest, served by a local HTTPS origin |
 | Load | 1,616 ms (n_ctx 8,192, 28 layers); reload after unload 962 ms |
@@ -427,5 +471,7 @@ model, is what the person waits for.
 | Unconstrained, same request | fenced ` ```json ` block: not parseable as given (the router's fenced reading would take it; the product validates either way) |
 | Non-streamed, cache off | `usage.prompt_tokens` 2,917 = streamed `prompt_n` + `cache_n`; valid |
 | Abort | stopped 306 ms after the request, 128 ms after the first token |
-| Thinking on (scratch run, not committed) | 425 completion tokens, `reasoning_content` separated, the answer valid; decode 83 tok/s |
+| Thinking on | `chrome-inbrowser-spike-t40-thinking.json` (`--thinking`): 2,913 prompt tokens, 425 completion tokens, decode 84.9 tok/s, the constrained answer valid streamed and non-streamed, 1,194 characters of `reasoning_content` separated in the non-streamed answer |
+| CPU-only control | `chrome-inbrowser-spike-t40-cpu-control.json` (`--cpu`): all ten checks pass, constrained `interpret` valid at 38.1 tok/s prefill and 8.7 tok/s decode, about a tenth of the WebGPU run |
+| Header facts | `chrome-inbrowser-gguf-headers-t40.json`: 0.6B 28 layers, 16 heads, 8 KV heads, `key_length` = `value_length` = 128, `embedding_length` 1,024; 4B 36 / 32 / 8 / 128 / 2,560 |
 | The 4B class | `chrome-inbrowser-spike-t40-qwen3-4b.json`, above |

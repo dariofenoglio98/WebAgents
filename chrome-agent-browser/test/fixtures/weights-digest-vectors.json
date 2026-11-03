@@ -27,11 +27,11 @@
       "digest": "sha256:5563790c2402fd80f63aa72e7b7f4c605f08b563e9ec995fa989d8b5c7cac0d1"
     },
     {
-      "name": "the spike's Qwen3-0.6B Q4_0 (Hugging Face's LFS digest)",
+      "name": "the spike's Qwen3-0.6B Q4_0 (Hugging Face's LFS digest, examples/verification/chrome-inbrowser-spike-t40.json)",
       "files": [
-        "da2572f16c0613351defcdd9c1619ec2faaabe3b3e345806ca9458033b535b7b"
+        "da2572f16c06133561ce56accaa822216f2391ef4d37fba427801cd6736417d4"
       ],
-      "digest": "sha256:7a1714d4beee663ef197ca75e19c48576c249ab52d4150252f93a9c497eb386c"
+      "digest": "sha256:67a4dabae2cc428dec7cc444e1e3719393d7962ef0e82224742926115267667d"
     },
     {
       "name": "all zero and all f sort bytewise",

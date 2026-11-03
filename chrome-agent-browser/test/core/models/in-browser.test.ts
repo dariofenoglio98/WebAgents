@@ -141,9 +141,31 @@ describe("InBrowserAdapter", () => {
     const pending = adapter(slow).complete(RENDERED, 200, during.signal);
     during.abort(new CancelledError());
     await expect(pending).rejects.toBeInstanceOf(CancelledError);
-    const aborted = new FixtureInBrowserPort(ENTRY_ID, () => answer({ finish_reason: "abort", text: "{" }));
+    // An abort finish after the run's own signal fired is the person's cancellation.
     const late = new AbortController();
-    await expect(adapter(aborted).complete(RENDERED, 200, late.signal)).rejects.toBeInstanceOf(CancelledError);
+    const cancelled = new FixtureInBrowserPort(ENTRY_ID, () => {
+      late.abort(new CancelledError());
+      return answer({ finish_reason: "abort", text: "{" });
+    });
+    await expect(adapter(cancelled).complete(RENDERED, 200, late.signal)).rejects.toBeInstanceOf(CancelledError);
+  });
+
+  it("an abort finish while the run's signal is live is the engine stopping by itself: model_unavailable, not a cancellation", async () => {
+    const aborted = new FixtureInBrowserPort(ENTRY_ID, () => answer({ finish_reason: "abort", text: "{" }));
+    const outcome = adapter(aborted).complete(RENDERED, 200, new AbortController().signal);
+    await expect(outcome).rejects.toBeInstanceOf(AdapterError);
+    await expect(outcome).rejects.toMatchObject({ code: "model_unavailable", audit_facts: { stage: "engine", reason: "engine_aborted" } });
+  });
+
+  it("keeps the port's own AdapterError codes (model_request_invalid over n_ctx, engine_worker_died)", async () => {
+    const over = new FixtureInBrowserPort(ENTRY_ID, () => {
+      throw new AdapterError("model_request_invalid", "the request does not fit n_ctx");
+    });
+    await expect(adapter(over).complete(RENDERED, 200, new AbortController().signal)).rejects.toMatchObject({ code: "model_request_invalid" });
+    const died = new FixtureInBrowserPort(ENTRY_ID, () => {
+      throw new AdapterError("model_unavailable", "the engine Worker died", { detail: { reason: "engine_worker_died" } });
+    });
+    await expect(adapter(died).complete(RENDERED, 200, new AbortController().signal)).rejects.toMatchObject({ code: "model_unavailable", detail: { reason: "engine_worker_died" } });
   });
 
   it("through the bound router: a missing count is model_usage_unavailable, a valid answer is accepted with the engine's counts", async () => {
@@ -188,7 +210,12 @@ describe("weightsDigest (D-447)", () => {
 });
 
 describe("the in-browser catalog entry", () => {
-  const FILE = { name: "Qwen3-0.6B-Q4_0.gguf", url: "https://huggingface.co/ggml-org/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_0.gguf", bytes: 428_970_080, sha256: "da2572f16c061335da2572f16c061335da2572f16c061335da2572f16c061335" };
+  // The spike's file and header facts, read from the committed evidence rather than typed.
+  const SPIKE = JSON.parse(readFileSync(join(PROJECT, "..", "examples", "verification", "chrome-inbrowser-spike-t40.json"), "utf8")) as { model: { sha256: string } };
+  const SPIKE_SHA256 = SPIKE.model.sha256;
+  const HEADERS = JSON.parse(readFileSync(join(PROJECT, "..", "examples", "verification", "chrome-inbrowser-gguf-headers-t40.json"), "utf8")) as { files: Array<{ file: string; facts: { n_layer: number; n_kv_heads: number; key_length: number; value_length: number; embedding_length: number; head_count: number } }> };
+  const HEADER = HEADERS.files.find((item) => item.file === "Qwen3-0.6B-Q4_0.gguf")!.facts;
+  const FILE = { name: "Qwen3-0.6B-Q4_0.gguf", url: "https://huggingface.co/ggml-org/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_0.gguf", bytes: 428_970_080, sha256: SPIKE_SHA256 };
   const entry = (changes: Record<string, unknown> = {}) => ({
     schema: "agentpkg-in-browser-model-v0",
     id: "qwen3-0.6b-q4_0",
@@ -206,7 +233,7 @@ describe("the in-browser catalog entry", () => {
     license: { id: "apache-2.0", name: "Apache License 2.0", url: "https://www.apache.org/licenses/LICENSE-2.0" },
     source: { repository: "ggml-org/Qwen3-0.6B-GGUF", revision: "main", api: "https://huggingface.co/api/models/ggml-org/Qwen3-0.6B-GGUF?blobs=true" },
     curated: true,
-    header: { n_layer: 28, n_kv_heads: 8, head_dim: 128 },
+    header: { n_layer: HEADER.n_layer, n_kv_heads: HEADER.n_kv_heads, key_length: HEADER.key_length, value_length: HEADER.value_length },
     notes: "The smoke tier.",
     ...changes,
   });
@@ -217,7 +244,7 @@ describe("the in-browser catalog entry", () => {
     expect(made.bytes_total).toBe(428_970_080);
     expect(made.weights_digest).toMatch(/^sha256:[0-9a-f]{64}$/u);
     expect(made.context).toEqual({ train: 40_960, default: 8192, max: 32_768 });
-    expect(made.header).toEqual({ n_layer: 28, n_kv_heads: 8, head_dim: 128 });
+    expect(made.header).toEqual({ n_layer: 28, n_kv_heads: 8, key_length: 128, value_length: 128 });
   });
 
   it.each([
@@ -232,19 +259,32 @@ describe("the in-browser catalog entry", () => {
     ["a max context above 65,536", { context: { train: 262_144, default: 8192, max: 131_072 } }, /context.max/u],
     ["a default above the max", { context: { train: 40_960, default: 40_000, max: 32_768 } }, /context.default/u],
     ["no files", { files: [] }, /entry.files/u],
+    ["a header with the old head_dim field", { header: { n_layer: 28, n_kv_heads: 8, head_dim: 128 } }, /Unknown fields|entry.header/u],
     ["a repeated file name", { files: [FILE, { ...FILE, sha256: "0".repeat(64) }], weights_digest: weightsDigest([FILE.sha256, "0".repeat(64)]), bytes_total: 2 * FILE.bytes }, /repeat/u],
   ])("refuses %s", (_name, changes, message) => {
     expect(() => normalizeInBrowserEntry(entry(changes))).toThrow(message);
   });
 
-  it("estimates GPU memory from the header: weights, the f16 KV cache, 15 % and 512 MiB", () => {
+  it("estimates GPU memory from the header: weights, the f16 KV cache from the K and V widths, 15 % and 512 MiB", () => {
     const made = normalizeInBrowserEntry(entry());
-    const kv = 2 * 28 * 8192 * 8 * 128 * 2;
+    // 28 layers × 8192 × 8 KV heads × (128 + 128) × 2 bytes = 939,524,096 bytes of KV cache.
+    const kv = 28 * 8192 * 8 * (128 + 128) * 2;
+    expect(kv).toBe(939_524_096);
     expect(gpuMemoryEstimate(made, 8192)).toBe(Math.ceil(428_970_080 * 1.15 + kv + 512 * 1024 * 1024));
     expect(gpuMemoryEstimate(normalizeInBrowserEntry(entry({ header: null })), 8192)).toBeNull();
   });
 
-  const state = (changes: Partial<InBrowserEntryState> = {}): InBrowserEntryState => ({ cached: true, verified: true, loaded: false, chosen_context: null, fit: { estimate_bytes: 1_500_000_000, budget_bytes: 6_000_000_000, budget_basis: "assumed" }, measured: null, ...changes });
+  it("reads the head width from key_length, not embedding_length / head_count, which halves Qwen3's KV cache", () => {
+    for (const item of HEADERS.files) {
+      expect(item.facts.key_length, item.file).toBe(128);
+      expect(item.facts.embedding_length / item.facts.head_count, item.file).toBeLessThan(item.facts.key_length);
+    }
+    const made = normalizeInBrowserEntry(entry());
+    const wrong = normalizeInBrowserEntry(entry({ header: { n_layer: 28, n_kv_heads: 8, key_length: 64, value_length: 64 } }));
+    expect(gpuMemoryEstimate(made, 32_768)! - gpuMemoryEstimate(wrong, 32_768)!).toBe(28 * 32_768 * 8 * 128 * 2);
+  });
+
+  const state = (changes: Partial<InBrowserEntryState> = {}): InBrowserEntryState => ({ cached: true, verified: true, loaded: false, chosen_context: null, budget: { bytes: 6_000_000_000, basis: "assumed" }, measured: null, ...changes });
 
   it("describes a cached, verified, fitting entry as available with the facts and their bases", () => {
     const descriptor = inBrowserDescriptor(normalizeInBrowserEntry(entry()), state()) as Record<string, unknown>;
@@ -269,8 +309,38 @@ describe("the in-browser catalog entry", () => {
     expect((missing.properties as { status: string }).status).toBe("not_downloaded");
     const corrupt = inBrowserDescriptor(made, state({ verified: false })) as Record<string, unknown>;
     expect(corrupt.availability_reason).toMatch(/does not match the digest/u);
-    const large = inBrowserDescriptor(made, state({ fit: { estimate_bytes: 7_100_000_000, budget_bytes: 6_000_000_000, budget_basis: "platform" } })) as Record<string, unknown>;
-    expect(large.availability_reason).toBe("needs about 7.1 GB of GPU memory at a 8,192-token context; this machine's budget is 6.0 GB (platform)");
+    // The estimate at 8,192 is about 1.99 GB; a 1.5 GB budget refuses with both numbers.
+    const large = inBrowserDescriptor(made, state({ budget: { bytes: 1_500_000_000, basis: "platform" } })) as Record<string, unknown>;
+    expect(large.available).toBe(false);
+    expect(large.availability_reason).toBe(`needs about ${(gpuMemoryEstimate(made, 8192)! / 1e9).toFixed(1)} GB of GPU memory at a 8,192-token context; this machine's budget is 1.5 GB (platform)`);
+  });
+
+  it("an unknown GPU need is not a fit: a cached entry whose header has not been read is not available", () => {
+    const pasted = normalizeInBrowserEntry(entry({ header: null, curated: false }));
+    const descriptor = inBrowserDescriptor(pasted, state()) as Record<string, unknown>;
+    expect(descriptor.available).toBe(false);
+    expect(descriptor.selectable).toBe(false);
+    expect(descriptor.availability_reason).toBe("GPU memory unknown: the model's header has not been read");
+    // Not yet downloaded: the header cannot be read, and the reason says only what to do.
+    const missing = inBrowserDescriptor(pasted, state({ cached: false, verified: false })) as Record<string, unknown>;
+    expect(missing.availability_reason).toBe("not downloaded (0.4 GB)");
+    // A load measured on this machine at that context or more outranks the unknown estimate.
+    const ran = inBrowserDescriptor(pasted, state({ measured: { prefill_tok_per_s: 489.6, decode_tok_per_s: 89.5, context: 8192 } })) as Record<string, unknown>;
+    expect(ran.available).toBe(true);
+  });
+
+  it("judges the fit at the context it reports: an override's larger context is estimated at that context", () => {
+    const made = normalizeInBrowserEntry(entry());
+    const budget = gpuMemoryEstimate(made, 8192)! + 1;
+    const fits = inBrowserDescriptor(made, state({ budget: { bytes: budget, basis: "declared" } })) as Record<string, unknown>;
+    expect(fits.available).toBe(true);
+    const larger = inBrowserDescriptor(made, state({ budget: { bytes: budget, basis: "declared" } }), { context_tokens: 32_768 }) as Record<string, unknown>;
+    expect((larger.limits as { context_tokens: number }).context_tokens).toBe(32_768);
+    expect(larger.available).toBe(false);
+    expect(larger.availability_reason).toMatch(/at a 32,768-token context/u);
+    // A load measured at 8,192 does not vouch for 32,768.
+    const measured = inBrowserDescriptor(made, state({ budget: { bytes: budget, basis: "declared" }, measured: { prefill_tok_per_s: 1, decode_tok_per_s: 1, context: 8192 } }), { context_tokens: 32_768 }) as Record<string, unknown>;
+    expect(measured.available).toBe(false);
   });
 
   it("takes the person's context, reasoning and output cap as declared, capped at the entry's max", () => {

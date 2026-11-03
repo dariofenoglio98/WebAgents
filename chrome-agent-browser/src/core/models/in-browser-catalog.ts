@@ -28,6 +28,13 @@ export interface InBrowserFile {
   sha256: string;
 }
 
+export interface InBrowserHeader {
+  n_layer: number;
+  n_kv_heads: number;
+  key_length: number;
+  value_length: number;
+}
+
 export interface InBrowserEntry {
   schema: typeof IN_BROWSER_ENTRY_SCHEMA;
   id: string;
@@ -45,15 +52,22 @@ export interface InBrowserEntry {
   license: { id: string; name: string; url: string };
   source: { repository: string; revision: string; api: string | null };
   curated: boolean;
-  /** The GGUF header facts the GPU estimate needs (D-441); null until the header was read. */
-  header: { n_layer: number; n_kv_heads: number; head_dim: number } | null;
+  /**
+   * The GGUF header facts the GPU estimate needs (D-441): `<arch>.block_count`,
+   * `<arch>.attention.head_count_kv`, `<arch>.attention.key_length` and `value_length` (the per-head
+   * K and V widths; only when a header lacks them, `embedding_length / attention.head_count`, which
+   * is wrong for Qwen3: 64 or 80 against a real 128). Null until the header was read.
+   */
+  header: InBrowserHeader | null;
   notes: string | null;
 }
 
 /**
  * The weights digest (D-447): `sha256:` + the hex SHA-256 of every file's lowercase hex SHA-256,
- * sorted bytewise, each followed by a newline. A set identity of the bytes: the same weights
- * fetched from two repositories, split or whole, in any order, compare equal.
+ * sorted bytewise, each followed by a newline. An identity of the set of files' bytes, independent
+ * of their names, order and hosts: the same files fetched from two repositories compare equal. It
+ * is **not** an identity of the tensors: a split copy and a single-file copy of the same model are
+ * different bytes, so their digests differ (T42 pins the digest of the files the person runs).
  */
 export function weightsDigest(fileDigests: readonly string[]): string {
   if (fileDigests.length === 0) throw invalid("weights_digest needs at least one file digest");
@@ -61,14 +75,20 @@ export function weightsDigest(fileDigests: readonly string[]): string {
   return `sha256:${sha256HexSync(new TextEncoder().encode(`${sorted.join("\n")}\n`))}`;
 }
 
-/** The GPU memory an entry needs at a context (D-441): weights, the f16 KV cache, 15 % of the weights and 512 MiB. */
+/**
+ * The GPU memory an entry needs at a context (D-441): the weights, the f16 KV cache
+ * (`n_layer × context × n_kv_heads × (key_length + value_length) × 2 bytes`, every layer at the
+ * full context, which overstates sliding-window models: the safe side), 15 % of the weights and
+ * 512 MiB. Null when the header has not been read: an unknown need is never a fit.
+ */
 export const KV_BYTES_PER_VALUE = 2;
 export const WEIGHTS_OVERHEAD_FRACTION = 0.15;
 export const FIXED_OVERHEAD_BYTES = 512 * 1024 * 1024;
 
 export function gpuMemoryEstimate(entry: Pick<InBrowserEntry, "bytes_total" | "header">, context: number): number | null {
   if (entry.header === null) return null;
-  const kv = 2 * entry.header.n_layer * context * entry.header.n_kv_heads * entry.header.head_dim * KV_BYTES_PER_VALUE;
+  const { n_layer, n_kv_heads, key_length, value_length } = entry.header;
+  const kv = n_layer * context * n_kv_heads * (key_length + value_length) * KV_BYTES_PER_VALUE;
   return Math.ceil(entry.bytes_total * (1 + WEIGHTS_OVERHEAD_FRACTION) + kv + FIXED_OVERHEAD_BYTES);
 }
 
@@ -126,11 +146,13 @@ export function normalizeInBrowserEntry(raw: unknown): InBrowserEntry {
   const source = closedRecord(record.source, "entry.source", ["repository", "revision", "api"], ["repository", "revision"]);
   let header: InBrowserEntry["header"] = null;
   if (record.header !== undefined && record.header !== null) {
-    const facts = closedRecord(record.header, "entry.header", ["n_layer", "n_kv_heads", "head_dim"], ["n_layer", "n_kv_heads", "head_dim"]);
+    const fields = ["n_layer", "n_kv_heads", "key_length", "value_length"] as const;
+    const facts = closedRecord(record.header, "entry.header", [...fields], [...fields]);
     header = {
       n_layer: positiveCount(facts.n_layer, "entry.header.n_layer", { allowNull: false })!,
       n_kv_heads: positiveCount(facts.n_kv_heads, "entry.header.n_kv_heads", { allowNull: false })!,
-      head_dim: positiveCount(facts.head_dim, "entry.header.head_dim", { allowNull: false })!,
+      key_length: positiveCount(facts.key_length, "entry.header.key_length", { allowNull: false })!,
+      value_length: positiveCount(facts.value_length, "entry.header.value_length", { allowNull: false })!,
     };
   }
   return {
@@ -165,9 +187,9 @@ export interface InBrowserEntryState {
   loaded: boolean;
   /** The context the person chose for this entry, or null for the entry's default. */
   chosen_context: number | null;
-  /** The budget verdict for the chosen context: the host's estimate against the machine's budget (D-443), or null when unknown. */
-  fit: { estimate_bytes: number | null; budget_bytes: number; budget_basis: "declared" | "platform" | "assumed" } | null;
-  /** Measured on this machine after a load, or null. */
+  /** The machine's GPU memory budget (D-443) with its basis; the descriptor estimates the need itself, at the context it reports. */
+  budget: { bytes: number; basis: "declared" | "platform" | "assumed" };
+  /** Measured on this machine after a load, or null; a load that ran at `context` or more outranks the estimate (D-441). */
   measured: { prefill_tok_per_s: number; decode_tok_per_s: number; context: number } | null;
 }
 
@@ -183,7 +205,9 @@ function gb(bytes: number): string {
 
 /**
  * The descriptor of one entry for the host catalog (D-445): available and selectable when the
- * weights are cached, verified and fit; otherwise the reason. `structured_output` is derived (the
+ * weights are cached, verified and fit; otherwise the reason. "Fit" is computed here, at the very
+ * context the descriptor reports: a load measured on this machine at that context or more, else the
+ * estimate within the budget. An unknown estimate (no header read yet) is not a fit (D-441). `structured_output` is derived (the
  * grammar plus the router's validation), `reasoning` is declared by the entry or the person,
  * `context_tokens` is the chosen context (declared), and the route is local, private and free.
  */
@@ -193,8 +217,16 @@ export function inBrowserDescriptor(entry: InBrowserEntry, state: InBrowserEntry
   const reasons: string[] = [];
   if (!state.cached) reasons.push(`not downloaded (${gb(entry.bytes_total)})`);
   else if (!state.verified) reasons.push("a cached file does not match the digest the catalog states: delete it and download again");
-  if (state.fit && state.fit.estimate_bytes !== null && state.fit.estimate_bytes > state.fit.budget_bytes) {
-    reasons.push(`needs about ${gb(state.fit.estimate_bytes)} of GPU memory at a ${context.toLocaleString("en-US")}-token context; this machine's budget is ${gb(state.fit.budget_bytes)} (${state.fit.budget_basis})`);
+  const at = `a ${context.toLocaleString("en-US")}-token context`;
+  const ran = state.measured !== null && state.measured.context >= context;
+  const estimate = gpuMemoryEstimate(entry, context);
+  if (!ran) {
+    if (estimate === null) {
+      // Before a download the header cannot be read; "not downloaded" already says what to do.
+      if (state.cached) reasons.push("GPU memory unknown: the model's header has not been read");
+    } else if (estimate > state.budget.bytes) {
+      reasons.push(`needs about ${gb(estimate)} of GPU memory at ${at}; this machine's budget is ${gb(state.budget.bytes)} (${state.budget.basis})`);
+    }
   }
   const available = reasons.length === 0;
   const reasoning: Omit<CapabilityAnswer, "name"> =

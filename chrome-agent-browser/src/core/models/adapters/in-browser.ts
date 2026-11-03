@@ -127,12 +127,18 @@ export class InBrowserAdapter implements ProviderAdapter {
       answer = await this.port.complete(request, signal);
     } catch (error) {
       if (signal.aborted) throw (signal.reason as Error | undefined) ?? new CancelledError();
+      // The port's own refusals keep their code: `model_request_invalid` (over `n_ctx`) and
+      // `model_unavailable` with `engine_worker_died` exist only if the shell's port throws them as
+      // AdapterErrors (design §4). Anything else is the engine failing: the model is not available
+      // to this run, and the run is never retried on another model (principle 6).
       if (error instanceof AdapterError) throw error;
-      // The engine Worker died or the engine refused: the model is not available to this run, and
-      // the run is never retried on another model (principle 6).
       throw new AdapterError("model_unavailable", `The in-browser engine failed (${error instanceof Error ? error.name : "error"})`, { audit_facts: { stage: "engine" } });
     }
-    if (answer.finish_reason === "abort") throw (signal.reason as Error | undefined) ?? new CancelledError();
+    if (answer.finish_reason === "abort") {
+      if (signal.aborted) throw (signal.reason as Error | undefined) ?? new CancelledError();
+      // The engine stopped by itself (an idle unload, a slot change): not the person's cancellation.
+      throw new AdapterError("model_unavailable", "The in-browser engine stopped the completion by itself", { detail: { entry: this.model_id }, audit_facts: { stage: "engine", reason: "engine_aborted" } });
+    }
     return {
       text: answer.text,
       model_id: this.host_model_id,
