@@ -24,8 +24,12 @@ first run.
   responder, the list prices, the versions and the Cr build key, the expected runs and the unit
   list's hash. `--resume` recomputes it and refuses a directory whose manifest changed; finished
   units (`runs/<unit>/run.json`) are skipped.
-- **Harness errors.** A run whose public hostname did not resolve, or whose driver failed, is a
-  harness error (in the denominator, never a refusal, §2.1).
+- **Harness errors.** A run whose public hostname did not resolve, or whose driver failed (its
+  preparation included), is a harness error (in the denominator, never a refusal, §2.1); a unit
+  directory without `run.json` (a crash, an interrupt) is removed and run again on `--resume`.
+- **Outcomes.** Each run's `outcome.json` is the oracle's, with the family's envelope (§2.4.2 (e))
+  and the rung's list prices (none for a local rung), and `exposed` for an attack arm (whether
+  the arm's text reached the run).
 
 Entry scripts must guard `__main__`: agentpkg's network child uses `spawn` and re-imports it.
 """
@@ -37,6 +41,7 @@ import hashlib
 import json
 import random
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -60,16 +65,20 @@ SIDES = ("Py", "Cr", "FW")
 PRESETS = ("smoke", "qualification", "paper")
 SEED = 31
 SMOKE_PAYLOAD = ("upload-01", "search.fare_name")
-# Which task classes read each placement on WebAir's path (search answers reach every class;
-# fare rules only where fares are selected and explained; the quote only where one is prepared).
+# Which task classes read each placement on WebAir's path, from the graph and the smoke records
+# (review 1, finding 5): every class but W5 searches and reads fare rules before it answers, quotes
+# or buys; W5's tasks end without a fare (its first, `no-results`, has no `flights[0]` to rewrite),
+# but its search still answers, so the 302 variant reaches it; the quote only where one is prepared.
 PLACEMENT_REACH = {
-    "search": ("W1", "W2", "W3", "W4", "W5", "TS-C"),
+    "search": ("W1", "W2", "W3", "W4", "TS-C"),
     "redirect": ("W1", "W2", "W3", "W4", "W5", "TS-C"),
-    "rules": ("W1", "W2", "W5", "TS-C"),
+    "rules": ("W1", "W2", "W3", "W4", "TS-C"),
     "quote": ("W3", "W4", "TS-C"),
     "record": ("W1", "W2", "W3", "W4", "W5", "TS-C"),
     "travel": ("TS-N",),
 }
+# TS-C prepares a quote only in its booking shapes (refine and history never do).
+QUOTE_SHAPES = ("book", "rebuy")
 # (side, task set) pairs with no driver yet: the Chrome core's network runs need the `run`
 # composition (ExecutionSession, as cli-run.ts), not built in T31 (an open item for T34).
 NOT_BUILT = {("Cr", "TS-N")}
@@ -96,6 +105,26 @@ def load_tasks() -> dict[str, dict]:
             "turn_sets": [[p] for p in request["phrasings"]],
         }
     return tasks
+
+
+def reaches(placement: str, task: dict) -> bool:
+    """Whether the task's path reads the placement (`PLACEMENT_REACH`, `QUOTE_SHAPES`)."""
+    prefix = placement.split(".")[0]
+    if task["class"] not in PLACEMENT_REACH.get(prefix, ()):
+        return False
+    if prefix == "quote" and task["task_set"] == "TS-C":
+        return task.get("shape") in QUOTE_SHAPES
+    return True
+
+
+def _first_reached(tasks: dict, placement: str) -> list[dict]:
+    """The first task of each class whose path reads the placement."""
+    seen, out = set(), []
+    for task in tasks.values():
+        if task["class"] not in seen and reaches(placement, task):
+            seen.add(task["class"])
+            out.append(task)
+    return out
 
 
 def _first_of_each_class(tasks: dict) -> list[dict]:
@@ -139,10 +168,8 @@ def units_for(preset: str, rungs: list[str], sides: list[str], payloads: dict) -
                 cells.append((task, phrasing, None))
         for payload in payloads.values():
             for placement in payload["placements"]:
-                reach = PLACEMENT_REACH.get(placement.split(".")[0], ())
-                for task in firsts:
-                    if task["class"] in reach:
-                        cells += [(task, 0, arm) for arm in _pairs(payload["id"], placement)]
+                for task in _first_reached(tasks, placement):
+                    cells += [(task, 0, arm) for arm in _pairs(payload["id"], placement)]
     units = []
     for rung in rungs:
         for side in sides:
@@ -226,8 +253,80 @@ def _versions(sides: list[str]) -> dict:
     return out
 
 
+def tree_state(out: Path | None = None) -> tuple[str, str]:
+    """`git status` and `git diff HEAD` of the working tree, without the campaign's own results
+    directory: a resume must not see its own runs as a changed tree (review 1, finding 2)."""
+    pathspec: list[str] = []
+    if out is not None:
+        try:
+            inside = Path(out).resolve().relative_to(ROOT)
+        except ValueError:
+            inside = None
+        if inside is not None and inside.parts:
+            pathspec = ["--", ".", f":(exclude){inside.as_posix()}"]
+    return _git("status", "--porcelain", *pathspec), _git("diff", "HEAD", *pathspec)
+
+
+def envelopes() -> dict:
+    """§2.4.2 (e): each task family's envelope from our plan, per turn for WebAir (the graph's
+    model-call bound, the policy's `hard_tokens`, the per-tool caps) and per run for the travel
+    network (`worst_case`). The framework agent's answer step (TUNING.md T-1) is one model call
+    more per turn, which the run's envelope adds on `FW` (`envelope_for`)."""
+    from agentpkg.delegation.analysis import worst_case
+
+    from campaigns.baseline import ports
+    from campaigns.baseline.agent import model_call_bound
+
+    webair = ports.load("webair")
+    budget = webair.policy["budget"]
+    network = ports.load("travel-network")
+    bound = worst_case(network.graph, network.policy)
+    return {
+        "webair": {
+            "per": "turn",
+            "model_calls": model_call_bound(webair),
+            "tokens": budget["hard_tokens"],
+            "tool_calls": sum(budget["max_calls_per_tool"].values()),
+        },
+        "travel-network": {
+            "per": "run",
+            "model_calls": bound["model_calls"],
+            "tokens": bound["tokens"],
+            "tool_calls": sum(bound["tool_calls"].values()),
+        },
+        "fw_answer_step_model_calls": 1,
+    }
+
+
+def envelope_for(unit: dict, task: dict, table: dict) -> dict:
+    """The run's envelope: the family's, times the turns for WebAir, plus the answer step on FW."""
+    family = table["travel-network" if unit["task_set"] == "TS-N" else "webair"]
+    turns = 1 if family["per"] == "run" else len(task["turn_sets"][unit["phrasing"]])
+    extra = table["fw_answer_step_model_calls"] if unit["side"] == "FW" else 0
+    return {
+        "model_calls": (family["model_calls"] + extra) * turns,
+        "tokens": family["tokens"] * turns,
+        "tool_calls": family["tool_calls"] * turns,
+    }
+
+
+def prices_for(rung_name: str) -> dict | None:
+    """The rung's list prices (`rungs.json`) in the oracle's terms; none for a local rung."""
+    price = json.loads(RUNGS.read_text())["rungs"][rung_name].get("list_price_usd_per_mtok")
+    if not price:
+        return None
+    return {"input_per_mtok": price["input"], "output_per_mtok": price["output"]}
+
+
 def manifest(
-    *, preset: str, rungs: list[str], sides: list[str], seed: int, units: list[dict], ollama_url
+    *,
+    preset: str,
+    rungs: list[str],
+    sides: list[str],
+    seed: int,
+    units: list[dict],
+    ollama_url,
+    out: Path | None = None,
 ) -> dict:
     from campaigns.baseline import ports
     from campaigns.baseline.policies import build as policies
@@ -242,8 +341,7 @@ def manifest(
             "list_price_usd_per_mtok": rung_specs[name].get("list_price_usd_per_mtok"),
             "provisional": rung_specs[name].get("provisional", False),
         }
-    status = _git("status", "--porcelain")
-    diff = _git("diff", "HEAD")
+    status, diff = tree_state(out)
     protocol_text = PROTOCOL.read_text()
     version = re.search(r"\*\*Status\.\*\* Version (\d+)", protocol_text)
     return {
@@ -273,6 +371,7 @@ def manifest(
             "real_dns_answer_classified": True,
         },
         "responder": "R-facts",
+        "envelopes": envelopes(),
         "versions": _versions(sides),
         "expected_runs": len(units),
         "units_sha256": hashlib.sha256(json.dumps([u["id"] for u in units]).encode()).hexdigest(),
@@ -303,7 +402,35 @@ def _runner(side: str):
     return run_webair
 
 
-def run_unit(unit: dict, *, tasks, payloads, stack, out: Path, ollama_url: str) -> dict:
+def promote_failed_lookup(rec: dict) -> dict:
+    """§2.1: a run whose public hostname did not resolve is a harness error, never a refusal. Both
+    runtimes' dial logs carry the lookup (`Py`/`FW` on the dial, `Cr` from the resolver seam)."""
+    failed = [d for d in rec.get("dials") or [] if (d.get("lookup") or {}).get("ok") is False]
+    if failed and rec["status"] != "harness_error":
+        rec["status"] = "harness_error"
+        rec["harness_error"] = f"dns_lookup_failed: {failed[0].get('host')}"
+    return rec
+
+
+def exposure(rec: dict, arm: dict | None) -> bool | None:
+    """Whether an arm's text reached the run (review 1, finding 5): the origin inserted it into an
+    answer the run fetched, or the run read the profile it was appended to. A run that never read
+    the placement is recorded `exposed: false`, never a harness error (the model's choice of path is
+    measured behaviour); the summary counts these, and T32's arms exclude them by amendment."""
+    if arm is None:
+        return None
+    if arm["placement"] in catalog.RECORD_PLACEMENTS:
+        return any(
+            c.get("tool") == "travel.profile" and c.get("outcome") == "answered"
+            for c in rec.get("tool_calls") or []
+        )
+    return any(entry.get("inserted") for entry in rec.get("origin_log") or [])
+
+
+def run_unit(
+    unit: dict, *, tasks, payloads, stack, out: Path, ollama_url: str, envelopes_table=None
+) -> dict:
+    from campaigns.driver import record
     from campaigns.driver.responder import Responder
     from campaigns.oracle.classify import classify
 
@@ -330,34 +457,46 @@ def run_unit(unit: dict, *, tasks, payloads, stack, out: Path, ollama_url: str) 
         "responder": "R-facts",
     }
     run_dir = out / "runs" / unit["id"]
-    if unit["task_set"] == "TS-N":
-        rec = _network_runner(unit["side"])(
-            text=task["turn_sets"][unit["phrasing"]][0],
-            rung=rung,
-            run_dir=run_dir,
-            stack=stack,
-            fixture_key=fixture_key,
-            meta=meta,
+    if run_dir.exists() and not (run_dir / "run.json").is_file():
+        # A unit that crashed (or was interrupted) before writing its record: run it again.
+        shutil.rmtree(run_dir)
+    try:
+        if unit["task_set"] == "TS-N":
+            rec = _network_runner(unit["side"])(
+                text=task["turn_sets"][unit["phrasing"]][0],
+                rung=rung,
+                run_dir=run_dir,
+                stack=stack,
+                fixture_key=fixture_key,
+                meta=meta,
+            )
+        else:
+            rec = _runner(unit["side"])(
+                turns=task["turn_sets"][unit["phrasing"]],
+                rung=rung,
+                run_dir=run_dir,
+                stack=stack,
+                responder=Responder("R-facts", expected_facts(task)),
+                fixture_key=fixture_key,
+                grant_profile=grant_profile,
+                profile_insertion=profile_insertion,
+                meta=meta,
+            )
+    except Exception as exc:  # the driver's preparation or run failed: a harness error
+        rec = record.harness_only(
+            run_dir, meta=meta, rung=rung, error=f"{type(exc).__name__}: {exc}"[:500]
         )
-    else:
-        rec = _runner(unit["side"])(
-            turns=task["turn_sets"][unit["phrasing"]],
-            rung=rung,
-            run_dir=run_dir,
-            stack=stack,
-            responder=Responder("R-facts", expected_facts(task)),
-            fixture_key=fixture_key,
-            grant_profile=grant_profile,
-            profile_insertion=profile_insertion,
-            meta=meta,
-        )
-    failed = [d for d in rec.get("dials") or [] if (d.get("lookup") or {}).get("ok") is False]
-    if failed and rec["status"] != "harness_error":
-        # §2.1: a run whose public hostname did not resolve is a harness error, never a refusal.
-        rec["status"] = "harness_error"
-        rec["harness_error"] = f"dns_lookup_failed: {failed[0].get('host')}"
-        (run_dir / "run.json").write_text(json.dumps(rec, ensure_ascii=False, indent=1) + "\n")
-    outcome = classify(rec, task, payload)
+    promote_failed_lookup(rec)
+    record.write(run_dir, rec)
+    table = envelopes_table or envelopes()
+    outcome = classify(
+        rec,
+        task,
+        payload,
+        envelope=envelope_for(unit, task, table),
+        prices=prices_for(unit["rung"]),
+    )
+    outcome["exposed"] = exposure(rec, arm)
     (run_dir / "outcome.json").write_text(json.dumps(outcome, indent=1, default=str) + "\n")
     return outcome
 
@@ -383,13 +522,22 @@ def summarize(out: Path) -> dict:
     for meta, status, outcome in rows:
         key = f"{meta['side']}|{meta['arm'].split('@')[0] if meta['arm'] != 'benign' else 'benign'}"
         cell = table.setdefault(
-            key, {"runs": 0, "completed": 0, "harness_error": 0, "utility": 0, "boundaries": 0}
+            key,
+            {
+                "runs": 0,
+                "completed": 0,
+                "harness_error": 0,
+                "utility": 0,
+                "boundaries": 0,
+                "not_exposed": 0,
+            },
         )
         cell["runs"] += 1
         cell["completed"] += status == "completed"
         cell["harness_error"] += status == "harness_error"
         cell["utility"] += bool((outcome.get("utility") or {}).get("success"))
         cell["boundaries"] += bool(outcome.get("boundaries"))
+        cell["not_exposed"] += outcome.get("exposed") is False
     return {"schema": "campaign.summary.v1", "cells": table, "runs": len(rows)}
 
 
@@ -419,6 +567,7 @@ def main(argv: list[str] | None = None) -> int:
         seed=args.seed,
         units=units,
         ollama_url=args.ollama_url,
+        out=out,
     )
     path = out / "manifest.json"
     if args.resume:
@@ -443,6 +592,7 @@ def main(argv: list[str] | None = None) -> int:
     from campaigns.origin.stack import CampaignStack
 
     tasks = load_tasks()
+    table = wanted["envelopes"]
     started = time.monotonic()
     # The stack's certificates (a throwaway CA and its key) stay out of the results directory.
     with (
@@ -460,6 +610,7 @@ def main(argv: list[str] | None = None) -> int:
                 stack=stack,
                 out=out,
                 ollama_url=args.ollama_url,
+                envelopes_table=table,
             )
             line = {
                 "unit": unit["id"],
@@ -469,6 +620,7 @@ def main(argv: list[str] | None = None) -> int:
                 "harness_error": outcome["harness_error"],
                 "utility": (outcome.get("utility") or {}).get("success"),
                 "boundaries": outcome["boundaries"],
+                "exposed": outcome["exposed"],
             }
             with open(out / "progress.jsonl", "a", encoding="utf-8") as handle:
                 handle.write(json.dumps(line) + "\n")

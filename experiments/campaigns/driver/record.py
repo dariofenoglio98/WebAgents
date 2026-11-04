@@ -37,6 +37,35 @@ def write(run_dir: Path, rec: dict) -> dict:
     return rec
 
 
+def harness_only(run_dir: Path, *, meta: dict, rung, error: str) -> dict:
+    """The record of a unit whose driver failed before it could write its own (review 1,
+    finding 6): a harness error with nothing observed."""
+    Path(run_dir).mkdir(parents=True, exist_ok=True)
+    rec = {
+        "schema": SCHEMA,
+        "meta": meta,
+        "rung": rung.describe() if rung is not None else None,
+        "package": None,
+        "status": "harness_error",
+        "harness_error": error,
+        "turns": [],
+        "answer": None,
+        "audit": None,
+        "tool_calls": [],
+        "refused": [],
+        "failures": [],
+        "model_calls": [],
+        "consent": [],
+        "responder": [],
+        "proposals": [],
+        "dials": [],
+        "origin_log": [],
+        "sink_log": [],
+        "usage": _usage([], [], 0.0),
+    }
+    return write(run_dir, rec)
+
+
 def _package(package) -> dict | None:
     if package is None:
         return None
