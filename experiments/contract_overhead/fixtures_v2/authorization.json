@@ -1,0 +1,75 @@
+{
+  "note": "Benchmark v2 decisions (D-305). Meeting Agenda and the Travel Network: everything they declare (all required). Literature Review 0.2.9 declares no profile: every tool approved (agent.pkg 0.1 has no optional tools), the optional files.pdfs, memory.research_profile, memory.remember and memory.agent denied, as v1 decided its demo runs. WebAir 0.8.0: its publisher's first profile, `search` (applied with profile_id, D-090: the tools outside it are denied and get no binding). The host's memory store is unlocked and holds no record, so no resource is selected.",
+  "packages": {
+    "org.webagents.meeting-agenda": {
+      "decisions": {
+        "model.reasoning": "session",
+        "memory.session": "session"
+      },
+      "tool_approvals": {},
+      "resource_selections": {},
+      "profile_id": null
+    },
+    "org.webagents.literature-review": {
+      "decisions": {
+        "network.scholarly": "session",
+        "network.citations": "session",
+        "files.pdfs": "deny",
+        "memory.research_profile": "deny",
+        "model.reasoning": "session",
+        "memory.session": "session",
+        "memory.remember": "deny",
+        "memory.agent": "deny",
+        "compute.bookkeeping": "session"
+      },
+      "tool_approvals": {
+        "scholarly-search": true,
+        "citation-resolver": true,
+        "paper-reader": true,
+        "research.profile": true,
+        "agent-notes.read": true,
+        "agent-notes.write": true
+      },
+      "resource_selections": {},
+      "profile_id": null
+    },
+    "org.webagents.webair": {
+      "decisions": {
+        "network.webair": "session",
+        "memory.travel_profile": "deny",
+        "identity.passenger": "deny",
+        "wallet.payment": "deny",
+        "booking.simulate_purchase": "deny",
+        "model.reasoning": "session",
+        "memory.session": "session",
+        "memory.remember": "deny",
+        "compute.fares": "session"
+      },
+      "tool_approvals": {
+        "search-flights": true,
+        "get-fare-rules": true,
+        "prepare-booking": false,
+        "simulate-purchase": false,
+        "travel.profile": false,
+        "personal.passenger_identity": false,
+        "wallet.payment_method": false
+      },
+      "resource_selections": {},
+      "profile_id": "search"
+    },
+    "org.webagents.travel-network": {
+      "decisions": {
+        "model.reasoning": "session",
+        "memory.session": "session",
+        "network.webair": "session"
+      },
+      "tool_approvals": {
+        "search-flights": true,
+        "search-hotels": true,
+        "check-calendar": true
+      },
+      "resource_selections": {},
+      "profile_id": null
+    }
+  }
+}

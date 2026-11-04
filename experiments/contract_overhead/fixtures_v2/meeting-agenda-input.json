@@ -1,0 +1,19 @@
+{
+  "context": "The WebAgents project has reached a working prototype with a portable signed agent.pkg format, an OpenClaw-based browser/runtime, and two reference agents: Meeting Agenda and Literature Review. The team is preparing the final workshop paper and wants to decide which remaining experiments, implementation checks, and paper revisions are necessary before submission.",
+  "duration": 25,
+  "goal": "Agree on the final set of experiments and paper revisions required before submission, identify the highest-priority remaining tasks, and leave the meeting with a concrete action plan.",
+  "participants": [
+    {
+      "name": "Research Lead",
+      "role": "Research Lead"
+    },
+    {
+      "name": "Systems Engineer",
+      "role": "Systems Engineer"
+    },
+    {
+      "name": "Evaluation Lead",
+      "role": "Evaluation Lead"
+    }
+  ]
+}

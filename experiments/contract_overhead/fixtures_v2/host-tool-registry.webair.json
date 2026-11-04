@@ -1,0 +1,280 @@
+{
+  "schema": "agentpkg-host-tool-registry-v0",
+  "host": {
+    "runtime": "chrome-agent-browser",
+    "runtime_version": "0.5.0",
+    "source": "chrome-agent-browser host tool registry (D-054, D-081, D-082): one generic HTTPS JSON binding per declared remote POST tool, derived from the signed declaration after the URL gate; the host's Crossref search for scholarly.search at Crossref's works endpoint; the selected-PDF reader for paper.read; one host-resource binding per vault type; other tools unbound",
+    "captured_at": "2026-11-04T00:00:00.000Z",
+    "agent_id": null
+  },
+  "bindings": [
+    {
+      "id": "chrome:json_http:get-fare-rules:1",
+      "tool_id": "get-fare-rules",
+      "binding": "webair.get_fare_rules",
+      "implementation_kind": "json_http",
+      "implementation_id": "chrome.tool.json_http",
+      "implementation_version": "0.1.0",
+      "display_name": "get-fare-rules: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules",
+      "description": "This browser's generic JSON-over-HTTPS adapter, bound to exactly the origin, path, method and schemas the package declares for this tool. No other request shape, path or destination is reachable through it; no credential is attached.",
+      "remote": true,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": {
+        "origin": "https://webagents-webair-production.up.railway.app",
+        "path": "/api/v1/get_fare_rules",
+        "method": "POST"
+      },
+      "contract": {
+        "input_schema_sha256": "ad5ad98ed1b482225a8d623cf7004270e4042d825fd7cf166651a37a0492e1c8",
+        "output_schema_sha256": "70c5dbb27a550e396ae211b5fe484bc395a67a793fba8c2cafa142840dd50b11",
+        "permission_kinds": [
+          "network"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 20,
+        "max_request_bytes": 65536,
+        "max_response_bytes": 4194304,
+        "max_concurrent": 4,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      }
+    },
+    {
+      "id": "chrome:host-resource:personal.passenger_identity:1",
+      "tool_id": "personal.passenger_identity",
+      "binding": "host.resource.personal.passenger_identity",
+      "implementation_kind": "host_resource",
+      "implementation_id": "chrome.tool.host_resource",
+      "implementation_version": "0.1.0",
+      "display_name": "Identity (held in this browser's vault)",
+      "description": "Returns the one identity the person granted for this run. It takes no arguments, so nothing a package sends can name another; it reaches no network and writes nothing.",
+      "remote": false,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": null,
+      "contract": {
+        "input_schema_sha256": "71fc596a20f27da3dec80050e5d1f553eba34aea24c2853b853488a811e6b892",
+        "output_schema_sha256": "ed3aa07a101767b46697661c503b135707f6d61a10080ab5e7c0f4fd4e06d539",
+        "permission_kinds": [
+          "personal.read"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 5,
+        "max_request_bytes": 64,
+        "max_response_bytes": 32768,
+        "max_concurrent": 4,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      },
+      "resource_type": "personal.passenger_identity"
+    },
+    {
+      "id": "chrome:json_http:prepare-booking:1",
+      "tool_id": "prepare-booking",
+      "binding": "webair.prepare_booking",
+      "implementation_kind": "json_http",
+      "implementation_id": "chrome.tool.json_http",
+      "implementation_version": "0.1.0",
+      "display_name": "prepare-booking: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/prepare_booking",
+      "description": "This browser's generic JSON-over-HTTPS adapter, bound to exactly the origin, path, method and schemas the package declares for this tool. No other request shape, path or destination is reachable through it; no credential is attached.",
+      "remote": true,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": {
+        "origin": "https://webagents-webair-production.up.railway.app",
+        "path": "/api/v1/prepare_booking",
+        "method": "POST"
+      },
+      "contract": {
+        "input_schema_sha256": "b7d0f573905ae0c23987b305de00816118a5d52ffe29f4ea410dc89f5c586173",
+        "output_schema_sha256": "c632b8935b6c059abee0a609e8d88f1c33dee69d6bf99cc3576d85652fe4a842",
+        "permission_kinds": [
+          "network",
+          "personal.read"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 20,
+        "max_request_bytes": 65536,
+        "max_response_bytes": 4194304,
+        "max_concurrent": 4,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      }
+    },
+    {
+      "id": "chrome:json_http:search-flights:1",
+      "tool_id": "search-flights",
+      "binding": "webair.search_flights",
+      "implementation_kind": "json_http",
+      "implementation_id": "chrome.tool.json_http",
+      "implementation_version": "0.1.0",
+      "display_name": "search-flights: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/search_flights",
+      "description": "This browser's generic JSON-over-HTTPS adapter, bound to exactly the origin, path, method and schemas the package declares for this tool. No other request shape, path or destination is reachable through it; no credential is attached.",
+      "remote": true,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": {
+        "origin": "https://webagents-webair-production.up.railway.app",
+        "path": "/api/v1/search_flights",
+        "method": "POST"
+      },
+      "contract": {
+        "input_schema_sha256": "66cb6246e48442ed5101adf8b40d8ca29027a499a5acea7c8db5c7ef0f799ba8",
+        "output_schema_sha256": "824d0e39f171a09d424a7a7e40c38632db9747a3a4d1846b0f7a95e26893e4a7",
+        "permission_kinds": [
+          "network"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 20,
+        "max_request_bytes": 65536,
+        "max_response_bytes": 4194304,
+        "max_concurrent": 4,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      }
+    },
+    {
+      "id": "chrome:json_http:simulate-purchase:1",
+      "tool_id": "simulate-purchase",
+      "binding": "webair.simulate_purchase",
+      "implementation_kind": "json_http",
+      "implementation_id": "chrome.tool.json_http",
+      "implementation_version": "0.1.0",
+      "display_name": "simulate-purchase: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/simulate_purchase",
+      "description": "This browser's generic JSON-over-HTTPS adapter, bound to exactly the origin, path, method and schemas the package declares for this tool. No other request shape, path or destination is reachable through it; no credential is attached.",
+      "remote": true,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": {
+        "origin": "https://webagents-webair-production.up.railway.app",
+        "path": "/api/v1/simulate_purchase",
+        "method": "POST"
+      },
+      "contract": {
+        "input_schema_sha256": "01ebc6ec5fd4ff9be71d4a308650bad902366eee94d494db8a7d46469172fa71",
+        "output_schema_sha256": "debe54138360dd92e5bb98e33865bbf4da3bb64b2d0bd2c5a897f5051cf1f347",
+        "permission_kinds": [
+          "network",
+          "payment",
+          "personal.read"
+        ],
+        "side_effects": "write"
+      },
+      "limits": {
+        "timeout_seconds": 20,
+        "max_request_bytes": 65536,
+        "max_response_bytes": 4194304,
+        "max_concurrent": 4,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      }
+    },
+    {
+      "id": "chrome:host-resource:travel.profile:1",
+      "tool_id": "travel.profile",
+      "binding": "host.memory.travel.profile",
+      "implementation_kind": "host_resource",
+      "implementation_id": "chrome.tool.host_resource",
+      "implementation_version": "0.1.0",
+      "display_name": "Travel profile (held in this browser's memory)",
+      "description": "Returns the one travel profile the person granted for this run. It takes no arguments, so nothing a package sends can name another; it reaches no network and writes nothing.",
+      "remote": false,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": null,
+      "contract": {
+        "input_schema_sha256": "71fc596a20f27da3dec80050e5d1f553eba34aea24c2853b853488a811e6b892",
+        "output_schema_sha256": "6e2ba583e2197d31cfdb691f1e48deeb6dfc4afd9ff76163dd9c950f86564814",
+        "permission_kinds": [
+          "memory.read"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 5,
+        "max_request_bytes": 64,
+        "max_response_bytes": 163840,
+        "max_concurrent": 4,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      },
+      "resource_type": "travel.profile"
+    },
+    {
+      "id": "chrome:host-resource:wallet.payment_method:1",
+      "tool_id": "wallet.payment_method",
+      "binding": "host.resource.wallet.payment_method",
+      "implementation_kind": "host_resource",
+      "implementation_id": "chrome.tool.host_resource",
+      "implementation_version": "0.1.0",
+      "display_name": "Payment card (held in this browser's vault)",
+      "description": "Returns the one payment card the person granted for this run. It takes no arguments, so nothing a package sends can name another; it reaches no network and writes nothing.",
+      "remote": false,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": null,
+      "contract": {
+        "input_schema_sha256": "71fc596a20f27da3dec80050e5d1f553eba34aea24c2853b853488a811e6b892",
+        "output_schema_sha256": "3bd36ad1899ff7f97655f00d3f4a5b6e785e4ab6ee77d05e3057e4d1b80338d0",
+        "permission_kinds": [
+          "personal.read"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 5,
+        "max_request_bytes": 64,
+        "max_response_bytes": 32768,
+        "max_concurrent": 4,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      },
+      "resource_type": "wallet.payment_method"
+    }
+  ],
+  "notes": []
+}
