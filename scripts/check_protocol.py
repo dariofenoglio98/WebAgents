@@ -6,14 +6,16 @@
 Prints JSON with `"passed"` and exits 1 on failure. Nothing here changes a file. The checks:
 
 * every experiment section (`### E1` … `### E10`, `### EA`) exists exactly once and carries every
-  required field (`**Question.**` … `**Defects.**`, the list in `REQUIRED_FIELDS`), in that order; a planned
-  experiment (`### EL`) needs only `**Question.**` and `**Status.**` until an amendment registers it;
+  required field (`**Question.**` … `**Defects.**`, the list in `REQUIRED_FIELDS`), each exactly once at the
+  start of a line, in that order; a planned experiment (`### EL`) exists exactly once and needs only
+  `**Question.**` and `**Status.**` (each exactly once) until an amendment registers it;
 * every `P-n`, `DF-n` and `UC-n` cited is defined by the security and privacy model
   (`docs/security-and-privacy-model.md`, read by `check_security_model.py`'s own `properties` and
-  `defined_ids`); a range such as `P-12…P-17` cites every id between its endpoints; every `CB-n`
+  `defined_ids`); a range such as `P-12…P-17` or `P-12–P-17` (both endpoints prefixed) cites every id
+  between its endpoints; every `CB-n`
   is in 1…11; every numbered experiment id cited anywhere is one of E1…E10; a lettered id (EA, EL) is
-  checked where experiments are named (the scope table's first column, the build map's cells and the
-  section headings), so prose such as "EU" is never read as an experiment;
+  checked where experiments are named (the scope table's first column, the build map's Task and Builds
+  cells and the section headings), so prose such as "EU" is never read as an experiment;
 * the scope table (§1) has a *Built by* column and a row naming at least one builder for every experiment;
 * the build map (§7) names, in its rows' first cells, every task T30…T39 and T64 (a row whose first cell
   names no task is reported, not skipped), and names every experiment in a row of one of its builders;
@@ -71,8 +73,9 @@ CB_RANGE = range(1, 12)
 SECTION_RE = re.compile(r"^### (E\d+|E[A-Z]) · ", re.MULTILINE)
 HEADING_RE = re.compile(r"^#{1,4} ", re.MULTILINE)
 CITATION_RE = re.compile(r"\b(P|DF|UC|CB)-(\d+)\b")
-# A range such as `P-12…P-17` or `CB-1…CB-11` cites every id between its endpoints.
-CITATION_RANGE_RE = re.compile(r"\b(P|DF|UC|CB)-(\d+)\s*(?:…|\.\.\.)\s*(?:\1-)?(\d+)\b")
+# A range such as `P-12…P-17`, `CB-1...CB-11` or `P-1–P-3` cites every id between its endpoints. The
+# second endpoint must repeat the prefix, so that "P-4… 300 runs" is a citation of P-4 and a number.
+CITATION_RANGE_RE = re.compile(r"\b(P|DF|UC|CB)-(\d+)\s*(?:…|\.\.\.|–)\s*\1-(\d+)\b")
 NUMBERED_EXPERIMENT_RE = re.compile(r"\bE(\d+)\b")
 LETTERED_EXPERIMENT_RE = re.compile(r"\bE([A-Z])\b")
 TASK_RE = re.compile(r"\bT(\d+)\b")
@@ -144,12 +147,13 @@ def check(protocol_path: Path, model_path: Path) -> dict:
             continue
         positions = []
         for field in REQUIRED_FIELDS:
-            marker = f"**{field}.**"
-            position = body.find(marker)
-            if position < 0:
+            found = _field_positions(body, field)
+            if not found:
                 problems.append(f"{experiment}: field {field!r} is missing")
-            else:
-                positions.append((position, field))
+                continue
+            if len(found) > 1:
+                problems.append(f"{experiment}: field {field!r} appears more than once")
+            positions.append((found[0], field))
         ordered = [field for _, field in sorted(positions)]
         present = [field for field in REQUIRED_FIELDS if field in ordered]
         if ordered != present:
@@ -173,16 +177,24 @@ def check(protocol_path: Path, model_path: Path) -> dict:
                         f"{experiment}: 'Built by' names none of its builders in the scope table "
                         f"({', '.join(sorted(own))})"
                     )
+    for planned in PLANNED_EXPERIMENTS:
+        if planned not in sections:
+            problems.append(f"experiment section {planned} (planned) is missing")
+            continue
+        body = sections[planned]
+        if body is None:
+            problems.append(f"experiment section {planned} appears more than once")
+            continue
+        for field in PLANNED_FIELDS:
+            found = _field_positions(body, field)
+            if not found:
+                problems.append(f"{planned} (planned): field {field!r} is missing")
+            elif len(found) > 1:
+                problems.append(
+                    f"{planned} (planned): field {field!r} appears more than once"
+                )
     for extra in sections:
-        if extra in PLANNED_EXPERIMENTS:
-            body = sections[extra]
-            if body is None:
-                problems.append(f"experiment section {extra} appears more than once")
-                continue
-            for field in PLANNED_FIELDS:
-                if f"**{field}.**" not in body:
-                    problems.append(f"{extra} (planned): field {field!r} is missing")
-        elif extra not in EXPERIMENTS:
+        if extra not in EXPERIMENTS and extra not in PLANNED_EXPERIMENTS:
             problems.append(f"unknown experiment section {extra}")
 
     # 2. Citations.
@@ -264,12 +276,19 @@ def check(protocol_path: Path, model_path: Path) -> dict:
     }
 
 
+def _field_positions(body: str, field: str) -> list[int]:
+    """Where the field's marker opens a line in the section (a marker inside prose is not a field)."""
+    return [
+        m.start()
+        for m in re.finditer(rf"^\*\*{re.escape(field)}\.\*\*", body, re.MULTILINE)
+    ]
+
+
 def _field_text(body: str, field: str) -> str | None:
-    marker = f"**{field}.**"
-    start = body.find(marker)
-    if start < 0:
+    found = _field_positions(body, field)
+    if not found:
         return None
-    rest = body[start + len(marker) :]
+    rest = body[found[0] + len(f"**{field}.**") :]
     match = re.search(r"\n\*\*[A-Z]", rest)
     return rest[: match.start()] if match else rest
 
@@ -323,7 +342,8 @@ def _experiment_naming_cells(text: str) -> list[str]:
         _first_cell(line) for line in scope.splitlines() if line.startswith("| E")
     ]
     build_map = _section(text, "## 7. ") or ""
-    cells += _build_map_rows(build_map)
+    # The Task and Builds cells only: the From cell cites sections (as check 3 reads the map).
+    cells += [" ".join(_cells(row)[:2]) for row in _build_map_rows(build_map)]
     return cells
 
 

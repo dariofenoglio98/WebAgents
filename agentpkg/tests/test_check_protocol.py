@@ -121,13 +121,22 @@ def test_unknown_dataflow_and_consent_ids_fail(checker, tmp_path, protocol_text)
 def test_a_range_cites_every_id_between_its_endpoints(checker, tmp_path, protocol_text):
     assert {f"P-{n}" for n in range(12, 18)} <= checker.cited_ids("P-12…P-17")["P"]
     assert checker.cited_ids("CB-2...CB-4")["CB"] == {"CB-2", "CB-3", "CB-4"}
-    # A model that defines P-1 and P-3 only: the range P-1…P-3 cites the undefined P-2.
-    model = tmp_path / "model.md"
-    model.write_text("## 3. Properties\n\n### P-1 · one\n\n### P-3 · three\n", encoding="utf-8")
-    path = tmp_path / "PROTOCOL.md"
-    path.write_text(protocol_text + "\nP-1…P-3\n", encoding="utf-8")
-    problems = checker.check(path, model)["problems"]
-    assert any(p.startswith("undefined P ids cited: P-2,") for p in problems), problems
+    assert checker.cited_ids("P-1–P-3")["P"] == {"P-1", "P-2", "P-3"}
+    # The model defines P-1…P-19: in "P-90…P-92" the endpoints are cited directly, P-91 only by the
+    # range, so the problem names P-91 only if the range is expanded.
+    assert "P-91" not in protocol_text
+    for dash in ("…", "–"):
+        mutated = protocol_text + f"\nP-90{dash}P-92\n"
+        problems = _problems(checker, tmp_path, mutated)
+        undefined = [p for p in problems if p.startswith("undefined P ids cited:")]
+        assert any("P-91," in p for p in undefined), (dash, problems)
+
+
+def test_a_number_after_an_ellipsis_is_not_a_range_endpoint(checker, tmp_path, protocol_text):
+    assert checker.cited_ids("P-4… 300 runs")["P"] == {"P-4"}
+    assert checker.cited_ids("CB-1…11")["CB"] == {"CB-1"}
+    report = _run(checker, tmp_path, protocol_text + "\nP-4… 300 runs\n")
+    assert report["passed"], report["problems"]
 
 
 def test_defined_ids_are_check_security_models(checker, monkeypatch):
@@ -160,6 +169,15 @@ def test_build_map_must_name_every_experiment(checker, tmp_path, protocol_text):
     lines[index] = "| T36 the browser comparison | the browser agent runs | §6 |\n"
     problems = _problems(checker, tmp_path, "".join(lines))
     assert any("the build map does not name E9" in p for p in problems)
+
+
+def test_lettered_id_in_the_from_cell_is_not_read(checker, tmp_path, protocol_text):
+    lines = protocol_text.splitlines(keepends=True)
+    index = next(i for i, line in enumerate(lines) if line.startswith("| T36 "))
+    cells = lines[index].rstrip("\n").rstrip("|").rstrip()
+    lines[index] = cells + " (no EU resident) |\n"
+    report = _run(checker, tmp_path, "".join(lines))
+    assert report["passed"], report["problems"]
 
 
 def test_build_map_ignores_the_from_cell(checker, tmp_path, protocol_text):
@@ -215,6 +233,39 @@ def test_planned_experiment_needs_question_and_status(checker, tmp_path, protoco
     mutated = protocol_text[:start] + protocol_text[start:].replace("**Status.**", "**State.**", 1)
     problems = _problems(checker, tmp_path, mutated)
     assert any("EL (planned): field 'Status' is missing" in p for p in problems)
+
+
+def test_missing_planned_section_fails(checker, tmp_path, protocol_text):
+    start = protocol_text.index("### EL · ")
+    end = protocol_text.index("## 4. ")
+    problems = _problems(checker, tmp_path, protocol_text[:start] + protocol_text[end:])
+    assert any("experiment section EL (planned) is missing" in p for p in problems), problems
+
+
+def test_duplicated_field_fails(checker, tmp_path, protocol_text):
+    start, end = _section_of(protocol_text, "E7")
+    body = protocol_text[start:end]
+    budget = body.index("**Budget.**")
+    body = body[:budget] + "**Budget.** $500.\n" + body[budget:]
+    problems = _problems(checker, tmp_path, protocol_text[:start] + body + protocol_text[end:])
+    assert any("E7: field 'Budget' appears more than once" in p for p in problems), problems
+
+
+def test_duplicated_planned_field_fails(checker, tmp_path, protocol_text):
+    start = protocol_text.index("### EL · ")
+    status = protocol_text.index("**Status.**", start)
+    mutated = protocol_text[:status] + "**Status.** registered.\n" + protocol_text[status:]
+    problems = _problems(checker, tmp_path, mutated)
+    assert any("EL (planned): field 'Status' appears more than once" in p for p in problems)
+
+
+def test_a_marker_inside_prose_is_not_a_field(checker, tmp_path, protocol_text):
+    start, end = _section_of(protocol_text, "E7")
+    body = protocol_text[start:end]
+    question = body.index("**Question.**")
+    body = body[:question] + "Prose that names a **Budget.** marker mid-line.\n" + body[question:]
+    report = _run(checker, tmp_path, protocol_text[:start] + body + protocol_text[end:])
+    assert report["passed"], report["problems"]
 
 
 def test_unknown_lettered_experiment_fails(checker, tmp_path, protocol_text):
