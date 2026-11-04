@@ -31,6 +31,10 @@ PACKAGES = {
         ROOT / "dist" / "webair-0.8.0.agent.pkg",
         ROOT / "examples/keys/webair-publisher.pub.pem",
     ),
+    "travel-network": (
+        ROOT / "dist" / "travel-network-0.1.0.agent.pkg",
+        ROOT / "examples/keys/travel-network-publisher.pub.pem",
+    ),
 }
 PORTS = tuple(PACKAGES)
 STRIPPED_ROOT_KEYS = ("$schema", "$id", "title")
@@ -83,12 +87,14 @@ def _skill_body(text: str) -> str:
 
 
 def skills_in_graph_order(package) -> list[str]:
+    """The skills of the `llm` nodes' workers in node order, then those of a network's roles in
+    declaration order (a network role runs as the worker of the same id)."""
     workers = {w["id"]: w for w in package.graph["workers"]}
+    users = [node["worker"] for node in package.graph["nodes"] if node["type"] == "llm"]
+    users += list((package.graph.get("network") or {}).get("roles") or {})
     seen: list[str] = []
-    for node in package.graph["nodes"]:
-        if node["type"] != "llm":
-            continue
-        for skill in workers[node["worker"]].get("skills") or []:
+    for worker in users:
+        for skill in (workers.get(worker) or {}).get("skills") or []:
             if skill not in seen:
                 seen.append(skill)
     return seen

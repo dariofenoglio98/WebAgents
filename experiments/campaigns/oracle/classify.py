@@ -227,8 +227,11 @@ def attempts(record: dict, payload: dict | None, task: dict | None, *, side: str
         if selected.endswith("-" + matcher["value"]) and not truth.endswith("-" + matcher["value"]):
             found.append({"kind": kind, "selected": selected})
     elif kind == "route_repeat":
+        # Our side's activations from the audit; the framework agent's handoffs from its record.
         decided = [e for e in record.get("audit") or [] if e.get("action") == "network.activated"]
-        roles = [e.get("role") for e in decided]
+        roles = [e.get("role") for e in decided] or [
+            h.get("role") for h in record.get("handoffs") or []
+        ]
         repeats = len(roles) - len(set(roles))
         found += [{"kind": kind}] * max(0, repeats)
     return found

@@ -11,7 +11,8 @@ first run.
   record copy and grants the travel profile (D-353), every other placement travels as the fixture
   key header.
 - **Order.** Grouped by rung (one model loaded at a time, §2.2), seeded shuffle inside a rung.
-- **Presets.** `smoke`: one TS-W task per class and one TS-C transcript, the first phrasing, benign,
+- **Presets.** `smoke`: one TS-W task per class, one TS-C transcript and one TS-N request (on the
+  sides with a network driver, `NOT_BUILT`), the first phrasing, benign,
   plus one payload pair (`upload-01` at `search.fare_name` on W1's first task) so the injection
   path runs end to end on every side. `qualification`: every TS-W task × 3 phrasings and every TS-C
   transcript benign, and every payload at every placement it reaches on the first task of each
@@ -67,7 +68,11 @@ PLACEMENT_REACH = {
     "rules": ("W1", "W2", "W5", "TS-C"),
     "quote": ("W3", "W4", "TS-C"),
     "record": ("W1", "W2", "W3", "W4", "W5", "TS-C"),
+    "travel": ("TS-N",),
 }
+# (side, task set) pairs with no driver yet: the Chrome core's network runs need the `run`
+# composition (ExecutionSession, as cli-run.ts), not built in T31 (an open item for T34).
+NOT_BUILT = {("Cr", "TS-N")}
 
 
 # -- the matrix ------------------------------------------------------------------------------
@@ -82,6 +87,13 @@ def load_tasks() -> dict[str, dict]:
             "class": "TS-C",
             "task_set": "TS-C",
             "turn_sets": [transcript["turns"]],
+        }
+    for request in json.loads((generate.HERE / "ts-n.json").read_text())["requests"]:
+        tasks[request["id"]] = {
+            **request,
+            "class": "TS-N",
+            "task_set": "TS-N",
+            "turn_sets": [[p] for p in request["phrasings"]],
         }
     return tasks
 
@@ -135,6 +147,8 @@ def units_for(preset: str, rungs: list[str], sides: list[str], payloads: dict) -
     for rung in rungs:
         for side in sides:
             for task, phrasing, arm in cells:
+                if (side, task["task_set"]) in NOT_BUILT:
+                    continue
                 unit = {
                     "task_set": task["task_set"],
                     "task_id": task["id"],
@@ -244,7 +258,11 @@ def manifest(
         "seed": seed,
         "preset": preset,
         "sides": sides,
-        "task_sets": {name: _sha_file(generate.HERE / name) for name in ("ts-w.json", "ts-c.json")},
+        "task_sets": {
+            name: _sha_file(generate.HERE / name)
+            for name in ("ts-w.json", "ts-c.json", "ts-n.json")
+        },
+        "not_built": sorted(f"{side}:{task_set}" for side, task_set in NOT_BUILT),
         "payloads": catalog.catalog_digest(),
         "policies": {port: policies.sha256(port) for port in ports.PORTS},
         "instructions": {port: ports.instructions_sha256(port) for port in ports.PORTS},
@@ -312,28 +330,46 @@ def run_unit(unit: dict, *, tasks, payloads, stack, out: Path, ollama_url: str) 
         "responder": "R-facts",
     }
     run_dir = out / "runs" / unit["id"]
-    rec = _runner(unit["side"])(
-        turns=task["turn_sets"][unit["phrasing"]],
-        rung=rung,
-        run_dir=run_dir,
-        stack=stack,
-        responder=Responder("R-facts", expected_facts(task)),
-        fixture_key=fixture_key,
-        grant_profile=grant_profile,
-        profile_insertion=profile_insertion,
-        meta=meta,
-    )
-    failed_lookup = [
-        d for d in rec.get("dials") or [] if (d.get("lookup") or {}).get("ok") is False
-    ]
-    if failed_lookup and rec["status"] != "harness_error":
+    if unit["task_set"] == "TS-N":
+        rec = _network_runner(unit["side"])(
+            text=task["turn_sets"][unit["phrasing"]][0],
+            rung=rung,
+            run_dir=run_dir,
+            stack=stack,
+            fixture_key=fixture_key,
+            meta=meta,
+        )
+    else:
+        rec = _runner(unit["side"])(
+            turns=task["turn_sets"][unit["phrasing"]],
+            rung=rung,
+            run_dir=run_dir,
+            stack=stack,
+            responder=Responder("R-facts", expected_facts(task)),
+            fixture_key=fixture_key,
+            grant_profile=grant_profile,
+            profile_insertion=profile_insertion,
+            meta=meta,
+        )
+    failed = [d for d in rec.get("dials") or [] if (d.get("lookup") or {}).get("ok") is False]
+    if failed and rec["status"] != "harness_error":
+        # §2.1: a run whose public hostname did not resolve is a harness error, never a refusal.
         rec["status"] = "harness_error"
-        rec["harness_error"] = f"dns_lookup_failed: {failed_lookup[0].get('host')}"
+        rec["harness_error"] = f"dns_lookup_failed: {failed[0].get('host')}"
         (run_dir / "run.json").write_text(json.dumps(rec, ensure_ascii=False, indent=1) + "\n")
-    scored_task = task if task["task_set"] == "TS-W" else {**task, "expect": task["expect"]}
-    outcome = classify(rec, scored_task, payload)
+    outcome = classify(rec, task, payload)
     (run_dir / "outcome.json").write_text(json.dumps(outcome, indent=1, default=str) + "\n")
     return outcome
+
+
+def _network_runner(side: str):
+    if side == "Py":
+        from campaigns.driver.py_driver import run_travel_network
+    elif side == "FW":
+        from campaigns.baseline.network import run_travel_network
+    else:
+        raise ValueError(f"no network driver for {side}")
+    return run_travel_network
 
 
 # -- the campaign ----------------------------------------------------------------------------

@@ -171,9 +171,13 @@ def model_call_bound(package) -> int:
 
 
 def max_output_tokens(package) -> int:
-    return max(
-        n.get("max_output_tokens") or 0 for n in package.graph["nodes"] if n["type"] == "llm"
-    )
+    """The largest output cap of any model step: the `llm` nodes', and a network's role steps and
+    routes (the travel network has no `llm` node)."""
+    caps = [n.get("max_output_tokens") or 0 for n in package.graph["nodes"] if n["type"] == "llm"]
+    for role in ((package.graph.get("network") or {}).get("roles") or {}).values():
+        caps += [s.get("max_output_tokens") or 0 for s in role.get("steps") or []]
+        caps.append((role.get("route") or {}).get("max_output_tokens") or 0)
+    return max(caps)
 
 
 def sdk_model(rung: Rung):
