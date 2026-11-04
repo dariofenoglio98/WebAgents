@@ -1,0 +1,942 @@
+{
+ "generator": "experiments/campaigns/tasks/generate.py",
+ "seed": 31,
+ "protocol": "experiments/PROTOCOL.md §2.3",
+ "task_set": "TS-W",
+ "tasks": [
+  {
+   "id": "W1-01",
+   "class": "W1",
+   "shape": "hero",
+   "source": "examples/webair-scenarios.json",
+   "params": {},
+   "phrasings": [
+    "Find me a nonstop flight from Boston to Zurich on 9 October under $900.",
+    "I need a direct flight Boston to Zurich on October 9, 2026, for under 900 dollars.",
+    "Nonstop BOS to ZRH on 2026-10-09, below $900."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA101-20261009-BASIC"
+   }
+  },
+  {
+   "id": "W1-02",
+   "class": "W1",
+   "shape": "checked-bag",
+   "source": "examples/webair-scenarios.json",
+   "params": {},
+   "phrasings": [
+    "Find me a nonstop flight from Boston to Zurich on 9 October under $900. Which of those fares includes a checked bag?",
+    "Direct Boston to Zurich on October 9, 2026 under $900: which of those fares comes with a checked bag?",
+    "Nonstop BOS to ZRH, 2026-10-09, under $900. Which fare includes a checked bag?"
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA101-20261009-STANDARD"
+   }
+  },
+  {
+   "id": "W1-03",
+   "class": "W1",
+   "shape": "other-route",
+   "source": "examples/webair-scenarios.json",
+   "params": {},
+   "phrasings": [
+    "One traveler from New York JFK to Geneva on Saturday 10 October 2026, business class.",
+    "I want to fly business from JFK to Geneva on Saturday, October 10, 2026, one person.",
+    "Business class, JFK to GVA, 2026-10-10, one traveler."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA121-20261010-BUSINESS"
+   }
+  },
+  {
+   "id": "W1-04",
+   "class": "W1",
+   "shape": "cheapest",
+   "source": "generated",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "date": "2027-10-04"
+   },
+   "phrasings": [
+    "Find me the cheapest flight from Boston to London on 4 October 2027.",
+    "What is the lowest fare WebAir has from Boston to London on October 4, 2027? Stops are fine.",
+    "Cheapest way to fly BOS to LHR on 2027-10-04, any number of stops."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA213-20271004-BASIC"
+   }
+  },
+  {
+   "id": "W1-05",
+   "class": "W1",
+   "shape": "nonstop",
+   "source": "generated",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "date": "2027-05-18"
+   },
+   "phrasings": [
+    "Find me a nonstop flight from Boston to London on 18 May 2027, the cheapest one.",
+    "I only want a direct flight from Boston to London on May 18, 2027. Which nonstop fare is cheapest?",
+    "Nonstop only, BOS to LHR, 2027-05-18: give me the lowest fare."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA213-20270518-BASIC"
+   }
+  },
+  {
+   "id": "W1-06",
+   "class": "W1",
+   "shape": "under",
+   "source": "generated",
+   "params": {
+    "origin": "KEF",
+    "destination": "BOS",
+    "max_price": 450,
+    "date": "2027-07-09"
+   },
+   "phrasings": [
+    "Find me a flight from Reykjavik to Boston on 9 July 2027 under $450.",
+    "Anything from Reykjavik to Boston on July 9, 2027 for less than 450 dollars? I want the cheapest.",
+    "KEF to BOS on 2027-07-09, at most $450 per person, cheapest fare please."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA204-20270709-BASIC"
+   }
+  },
+  {
+   "id": "W1-07",
+   "class": "W1",
+   "shape": "business",
+   "source": "generated",
+   "params": {
+    "origin": "ZRH",
+    "destination": "BOS",
+    "date": "2027-03-30"
+   },
+   "phrasings": [
+    "One traveler from Zurich to Boston on 30 March 2027, business class.",
+    "I'd like to fly business from Zurich to Boston on March 30, 2027. What's the cheapest business fare?",
+    "Business cabin, ZRH to BOS, 2027-03-30: the lowest fare."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA100-20270330-BUSINESS"
+   }
+  },
+  {
+   "id": "W1-08",
+   "class": "W1",
+   "shape": "bag",
+   "source": "generated",
+   "params": {
+    "origin": "BOS",
+    "destination": "KEF",
+    "date": "2027-04-12"
+   },
+   "phrasings": [
+    "Find me the cheapest fare from Boston to Reykjavik on 12 April 2027 that includes a checked bag.",
+    "I need to check a suitcase. What is the cheapest fare from Boston to Reykjavik on April 12, 2027 with a checked bag included?",
+    "BOS to KEF on 2027-04-12: cheapest fare with one checked bag included."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA205-20270412-STANDARD"
+   }
+  },
+  {
+   "id": "W1-09",
+   "class": "W1",
+   "shape": "cheapest",
+   "source": "generated",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "date": "2027-02-06"
+   },
+   "phrasings": [
+    "Find me the cheapest flight from Boston to London on 6 February 2027.",
+    "What is the lowest fare WebAir has from Boston to London on February 6, 2027? Stops are fine.",
+    "Cheapest way to fly BOS to LHR on 2027-02-06, any number of stops."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA213-20270206-BASIC"
+   }
+  },
+  {
+   "id": "W1-10",
+   "class": "W1",
+   "shape": "nonstop",
+   "source": "generated",
+   "params": {
+    "origin": "KEF",
+    "destination": "BOS",
+    "date": "2027-08-20"
+   },
+   "phrasings": [
+    "Find me a nonstop flight from Reykjavik to Boston on 20 August 2027, the cheapest one.",
+    "I only want a direct flight from Reykjavik to Boston on August 20, 2027. Which nonstop fare is cheapest?",
+    "Nonstop only, KEF to BOS, 2027-08-20: give me the lowest fare."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA204-20270820-BASIC"
+   }
+  },
+  {
+   "id": "W1-11",
+   "class": "W1",
+   "shape": "under",
+   "source": "generated",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "max_price": 600,
+    "date": "2027-08-09"
+   },
+   "phrasings": [
+    "Find me a flight from Boston to London on 9 August 2027 under $600.",
+    "Anything from Boston to London on August 9, 2027 for less than 600 dollars? I want the cheapest.",
+    "BOS to LHR on 2027-08-09, at most $600 per person, cheapest fare please."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA213-20270809-BASIC"
+   }
+  },
+  {
+   "id": "W1-12",
+   "class": "W1",
+   "shape": "business",
+   "source": "generated",
+   "params": {
+    "origin": "GVA",
+    "destination": "JFK",
+    "date": "2027-06-27"
+   },
+   "phrasings": [
+    "One traveler from Geneva to New York JFK on 27 June 2027, business class.",
+    "I'd like to fly business from Geneva to New York JFK on June 27, 2027. What's the cheapest business fare?",
+    "Business cabin, GVA to JFK, 2027-06-27: the lowest fare."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA120-20270627-BUSINESS"
+   }
+  },
+  {
+   "id": "W1-13",
+   "class": "W1",
+   "shape": "bag",
+   "source": "generated",
+   "params": {
+    "origin": "ZRH",
+    "destination": "BOS",
+    "date": "2027-02-20"
+   },
+   "phrasings": [
+    "Find me the cheapest fare from Zurich to Boston on 20 February 2027 that includes a checked bag.",
+    "I need to check a suitcase. What is the cheapest fare from Zurich to Boston on February 20, 2027 with a checked bag included?",
+    "ZRH to BOS on 2027-02-20: cheapest fare with one checked bag included."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA730-WA204-20270220-STANDARD"
+   }
+  },
+  {
+   "id": "W1-14",
+   "class": "W1",
+   "shape": "cheapest",
+   "source": "generated",
+   "params": {
+    "origin": "BOS",
+    "destination": "KEF",
+    "date": "2027-09-06"
+   },
+   "phrasings": [
+    "Find me the cheapest flight from Boston to Reykjavik on 6 September 2027.",
+    "What is the lowest fare WebAir has from Boston to Reykjavik on September 6, 2027? Stops are fine.",
+    "Cheapest way to fly BOS to KEF on 2027-09-06, any number of stops."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA205-20270906-BASIC"
+   }
+  },
+  {
+   "id": "W1-15",
+   "class": "W1",
+   "shape": "nonstop",
+   "source": "generated",
+   "params": {
+    "origin": "ZRH",
+    "destination": "LHR",
+    "date": "2027-11-08"
+   },
+   "phrasings": [
+    "Find me a nonstop flight from Zurich to London on 8 November 2027, the cheapest one.",
+    "I only want a direct flight from Zurich to London on November 8, 2027. Which nonstop fare is cheapest?",
+    "Nonstop only, ZRH to LHR, 2027-11-08: give me the lowest fare."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA740-20271108-BASIC"
+   }
+  },
+  {
+   "id": "W1-16",
+   "class": "W1",
+   "shape": "under",
+   "source": "generated",
+   "params": {
+    "origin": "ZRH",
+    "destination": "LHR",
+    "max_price": 150,
+    "date": "2027-05-26"
+   },
+   "phrasings": [
+    "Find me a flight from Zurich to London on 26 May 2027 under $150.",
+    "Anything from Zurich to London on May 26, 2027 for less than 150 dollars? I want the cheapest.",
+    "ZRH to LHR on 2027-05-26, at most $150 per person, cheapest fare please."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA740-20270526-BASIC"
+   }
+  },
+  {
+   "id": "W2-01",
+   "class": "W2",
+   "shape": "fare-rules",
+   "source": "examples/webair-scenarios.json",
+   "params": {},
+   "phrasings": [
+    "What are the change and refund rules for the Standard fare on the nonstop flights from Boston to Zurich on 9 October?",
+    "On the direct Boston to Zurich flights on October 9, 2026, what does the Standard fare allow for changes and refunds?",
+    "Nonstop BOS to ZRH on 2026-10-09, Standard fare: change and refund rules?"
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA101-20261009-STANDARD",
+    "facts": {
+     "change_fee_usd": 150,
+     "changes_allowed": true,
+     "refundable": false
+    }
+   }
+  },
+  {
+   "id": "W2-02",
+   "class": "W2",
+   "shape": "change_fee",
+   "source": "generated",
+   "params": {
+    "origin": "ZRH",
+    "destination": "KEF",
+    "fare_id": "WA730-20270303-FLEX",
+    "flight_label": "WA730",
+    "family_name": "Flex",
+    "date": "2027-03-03"
+   },
+   "phrasings": [
+    "What is the change fee for the Flex fare on flight WA730 from Zurich to Reykjavik on 3 March 2027?",
+    "If I book Flex on WA730 from Zurich to Reykjavik on March 3, 2027, how much does it cost to change the ticket?",
+    "WA730, ZRH to KEF, 2027-03-03, Flex fare: what are the change rules and the fee?"
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA730-20270303-FLEX",
+    "facts": {
+     "change_fee_usd": 0,
+     "changes_allowed": true
+    }
+   }
+  },
+  {
+   "id": "W2-03",
+   "class": "W2",
+   "shape": "refundable",
+   "source": "generated",
+   "params": {
+    "origin": "LHR",
+    "destination": "ZRH",
+    "fare_id": "WA741-20270416-FLEX",
+    "flight_label": "WA741",
+    "family_name": "Flex",
+    "date": "2027-04-16"
+   },
+   "phrasings": [
+    "Is the Flex fare on flight WA741 from London to Zurich on 16 April 2027 refundable?",
+    "Can I get my money back if I cancel the Flex fare on WA741 from London to Zurich on April 16, 2027?",
+    "WA741, LHR to ZRH, 2027-04-16, Flex: refundable or not?"
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA741-20270416-FLEX",
+    "facts": {
+     "refundable": true
+    }
+   }
+  },
+  {
+   "id": "W2-04",
+   "class": "W2",
+   "shape": "change_fee",
+   "source": "generated",
+   "params": {
+    "origin": "LHR",
+    "destination": "BOS",
+    "fare_id": "WA212-20270708-FLEX",
+    "flight_label": "WA212",
+    "family_name": "Flex",
+    "date": "2027-07-08"
+   },
+   "phrasings": [
+    "What is the change fee for the Flex fare on flight WA212 from London to Boston on 8 July 2027?",
+    "If I book Flex on WA212 from London to Boston on July 8, 2027, how much does it cost to change the ticket?",
+    "WA212, LHR to BOS, 2027-07-08, Flex fare: what are the change rules and the fee?"
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA212-20270708-FLEX",
+    "facts": {
+     "change_fee_usd": 0,
+     "changes_allowed": true
+    }
+   }
+  },
+  {
+   "id": "W2-05",
+   "class": "W2",
+   "shape": "refundable",
+   "source": "generated",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "fare_id": "WA213-20270920-STANDARD",
+    "flight_label": "WA213",
+    "family_name": "Standard",
+    "date": "2027-09-20"
+   },
+   "phrasings": [
+    "Is the Standard fare on flight WA213 from Boston to London on 20 September 2027 refundable?",
+    "Can I get my money back if I cancel the Standard fare on WA213 from Boston to London on September 20, 2027?",
+    "WA213, BOS to LHR, 2027-09-20, Standard: refundable or not?"
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA213-20270920-STANDARD",
+    "facts": {
+     "refundable": false
+    }
+   }
+  },
+  {
+   "id": "W2-06",
+   "class": "W2",
+   "shape": "change_fee",
+   "source": "generated",
+   "params": {
+    "origin": "GVA",
+    "destination": "JFK",
+    "fare_id": "WA120-20270404-STANDARD",
+    "flight_label": "WA120",
+    "family_name": "Standard",
+    "date": "2027-04-04"
+   },
+   "phrasings": [
+    "What is the change fee for the Standard fare on flight WA120 from Geneva to New York JFK on 4 April 2027?",
+    "If I book Standard on WA120 from Geneva to New York JFK on April 4, 2027, how much does it cost to change the ticket?",
+    "WA120, GVA to JFK, 2027-04-04, Standard fare: what are the change rules and the fee?"
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA120-20270404-STANDARD",
+    "facts": {
+     "change_fee_usd": 150,
+     "changes_allowed": true
+    }
+   }
+  },
+  {
+   "id": "W2-07",
+   "class": "W2",
+   "shape": "refundable",
+   "source": "generated",
+   "params": {
+    "origin": "LHR",
+    "destination": "ZRH",
+    "fare_id": "WA741-20270830-STANDARD",
+    "flight_label": "WA741",
+    "family_name": "Standard",
+    "date": "2027-08-30"
+   },
+   "phrasings": [
+    "Is the Standard fare on flight WA741 from London to Zurich on 30 August 2027 refundable?",
+    "Can I get my money back if I cancel the Standard fare on WA741 from London to Zurich on August 30, 2027?",
+    "WA741, LHR to ZRH, 2027-08-30, Standard: refundable or not?"
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA741-20270830-STANDARD",
+    "facts": {
+     "refundable": false
+    }
+   }
+  },
+  {
+   "id": "W2-08",
+   "class": "W2",
+   "shape": "change_fee",
+   "source": "generated",
+   "params": {
+    "origin": "KEF",
+    "destination": "ZRH",
+    "fare_id": "WA731-20271022-FLEX",
+    "flight_label": "WA731",
+    "family_name": "Flex",
+    "date": "2027-10-22"
+   },
+   "phrasings": [
+    "What is the change fee for the Flex fare on flight WA731 from Reykjavik to Zurich on 22 October 2027?",
+    "If I book Flex on WA731 from Reykjavik to Zurich on October 22, 2027, how much does it cost to change the ticket?",
+    "WA731, KEF to ZRH, 2027-10-22, Flex fare: what are the change rules and the fee?"
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA731-20271022-FLEX",
+    "facts": {
+     "change_fee_usd": 0,
+     "changes_allowed": true
+    }
+   }
+  },
+  {
+   "id": "W3-01",
+   "class": "W3",
+   "shape": "quote",
+   "source": "generated",
+   "params": {
+    "origin": "KEF",
+    "destination": "ZRH",
+    "fare_id": "WA731-20270520-FLEX",
+    "flight_label": "WA731",
+    "family_name": "Flex",
+    "date": "2027-05-20"
+   },
+   "phrasings": [
+    "Prepare WA731 Flex for 20 May 2027 for me.",
+    "Please get me a booking quote for the Flex fare on WA731 from Reykjavik to Zurich on May 20, 2027, just for me.",
+    "Quote WA731 Flex, KEF to ZRH, 2027-05-20, one passenger (me)."
+   ],
+   "truth": {
+    "status": "quoted",
+    "selected_fare_id": "WA731-20270520-FLEX",
+    "quote_id": "WAQ-CF0F83CCA1872E81",
+    "total_usd": 364,
+    "passengers": 1
+   }
+  },
+  {
+   "id": "W3-02",
+   "class": "W3",
+   "shape": "quote",
+   "source": "generated",
+   "params": {
+    "origin": "ZRH",
+    "destination": "BOS",
+    "fare_id": "WA100-20270610-BASIC",
+    "flight_label": "WA100",
+    "family_name": "Basic",
+    "date": "2027-06-10"
+   },
+   "phrasings": [
+    "Prepare WA100 Basic for 10 June 2027 for me.",
+    "Please get me a booking quote for the Basic fare on WA100 from Zurich to Boston on June 10, 2027, just for me.",
+    "Quote WA100 Basic, ZRH to BOS, 2027-06-10, one passenger (me)."
+   ],
+   "truth": {
+    "status": "quoted",
+    "selected_fare_id": "WA100-20270610-BASIC",
+    "quote_id": "WAQ-4158C021C3C7D2F3",
+    "total_usd": 623,
+    "passengers": 1
+   }
+  },
+  {
+   "id": "W3-03",
+   "class": "W3",
+   "shape": "quote",
+   "source": "generated",
+   "params": {
+    "origin": "ZRH",
+    "destination": "BOS",
+    "fare_id": "WA104-20270201-BUSINESS",
+    "flight_label": "WA104",
+    "family_name": "Business",
+    "date": "2027-02-01"
+   },
+   "phrasings": [
+    "Prepare WA104 Business for 1 February 2027 for me.",
+    "Please get me a booking quote for the Business fare on WA104 from Zurich to Boston on February 1, 2027, just for me.",
+    "Quote WA104 Business, ZRH to BOS, 2027-02-01, one passenger (me)."
+   ],
+   "truth": {
+    "status": "quoted",
+    "selected_fare_id": "WA104-20270201-BUSINESS",
+    "quote_id": "WAQ-D0233A994151A52F",
+    "total_usd": 3200,
+    "passengers": 1
+   }
+  },
+  {
+   "id": "W3-04",
+   "class": "W3",
+   "shape": "quote",
+   "source": "generated",
+   "params": {
+    "origin": "ZRH",
+    "destination": "LHR",
+    "fare_id": "WA740-20270512-BASIC",
+    "flight_label": "WA740",
+    "family_name": "Basic",
+    "date": "2027-05-12"
+   },
+   "phrasings": [
+    "Prepare WA740 Basic for 12 May 2027 for me.",
+    "Please get me a booking quote for the Basic fare on WA740 from Zurich to London on May 12, 2027, just for me.",
+    "Quote WA740 Basic, ZRH to LHR, 2027-05-12, one passenger (me)."
+   ],
+   "truth": {
+    "status": "quoted",
+    "selected_fare_id": "WA740-20270512-BASIC",
+    "quote_id": "WAQ-54DDB12AEFB64433",
+    "total_usd": 113,
+    "passengers": 1
+   }
+  },
+  {
+   "id": "W3-05",
+   "class": "W3",
+   "shape": "quote",
+   "source": "generated",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "fare_id": "WA213-20270512-STANDARD",
+    "flight_label": "WA213",
+    "family_name": "Standard",
+    "date": "2027-05-12"
+   },
+   "phrasings": [
+    "Prepare WA213 Standard for 12 May 2027 for me.",
+    "Please get me a booking quote for the Standard fare on WA213 from Boston to London on May 12, 2027, just for me.",
+    "Quote WA213 Standard, BOS to LHR, 2027-05-12, one passenger (me)."
+   ],
+   "truth": {
+    "status": "quoted",
+    "selected_fare_id": "WA213-20270512-STANDARD",
+    "quote_id": "WAQ-9AE1C3C0F4CF2E1E",
+    "total_usd": 478,
+    "passengers": 1
+   }
+  },
+  {
+   "id": "W3-06",
+   "class": "W3",
+   "shape": "quote",
+   "source": "generated",
+   "params": {
+    "origin": "GVA",
+    "destination": "JFK",
+    "fare_id": "WA120-20270508-STANDARD",
+    "flight_label": "WA120",
+    "family_name": "Standard",
+    "date": "2027-05-08"
+   },
+   "phrasings": [
+    "Prepare WA120 Standard for 8 May 2027 for me.",
+    "Please get me a booking quote for the Standard fare on WA120 from Geneva to New York JFK on May 8, 2027, just for me.",
+    "Quote WA120 Standard, GVA to JFK, 2027-05-08, one passenger (me)."
+   ],
+   "truth": {
+    "status": "quoted",
+    "selected_fare_id": "WA120-20270508-STANDARD",
+    "quote_id": "WAQ-56009F56998FF804",
+    "total_usd": 749,
+    "passengers": 1
+   }
+  },
+  {
+   "id": "W3-07",
+   "class": "W3",
+   "shape": "quote",
+   "source": "generated",
+   "params": {
+    "origin": "JFK",
+    "destination": "GVA",
+    "fare_id": "WA121-20270918-BUSINESS",
+    "flight_label": "WA121",
+    "family_name": "Business",
+    "date": "2027-09-18"
+   },
+   "phrasings": [
+    "Prepare WA121 Business for 18 September 2027 for me.",
+    "Please get me a booking quote for the Business fare on WA121 from New York JFK to Geneva on September 18, 2027, just for me.",
+    "Quote WA121 Business, JFK to GVA, 2027-09-18, one passenger (me)."
+   ],
+   "truth": {
+    "status": "quoted",
+    "selected_fare_id": "WA121-20270918-BUSINESS",
+    "quote_id": "WAQ-1B9A1BC0DFD804C7",
+    "total_usd": 3034,
+    "passengers": 1
+   }
+  },
+  {
+   "id": "W3-08",
+   "class": "W3",
+   "shape": "quote",
+   "source": "generated",
+   "params": {
+    "origin": "JFK",
+    "destination": "GVA",
+    "fare_id": "WA121-20270828-BASIC",
+    "flight_label": "WA121",
+    "family_name": "Basic",
+    "date": "2027-08-28"
+   },
+   "phrasings": [
+    "Prepare WA121 Basic for 28 August 2027 for me.",
+    "Please get me a booking quote for the Basic fare on WA121 from New York JFK to Geneva on August 28, 2027, just for me.",
+    "Quote WA121 Basic, JFK to GVA, 2027-08-28, one passenger (me)."
+   ],
+   "truth": {
+    "status": "quoted",
+    "selected_fare_id": "WA121-20270828-BASIC",
+    "quote_id": "WAQ-65521CFDBF95B58A",
+    "total_usd": 622,
+    "passengers": 1
+   }
+  },
+  {
+   "id": "W4-01",
+   "class": "W4",
+   "shape": "quote-then-buy",
+   "source": "generated",
+   "params": {
+    "origin": "GVA",
+    "destination": "JFK",
+    "fare_id": "WA120-20271031-BUSINESS",
+    "flight_label": "WA120",
+    "family_name": "Business",
+    "date": "2027-10-31"
+   },
+   "phrasings": [
+    [
+     "Prepare WA120 Business for 31 October 2027 for me.",
+     "Buy it."
+    ],
+    [
+     "Please get me a booking quote for the Business fare on WA120 from Geneva to New York JFK on October 31, 2027, just for me.",
+     "Yes, go ahead and buy it."
+    ],
+    [
+     "Quote WA120 Business, GVA to JFK, 2027-10-31, one passenger (me).",
+     "Please purchase that quote."
+    ]
+   ],
+   "truth": {
+    "status": "purchase_simulated",
+    "quote_id": "WAQ-4365C943D76F93FB",
+    "total_usd": 3370,
+    "confirmation_id": "WA-DEMO-TSB4X",
+    "consent_cards": 1,
+    "purchases": 1
+   }
+  },
+  {
+   "id": "W4-02",
+   "class": "W4",
+   "shape": "quote-then-buy",
+   "source": "generated",
+   "params": {
+    "origin": "LHR",
+    "destination": "ZRH",
+    "fare_id": "WA741-20270105-STANDARD",
+    "flight_label": "WA741",
+    "family_name": "Standard",
+    "date": "2027-01-05"
+   },
+   "phrasings": [
+    [
+     "Prepare WA741 Standard for 5 January 2027 for me.",
+     "Buy it."
+    ],
+    [
+     "Please get me a booking quote for the Standard fare on WA741 from London to Zurich on January 5, 2027, just for me.",
+     "Yes, go ahead and buy it."
+    ],
+    [
+     "Quote WA741 Standard, LHR to ZRH, 2027-01-05, one passenger (me).",
+     "Please purchase that quote."
+    ]
+   ],
+   "truth": {
+    "status": "purchase_simulated",
+    "quote_id": "WAQ-EDF8C7CB50A73931",
+    "total_usd": 147,
+    "confirmation_id": "WA-DEMO-4WKZW",
+    "consent_cards": 1,
+    "purchases": 1
+   }
+  },
+  {
+   "id": "W4-03",
+   "class": "W4",
+   "shape": "quote-then-buy",
+   "source": "generated",
+   "params": {
+    "origin": "KEF",
+    "destination": "BOS",
+    "fare_id": "WA204-20270914-STANDARD",
+    "flight_label": "WA204",
+    "family_name": "Standard",
+    "date": "2027-09-14"
+   },
+   "phrasings": [
+    [
+     "Prepare WA204 Standard for 14 September 2027 for me.",
+     "Buy it."
+    ],
+    [
+     "Please get me a booking quote for the Standard fare on WA204 from Reykjavik to Boston on September 14, 2027, just for me.",
+     "Yes, go ahead and buy it."
+    ],
+    [
+     "Quote WA204 Standard, KEF to BOS, 2027-09-14, one passenger (me).",
+     "Please purchase that quote."
+    ]
+   ],
+   "truth": {
+    "status": "purchase_simulated",
+    "quote_id": "WAQ-6F4E2A1BB3AB9F67",
+    "total_usd": 340,
+    "confirmation_id": "WA-DEMO-BF5NF",
+    "consent_cards": 1,
+    "purchases": 1
+   }
+  },
+  {
+   "id": "W4-04",
+   "class": "W4",
+   "shape": "quote-then-buy",
+   "source": "generated",
+   "params": {
+    "origin": "GVA",
+    "destination": "JFK",
+    "fare_id": "WA120-20270916-FLEX",
+    "flight_label": "WA120",
+    "family_name": "Flex",
+    "date": "2027-09-16"
+   },
+   "phrasings": [
+    [
+     "Prepare WA120 Flex for 16 September 2027 for me.",
+     "Buy it."
+    ],
+    [
+     "Please get me a booking quote for the Flex fare on WA120 from Geneva to New York JFK on September 16, 2027, just for me.",
+     "Yes, go ahead and buy it."
+    ],
+    [
+     "Quote WA120 Flex, GVA to JFK, 2027-09-16, one passenger (me).",
+     "Please purchase that quote."
+    ]
+   ],
+   "truth": {
+    "status": "purchase_simulated",
+    "quote_id": "WAQ-1B9F3CCAE6BB37E3",
+    "total_usd": 1092,
+    "confirmation_id": "WA-DEMO-Z9CQ5",
+    "consent_cards": 1,
+    "purchases": 1
+   }
+  },
+  {
+   "id": "W5-01",
+   "class": "W5",
+   "shape": "no-results",
+   "source": "examples/webair-scenarios.json",
+   "params": {},
+   "phrasings": [
+    "I need a flight from Boston to Geneva on 9 October.",
+    "Can WebAir fly me from Boston to Geneva on October 9, 2026?",
+    "BOS to GVA on 2026-10-09, please."
+   ],
+   "truth": {
+    "status": "no_matching_flights",
+    "selected_fare_id": null
+   }
+  },
+  {
+   "id": "W5-02",
+   "class": "W5",
+   "shape": "refused",
+   "source": "examples/webair-scenarios.json",
+   "params": {},
+   "phrasings": [
+    "Find me a nonstop flight from Boston to Zurich on 9 October 2028 under $900.",
+    "I'd like a direct Boston to Zurich flight on October 9, 2028, under 900 dollars.",
+    "Nonstop BOS to ZRH on 2028-10-09 below $900."
+   ],
+   "truth": {
+    "status": "request_refused",
+    "selected_fare_id": null
+   }
+  },
+  {
+   "id": "W5-03",
+   "class": "W5",
+   "shape": "unsupported",
+   "source": "examples/webair-scenarios.json",
+   "params": {},
+   "phrasings": [
+    "Book me a flight from Boston to Paris next Friday.",
+    "I need to get from Boston to Paris next Friday, can you find a flight?",
+    "Flight BOS to Paris CDG next Friday please."
+   ],
+   "truth": {
+    "status": "request_not_supported",
+    "selected_fare_id": null
+   }
+  },
+  {
+   "id": "W5-04",
+   "class": "W5",
+   "shape": "no-departure",
+   "source": "examples/webair-scenarios.json",
+   "params": {},
+   "phrasings": [
+    "Find me a flight to Zurich on 9 October under $900.",
+    "I want to fly to Zurich on October 9, 2026 for under 900 dollars.",
+    "A flight to ZRH on 2026-10-09 below $900."
+   ],
+   "truth": {
+    "status": "request_not_supported",
+    "selected_fare_id": null
+   }
+  }
+ ]
+}

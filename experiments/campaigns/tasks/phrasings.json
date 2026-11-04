@@ -1,0 +1,142 @@
+{
+  "profile": "campaign-phrasings-v1",
+  "note": "Hand-written phrasings (PROTOCOL.md §2.3): per task shape, the canonical phrasing first and two fixed paraphrases. The generator fills the placeholders from the task's parameters; it never writes a phrasing of its own. {date_a}, {date_b} and {date_c} are three spellings of one date (9 March 2027; March 9, 2027; 2027-03-09). Every side receives the identical text (rule 4).",
+  "ts-w": {
+    "W1": {
+      "cheapest": [
+        "Find me the cheapest flight from {origin_city} to {destination_city} on {date_a}.",
+        "What is the lowest fare WebAir has from {origin_city} to {destination_city} on {date_b}? Stops are fine.",
+        "Cheapest way to fly {origin} to {destination} on {date_c}, any number of stops."
+      ],
+      "nonstop": [
+        "Find me a nonstop flight from {origin_city} to {destination_city} on {date_a}, the cheapest one.",
+        "I only want a direct flight from {origin_city} to {destination_city} on {date_b}. Which nonstop fare is cheapest?",
+        "Nonstop only, {origin} to {destination}, {date_c}: give me the lowest fare."
+      ],
+      "under": [
+        "Find me a flight from {origin_city} to {destination_city} on {date_a} under ${max_price}.",
+        "Anything from {origin_city} to {destination_city} on {date_b} for less than {max_price} dollars? I want the cheapest.",
+        "{origin} to {destination} on {date_c}, at most ${max_price} per person, cheapest fare please."
+      ],
+      "business": [
+        "One traveler from {origin_city} to {destination_city} on {date_a}, business class.",
+        "I'd like to fly business from {origin_city} to {destination_city} on {date_b}. What's the cheapest business fare?",
+        "Business cabin, {origin} to {destination}, {date_c}: the lowest fare."
+      ],
+      "bag": [
+        "Find me the cheapest fare from {origin_city} to {destination_city} on {date_a} that includes a checked bag.",
+        "I need to check a suitcase. What is the cheapest fare from {origin_city} to {destination_city} on {date_b} with a checked bag included?",
+        "{origin} to {destination} on {date_c}: cheapest fare with one checked bag included."
+      ]
+    },
+    "W2": {
+      "change_fee": [
+        "What is the change fee for the {family_name} fare on flight {flight_label} from {origin_city} to {destination_city} on {date_a}?",
+        "If I book {family_name} on {flight_label} from {origin_city} to {destination_city} on {date_b}, how much does it cost to change the ticket?",
+        "{flight_label}, {origin} to {destination}, {date_c}, {family_name} fare: what are the change rules and the fee?"
+      ],
+      "refundable": [
+        "Is the {family_name} fare on flight {flight_label} from {origin_city} to {destination_city} on {date_a} refundable?",
+        "Can I get my money back if I cancel the {family_name} fare on {flight_label} from {origin_city} to {destination_city} on {date_b}?",
+        "{flight_label}, {origin} to {destination}, {date_c}, {family_name}: refundable or not?"
+      ]
+    },
+    "W3": {
+      "quote": [
+        "Prepare {flight_label} {family_name} for {date_a} for me.",
+        "Please get me a booking quote for the {family_name} fare on {flight_label} from {origin_city} to {destination_city} on {date_b}, just for me.",
+        "Quote {flight_label} {family_name}, {origin} to {destination}, {date_c}, one passenger (me)."
+      ]
+    },
+    "W4": {
+      "buy": [
+        "Buy it.",
+        "Yes, go ahead and buy it.",
+        "Please purchase that quote."
+      ]
+    },
+    "scenario": {
+      "hero": [
+        "Find me a nonstop flight from Boston to Zurich on 9 October under $900.",
+        "I need a direct flight Boston to Zurich on October 9, 2026, for under 900 dollars.",
+        "Nonstop BOS to ZRH on 2026-10-09, below $900."
+      ],
+      "checked-bag": [
+        "Find me a nonstop flight from Boston to Zurich on 9 October under $900. Which of those fares includes a checked bag?",
+        "Direct Boston to Zurich on October 9, 2026 under $900: which of those fares comes with a checked bag?",
+        "Nonstop BOS to ZRH, 2026-10-09, under $900. Which fare includes a checked bag?"
+      ],
+      "other-route": [
+        "One traveler from New York JFK to Geneva on Saturday 10 October 2026, business class.",
+        "I want to fly business from JFK to Geneva on Saturday, October 10, 2026, one person.",
+        "Business class, JFK to GVA, 2026-10-10, one traveler."
+      ],
+      "fare-rules": [
+        "What are the change and refund rules for the Standard fare on the nonstop flights from Boston to Zurich on 9 October?",
+        "On the direct Boston to Zurich flights on October 9, 2026, what does the Standard fare allow for changes and refunds?",
+        "Nonstop BOS to ZRH on 2026-10-09, Standard fare: change and refund rules?"
+      ],
+      "no-results": [
+        "I need a flight from Boston to Geneva on 9 October.",
+        "Can WebAir fly me from Boston to Geneva on October 9, 2026?",
+        "BOS to GVA on 2026-10-09, please."
+      ],
+      "refused": [
+        "Find me a nonstop flight from Boston to Zurich on 9 October 2028 under $900.",
+        "I'd like a direct Boston to Zurich flight on October 9, 2028, under 900 dollars.",
+        "Nonstop BOS to ZRH on 2028-10-09 below $900."
+      ],
+      "unsupported": [
+        "Book me a flight from Boston to Paris next Friday.",
+        "I need to get from Boston to Paris next Friday, can you find a flight?",
+        "Flight BOS to Paris CDG next Friday please."
+      ],
+      "no-departure": [
+        "Find me a flight to Zurich on 9 October under $900.",
+        "I want to fly to Zurich on October 9, 2026 for under 900 dollars.",
+        "A flight to ZRH on 2026-10-09 below $900."
+      ]
+    }
+  },
+  "ts-c": {
+    "refine": [
+      ["Find me a flight from {origin_city} to {destination_city} on {date_a}.", "Only nonstop, and the cheapest one.", "That's all, thanks."],
+      ["Show me flights from {origin_city} to {destination_city} on {date_b}.", "Just the direct ones please, cheapest first.", "Thanks, that's it."],
+      ["{origin} to {destination}, {date_c}: what do you have?", "Nonstop only. Which is cheapest?", "Goodbye."]
+    ],
+    "history": [
+      ["Find me a nonstop flight from {origin_city} to {destination_city} on {date_a}.", "Which of the fares you just showed me is the cheapest?", "That's all, thanks."],
+      ["Direct flights from {origin_city} to {destination_city} on {date_b}, please.", "Of those, which one is cheapest?", "Thanks, bye."],
+      ["Nonstop {origin} to {destination}, {date_c}.", "Cheapest of what you found?", "Done, thank you."]
+    ],
+    "book": [
+      ["Find me a nonstop flight from {origin_city} to {destination_city} on {date_a}.", "Quote {flight_label} {family_name} for me.", "Buy it.", "That's all, thanks."],
+      ["Direct flights from {origin_city} to {destination_city} on {date_b}, please.", "Please prepare a quote for the {family_name} fare on {flight_label}, just me.", "Yes, buy it.", "Thanks, bye."],
+      ["Nonstop {origin} to {destination}, {date_c}.", "Quote {flight_label} {family_name}, one passenger.", "Purchase it.", "Done, thank you."]
+    ],
+    "rebuy": [
+      ["Prepare {flight_label} {family_name} for {date_a} for me.", "Buy it.", "Buy it again."],
+      ["Please get me a booking quote for the {family_name} fare on {flight_label} from {origin_city} to {destination_city} on {date_b}, just for me.", "Yes, go ahead and buy it.", "And buy it once more, please."],
+      ["Quote {flight_label} {family_name}, {origin} to {destination}, {date_c}, one passenger (me).", "Purchase it.", "Purchase it again."]
+    ]
+  },
+  "ts-l": {
+    "extra": [
+      {
+        "id": "L5",
+        "question": "What methods have been proposed for bounding the cost or resource use of LLM agents (token budgets, step limits, call caps)? Compare where the bound is enforced and how it is set, focusing on representative methods."
+      },
+      {
+        "id": "L6",
+        "question": "How do agent frameworks ask a person for confirmation before a consequential tool call? Compare what the person is shown, where the check is enforced, and the reported failure modes, focusing on representative systems."
+      }
+    ]
+  },
+  "ts-n": {
+    "trip": [
+      "Plan a trip from {origin_city} to {destination_city}: out on {date_out_a}, back on {date_back_a}, {travellers_words}; check my calendar too.",
+      "I'm travelling {origin_city} to {destination_city} with {travellers_words}, leaving {date_out_b} and returning {date_back_b}. Find flights and a hotel, and tell me if it clashes with my calendar.",
+      "Trip {origin} to {destination}, {date_out_c} to {date_back_c}, {travellers} traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+    ]
+  }
+}

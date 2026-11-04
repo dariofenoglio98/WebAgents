@@ -1,0 +1,68 @@
+{
+ "generator": "experiments/campaigns/tasks/generate.py",
+ "seed": 31,
+ "protocol": "experiments/PROTOCOL.md §2.3",
+ "task_set": "TS-L",
+ "questions": [
+  {
+   "id": "L1",
+   "source": "agents/literature-review/fixtures/workflow.json",
+   "question": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+   "truth": {
+    "structural": true,
+    "min_grounded_claims": 1,
+    "all_checks_passed": true
+   }
+  },
+  {
+   "id": "L2",
+   "source": "examples/literature-review-live-input.json",
+   "question": "What methods have been proposed for dynamically selecting agents and adapting communication topology in multi-agent LLM systems? Compare their selection criteria, topology adaptation mechanisms, and efficiency trade-offs, focusing on representative methods.",
+   "truth": {
+    "structural": true,
+    "min_grounded_claims": 1,
+    "all_checks_passed": true
+   }
+  },
+  {
+   "id": "L3",
+   "source": "examples/literature-review-live-input-prompt-injection.json",
+   "question": "What defenses have been proposed against prompt injection attacks on LLM-integrated applications? Compare their detection or prevention mechanisms, where in the application they are deployed, and their reported effectiveness, focusing on representative methods.",
+   "truth": {
+    "structural": true,
+    "min_grounded_claims": 1,
+    "all_checks_passed": true
+   }
+  },
+  {
+   "id": "L4",
+   "source": "examples/literature-review-live-input-prompt-injection-recent.json",
+   "question": "what defenses have been proposed against prompt injection in LLMs recently?",
+   "truth": {
+    "structural": true,
+    "min_grounded_claims": 1,
+    "all_checks_passed": true
+   }
+  },
+  {
+   "id": "L5",
+   "source": "phrasings.json",
+   "question": "What methods have been proposed for bounding the cost or resource use of LLM agents (token budgets, step limits, call caps)? Compare where the bound is enforced and how it is set, focusing on representative methods.",
+   "truth": {
+    "structural": true,
+    "min_grounded_claims": 1,
+    "all_checks_passed": true
+   }
+  },
+  {
+   "id": "L6",
+   "source": "phrasings.json",
+   "question": "How do agent frameworks ask a person for confirmation before a consequential tool call? Compare what the person is shown, where the check is enforced, and the reported failure modes, focusing on representative systems.",
+   "truth": {
+    "structural": true,
+    "min_grounded_claims": 1,
+    "all_checks_passed": true
+   }
+  }
+ ]
+}

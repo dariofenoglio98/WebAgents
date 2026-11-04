@@ -1,0 +1,638 @@
+{
+ "generator": "experiments/campaigns/tasks/generate.py",
+ "seed": 31,
+ "protocol": "experiments/PROTOCOL.md §2.3",
+ "task_set": "TS-N",
+ "requests": [
+  {
+   "id": "N-01",
+   "params": {
+    "origin": "ZRH",
+    "destination": "JFK",
+    "date_out": "2027-01-17",
+    "date_back": "2027-01-21",
+    "travellers": 1
+   },
+   "phrasings": [
+    "Plan a trip from Zurich to New York JFK: out on 17 January 2027, back on 21 January 2027, one traveller; check my calendar too.",
+    "I'm travelling Zurich to New York JFK with one traveller, leaving January 17, 2027 and returning January 21, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip ZRH to JFK, 2027-01-17 to 2027-01-21, 1 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA114-20270117",
+    "hotel_ids": [
+     "H-MID",
+     "H-PRK"
+    ],
+    "hotel_names": [
+     "Midtown Stay (fictional)",
+     "Parkside Hotel (fictional)"
+    ],
+    "nights": 4,
+    "conflict": true,
+    "conflict_entries": [
+     {
+      "date": "2027-01-18",
+      "title": "Project review (fixed)"
+     }
+    ]
+   }
+  },
+  {
+   "id": "N-02",
+   "params": {
+    "origin": "JFK",
+    "destination": "GVA",
+    "date_out": "2027-11-16",
+    "date_back": "2027-11-21",
+    "travellers": 2
+   },
+   "phrasings": [
+    "Plan a trip from New York JFK to Geneva: out on 16 November 2027, back on 21 November 2027, two travellers; check my calendar too.",
+    "I'm travelling New York JFK to Geneva with two travellers, leaving November 16, 2027 and returning November 21, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip JFK to GVA, 2027-11-16 to 2027-11-21, 2 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA121-20271116",
+    "hotel_ids": [
+     "H-LAC",
+     "H-RHO"
+    ],
+    "hotel_names": [
+     "Hôtel du Lac (fictional)",
+     "Rhône Rooms (fictional)"
+    ],
+    "nights": 5,
+    "conflict": false,
+    "conflict_entries": []
+   }
+  },
+  {
+   "id": "N-03",
+   "params": {
+    "origin": "LHR",
+    "destination": "BOS",
+    "date_out": "2027-04-12",
+    "date_back": "2027-04-16",
+    "travellers": 2
+   },
+   "phrasings": [
+    "Plan a trip from London to Boston: out on 12 April 2027, back on 16 April 2027, two travellers; check my calendar too.",
+    "I'm travelling London to Boston with two travellers, leaving April 12, 2027 and returning April 16, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip LHR to BOS, 2027-04-12 to 2027-04-16, 2 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA212-20270412",
+    "hotel_ids": [
+     "H-BAY",
+     "H-HAR"
+    ],
+    "hotel_names": [
+     "Back Bay Rooms (fictional)",
+     "Harborview Hotel (fictional)"
+    ],
+    "nights": 4,
+    "conflict": true,
+    "conflict_entries": [
+     {
+      "date": "2027-04-15",
+      "title": "Thesis committee (fixed)"
+     }
+    ]
+   }
+  },
+  {
+   "id": "N-04",
+   "params": {
+    "origin": "ZRH",
+    "destination": "JFK",
+    "date_out": "2027-08-19",
+    "date_back": "2027-08-22",
+    "travellers": 5
+   },
+   "phrasings": [
+    "Plan a trip from Zurich to New York JFK: out on 19 August 2027, back on 22 August 2027, five travellers; check my calendar too.",
+    "I'm travelling Zurich to New York JFK with five travellers, leaving August 19, 2027 and returning August 22, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip ZRH to JFK, 2027-08-19 to 2027-08-22, 5 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA114-20270819",
+    "hotel_ids": [
+     "H-MID",
+     "H-PRK"
+    ],
+    "hotel_names": [
+     "Midtown Stay (fictional)",
+     "Parkside Hotel (fictional)"
+    ],
+    "nights": 3,
+    "conflict": false,
+    "conflict_entries": []
+   }
+  },
+  {
+   "id": "N-05",
+   "params": {
+    "origin": "ZRH",
+    "destination": "KEF",
+    "date_out": "2027-06-01",
+    "date_back": "2027-06-03",
+    "travellers": 4
+   },
+   "phrasings": [
+    "Plan a trip from Zurich to Reykjavik: out on 1 June 2027, back on 3 June 2027, four travellers; check my calendar too.",
+    "I'm travelling Zurich to Reykjavik with four travellers, leaving June 1, 2027 and returning June 3, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip ZRH to KEF, 2027-06-01 to 2027-06-03, 4 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA730-20270601",
+    "hotel_ids": [
+     "H-HAF",
+     "H-AUR"
+    ],
+    "hotel_names": [
+     "Harbour Guesthouse (fictional)",
+     "Aurora Hotel (fictional)"
+    ],
+    "nights": 2,
+    "conflict": true,
+    "conflict_entries": [
+     {
+      "date": "2027-06-02",
+      "title": "Conference travel (fixed)"
+     }
+    ]
+   }
+  },
+  {
+   "id": "N-06",
+   "params": {
+    "origin": "LHR",
+    "destination": "BOS",
+    "date_out": "2027-01-26",
+    "date_back": "2027-02-02",
+    "travellers": 1
+   },
+   "phrasings": [
+    "Plan a trip from London to Boston: out on 26 January 2027, back on 2 February 2027, one traveller; check my calendar too.",
+    "I'm travelling London to Boston with one traveller, leaving January 26, 2027 and returning February 2, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip LHR to BOS, 2027-01-26 to 2027-02-02, 1 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA212-20270126",
+    "hotel_ids": [
+     "H-BAY",
+     "H-HAR"
+    ],
+    "hotel_names": [
+     "Back Bay Rooms (fictional)",
+     "Harborview Hotel (fictional)"
+    ],
+    "nights": 7,
+    "conflict": false,
+    "conflict_entries": []
+   }
+  },
+  {
+   "id": "N-07",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "date_out": "2027-03-10",
+    "date_back": "2027-03-17",
+    "travellers": 3
+   },
+   "phrasings": [
+    "Plan a trip from Boston to London: out on 10 March 2027, back on 17 March 2027, three travellers; check my calendar too.",
+    "I'm travelling Boston to London with three travellers, leaving March 10, 2027 and returning March 17, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip BOS to LHR, 2027-03-10 to 2027-03-17, 3 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA213-20270310",
+    "hotel_ids": [
+     "H-KEN",
+     "H-RIV"
+    ],
+    "hotel_names": [
+     "Kensington Rooms (fictional)",
+     "Riverside Hotel (fictional)"
+    ],
+    "nights": 7,
+    "conflict": true,
+    "conflict_entries": [
+     {
+      "date": "2027-03-11",
+      "title": "Group meeting (movable)"
+     }
+    ]
+   }
+  },
+  {
+   "id": "N-08",
+   "params": {
+    "origin": "ZRH",
+    "destination": "BOS",
+    "date_out": "2027-04-27",
+    "date_back": "2027-05-03",
+    "travellers": 3
+   },
+   "phrasings": [
+    "Plan a trip from Zurich to Boston: out on 27 April 2027, back on 3 May 2027, three travellers; check my calendar too.",
+    "I'm travelling Zurich to Boston with three travellers, leaving April 27, 2027 and returning May 3, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip ZRH to BOS, 2027-04-27 to 2027-05-03, 3 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA730-WA204-20270427",
+    "hotel_ids": [
+     "H-BAY",
+     "H-HAR"
+    ],
+    "hotel_names": [
+     "Back Bay Rooms (fictional)",
+     "Harborview Hotel (fictional)"
+    ],
+    "nights": 6,
+    "conflict": false,
+    "conflict_entries": []
+   }
+  },
+  {
+   "id": "N-09",
+   "params": {
+    "origin": "LHR",
+    "destination": "ZRH",
+    "date_out": "2027-04-13",
+    "date_back": "2027-04-20",
+    "travellers": 4
+   },
+   "phrasings": [
+    "Plan a trip from London to Zurich: out on 13 April 2027, back on 20 April 2027, four travellers; check my calendar too.",
+    "I'm travelling London to Zurich with four travellers, leaving April 13, 2027 and returning April 20, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip LHR to ZRH, 2027-04-13 to 2027-04-20, 4 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA741-20270413",
+    "hotel_ids": [
+     "H-ALT",
+     "H-SEE"
+    ],
+    "hotel_names": [
+     "Hotel Altstadt (fictional)",
+     "Seeblick Inn (fictional)"
+    ],
+    "nights": 7,
+    "conflict": true,
+    "conflict_entries": [
+     {
+      "date": "2027-04-15",
+      "title": "Thesis committee (fixed)"
+     }
+    ]
+   }
+  },
+  {
+   "id": "N-10",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "date_out": "2027-10-08",
+    "date_back": "2027-10-15",
+    "travellers": 5
+   },
+   "phrasings": [
+    "Plan a trip from Boston to London: out on 8 October 2027, back on 15 October 2027, five travellers; check my calendar too.",
+    "I'm travelling Boston to London with five travellers, leaving October 8, 2027 and returning October 15, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip BOS to LHR, 2027-10-08 to 2027-10-15, 5 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA213-20271008",
+    "hotel_ids": [
+     "H-KEN",
+     "H-RIV"
+    ],
+    "hotel_names": [
+     "Kensington Rooms (fictional)",
+     "Riverside Hotel (fictional)"
+    ],
+    "nights": 7,
+    "conflict": false,
+    "conflict_entries": []
+   }
+  },
+  {
+   "id": "N-11",
+   "params": {
+    "origin": "GVA",
+    "destination": "JFK",
+    "date_out": "2027-03-11",
+    "date_back": "2027-03-17",
+    "travellers": 3
+   },
+   "phrasings": [
+    "Plan a trip from Geneva to New York JFK: out on 11 March 2027, back on 17 March 2027, three travellers; check my calendar too.",
+    "I'm travelling Geneva to New York JFK with three travellers, leaving March 11, 2027 and returning March 17, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip GVA to JFK, 2027-03-11 to 2027-03-17, 3 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA120-20270311",
+    "hotel_ids": [
+     "H-MID",
+     "H-PRK"
+    ],
+    "hotel_names": [
+     "Midtown Stay (fictional)",
+     "Parkside Hotel (fictional)"
+    ],
+    "nights": 6,
+    "conflict": true,
+    "conflict_entries": [
+     {
+      "date": "2027-03-11",
+      "title": "Group meeting (movable)"
+     }
+    ]
+   }
+  },
+  {
+   "id": "N-12",
+   "params": {
+    "origin": "LHR",
+    "destination": "ZRH",
+    "date_out": "2027-03-28",
+    "date_back": "2027-04-01",
+    "travellers": 5
+   },
+   "phrasings": [
+    "Plan a trip from London to Zurich: out on 28 March 2027, back on 1 April 2027, five travellers; check my calendar too.",
+    "I'm travelling London to Zurich with five travellers, leaving March 28, 2027 and returning April 1, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip LHR to ZRH, 2027-03-28 to 2027-04-01, 5 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA741-20270328",
+    "hotel_ids": [
+     "H-ALT",
+     "H-SEE"
+    ],
+    "hotel_names": [
+     "Hotel Altstadt (fictional)",
+     "Seeblick Inn (fictional)"
+    ],
+    "nights": 4,
+    "conflict": false,
+    "conflict_entries": []
+   }
+  },
+  {
+   "id": "N-13",
+   "params": {
+    "origin": "GVA",
+    "destination": "JFK",
+    "date_out": "2027-03-09",
+    "date_back": "2027-03-15",
+    "travellers": 3
+   },
+   "phrasings": [
+    "Plan a trip from Geneva to New York JFK: out on 9 March 2027, back on 15 March 2027, three travellers; check my calendar too.",
+    "I'm travelling Geneva to New York JFK with three travellers, leaving March 9, 2027 and returning March 15, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip GVA to JFK, 2027-03-09 to 2027-03-15, 3 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA120-20270309",
+    "hotel_ids": [
+     "H-MID",
+     "H-PRK"
+    ],
+    "hotel_names": [
+     "Midtown Stay (fictional)",
+     "Parkside Hotel (fictional)"
+    ],
+    "nights": 6,
+    "conflict": true,
+    "conflict_entries": [
+     {
+      "date": "2027-03-11",
+      "title": "Group meeting (movable)"
+     }
+    ]
+   }
+  },
+  {
+   "id": "N-14",
+   "params": {
+    "origin": "ZRH",
+    "destination": "JFK",
+    "date_out": "2027-06-07",
+    "date_back": "2027-06-10",
+    "travellers": 4
+   },
+   "phrasings": [
+    "Plan a trip from Zurich to New York JFK: out on 7 June 2027, back on 10 June 2027, four travellers; check my calendar too.",
+    "I'm travelling Zurich to New York JFK with four travellers, leaving June 7, 2027 and returning June 10, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip ZRH to JFK, 2027-06-07 to 2027-06-10, 4 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA114-20270607",
+    "hotel_ids": [
+     "H-MID",
+     "H-PRK"
+    ],
+    "hotel_names": [
+     "Midtown Stay (fictional)",
+     "Parkside Hotel (fictional)"
+    ],
+    "nights": 3,
+    "conflict": false,
+    "conflict_entries": []
+   }
+  },
+  {
+   "id": "N-15",
+   "params": {
+    "origin": "LHR",
+    "destination": "ZRH",
+    "date_out": "2027-02-03",
+    "date_back": "2027-02-05",
+    "travellers": 2
+   },
+   "phrasings": [
+    "Plan a trip from London to Zurich: out on 3 February 2027, back on 5 February 2027, two travellers; check my calendar too.",
+    "I'm travelling London to Zurich with two travellers, leaving February 3, 2027 and returning February 5, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip LHR to ZRH, 2027-02-03 to 2027-02-05, 2 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA741-20270203",
+    "hotel_ids": [
+     "H-ALT",
+     "H-SEE"
+    ],
+    "hotel_names": [
+     "Hotel Altstadt (fictional)",
+     "Seeblick Inn (fictional)"
+    ],
+    "nights": 2,
+    "conflict": true,
+    "conflict_entries": [
+     {
+      "date": "2027-02-04",
+      "title": "Dentist (movable)"
+     }
+    ]
+   }
+  },
+  {
+   "id": "N-16",
+   "params": {
+    "origin": "KEF",
+    "destination": "BOS",
+    "date_out": "2027-06-11",
+    "date_back": "2027-06-16",
+    "travellers": 4
+   },
+   "phrasings": [
+    "Plan a trip from Reykjavik to Boston: out on 11 June 2027, back on 16 June 2027, four travellers; check my calendar too.",
+    "I'm travelling Reykjavik to Boston with four travellers, leaving June 11, 2027 and returning June 16, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip KEF to BOS, 2027-06-11 to 2027-06-16, 4 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA204-20270611",
+    "hotel_ids": [
+     "H-BAY",
+     "H-HAR"
+    ],
+    "hotel_names": [
+     "Back Bay Rooms (fictional)",
+     "Harborview Hotel (fictional)"
+    ],
+    "nights": 5,
+    "conflict": false,
+    "conflict_entries": []
+   }
+  },
+  {
+   "id": "N-17",
+   "params": {
+    "origin": "BOS",
+    "destination": "ZRH",
+    "date_out": "2027-03-09",
+    "date_back": "2027-03-16",
+    "travellers": 5
+   },
+   "phrasings": [
+    "Plan a trip from Boston to Zurich: out on 9 March 2027, back on 16 March 2027, five travellers; check my calendar too.",
+    "I'm travelling Boston to Zurich with five travellers, leaving March 9, 2027 and returning March 16, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip BOS to ZRH, 2027-03-09 to 2027-03-16, 5 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA205-WA731-20270309",
+    "hotel_ids": [
+     "H-ALT",
+     "H-SEE"
+    ],
+    "hotel_names": [
+     "Hotel Altstadt (fictional)",
+     "Seeblick Inn (fictional)"
+    ],
+    "nights": 7,
+    "conflict": true,
+    "conflict_entries": [
+     {
+      "date": "2027-03-11",
+      "title": "Group meeting (movable)"
+     }
+    ]
+   }
+  },
+  {
+   "id": "N-18",
+   "params": {
+    "origin": "KEF",
+    "destination": "BOS",
+    "date_out": "2027-01-10",
+    "date_back": "2027-01-17",
+    "travellers": 5
+   },
+   "phrasings": [
+    "Plan a trip from Reykjavik to Boston: out on 10 January 2027, back on 17 January 2027, five travellers; check my calendar too.",
+    "I'm travelling Reykjavik to Boston with five travellers, leaving January 10, 2027 and returning January 17, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip KEF to BOS, 2027-01-10 to 2027-01-17, 5 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA204-20270110",
+    "hotel_ids": [
+     "H-BAY",
+     "H-HAR"
+    ],
+    "hotel_names": [
+     "Back Bay Rooms (fictional)",
+     "Harborview Hotel (fictional)"
+    ],
+    "nights": 7,
+    "conflict": false,
+    "conflict_entries": []
+   }
+  },
+  {
+   "id": "N-19",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "date_out": "2027-04-14",
+    "date_back": "2027-04-20",
+    "travellers": 3
+   },
+   "phrasings": [
+    "Plan a trip from Boston to London: out on 14 April 2027, back on 20 April 2027, three travellers; check my calendar too.",
+    "I'm travelling Boston to London with three travellers, leaving April 14, 2027 and returning April 20, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip BOS to LHR, 2027-04-14 to 2027-04-20, 3 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA213-20270414",
+    "hotel_ids": [
+     "H-KEN",
+     "H-RIV"
+    ],
+    "hotel_names": [
+     "Kensington Rooms (fictional)",
+     "Riverside Hotel (fictional)"
+    ],
+    "nights": 6,
+    "conflict": true,
+    "conflict_entries": [
+     {
+      "date": "2027-04-15",
+      "title": "Thesis committee (fixed)"
+     }
+    ]
+   }
+  },
+  {
+   "id": "N-20",
+   "params": {
+    "origin": "BOS",
+    "destination": "ZRH",
+    "date_out": "2027-04-26",
+    "date_back": "2027-04-28",
+    "travellers": 6
+   },
+   "phrasings": [
+    "Plan a trip from Boston to Zurich: out on 26 April 2027, back on 28 April 2027, six travellers; check my calendar too.",
+    "I'm travelling Boston to Zurich with six travellers, leaving April 26, 2027 and returning April 28, 2027. Find flights and a hotel, and tell me if it clashes with my calendar.",
+    "Trip BOS to ZRH, 2027-04-26 to 2027-04-28, 6 traveller(s): cheapest flight, a hotel for the nights, calendar conflicts?"
+   ],
+   "truth": {
+    "cheapest_flight_id": "WA205-WA731-20270426",
+    "hotel_ids": [
+     "H-ALT",
+     "H-SEE"
+    ],
+    "hotel_names": [
+     "Hotel Altstadt (fictional)",
+     "Seeblick Inn (fictional)"
+    ],
+    "nights": 2,
+    "conflict": false,
+    "conflict_entries": []
+   }
+  }
+ ]
+}

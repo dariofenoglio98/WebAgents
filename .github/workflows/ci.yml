@@ -697,13 +697,15 @@ jobs:
         run: |
           python -m venv agentpkg/.venv
           agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev,compute]'
+          # The campaign infrastructure (T31): WebAir's origin and the framework baseline.
+          agentpkg/.venv/bin/python -m pip install -r experiments/campaigns/requirements.txt
           (cd openclaw-agent-browser && npm ci && npm run build)
           (cd chrome-agent-browser && npm ci)
       - name: Tests (no test may be skipped)
         # One pytest process per experiment: each puts its own directory first on
         # sys.path, and the experiments have `analyze` modules of their own.
         run: |
-          for experiment in contract_overhead contract_enforcement contract_enforcement/catalog_v2; do
+          for experiment in contract_overhead contract_enforcement contract_enforcement/catalog_v2 campaigns; do
             agentpkg/.venv/bin/python -m pytest "experiments/$experiment/tests" -rs \
               --junitxml="$RUNNER_TEMP/${experiment//\//_}.xml"
             agentpkg/.venv/bin/python - "$RUNNER_TEMP/${experiment//\//_}.xml" <<'PY'

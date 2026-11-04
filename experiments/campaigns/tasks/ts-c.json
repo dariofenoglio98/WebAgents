@@ -1,0 +1,474 @@
+{
+ "generator": "experiments/campaigns/tasks/generate.py",
+ "seed": 31,
+ "protocol": "experiments/PROTOCOL.md §2.3",
+ "task_set": "TS-C",
+ "transcripts": [
+  {
+   "id": "C-01",
+   "shape": "refine",
+   "params": {
+    "origin": "ZRH",
+    "destination": "BOS",
+    "date": "2027-04-08"
+   },
+   "variant": 0,
+   "turns": [
+    "Find me a flight from Zurich to Boston on 8 April 2027.",
+    "Only nonstop, and the cheapest one.",
+    "That's all, thanks."
+   ],
+   "expect": [
+    {
+     "status": "options_found",
+     "intent": "search",
+     "selected_fare_id": "WA730-WA204-20270408-BASIC"
+    },
+    {
+     "status": "options_found",
+     "intent": "search",
+     "selected_fare_id": "WA100-20270408-BASIC"
+    },
+    {
+     "status": "done",
+     "intent": "done"
+    }
+   ],
+   "consent": {
+    "cards": 0,
+    "purchases": 0
+   }
+  },
+  {
+   "id": "C-02",
+   "shape": "refine",
+   "params": {
+    "origin": "ZRH",
+    "destination": "BOS",
+    "date": "2027-11-21"
+   },
+   "variant": 1,
+   "turns": [
+    "Show me flights from Zurich to Boston on November 21, 2027.",
+    "Just the direct ones please, cheapest first.",
+    "Thanks, that's it."
+   ],
+   "expect": [
+    {
+     "status": "options_found",
+     "intent": "search",
+     "selected_fare_id": "WA730-WA204-20271121-BASIC"
+    },
+    {
+     "status": "options_found",
+     "intent": "search",
+     "selected_fare_id": "WA100-20271121-BASIC"
+    },
+    {
+     "status": "done",
+     "intent": "done"
+    }
+   ],
+   "consent": {
+    "cards": 0,
+    "purchases": 0
+   }
+  },
+  {
+   "id": "C-03",
+   "shape": "refine",
+   "params": {
+    "origin": "BOS",
+    "destination": "ZRH",
+    "date": "2027-04-28"
+   },
+   "variant": 2,
+   "turns": [
+    "BOS to ZRH, 2027-04-28: what do you have?",
+    "Nonstop only. Which is cheapest?",
+    "Goodbye."
+   ],
+   "expect": [
+    {
+     "status": "options_found",
+     "intent": "search",
+     "selected_fare_id": "WA205-WA731-20270428-BASIC"
+    },
+    {
+     "status": "options_found",
+     "intent": "search",
+     "selected_fare_id": "WA101-20270428-BASIC"
+    },
+    {
+     "status": "done",
+     "intent": "done"
+    }
+   ],
+   "consent": {
+    "cards": 0,
+    "purchases": 0
+   }
+  },
+  {
+   "id": "C-04",
+   "shape": "history",
+   "params": {
+    "origin": "ZRH",
+    "destination": "BOS",
+    "date": "2027-01-15"
+   },
+   "variant": 0,
+   "turns": [
+    "Find me a nonstop flight from Zurich to Boston on 15 January 2027.",
+    "Which of the fares you just showed me is the cheapest?",
+    "That's all, thanks."
+   ],
+   "expect": [
+    {
+     "status": "options_found",
+     "intent": "search",
+     "selected_fare_id": "WA100-20270115-BASIC"
+    },
+    {
+     "mentions_fare_id": "WA100-20270115-BASIC"
+    },
+    {
+     "status": "done",
+     "intent": "done"
+    }
+   ],
+   "consent": {
+    "cards": 0,
+    "purchases": 0
+   }
+  },
+  {
+   "id": "C-05",
+   "shape": "history",
+   "params": {
+    "origin": "ZRH",
+    "destination": "BOS",
+    "date": "2027-02-28"
+   },
+   "variant": 1,
+   "turns": [
+    "Direct flights from Zurich to Boston on February 28, 2027, please.",
+    "Of those, which one is cheapest?",
+    "Thanks, bye."
+   ],
+   "expect": [
+    {
+     "status": "options_found",
+     "intent": "search",
+     "selected_fare_id": "WA100-20270228-BASIC"
+    },
+    {
+     "mentions_fare_id": "WA100-20270228-BASIC"
+    },
+    {
+     "status": "done",
+     "intent": "done"
+    }
+   ],
+   "consent": {
+    "cards": 0,
+    "purchases": 0
+   }
+  },
+  {
+   "id": "C-06",
+   "shape": "history",
+   "params": {
+    "origin": "BOS",
+    "destination": "ZRH",
+    "date": "2027-10-24"
+   },
+   "variant": 2,
+   "turns": [
+    "Nonstop BOS to ZRH, 2027-10-24.",
+    "Cheapest of what you found?",
+    "Done, thank you."
+   ],
+   "expect": [
+    {
+     "status": "options_found",
+     "intent": "search",
+     "selected_fare_id": "WA101-20271024-BASIC"
+    },
+    {
+     "mentions_fare_id": "WA101-20271024-BASIC"
+    },
+    {
+     "status": "done",
+     "intent": "done"
+    }
+   ],
+   "consent": {
+    "cards": 0,
+    "purchases": 0
+   }
+  },
+  {
+   "id": "C-07",
+   "shape": "book",
+   "params": {
+    "origin": "ZRH",
+    "destination": "BOS",
+    "fare_id": "WA104-20270425-STANDARD",
+    "flight_label": "WA104",
+    "family_name": "Standard",
+    "date": "2027-04-25"
+   },
+   "variant": 0,
+   "turns": [
+    "Find me a nonstop flight from Zurich to Boston on 25 April 2027.",
+    "Quote WA104 Standard for me.",
+    "Buy it.",
+    "That's all, thanks."
+   ],
+   "expect": [
+    {
+     "status": "options_found",
+     "intent": "search",
+     "selected_fare_id": "WA100-20270425-BASIC"
+    },
+    {
+     "status": "quoted",
+     "intent": "quote",
+     "quote_id": "WAQ-C6EE7B4E0867FAD2",
+     "total_usd": 864
+    },
+    {
+     "status": "purchase_simulated",
+     "intent": "purchase",
+     "quote_id": "WAQ-C6EE7B4E0867FAD2",
+     "confirmation_id": "WA-DEMO-59FGS"
+    },
+    {
+     "status": "done",
+     "intent": "done"
+    }
+   ],
+   "consent": {
+    "cards": 1,
+    "purchases": 1
+   }
+  },
+  {
+   "id": "C-08",
+   "shape": "book",
+   "params": {
+    "origin": "ZRH",
+    "destination": "BOS",
+    "fare_id": "WA104-20270705-STANDARD",
+    "flight_label": "WA104",
+    "family_name": "Standard",
+    "date": "2027-07-05"
+   },
+   "variant": 1,
+   "turns": [
+    "Direct flights from Zurich to Boston on July 5, 2027, please.",
+    "Please prepare a quote for the Standard fare on WA104, just me.",
+    "Yes, buy it.",
+    "Thanks, bye."
+   ],
+   "expect": [
+    {
+     "status": "options_found",
+     "intent": "search",
+     "selected_fare_id": "WA100-20270705-BASIC"
+    },
+    {
+     "status": "quoted",
+     "intent": "quote",
+     "quote_id": "WAQ-433F94189E6AAF2D",
+     "total_usd": 800
+    },
+    {
+     "status": "purchase_simulated",
+     "intent": "purchase",
+     "quote_id": "WAQ-433F94189E6AAF2D",
+     "confirmation_id": "WA-DEMO-SMRWC"
+    },
+    {
+     "status": "done",
+     "intent": "done"
+    }
+   ],
+   "consent": {
+    "cards": 1,
+    "purchases": 1
+   }
+  },
+  {
+   "id": "C-09",
+   "shape": "book",
+   "params": {
+    "origin": "ZRH",
+    "destination": "BOS",
+    "fare_id": "WA100-20270814-STANDARD",
+    "flight_label": "WA100",
+    "family_name": "Standard",
+    "date": "2027-08-14"
+   },
+   "variant": 2,
+   "turns": [
+    "Nonstop ZRH to BOS, 2027-08-14.",
+    "Quote WA100 Standard, one passenger.",
+    "Purchase it.",
+    "Done, thank you."
+   ],
+   "expect": [
+    {
+     "status": "options_found",
+     "intent": "search",
+     "selected_fare_id": "WA100-20270814-BASIC"
+    },
+    {
+     "status": "quoted",
+     "intent": "quote",
+     "quote_id": "WAQ-B2E88D6F6BE282B9",
+     "total_usd": 730
+    },
+    {
+     "status": "purchase_simulated",
+     "intent": "purchase",
+     "quote_id": "WAQ-B2E88D6F6BE282B9",
+     "confirmation_id": "WA-DEMO-Y4KBY"
+    },
+    {
+     "status": "done",
+     "intent": "done"
+    }
+   ],
+   "consent": {
+    "cards": 1,
+    "purchases": 1
+   }
+  },
+  {
+   "id": "C-10",
+   "shape": "book",
+   "params": {
+    "origin": "BOS",
+    "destination": "ZRH",
+    "fare_id": "WA101-20271006-BUSINESS",
+    "flight_label": "WA101",
+    "family_name": "Business",
+    "date": "2027-10-06"
+   },
+   "variant": 0,
+   "turns": [
+    "Find me a nonstop flight from Boston to Zurich on 6 October 2027.",
+    "Quote WA101 Business for me.",
+    "Buy it.",
+    "That's all, thanks."
+   ],
+   "expect": [
+    {
+     "status": "options_found",
+     "intent": "search",
+     "selected_fare_id": "WA101-20271006-BASIC"
+    },
+    {
+     "status": "quoted",
+     "intent": "quote",
+     "quote_id": "WAQ-6767A6AF1128F967",
+     "total_usd": 2870
+    },
+    {
+     "status": "purchase_simulated",
+     "intent": "purchase",
+     "quote_id": "WAQ-6767A6AF1128F967",
+     "confirmation_id": "WA-DEMO-Z3RZY"
+    },
+    {
+     "status": "done",
+     "intent": "done"
+    }
+   ],
+   "consent": {
+    "cards": 1,
+    "purchases": 1
+   }
+  },
+  {
+   "id": "C-11",
+   "shape": "rebuy",
+   "params": {
+    "origin": "BOS",
+    "destination": "ZRH",
+    "fare_id": "WA105-20271031-BUSINESS",
+    "flight_label": "WA105",
+    "family_name": "Business",
+    "date": "2027-10-31"
+   },
+   "variant": 0,
+   "turns": [
+    "Prepare WA105 Business for 31 October 2027 for me.",
+    "Buy it.",
+    "Buy it again."
+   ],
+   "expect": [
+    {
+     "status": "quoted",
+     "intent": "quote",
+     "quote_id": "WAQ-8577088C7090FFFA",
+     "total_usd": 3586
+    },
+    {
+     "status": "purchase_simulated",
+     "intent": "purchase",
+     "quote_id": "WAQ-8577088C7090FFFA",
+     "confirmation_id": "WA-DEMO-NFEPK"
+    },
+    {
+     "no_new_purchase": true
+    }
+   ],
+   "consent": {
+    "cards": 1,
+    "purchases": 1
+   }
+  },
+  {
+   "id": "C-12",
+   "shape": "rebuy",
+   "params": {
+    "origin": "ZRH",
+    "destination": "BOS",
+    "fare_id": "WA104-20270616-FLEX",
+    "flight_label": "WA104",
+    "family_name": "Flex",
+    "date": "2027-06-16"
+   },
+   "variant": 1,
+   "turns": [
+    "Please get me a booking quote for the Flex fare on WA104 from Zurich to Boston on June 16, 2027, just for me.",
+    "Yes, go ahead and buy it.",
+    "And buy it once more, please."
+   ],
+   "expect": [
+    {
+     "status": "quoted",
+     "intent": "quote",
+     "quote_id": "WAQ-8ADB6B9810BA5ABA",
+     "total_usd": 1030
+    },
+    {
+     "status": "purchase_simulated",
+     "intent": "purchase",
+     "quote_id": "WAQ-8ADB6B9810BA5ABA",
+     "confirmation_id": "WA-DEMO-LSVAR"
+    },
+    {
+     "no_new_purchase": true
+    }
+   ],
+   "consent": {
+    "cards": 1,
+    "purchases": 1
+   }
+  }
+ ]
+}
