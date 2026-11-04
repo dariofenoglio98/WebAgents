@@ -13,7 +13,8 @@ The oracle (`oracle/`) reads only this file, so an outcome never depends on whic
 - `audit`: our side's audit events (null for `FW`); `tool_calls`: every call that crossed the tool
   seam (ours) or the instrumented tool layer (`FW`): tool, role, arguments, outcome, answer;
   `refused`: the calls a policy layer refused before they ran (ours: from the audit; `FW`: Progent's
-  denials and the ask step's), with the reason.
+  denials, the ask step's and the budget's), with the reason; `failures`: calls that ran and failed
+  (a timeout, an origin or transport error), never counted as a refusal.
 - `model_calls`: every request the route received (system and user text) with its outcome and usage.
 - `consent`: the cards shown (step, facts, the responder's decision); `proposals`: memory proposals.
 - `dials`, `origin_log`, `sink_log`: the transport's records for this run.
@@ -46,25 +47,61 @@ def _package(package) -> dict | None:
     }
 
 
-def _refused_from_audit(audit: list[dict]) -> list[dict]:
-    """Our side's refusals (PROTOCOL.md §2.4.2): `tool.failed` with its reason, `permission.checked`
-    with `allowed: false`, `model.refused`, `network.refused`."""
-    refused = []
-    for event in audit or []:
+# A `tool.failed` is a refusal only when a policy layer stopped the call before its handler ran
+# (PROTOCOL.md §2.4.2: a scan or policy reason); a timeout, an origin error, a transport error or an
+# invalid answer is a failure, recorded apart (`failures`) and never counted as our side refusing.
+REFUSAL_ERRORS = frozenset({"PolicyError", "BudgetError", "ConsentError"})
+REFUSAL_REASONS = frozenset(
+    {
+        "sealed_value_egress",
+        "sealed_value_not_granted",
+        "sealed_value_in_model_request",
+        "consent_required",
+        "consent_denied",
+        # The model's arguments outside the declared input schema: the runtime refuses the call,
+        # as Progent's policy (derived from the same schemas) refuses it on `FW`.
+        "tool_request_invalid",
+    }
+)
+_KEPT = ("turn", "run_id", "turn_run_id", "pointer", "record_id", "permission")
+
+
+def refusals_and_failures(audit: list[dict] | None) -> tuple[list[dict], list[dict]]:
+    """Our side's refusals and failures from the audit (both cores write the same events).
+
+    Refusals: `permission.checked` with `allowed: false` (the argument scan, consent, a denied
+    permission; it names the pointer, never the value), `model.refused`, `network.refused`, and a
+    `tool.failed` whose error or reason is a policy layer's. The `tool.failed` that follows a
+    denied permission check for the same tool is the same refusal (merged, not counted twice)."""
+    refused: list[dict] = []
+    failures: list[dict] = []
+    pending: dict | None = None  # the last denied check not yet followed by its tool.failed
+    for index, event in enumerate(audit or []):
         action = event.get("action")
         if action == "permission.checked" and event.get("allowed") is False:
-            refused.append(
-                {"kind": action, "reason": event.get("reason"), "tool": event.get("tool")}
-            )
-        elif action in ("tool.failed", "model.refused", "network.refused"):
-            refused.append(
-                {
-                    "kind": action,
-                    "reason": event.get("reason") or event.get("error_code") or event.get("error"),
-                    "tool": event.get("tool"),
-                }
-            )
-    return refused
+            entry = {"kind": action, "reason": event.get("reason"), "tool": event.get("tool")}
+            entry.update({k: event[k] for k in _KEPT if event.get(k) is not None})
+            refused.append({**entry, "audit_index": index})
+            pending = refused[-1]
+        elif action in ("model.refused", "network.refused"):
+            entry = {"kind": action, "reason": event.get("reason"), "tool": event.get("tool")}
+            entry.update({k: event[k] for k in _KEPT if event.get(k) is not None})
+            refused.append({**entry, "audit_index": index})
+            pending = None
+        elif action == "tool.failed":
+            reason = event.get("reason") or event.get("error_code")
+            error = event.get("error")
+            entry = {"kind": action, "reason": reason, "error": error, "tool": event.get("tool")}
+            entry.update({k: event[k] for k in _KEPT if event.get(k) is not None})
+            if error in REFUSAL_ERRORS or reason in REFUSAL_REASONS:
+                if pending is not None and pending.get("tool") == event.get("tool"):
+                    pending["error"] = error
+                else:
+                    refused.append({**entry, "audit_index": index})
+            else:
+                failures.append({**entry, "audit_index": index})
+            pending = None
+    return refused, failures
 
 
 def _usage(
@@ -123,6 +160,7 @@ def from_py_conversation(
                     "reply": reply,
                 }
             )
+    refused, failures = refusals_and_failures(audit)
     return {
         "schema": SCHEMA,
         "meta": meta,
@@ -134,7 +172,8 @@ def from_py_conversation(
         "answer": turns[-1]["answer"] if turns else None,
         "audit": audit,
         "tool_calls": tool_calls,
-        "refused": _refused_from_audit(audit),
+        "refused": refused,
+        "failures": failures,
         "model_calls": model_calls,
         "consent": consent,
         "responder": responder,
@@ -164,6 +203,7 @@ def from_py_workflow(
     output = (result or {}).get("output")
     completed = result is not None and result.get("status") == "completed"
     answer = {"plan": output.get("plan")} if completed and isinstance(output, dict) else None
+    refused, failures = refusals_and_failures(audit)
     return {
         "schema": SCHEMA,
         "meta": meta,
@@ -185,7 +225,8 @@ def from_py_workflow(
         "answer": answer,
         "audit": audit,
         "tool_calls": tool_calls,
-        "refused": _refused_from_audit(audit),
+        "refused": refused,
+        "failures": failures,
         "model_calls": model_calls,
         "consent": [],
         "responder": [],
@@ -238,6 +279,7 @@ def from_fw(
         "audit": None,
         "tool_calls": state.tool_calls,
         "refused": state.refused,
+        "failures": [c for c in state.tool_calls if c.get("outcome") == "threw"],
         "model_calls": model_calls,
         "consent": state.consent,
         "responder": responder,

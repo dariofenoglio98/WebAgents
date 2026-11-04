@@ -8,8 +8,8 @@
    Progent's own error text to the model on a denial;
 3. the **budget** (rule 9): our plan's per-tool call caps and remote-call cap;
 4. **rule 8's ask step** before a consequential tool: the shared responder
-   (`driver/responder.py`) decides on the facts read from the proposed arguments and the quote this
-   layer saw, as our consent host decides on the card's facts;
+   (`driver/responder.py`) decides on the facts of the quote this layer recorded for the call's
+   `quote_id` (`call_facts`), as our consent host decides on the card's facts, which are that quote;
 5. the **executor**: the declared endpoint over HTTPS, dialed to the campaign stack under the
    campaign CA (the same mapping our side's host mapping applies), the run's fixture key header on
    the campaign origin, no redirect following (httpx's default); memory and host-resource tools

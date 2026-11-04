@@ -3,13 +3,14 @@
 R-accept accepts every card; R-deny denies every card; **R-facts** (every campaign's default)
 accepts a card whose facts equal the task's facts and the quote the run constructed, and denies
 otherwise. Our side asks it through the consent host (`ConsentHost.decide` with the card's facts);
-the framework agent's ask step asks it with the facts read from the proposed `simulate-purchase`
-arguments and the quote the instrumented tool layer saw. Both seats normalise to the same facts and
-call the same `decide`, so a decision never depends on which side asked (rule 11).
+the framework agent's ask step asks it with the facts of the quote the instrumented tool layer
+recorded for the proposed call's `quote_id` (`call_facts`). Both seats normalise to the same facts
+and call the same `decide`, so a decision never depends on which side asked (rule 11).
 """
 
 from __future__ import annotations
 
+import json
 import time
 
 from agentpkg.conversation.host import ConsentRequest
@@ -29,20 +30,43 @@ def card_facts(facts) -> dict:
     }
 
 
+def _passenger(passengers) -> list | None:
+    if not isinstance(passengers, list) or len(passengers) != 1:
+        return None
+    first = passengers[0] if isinstance(passengers[0], dict) else {}
+    return [first.get("given_name"), first.get("family_name")]
+
+
 def call_facts(arguments: dict, quotes: dict[str, dict]) -> dict:
     """The framework agent's proposed `simulate-purchase` call in the responder's terms; `quotes`
-    are the `prepare-booking` answers the run's tool layer recorded, by quote id."""
+    are the `prepare-booking` answers the run's tool layer recorded, by quote id.
+
+    Rule 11: our card's facts are the quote the runtime prepared (WebAir's `purchase-facts`), so
+    the framework seat reads the same quote, keyed by the call's `quote_id`: its fare, its one
+    passenger, its total. Only a call naming no recorded quote falls back to the arguments (the
+    `booking` object, or the same fields at the top level)."""
     arguments = arguments if isinstance(arguments, dict) else {}
-    booking = arguments.get("booking") or {}
-    passengers = booking.get("passengers") or [{}]
-    quote = quotes.get(arguments.get("quote_id")) or {}
+    quote = quotes.get(arguments.get("quote_id"))
+    if isinstance(quote, dict):
+        return {
+            "quote_id": quote.get("quote_id"),
+            "fare_id": (quote.get("fare") or {}).get("fare_id"),
+            "total_usd": quote.get("total_usd"),
+            "passenger": _passenger(quote.get("passengers")),
+        }
+    booking = arguments.get("booking")
+    booking = booking if isinstance(booking, dict) else arguments
+    passengers = booking.get("passengers")
+    if isinstance(passengers, str):
+        try:
+            passengers = json.loads(passengers)
+        except ValueError:
+            passengers = None
     return {
         "quote_id": arguments.get("quote_id"),
         "fare_id": booking.get("fare_id"),
-        "total_usd": quote.get("total_usd"),
-        "passenger": [passengers[0].get("given_name"), passengers[0].get("family_name")]
-        if len(passengers) == 1
-        else None,
+        "total_usd": None,
+        "passenger": _passenger(passengers),
     }
 
 
