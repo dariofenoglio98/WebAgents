@@ -132,11 +132,12 @@ def _recording_handlers(handlers: dict, seam: list, tools: dict[str, str]) -> di
     return wrapped
 
 
-def _verified(name: str):
+def verified(name: str):
+    """The signed package, verified against its publisher's key, then loaded."""
     path, key = PACKAGES[name]
-    verified = verify_package(path, trusted_key=key)
+    checked = verify_package(path, trusted_key=key)
     package = load_package(path)
-    if verified["digest"] != package.digest:
+    if checked["digest"] != package.digest:
         raise RuntimeError("the package changed between verification and loading")
     return package
 
@@ -157,7 +158,7 @@ def run_webair(
     from agentpkg.conversation import Conversation
 
     run_dir.mkdir(parents=True, exist_ok=False)
-    package = _verified("webair")
+    package = verified("webair")
     grants, memory_grants = webair_grants(grant_profile)
     memory_dir = prepare_memory(run_dir, profile_insertion)
     router = CampaignRouter(rung)
@@ -238,7 +239,7 @@ def run_travel_network(
     from agentpkg.workflow import run_workflow
 
     run_dir.mkdir(parents=True, exist_ok=False)
-    package = _verified("travel-network")
+    package = verified("travel-network")
     router = CampaignRouter(rung)
     tool_seam: list[dict] = []
     memory_run, _folder, memory_handlers = cli_memory(

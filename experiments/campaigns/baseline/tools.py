@@ -34,9 +34,9 @@ from agents import Agent, FunctionTool
 
 from campaigns.driver import responder as responders
 from campaigns.driver.hostmap import HEADER
+from campaigns.driver.json_http import DATA_STATUSES  # the statuses that carry data
 
 CONSEQUENTIAL = {"simulate-purchase"}
-DATA_STATUSES = {200, 400, 404, 422, 502}  # as json_http (driver/json_http.py)
 DECLINED = "The person declined this purchase when asked; nothing was bought."
 
 

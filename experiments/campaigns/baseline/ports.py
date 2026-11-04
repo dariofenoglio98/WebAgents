@@ -17,36 +17,25 @@ import json
 from pathlib import Path
 
 from agentpkg.memory.model import is_memory_binding
-from agentpkg.package import load_package
-from agentpkg.signing import verify_package
+
+from campaigns.driver import py_driver
 
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
 PROGENT_REPOSITORY = "https://github.com/sunblaze-ucb/progent"
 PROGENT_COMMIT = "b02783b896d4bf01a2adf24738015e258db8d35b"
 
-# The ported packages: the signed artifact and the publisher's key, as on our side.
-PACKAGES = {
-    "webair": (
-        ROOT / "dist" / "webair-0.8.0.agent.pkg",
-        ROOT / "examples/keys/webair-publisher.pub.pem",
-    ),
-    "travel-network": (
-        ROOT / "dist" / "travel-network-0.1.0.agent.pkg",
-        ROOT / "examples/keys/travel-network-publisher.pub.pem",
-    ),
-}
+# The ported packages: the signed artifact and the publisher's key, as on our side (the same table
+# and the same verified load as `Py`'s, review 1 nit 19).
+PACKAGES = {name: py_driver.PACKAGES[name] for name in ("webair", "travel-network")}
 PORTS = tuple(PACKAGES)
 STRIPPED_ROOT_KEYS = ("$schema", "$id", "title")
 
 
 def load(port: str):
-    path, key = PACKAGES[port]
-    verified = verify_package(path, trusted_key=key)
-    package = load_package(path)
-    if verified["digest"] != package.digest:
-        raise RuntimeError("the package changed between verification and loading")
-    return package
+    if port not in PACKAGES:
+        raise KeyError(port)
+    return py_driver.verified(port)
 
 
 def tool_name(tool_id: str) -> str:
