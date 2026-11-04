@@ -250,3 +250,57 @@ def from_fw(
         "sink_log": sink_log,
         "usage": _usage(model_calls, state.tool_calls, seconds, state.remote_calls),
     }
+
+
+def _cr_model_call(call: dict) -> dict:
+    """An observed request body (the core's adapter) in the record's terms: system and user text."""
+    entry = {k: v for k, v in call.items() if k != "body"}
+    try:
+        body = json.loads(call.get("body") or "{}")
+    except ValueError:
+        body = {}
+    if isinstance(body.get("messages"), list):  # Ollama /api/chat
+        roles = {m.get("role"): m.get("content") for m in body["messages"] if isinstance(m, dict)}
+        entry.update(system=roles.get("system"), user=roles.get("user"))
+    else:  # the Responses API
+        entry.update(system=body.get("instructions"), user=body.get("input"))
+    return entry
+
+
+def from_cr_conversation(
+    *, meta, rung, out, origin_log, sink_log, seconds, package, memory_grants
+) -> dict:
+    """The `Cr` driver's report (driver/node/driver.ts) as the campaign record; the same fields
+    as `Py`'s, read from the core's own transcript, audit and usage."""
+    harness_error = out.get("error") if out.get("status") == "harness_error" else None
+    result = None
+    if out.get("transcript") is not None:
+        result = {
+            "status": out.get("status"),
+            "transcript": out["transcript"],
+            "audit": out.get("audit"),
+            "usage": out.get("usage"),
+        }
+
+    class _Rung:
+        def describe(self):
+            return rung.describe() if rung is not None else {"name": "refuse"}
+
+    rec = from_py_conversation(
+        meta=meta,
+        rung=_Rung(),
+        result=result,
+        harness_error=harness_error,
+        model_calls=[_cr_model_call(c) for c in out.get("model_calls") or []],
+        tool_calls=out.get("tool_calls") or [],
+        consent=out.get("consent") or [],
+        responder=out.get("responder") or [],
+        dials=out.get("dials") or [],
+        origin_log=origin_log,
+        sink_log=sink_log,
+        seconds=seconds,
+        package=package,
+    )
+    rec["core_version"] = out.get("core_version")
+    rec["memory_grants"] = memory_grants
+    return rec
