@@ -317,6 +317,9 @@ def main(argv=None) -> int:
     (out / "report.md").write_text(report(summary, sources))
     (out / "privileges.json").write_text(json.dumps(privileges, indent=2) + "\n")
     if check_pack is not None:
+        # The packed zip by its repository path (the line carries the absolute one).
+        if isinstance(check_pack.get("zip"), str):
+            check_pack["zip"] = _rel(Path(check_pack["zip"]))
         (out / "check-pack.json").write_text(json.dumps(check_pack, indent=2) + "\n")
     print(
         json.dumps(

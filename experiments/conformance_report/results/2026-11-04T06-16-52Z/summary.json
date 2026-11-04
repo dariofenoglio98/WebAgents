@@ -1,0 +1,178 @@
+{
+  "conformance": {
+    "generated_at": "2026-11-04T06:16:31.904Z",
+    "environment": {
+      "commit": "345130601b98e5d4605280f32af0832e17f3ec2e",
+      "dirty": false,
+      "agentpkg": "agentpkg 0.7.1 (agent.pkg 0.1, workflow.v0)",
+      "python": "Python 3.13.5",
+      "chrome_core": "chrome-agent-browser 0.5.0 (runtime 0.7.0)",
+      "node": "v26.9.0",
+      "platform": "darwin-arm64",
+      "packages": {
+        "webair-0.4.0.agent.pkg": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63",
+        "webair-0.5.0.agent.pkg": "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b",
+        "webair-0.6.0.agent.pkg": "3055dd93a9f4e5f81f3ccddac77ccc9ce2c10b1e10dec35d9864fddf6fb58862",
+        "literature-review.agent.pkg": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571",
+        "literature-review-0.2.6.agent.pkg": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1",
+        "literature-review-0.2.7.agent.pkg": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "literature-review-0.2.8.agent.pkg": "0d03d1c8b366aabd6343b15958185c10cdab6639828f9c73bafbb26538db8330",
+        "meeting-agenda.agent.pkg": "7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1"
+      }
+    },
+    "summary": {
+      "cases": 224,
+      "passed": 224,
+      "failed": [],
+      "pending": [],
+      "pending_reason": null,
+      "checks": 2604,
+      "checks_passed": 2604,
+      "filtered": null
+    },
+    "families": {
+      "Shipped packages (fixture parity)": {
+        "cases": 46,
+        "agreed": 46,
+        "documented_differences": 0,
+        "pending": 0,
+        "kinds": {
+          "conversation parity": 9,
+          "fixture parity": 37
+        }
+      },
+      "Agent Memory": {
+        "cases": 28,
+        "agreed": 28,
+        "documented_differences": 0,
+        "pending": 0,
+        "kinds": {
+          "fixture parity": 4,
+          "refusal": 24
+        }
+      },
+      "Package-format refusals": {
+        "cases": 13,
+        "agreed": 10,
+        "documented_differences": 3,
+        "pending": 0,
+        "kinds": {
+          "documented difference": 3,
+          "fixture parity": 1,
+          "refusal": 9
+        }
+      },
+      "Agent Compute": {
+        "cases": 41,
+        "agreed": 39,
+        "documented_differences": 2,
+        "pending": 0,
+        "kinds": {
+          "documented difference": 2,
+          "fixture parity": 3,
+          "refusal": 36
+        }
+      },
+      "Agent Delegation": {
+        "cases": 49,
+        "agreed": 47,
+        "documented_differences": 2,
+        "pending": 0,
+        "kinds": {
+          "documented difference": 2,
+          "execution-layer parity": 2,
+          "fixture parity": 6,
+          "refusal": 39
+        }
+      },
+      "Agent Conversations": {
+        "cases": 42,
+        "agreed": 41,
+        "documented_differences": 1,
+        "pending": 0,
+        "kinds": {
+          "conversation parity": 16,
+          "documented difference": 1,
+          "refusal": 25
+        }
+      },
+      "Control plane": {
+        "cases": 5,
+        "agreed": 4,
+        "documented_differences": 1,
+        "pending": 0,
+        "kinds": {
+          "control-plane parity": 1,
+          "documented difference": 1,
+          "refusal": 3
+        }
+      }
+    },
+    "disagreeing": []
+  },
+  "privileges": {
+    "passed": true,
+    "failed": [],
+    "manifest_sha256": "81241916a7ed890d7d4c21165cde5503818dffa2940c442e0ad507baf7282c42"
+  },
+  "check_pack": {
+    "passed": true,
+    "problems": []
+  },
+  "divergence_log": {
+    "items": 67,
+    "by_class": {
+      "behaviour": {
+        "fixed": 21,
+        "documented": 9
+      },
+      "wording": {
+        "fixed": 5,
+        "documented": 2
+      },
+      "timing": {
+        "documented": 6,
+        "fixed": 1
+      },
+      "platform": {
+        "fixed": 13,
+        "documented": 10
+      }
+    },
+    "by_found": {
+      "suite": {
+        "documented": 9,
+        "fixed": 6
+      },
+      "test": {
+        "documented": 10,
+        "fixed": 2
+      },
+      "review": {
+        "fixed": 32,
+        "documented": 6
+      },
+      "live": {
+        "documented": 2
+      }
+    },
+    "by_resolution": {
+      "fixed": 40,
+      "documented": 27
+    },
+    "unclassified": [],
+    "without_commit": []
+  },
+  "commits": {
+    "conformance": "345130601b98e5d4605280f32af0832e17f3ec2e",
+    "privileges": "345130601b98e5d4605280f32af0832e17f3ec2e"
+  },
+  "problems": [],
+  "passed": true,
+  "sources": {
+    "Conformance run": "conformance/results/2026-11-04T06-16-31-904Z",
+    "Divergence log": "docs/conformance-divergences.md",
+    "divergence_log_sha256": "8f8b2cdb2039fbb23c892d1eae8f7b91adb6d4ca0ddc801063e969fe99d18f2f",
+    "conformance_report_sha256": "6661415911f8548ff2458fbe5d19dbae75a48e26f54fbdefbf3b803ff7fef4d4"
+  }
+}
