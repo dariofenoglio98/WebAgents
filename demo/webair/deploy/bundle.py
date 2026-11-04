@@ -73,6 +73,9 @@ DEMO_DOCUMENTS = {
 HOST_RESOURCES = DEMO / "host-resources.json"
 MAX_PACKAGE_BYTES = 16 * 1024 * 1024
 ORIGIN_SUFFIXES = {".py", ".html", ".css"}
+# The campaign origin's injection mode (T31, D-351) lives beside the origin's code but is never
+# deployed: the public bundle cannot enable what it does not contain.
+ORIGIN_EXCLUDED = {"injection.py"}
 # Files this bundle may never carry, whatever the allowlist above says.
 HOST_FILES = {"host-resources.json", "host-bindings.json"}
 
@@ -107,7 +110,12 @@ def allowlist(package: Path) -> dict[str, bytes]:
     for name, source in DEMO_DOCUMENTS.items():
         files[name] = source.read_bytes()
     for path in sorted(ORIGIN.rglob("*")):
-        if path.is_file() and path.suffix in ORIGIN_SUFFIXES and "__pycache__" not in path.parts:
+        if (
+            path.is_file()
+            and path.suffix in ORIGIN_SUFFIXES
+            and "__pycache__" not in path.parts
+            and path.name not in ORIGIN_EXCLUDED
+        ):
             files[f"origin/{path.relative_to(ORIGIN).as_posix()}"] = path.read_bytes()
     return files
 

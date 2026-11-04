@@ -5,14 +5,10 @@
     nothing
 
 Ground truth is never written by hand or by a model: it is computed here, in process, by WebAir's
-own
-service code (`demo/webair/origin/service.py`, `travel.py`) for the campaign record set's traveler.
-The
-phrasings are the hand-written templates of `phrasings.json`; this module only fills their
-placeholders.
-Every sampled choice comes from SEED. The output files are canonical JSON with a trailing newline,
-so a
-regeneration is byte-identical (tests/test_tasks.py).
+own service code (`demo/webair/origin/service.py`, `travel.py`) for the campaign record set's
+traveler. The phrasings are the hand-written templates of `phrasings.json`; this module only fills
+their placeholders. Every sampled choice comes from SEED. The output files are canonical JSON with a
+trailing newline, so a regeneration is byte-identical (tests/test_tasks.py).
 """
 
 from __future__ import annotations

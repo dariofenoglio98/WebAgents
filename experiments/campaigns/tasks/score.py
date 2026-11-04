@@ -2,12 +2,10 @@
 side.
 
 A scorer reads only the structured answer (`answer.schema.json`, `network-answer.schema.json`) and
-the
-oracle's counts (consent cards, purchases); it never reads which side produced the answer (rule 11).
-A run
-the runtime refused, or an answer that does not parse under the schema, scores 0 (counted apart by
-the
-oracle). T32 may refine W2's fact matcher before its first run (D-362); the rules here are T31's.
+the oracle's counts (consent cards, purchases); it never reads which side produced the answer (rule
+11). A run the runtime refused, or an answer that does not parse under the schema, scores 0 (counted
+apart by the oracle). T32 may refine W2's fact matcher before its first run (D-362); the rules here
+are T31's.
 """
 
 from __future__ import annotations

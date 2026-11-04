@@ -1,8 +1,7 @@
 """The campaign infrastructure's tests (T31): offline, credential-free, no model.
 
 `experiments/` goes first on sys.path so that `campaigns.*` imports; WebAir's origin is imported
-from
-`demo/webair/` (its requirements are installed beside agentpkg's,
+from `demo/webair/` (its requirements are installed beside agentpkg's,
 `experiments/campaigns/requirements.txt`).
 """
 
