@@ -72,6 +72,13 @@ CB_RANGE = range(1, 12)
 
 SECTION_RE = re.compile(r"^### (E\d+|E[A-Z]) · ", re.MULTILINE)
 HEADING_RE = re.compile(r"^#{1,4} ", re.MULTILINE)
+FENCE_RE = re.compile(r"^(```|~~~)", re.MULTILINE)
+FIELD_MARKER_RE = re.compile(
+    r"^\*\*(?:"
+    + "|".join(re.escape(f) for f in sorted(set(REQUIRED_FIELDS + PLANNED_FIELDS)))
+    + r")\.\*\*",
+    re.MULTILINE,
+)
 CITATION_RE = re.compile(r"\b(P|DF|UC|CB)-(\d+)\b")
 # A range such as `P-12…P-17`, `CB-1...CB-11` or `P-1–P-3` cites every id between its endpoints. The
 # second endpoint must repeat the prefix, so that "P-4… 300 runs" is a citation of P-4 and a number.
@@ -79,6 +86,29 @@ CITATION_RANGE_RE = re.compile(r"\b(P|DF|UC|CB)-(\d+)\s*(?:…|\.\.\.|–)\s*\1-
 NUMBERED_EXPERIMENT_RE = re.compile(r"\bE(\d+)\b")
 LETTERED_EXPERIMENT_RE = re.compile(r"\bE([A-Z])\b")
 TASK_RE = re.compile(r"\bT(\d+)\b")
+
+
+def _fenced_spans(text: str) -> list[tuple[int, int]]:
+    """The spans of fenced code blocks (``` or ~~~ at a line start); an unclosed fence runs to the end."""
+    spans: list[tuple[int, int]] = []
+    opened: tuple[int, str] | None = None
+    for match in FENCE_RE.finditer(text):
+        if opened is None:
+            opened = (match.start(), match.group(1))
+        elif match.group(1) == opened[1]:
+            spans.append((opened[0], match.end()))
+            opened = None
+    if opened is not None:
+        spans.append((opened[0], len(text)))
+    return spans
+
+
+def _headings(text: str, start: int):
+    """HEADING_RE's matches from `start`, skipping a `# ` line inside a fenced code block."""
+    spans = _fenced_spans(text)
+    for match in HEADING_RE.finditer(text, start):
+        if not any(a <= match.start() < b for a, b in spans):
+            yield match
 
 
 def defined_ids(model_text: str) -> dict[str, set[str]]:
@@ -104,11 +134,12 @@ def cited_ids(text: str) -> dict[str, set[str]]:
 def experiment_sections(text: str) -> dict[str, str]:
     """Each `### E… ·` section's text up to the next heading of level ≤ 3."""
     sections: dict[str, str] = {}
-    matches = list(SECTION_RE.finditer(text))
+    spans = _fenced_spans(text)
+    matches = [m for m in SECTION_RE.finditer(text) if not any(a <= m.start() < b for a, b in spans)]
     for index, match in enumerate(matches):
         start = match.end()
         end = len(text)
-        for later in HEADING_RE.finditer(text, start):
+        for later in _headings(text, start):
             level = len(later.group(0)) - 1
             if level <= 3:
                 end = later.start()
@@ -289,7 +320,9 @@ def _field_text(body: str, field: str) -> str | None:
     if not found:
         return None
     rest = body[found[0] + len(f"**{field}.**") :]
-    match = re.search(r"\n\*\*[A-Z]", rest)
+    # The field ends where the next field marker opens a line (`_field_positions`' reading), not at
+    # any bold line start: a `**T99**` continuation line belongs to the field.
+    match = FIELD_MARKER_RE.search(rest)
     return rest[: match.start()] if match else rest
 
 
@@ -354,7 +387,7 @@ def _section(text: str, heading_prefix: str) -> str | None:
     level = len(heading_prefix) - len(heading_prefix.lstrip("#"))
     body_start = text.find("\n", start + 1)
     end = len(text)
-    for later in HEADING_RE.finditer(text, body_start + 1):
+    for later in _headings(text, body_start + 1):
         if len(later.group(0)) - 1 <= level:
             end = later.start()
             break
