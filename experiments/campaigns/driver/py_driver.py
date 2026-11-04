@@ -212,24 +212,23 @@ def run_webair(
     except Exception as exc:  # a driver failure: a harness error, in the denominator
         error = f"{type(exc).__name__}: {exc}"[:500]
     seconds = time.monotonic() - started
-    return record.write(
-        run_dir,
-        record.from_py_conversation(
-            meta=meta,
-            rung=rung,
-            result=result,
-            harness_error=error,
-            model_calls=router.calls,
-            tool_calls=tool_seam,
-            consent=consent_seam,
-            responder=responder.decisions,
-            dials=hostmap.read_dial_log(run_dir / "dials.jsonl"),
-            origin_log=stack.origin_log[origin_start:],
-            sink_log=stack.sink.log[sink_start:],
-            seconds=seconds,
-            package=package,
-        ),
+    rec = record.from_py_conversation(
+        meta=meta,
+        rung=rung,
+        result=result,
+        harness_error=error,
+        model_calls=router.calls,
+        tool_calls=tool_seam,
+        consent=consent_seam,
+        responder=responder.decisions,
+        dials=hostmap.read_dial_log(run_dir / "dials.jsonl"),
+        origin_log=stack.origin_log[origin_start:],
+        sink_log=stack.sink.log[sink_start:],
+        seconds=seconds,
+        package=package,
     )
+    rec["memory_grants"] = dict(flag.split("=", 1) for flag in memory_grants)
+    return record.write(run_dir, rec)
 
 
 def run_travel_network(

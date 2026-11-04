@@ -269,7 +269,8 @@ class ToolLayer:
         ) as client:
             response = await client.request(
                 spec["method"] or "POST",
-                f"https://{address}:{port}{parts.path}",
+                f"https://{address}:{port}{parts.path}"
+                + (f"?{parts.query}" if parts.query else ""),
                 json=arguments,
                 headers=headers,
                 extensions={"sni_hostname": host},

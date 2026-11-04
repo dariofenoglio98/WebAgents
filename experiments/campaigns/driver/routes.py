@@ -136,7 +136,12 @@ class CampaignRouter:
                 text, stop, usage, response_model = await self._openai(rendered, max_output_tokens)
             else:
                 raise BridgeError("model_unavailable", f"unknown provider {self.rung.provider}")
-        except httpx.HTTPError as exc:
+        except BridgeError as exc:
+            entry["error"] = getattr(exc, "code", None) or type(exc).__name__
+            raise
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+            # A transport failure, or a 200 that is not the provider's JSON (a tunnel's HTML
+            # page): the route is unavailable, as the bridge records it (review 1, nit 16).
             entry["error"] = type(exc).__name__
             raise BridgeError("model_unavailable", f"route failed: {type(exc).__name__}") from exc
         entry.update(

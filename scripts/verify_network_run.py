@@ -362,7 +362,9 @@ def main() -> int:
         elif not (ROOT / export).exists():
             result = failed(f"the export directory exists: {export}")
         else:
-            hosts = {ollama.split("//", 1)[1]}
+            hosts = {
+                ollama.split("//", 1)[-1]
+            }  # a value without a scheme is the host itself
             result = verify(
                 read_export(ROOT / export),
                 reference=ROOT / reference,

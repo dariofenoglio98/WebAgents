@@ -135,7 +135,11 @@ def experiment_sections(text: str) -> dict[str, str]:
     """Each `### E… ·` section's text up to the next heading of level ≤ 3."""
     sections: dict[str, str] = {}
     spans = _fenced_spans(text)
-    matches = [m for m in SECTION_RE.finditer(text) if not any(a <= m.start() < b for a, b in spans)]
+    matches = [
+        m
+        for m in SECTION_RE.finditer(text)
+        if not any(a <= m.start() < b for a, b in spans)
+    ]
     for index, match in enumerate(matches):
         start = match.end()
         end = len(text)
@@ -321,7 +325,9 @@ def _field_text(body: str, field: str) -> str | None:
         return None
     rest = body[found[0] + len(f"**{field}.**") :]
     # The field ends where the next field marker opens a line (`_field_positions`' reading), not at
-    # any bold line start: a `**T99**` continuation line belongs to the field.
+    # any bold line start: a `**T99**` continuation line belongs to the field. The converse holds
+    # too: a bold-led paragraph that is not a field marker (a `**Note.**`) is read as part of the
+    # field before it; the protocol as written has none between fields (T31 review 1, nit 18).
     match = FIELD_MARKER_RE.search(rest)
     return rest[: match.start()] if match else rest
 

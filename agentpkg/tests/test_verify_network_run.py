@@ -61,3 +61,22 @@ def test_a_harness_report_after_an_early_failure_is_a_failed_report(tmp_path):
     assert code == 1 and report["passed"] is False
     rewritten = json.loads(harness.read_text())
     assert rewritten["passed_network"] is False
+
+
+def test_a_fake_model_without_a_scheme_is_a_failed_report_not_a_traceback(tmp_path):
+    """T31 review 1, nit 17: `fakes.ollama` without `//` names the host itself."""
+    export = tmp_path / "export"
+    export.mkdir()
+    (export / "run.json").write_text("{}")
+    harness = tmp_path / "report.json"
+    harness.write_text(
+        json.dumps(
+            {
+                "exportDirectory": str(export),
+                "referenceDirectory": str(tmp_path),
+                "fakes": {"ollama": "127.0.0.1:11434"},
+            }
+        )
+    )
+    code, report = _run("--report", str(harness))
+    assert code == 1 and report["passed"] is False

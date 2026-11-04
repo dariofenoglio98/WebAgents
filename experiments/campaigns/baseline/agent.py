@@ -39,7 +39,7 @@ from openai import AsyncOpenAI
 from campaigns.baseline import ports, tools
 from campaigns.baseline.policies import build as policies
 from campaigns.driver import record
-from campaigns.driver.py_driver import RECORD_IDS, prepare_memory, webair_grants
+from campaigns.driver.py_driver import prepare_memory, webair_grants
 from campaigns.driver.responder import Responder
 from campaigns.driver.routes import Rung
 from campaigns.origin import tls
@@ -388,6 +388,6 @@ def run_webair(
                 "served_context": context,
             },
             offered=sorted(offered),
-            memory_grants={k: v for k, v in RECORD_IDS.items()},
+            memory_grants=dict(flag.split("=", 1) for flag in memory_grants),
         ),
     )

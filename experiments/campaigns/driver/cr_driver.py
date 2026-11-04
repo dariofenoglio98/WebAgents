@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 
 from campaigns.driver import record
-from campaigns.driver.py_driver import PACKAGES, RECORD_IDS, prepare_memory, webair_grants
+from campaigns.driver.py_driver import PACKAGES, prepare_memory, webair_grants
 from campaigns.driver.responder import Responder
 from campaigns.driver.routes import Rung
 from campaigns.origin import tls
@@ -137,13 +137,18 @@ def build() -> Path:
 
 def run_job(job: dict, *, timeout: float = 3600) -> dict:
     built = build()
-    done = subprocess.run(
-        ["node", str(built / "driver" / "driver.js")],
-        input=json.dumps(job),
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-    )
+    try:
+        done = subprocess.run(
+            ["node", str(built / "driver" / "driver.js")],
+            input=json.dumps(job),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        # A stalled job (a hosted request that never answers) is this unit's harness error, not
+        # the campaign's end (review 1, finding 9); `subprocess.run` has killed the child.
+        return {"status": "harness_error", "error": f"the Cr driver ran over {timeout:g} s"}
     lines = [line for line in done.stdout.splitlines() if line.startswith("{")]
     if not lines:
         return {
@@ -182,6 +187,7 @@ def webair_job(
     fixture_key: str | None,
     grant_profile: bool = False,
     probe_proposals=None,
+    tool_ids: list[str] | None = None,
 ) -> dict:
     grants, memory_flags = webair_grants(grant_profile)
     package, key = PACKAGES["webair"]
@@ -193,7 +199,7 @@ def webair_job(
             "turns": [{"message": {"message": text}} for text in turns],
         },
         "grants": grants,
-        "approved_tools": sorted(_tool_ids()),
+        "approved_tools": sorted(tool_ids if tool_ids is not None else _tool_ids()),
         "records": record_texts(memory_dir),
         "memory_grants": dict(flag.split("=", 1) for flag in memory_flags),
         "route": route_of(rung),
@@ -234,6 +240,7 @@ def run_webair(
     from campaigns.baseline import ports
 
     run_dir.mkdir(parents=True, exist_ok=False)
+    package = ports.load("webair")  # verified once per run
     memory_dir = prepare_memory(run_dir, profile_insertion)
     job = webair_job(
         turns=turns,
@@ -243,6 +250,7 @@ def run_webair(
         responder=responder,
         fixture_key=fixture_key,
         grant_profile=grant_profile,
+        tool_ids=list(package.tools),
     )
     origin_start = len(stack.origin_log) if stack else 0
     sink_start = len(stack.sink.log) if stack else 0
@@ -259,7 +267,7 @@ def run_webair(
             origin_log=stack.origin_log[origin_start:] if stack else [],
             sink_log=stack.sink.log[sink_start:] if stack else [],
             seconds=seconds,
-            package=ports.load("webair"),
-            memory_grants=dict(RECORD_IDS),
+            package=package,
+            memory_grants=dict(job["memory_grants"]),  # the grants this run made
         ),
     )

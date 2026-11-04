@@ -11,7 +11,9 @@
  * - the **host mapping**: `tls.connect` is wrapped for this process (`syncBuiltinESMExports`) so
  *   that a connection whose `servername` is a mapped public hostname dials the campaign stack on
  *   127.0.0.1 and trusts the campaign CA; the hostname's real DNS answer is still resolved and
- *   classified by `cli-net.ts` before the dial; every dial is logged; the run's fixture key header
+ *   classified by `cli-net.ts` before the dial; every lookup (its answer, or that it failed) and
+ *   every dial is logged, so a failed lookup is a harness error on `Cr` as on `Py` (review 1,
+ *   finding 4: the lookup fails before any dial); the run's fixture key header
  *   is added to tool requests for the campaign origin by a wrapper of the tool transport;
  * - the **route**: the core's own adapter on the rung's provider, with `temperature` set by a
  *   wrapper of the model transport (the core sends none), and the observer recording every
@@ -28,7 +30,7 @@ import { readFileSync } from "node:fs";
 import tls from "node:tls";
 
 import { nodeComputeEngine } from "../src/cli-compute.js";
-import { catalogHttp, nodeTransport } from "../src/cli-net.js";
+import { catalogHttp, defaultResolver, nodeTransport, type Resolver } from "../src/cli-net.js";
 import { evaluateCatalog } from "../src/core/compatibility.js";
 import type { ConsentHost, ConsentRequest } from "../src/core/conversation/host.js";
 import { Conversation } from "../src/core/conversation/runner.js";
@@ -83,6 +85,8 @@ interface Job {
   mapping: { hosts: Record<string, [string, number]>; ca: string; fixture_key: string | null; fixture_hosts: string[] } | null;
   responder: { kind: "R-facts" | "R-accept" | "R-deny"; expected: JsonObject };
   probe_proposals?: JsonValue;
+  /** Offline tests only: one GET through the tool transport (its resolver seam), no conversation. */
+  probe_fetch?: string;
 }
 
 const dials: JsonObject[] = [];
@@ -102,15 +106,29 @@ function installMapping(mapping: NonNullable<Job["mapping"]>): void {
       dials.push({ at: Date.now() / 1000, host: name ?? null, address: options?.host ?? null, mapped: false });
       return (original as (...args: unknown[]) => tls.TLSSocket)(options, ...rest);
     }
-    dials.push({ at: Date.now() / 1000, host: name, address: options.host ?? null, mapped: true, dialed: target, lookup: { ok: true, addresses: [options.host ?? null] } });
+    dials.push({ at: Date.now() / 1000, host: name, address: options.host ?? null, mapped: true, dialed: target });
     return (original as (...args: unknown[]) => tls.TLSSocket)({ ...options, host: target[0], port: target[1], ca }, ...rest);
   }) as typeof tls.connect;
   tls.connect = mapped;
   syncBuiltinESMExports();
 }
 
+/** The core's own resolver, observed: each lookup and its answer (or its failure) in the dial log. */
+const loggedResolver: Resolver = async (hostname) => {
+  const entry: JsonObject = { at: Date.now() / 1000, kind: "lookup", host: hostname };
+  dials.push(entry);
+  try {
+    const addresses = await defaultResolver(hostname);
+    entry.lookup = { ok: true, addresses };
+    return addresses;
+  } catch (error) {
+    entry.lookup = { ok: false, error: (error as Error).name };
+    throw error;
+  }
+};
+
 function toolTransport(mapping: Job["mapping"]): HttpTransport {
-  const base = nodeTransport({ allowLoopbackHttp: false });
+  const base = nodeTransport({ allowLoopbackHttp: false, resolve: loggedResolver });
   if (mapping === null || mapping.fixture_key === null) return base;
   const key = mapping.fixture_key;
   return (request) => {
@@ -264,6 +282,16 @@ function parseRecords(texts: string[]): MemoryRecord[] {
 async function main(): Promise<void> {
   const job = JSON.parse(readFileSync(0, "utf8")) as Job;
   if (job.mapping !== null) installMapping(job.mapping);
+  if (job.probe_fetch !== undefined) {
+    let error: string | null = null;
+    try {
+      await toolTransport(job.mapping)({ url: job.probe_fetch, method: "GET", headers: {}, body: null, signal: AbortSignal.timeout(30_000), maxResponseBytes: 65_536 });
+    } catch (failure) {
+      error = (failure as Error).name;
+    }
+    emit({ probe: "fetch", error, dials });
+    return;
+  }
   const bytes = new Uint8Array(readFileSync(job.package));
   const pkg = await loadPackageBytes(bytes);
   await verifyWithTrustedKey(pkg, publicKeyFromPem(readFileSync(job.trust_key, "utf8")));

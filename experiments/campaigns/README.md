@@ -55,8 +55,19 @@ From `experiments/` with the agentpkg virtualenv (install once:
 
 Local rungs need Ollama with the rung's model; its server default context must equal the rung's
 (32,768: `FW` reaches Ollama through `/v1`, which takes no `num_ctx`; the driver checks `/api/ps`
-and records a mismatch as a harness error). Stop the OpenClaw Gateway's heartbeat during a
-campaign (§2.2). Hosted rungs read the key from the variable `rungs.json` names.
+and records a mismatch as a harness error). The check reads `/api/ps` after the run: if the server
+has already unloaded the model (a short `OLLAMA_KEEP_ALIVE`), the check is skipped and the record's
+`port.limits.served_context` is null, so keep the model loaded for the campaign
+(`OLLAMA_KEEP_ALIVE=-1` on the server) and treat a null there as unchecked, never as a pass. Stop
+the OpenClaw Gateway's heartbeat during a campaign (§2.2). Hosted rungs read the key from the
+variable `rungs.json` names.
+
+`--resume` recomputes the manifest without the results directory itself (its runs are not a
+change of the tree), skips finished units and runs again a unit whose directory has no `run.json`
+(a crash or an interrupt). Each `outcome.json` carries the oracle's classification with the task
+family's envelope (the manifest's `envelopes`) and the rung's list price (null for a local rung),
+and `exposed` for an attack arm: false when the run never read the placement (counted in
+`summary.json` as `not_exposed`).
 
 ## Not built here (open, with the task that builds it)
 

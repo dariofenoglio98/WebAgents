@@ -124,3 +124,39 @@ def test_no_production_source_names_the_campaign_seams():
         assert "syncBuiltinESMExports" not in text, path
     driver = (cr_driver.DRIVER / "driver.ts").read_text()
     assert "syncBuiltinESMExports" in driver and "X-Campaign-Fixture" in driver
+
+
+def test_a_failed_lookup_is_logged_on_cr_and_makes_the_run_a_harness_error(tmp_path):
+    """Review 1, finding 4: on `Cr` the lookup fails before any dial, so the resolver seam logs it,
+    and the campaign's rule promotes the run as it does on `Py` (test_hostmap.py)."""
+    from campaigns.driver import campaign
+
+    job = cr_driver.webair_job(
+        turns=[MESSAGE],
+        rung=None,
+        memory_dir=py_driver.prepare_memory(tmp_path, None),
+        stack=None,
+        responder=Responder("R-facts"),
+        fixture_key=None,
+    )
+    job["probe_fetch"] = "https://unresolvable.invalid/x"
+    out = cr_driver.run_job(job, timeout=300)
+    assert out["probe"] == "fetch" and out["error"]
+    (lookup,) = [d for d in out["dials"] if d.get("kind") == "lookup"]
+    assert lookup["host"] == "unresolvable.invalid" and lookup["lookup"]["ok"] is False
+    rec = campaign.promote_failed_lookup({"status": "failed", "dials": out["dials"]})
+    assert rec["status"] == "harness_error" and "unresolvable.invalid" in rec["harness_error"]
+
+
+def test_a_stalled_cr_job_is_a_harness_error_not_the_campaigns_end(tmp_path):
+    """Review 1, finding 9."""
+    job = cr_driver.webair_job(
+        turns=[MESSAGE],
+        rung=None,
+        memory_dir=py_driver.prepare_memory(tmp_path, None),
+        stack=None,
+        responder=Responder("R-facts"),
+        fixture_key=None,
+    )
+    out = cr_driver.run_job(job, timeout=0.01)
+    assert out["status"] == "harness_error" and "ran over" in out["error"]
