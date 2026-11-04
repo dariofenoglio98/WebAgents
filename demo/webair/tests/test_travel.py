@@ -101,6 +101,15 @@ def test_hotels_are_priced_per_night_and_calendar_filters_by_range(client):
             422,
             "invalid_request",
         ),
+        *(
+            (
+                "flights",
+                {"origin": "BOS", "destination": "ZRH", "date": "2027-03-09", "travellers": n},
+                422,
+                "invalid_request",
+            )
+            for n in (7, 9, 10)
+        ),
         ("calendar", {"from": "2027-01-01", "to": "2027-12-31"}, 422, "invalid_range"),
         (
             "calendar",
@@ -144,3 +153,14 @@ def test_the_fixture_records_what_the_origin_answers(client):
             assert response.status_code == 200, response.text
             assert response.json() == case["output"], tool_id
             _validator(tool["output_schema"]).validate(response.json())
+
+
+def test_a_party_at_the_cap_is_answered(client):
+    # T26 review 1, should-fix 2: 6 travelers (MAX_PASSENGERS) are answered; 7 to 9 are a 422 above.
+    response = post(
+        client,
+        "flights",
+        {"origin": "BOS", "destination": "ZRH", "date": "2027-03-09", "travellers": 6},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["options"]

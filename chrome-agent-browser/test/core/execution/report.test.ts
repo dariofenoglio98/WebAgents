@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 
 import { artifactRecords, checkArtifactName, encodeJson, HOST_RESULT_NAMES } from "../../../src/core/execution/artifacts.js";
-import { ProgressTracker } from "../../../src/core/execution/progress.js";
+import { MAX_DECISIONS, ProgressTracker } from "../../../src/core/execution/progress.js";
 import { auditSummary, costSummary, failureSummary, modelEvidence, verifyAuditChain } from "../../../src/core/execution/report.js";
 import type { JsonObject } from "../../../src/core/json.js";
 import { digest } from "../../../src/core/workflow/runtime.js";
@@ -106,6 +106,11 @@ describe("the audit chain", () => {
 });
 
 describe("progress", () => {
+  it("keeps every route decision a network can record (T26 review 1, nit 3)", () => {
+    // 64 handoffs are 65 activations; a chosen route records up to 1 + 2 re-asks decisions.
+    expect(MAX_DECISIONS).toBe(195);
+  });
+
   const event = (action: string, fields: JsonObject = {}): JsonObject => ({ action, ...fields });
 
   it("is a pure count of audit events: nodes, steps, workers, calls and budget, bounded rows", () => {
