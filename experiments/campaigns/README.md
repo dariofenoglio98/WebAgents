@@ -58,9 +58,8 @@ Local rungs need Ollama with the rung's model; its server default context must e
 and records a mismatch as a harness error). Stop the OpenClaw Gateway's heartbeat during a
 campaign (§2.2). Hosted rungs read the key from the variable `rungs.json` names.
 
-## Not built here (open, with the task that needs it)
+## Not built here (open, with the task that builds it)
 
-- `Cr` on the travel network (`ExecutionSession` as `cli-run.ts`, for TS-N and E5): T34.
-- The Literature Review port on `FW` and the TS-L arm of the drivers: T32 (E3's Literature Review
-  arm) or a T31 follow-up.
-- The LangGraph arm (D-354): not built; the measured cost is in D-354.
+- `Cr` on the travel network (`ExecutionSession` as `cli-run.ts`, for TS-N and E5): T31b.
+- The Literature Review port on `FW` and the TS-L arm of the drivers: T31b.
+- The LangGraph arm (D-354): not built; one framework baseline is run.
