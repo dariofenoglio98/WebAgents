@@ -703,7 +703,7 @@ jobs:
         # One pytest process per experiment: each puts its own directory first on
         # sys.path, and the experiments have `analyze` modules of their own.
         run: |
-          for experiment in contract_overhead contract_enforcement contract_enforcement/catalog_v2; do
+          for experiment in contract_overhead contract_enforcement contract_enforcement/catalog_v2 conformance_report; do
             agentpkg/.venv/bin/python -m pytest "experiments/$experiment/tests" -rs \
               --junitxml="$RUNNER_TEMP/${experiment//\//_}.xml"
             agentpkg/.venv/bin/python - "$RUNNER_TEMP/${experiment//\//_}.xml" <<'PY'
