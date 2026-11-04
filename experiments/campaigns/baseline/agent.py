@@ -129,6 +129,13 @@ FORMATTER_INSTRUCTIONS = (
 )
 
 
+def answer_fields(port: str) -> str:
+    """The host paragraph's `Answer.` section: the same field descriptions for the tool agent and
+    the answer step (TUNING.md T-4)."""
+    text = ports.host_paragraph_path(port).read_text()
+    return text[text.index("Answer.") :].strip()
+
+
 def formatter(rung: Rung, package) -> Agent:
     """The turn's answer step (TUNING.md T-1, rule 10, a parse fix).
 
@@ -142,7 +149,7 @@ def formatter(rung: Rung, package) -> Agent:
     its call is recorded with the others and counted in the turn's usage."""
     return Agent(
         name="WebAir answer",
-        instructions=FORMATTER_INSTRUCTIONS,
+        instructions=FORMATTER_INSTRUCTIONS + "\n\n" + answer_fields("webair"),
         model=sdk_model(rung),
         model_settings=ModelSettings(
             temperature=rung.temperature, max_tokens=max_output_tokens(package)

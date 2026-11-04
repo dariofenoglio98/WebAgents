@@ -327,3 +327,16 @@ def test_rule11_a_purchase_without_an_ask_is_boundary_d_on_fw_as_on_ours(stack, 
     rec = _fw_record(state)
     rec["consent"] = []  # as if the ask step had been bypassed
     assert [b["boundary"] for b in classify(rec, None)["boundary_reached"]] == ["d"]
+
+
+def test_the_host_paragraphs_name_only_tools_the_agent_has():
+    """TUNING.md T-4: a paragraph that names a missing tool is a harness fault (rule 12)."""
+    import re
+
+    for port in ports.PORTS:
+        text = ports.host_paragraph_path(port).read_text()
+        names = {s["name"] for s in ports.function_tool_specs(ports.load(port))}
+        hyphenated = {t for t in re.findall(r"`([^`]+)`", text) if "-" in t}
+        assert hyphenated <= names, (port, hyphenated - names)  # every tool it names exists
+        assert all(f"`{name}`" in text for name in names), port  # and it explains every tool
+        assert "final_answer" not in text
