@@ -1,0 +1,275 @@
+{
+ "schema": "campaign.progent-policy.v1",
+ "port": "webair",
+ "package": {
+  "package_id": "org.webagents.webair",
+  "version": "0.8.0",
+  "digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2"
+ },
+ "progent": {
+  "repository": "https://github.com/sunblaze-ucb/progent",
+  "commit": "b02783b896d4bf01a2adf24738015e258db8d35b"
+ },
+ "dsl": "tool -> [[priority, effect (0 allow, 1 forbid), {argument: JSON Schema}, fallback (0 deny)]]; a tool with no rule is denied",
+ "rules": {
+  "get-fare-rules": [
+   [
+    1,
+    0,
+    {
+     "fare_id": {
+      "examples": [
+       "WA101-20261009-STANDARD"
+      ],
+      "pattern": "^WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS)$",
+      "title": "Fare Id",
+      "type": "string"
+     },
+     "passengers": {
+      "default": 1,
+      "description": "Number of travelers",
+      "maximum": 6,
+      "minimum": 1,
+      "title": "Passengers",
+      "type": "integer"
+     }
+    },
+    0
+   ]
+  ],
+  "personal_passenger_identity": [
+   [
+    1,
+    0,
+    {},
+    0
+   ]
+  ],
+  "prepare-booking": [
+   [
+    1,
+    0,
+    {
+     "contact_email": {
+      "maxLength": 254,
+      "pattern": "^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(\\.[A-Za-z0-9-]{1,63})*\\.[A-Za-z]{2,24}$",
+      "title": "Contact Email",
+      "type": "string"
+     },
+     "fare_id": {
+      "pattern": "^WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS)$",
+      "title": "Fare Id",
+      "type": "string"
+     },
+     "passengers": {
+      "items": {
+       "additionalProperties": false,
+       "properties": {
+        "family_name": {
+         "maxLength": 40,
+         "minLength": 1,
+         "pattern": "^[A-Za-zÀ-ÖØ-öø-ÿĀ-ž][A-Za-zÀ-ÖØ-öø-ÿĀ-ž .'-]*$",
+         "title": "Family Name",
+         "type": "string"
+        },
+        "given_name": {
+         "maxLength": 40,
+         "minLength": 1,
+         "pattern": "^[A-Za-zÀ-ÖØ-öø-ÿĀ-ž][A-Za-zÀ-ÖØ-öø-ÿĀ-ž .'-]*$",
+         "title": "Given Name",
+         "type": "string"
+        }
+       },
+       "required": [
+        "given_name",
+        "family_name"
+       ],
+       "title": "PassengerName",
+       "type": "object"
+      },
+      "maxItems": 6,
+      "minItems": 1,
+      "title": "Passengers",
+      "type": "array"
+     }
+    },
+    0
+   ]
+  ],
+  "search-flights": [
+   [
+    1,
+    0,
+    {
+     "cabin": {
+      "anyOf": [
+       {
+        "enum": [
+         "economy",
+         "business"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Cabin"
+     },
+     "date": {
+      "description": "Local departure date, YYYY-MM-DD",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "title": "Date",
+      "type": "string"
+     },
+     "destination": {
+      "enum": [
+       "BOS",
+       "JFK",
+       "ZRH",
+       "GVA",
+       "LHR",
+       "KEF"
+      ],
+      "title": "Destination",
+      "type": "string"
+     },
+     "max_price_usd": {
+      "anyOf": [
+       {
+        "maximum": 100000,
+        "minimum": 1,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Maximum per-passenger fare, taxes included",
+      "title": "Max Price Usd"
+     },
+     "nonstop_only": {
+      "default": false,
+      "title": "Nonstop Only",
+      "type": "boolean"
+     },
+     "origin": {
+      "enum": [
+       "BOS",
+       "JFK",
+       "ZRH",
+       "GVA",
+       "LHR",
+       "KEF"
+      ],
+      "title": "Origin",
+      "type": "string"
+     },
+     "passengers": {
+      "default": 1,
+      "description": "Number of travelers",
+      "maximum": 6,
+      "minimum": 1,
+      "title": "Passengers",
+      "type": "integer"
+     }
+    },
+    0
+   ]
+  ],
+  "simulate-purchase": [
+   [
+    1,
+    0,
+    {
+     "booking": {
+      "additionalProperties": false,
+      "properties": {
+       "contact_email": {
+        "maxLength": 254,
+        "pattern": "^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(\\.[A-Za-z0-9-]{1,63})*\\.[A-Za-z]{2,24}$",
+        "title": "Contact Email",
+        "type": "string"
+       },
+       "fare_id": {
+        "pattern": "^WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS)$",
+        "title": "Fare Id",
+        "type": "string"
+       },
+       "passengers": {
+        "items": {
+         "additionalProperties": false,
+         "properties": {
+          "family_name": {
+           "maxLength": 40,
+           "minLength": 1,
+           "pattern": "^[A-Za-zÀ-ÖØ-öø-ÿĀ-ž][A-Za-zÀ-ÖØ-öø-ÿĀ-ž .'-]*$",
+           "title": "Family Name",
+           "type": "string"
+          },
+          "given_name": {
+           "maxLength": 40,
+           "minLength": 1,
+           "pattern": "^[A-Za-zÀ-ÖØ-öø-ÿĀ-ž][A-Za-zÀ-ÖØ-öø-ÿĀ-ž .'-]*$",
+           "title": "Given Name",
+           "type": "string"
+          }
+         },
+         "required": [
+          "given_name",
+          "family_name"
+         ],
+         "title": "PassengerName",
+         "type": "object"
+        },
+        "maxItems": 6,
+        "minItems": 1,
+        "title": "Passengers",
+        "type": "array"
+       }
+      },
+      "required": [
+       "fare_id",
+       "passengers",
+       "contact_email"
+      ],
+      "title": "PrepareBookingRequest",
+      "type": "object"
+     },
+     "payment_method_id": {
+      "enum": [
+       "demo-visa-4242",
+       "demo-travel-1234"
+      ],
+      "title": "Payment Method Id",
+      "type": "string"
+     },
+     "quote_id": {
+      "pattern": "^WAQ-[0-9A-F]{16}$",
+      "title": "Quote Id",
+      "type": "string"
+     }
+    },
+    0
+   ]
+  ],
+  "travel_profile": [
+   [
+    1,
+    0,
+    {},
+    0
+   ]
+  ],
+  "wallet_payment_method": [
+   [
+    1,
+    0,
+    {},
+    0
+   ]
+  ]
+ }
+}

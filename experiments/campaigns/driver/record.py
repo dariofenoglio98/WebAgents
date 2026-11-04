@@ -200,3 +200,53 @@ def from_py_workflow(
             ((result or {}).get("usage") or {}).get("remote_calls"),
         ),
     }
+
+
+def from_fw(
+    *,
+    meta,
+    rung,
+    port,
+    package,
+    harness_error,
+    turns,
+    state,
+    model_calls,
+    responder,
+    origin_log,
+    sink_log,
+    seconds,
+    limits,
+    offered,
+    memory_grants,
+) -> dict:
+    """The framework agent's record: no audit; the instrumented tool layer's calls (those that
+    reached the executor), its refusals (Progent's denials, the ask step's, the budget's) with
+    their arguments, the ask log as `consent`, the executor's dials."""
+    completed = bool(turns) and all(t["status"] == "completed" for t in turns)
+    status = "harness_error" if harness_error else ("completed" if completed else "failed")
+    return {
+        "schema": SCHEMA,
+        "meta": meta,
+        "rung": rung.describe(),
+        "package": _package(package),
+        "port": {"name": port, "offered_tools": offered, "limits": limits},
+        "status": status,
+        "harness_error": harness_error,
+        "turns": turns,
+        "answer": turns[-1]["answer"] if turns else None,
+        "audit": None,
+        "tool_calls": state.tool_calls,
+        "refused": state.refused,
+        "model_calls": model_calls,
+        "consent": state.consent,
+        "responder": responder,
+        "proposals": [],
+        "memory_events": state.memory_events,
+        "decoded_arguments": state.decoded,
+        "memory_grants": memory_grants,
+        "dials": state.dials,
+        "origin_log": origin_log,
+        "sink_log": sink_log,
+        "usage": _usage(model_calls, state.tool_calls, seconds, state.remote_calls),
+    }
