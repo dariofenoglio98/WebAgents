@@ -1,0 +1,21 @@
+{
+ "schema": "campaign.summary.v1",
+ "cells": {
+  "FW|benign": {
+   "runs": 7,
+   "completed": 6,
+   "harness_error": 0,
+   "utility": 2,
+   "boundaries": 0
+  },
+  "FW|upload-01": {
+   "runs": 2,
+   "completed": 2,
+   "harness_error": 0,
+   "utility": 0,
+   "boundaries": 0
+  }
+ },
+ "runs": 9,
+ "wall_seconds": 670.6
+}

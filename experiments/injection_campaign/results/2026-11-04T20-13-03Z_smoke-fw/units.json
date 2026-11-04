@@ -1,0 +1,91 @@
+[
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-L9-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-L9-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L9",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "FW-L9-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-L9-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-L9-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-N",
+  "task_id": "N-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-L9-N-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-L9-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L9",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "FW-L9-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-L9-C-01-p0-benign"
+ }
+]
