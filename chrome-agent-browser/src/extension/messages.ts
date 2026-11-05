@@ -95,6 +95,12 @@ export type Request =
   | { type: "authorization.useProfile"; sessionId: string; packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean; presetSelections?: string[] }
   | { type: "models.evaluate"; sessionId: string; refresh: boolean }
   | { type: "models.probe"; provider: ProviderId }
+  | { type: "inbrowser.get"; sessionId: string | null }
+  | { type: "inbrowser.download" | "inbrowser.cancel" | "inbrowser.verify" | "inbrowser.delete" | "inbrowser.load"; entryId: string }
+  | { type: "inbrowser.unload" | "inbrowser.measure" | "inbrowser.refreshCatalog" }
+  | { type: "inbrowser.paste"; repository: string }
+  | { type: "inbrowser.addPasted"; repository: string; file: string }
+  | { type: "host.modelsChanged" }
   | { type: "runplan.prepare"; sessionId: string; packageDigest: string; receiptId: string; modelId: string }
   | { type: "runplan.get"; sessionId: string }
   | { type: "runplan.clear"; sessionId: string }
@@ -237,7 +243,9 @@ export type Event =
   /** The secret store locked, unlocked, was set up or forgotten (T16). */
   | { type: "event.secrets" }
   /** An origin was granted or revoked (T16). */
-  | { type: "event.permissions" };
+  | { type: "event.permissions" }
+  /** The in-browser model cache or engine changed: a download progressed or ended, a model loaded or unloaded (T41). */
+  | { type: "event.models" };
 
 export type Response<T = unknown> =
   | { ok: true; result: T }
@@ -470,6 +478,14 @@ export interface ModelsView {
   captured_at: string;
   /** The subscribed policy's model constraints (T8), when one is in force. */
   model_policy: { label: string; title: string; local_only: boolean; max_cost_usd_per_run: number | null } | null;
+  /**
+   * The in-browser route's suggestion for this package (T41, D-446): the smallest recommended
+   * curated entry, cached (pick it) or not (its download card); null when the route is off.
+   */
+  in_browser?: {
+    suggestion: { entry: string; host_model_id: string; display_name: string; bytes_total: number; cached: boolean; available: boolean; reasons: string[]; license: { id: string; name: string; url: string } } | null;
+    budget_words: string;
+  } | null;
 }
 
 export interface SettingsView {
@@ -959,6 +975,28 @@ export function parseRequest(value: unknown): Request {
     case "models.probe":
       only(fields, ["type", "provider"]);
       return { type, provider: provider(fields.provider) };
+    case "inbrowser.get":
+      only(fields, ["type", "sessionId"]);
+      return { type, sessionId: optionalText(fields.sessionId, "sessionId", MAX_ID) };
+    case "inbrowser.download":
+    case "inbrowser.cancel":
+    case "inbrowser.verify":
+    case "inbrowser.delete":
+    case "inbrowser.load":
+      only(fields, ["type", "entryId"]);
+      return { type, entryId: text(fields.entryId, "entryId", 64) };
+    case "inbrowser.unload":
+    case "inbrowser.measure":
+    case "inbrowser.refreshCatalog":
+    case "host.modelsChanged":
+      only(fields, ["type"]);
+      return { type };
+    case "inbrowser.paste":
+      only(fields, ["type", "repository"]);
+      return { type, repository: text(fields.repository, "repository", 300) };
+    case "inbrowser.addPasted":
+      only(fields, ["type", "repository", "file"]);
+      return { type, repository: text(fields.repository, "repository", 300), file: text(fields.file, "file", 512) };
     case "runplan.prepare":
       only(fields, ["type", "sessionId", "packageDigest", "receiptId", "modelId"]);
       return {

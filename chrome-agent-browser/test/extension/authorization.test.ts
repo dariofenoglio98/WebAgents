@@ -391,13 +391,18 @@ describe("models, settings and the vault", () => {
     const h = makeHarness();
     const session = await openWebair(h);
     const before = (await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: false }, PAGE)) as ModelsView;
+    // The in-browser route is enabled by default and lists the curated entries first, none downloaded here (T41);
     // Chrome's built-in model is enabled by default and listed as unavailable here (no Prompt API in this context).
-    expect(before.evaluation.models.map((model) => [model.model_id, model.status, model.available])).toEqual([
+    const inBrowser = before.evaluation.models.filter((model) => model.provider_id === "in-browser");
+    expect(inBrowser.map((model) => model.model_id).sort()).toEqual(["in-browser/gpt-oss-20b-mxfp4", "in-browser/qwen3-0.6b-q4_0", "in-browser/qwen3-30b-a3b-q4_k_m", "in-browser/qwen3-4b-q4_k_m", "in-browser/qwen3-8b-q4_k_m"]);
+    expect(inBrowser.every((model) => !model.available && model.availability_reason!.startsWith("not downloaded"))).toBe(true);
+    expect(before.evaluation.models.filter((model) => model.provider_id !== "in-browser").map((model) => [model.model_id, model.status, model.available])).toEqual([
       [QWEN, "compatible", true],
       ["chrome-builtin/gemini-nano", "unverified", false],
     ]);
     expect(before).toMatchObject({ default_model: QWEN, local_models_only: false, execution_mode_permission_ids: ["model.reasoning"], execution_mode_permissions_granted: false });
     expect(before.probes.map((probe) => [probe.provider, probe.ok])).toEqual([
+      ["in-browser", false],
       ["ollama", true],
       ["chrome-builtin", false],
     ]);

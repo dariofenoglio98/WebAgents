@@ -13,13 +13,16 @@
  *   memory_records one memory.v0 record per row, keyed by record id, its sealed values sealed
  *                 under the memory data key the secret store holds (version 5, T19, D-221)
  *   memory_meta   the memory's types, usage log and approvals as one document (version 5)
+ *   conversations one row per conversation; its turns are runs (version 6, T24)
+ *   models        the in-browser model cache's rows, keyed by entry id; the weights themselves are
+ *                 OPFS files under `models/<sha256>` (version 7, T41, D-451)
  */
 
 export const DATABASE = "agent-browser";
-/** Version 2 added the `sizes` store; version 3 the run, artifact and observation stores; version 4 the `files` store; version 5 the memory stores (T19). */
-export const VERSION = 6;
+/** Version 2 added the `sizes` store; version 3 the run, artifact and observation stores; version 4 the `files` store; version 5 the memory stores (T19); version 6 conversations (T24); version 7 the model cache (T41). */
+export const VERSION = 7;
 
-export type StoreName = "snapshots" | "sessions" | "sizes" | "runs" | "artifacts" | "observations" | "files" | "memory_records" | "memory_meta" | "conversations";
+export type StoreName = "snapshots" | "sessions" | "sizes" | "runs" | "artifacts" | "observations" | "files" | "memory_records" | "memory_meta" | "conversations" | "models";
 
 export function request<T>(value: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -76,6 +79,8 @@ function upgrade(opening: IDBOpenDBRequest, event: IDBVersionChangeEvent): void 
     const conversations = db.createObjectStore("conversations", { keyPath: "conversation_id" });
     conversations.createIndex("session_id", "session_id", { unique: false });
   }
+  // Version 7 (T41, D-451): the in-browser model cache's rows; the files are in OPFS.
+  if (!db.objectStoreNames.contains("models")) db.createObjectStore("models", { keyPath: "entry_id" });
 }
 
 /** A lazily opened connection; a failed open is retried on the next call, never cached. */

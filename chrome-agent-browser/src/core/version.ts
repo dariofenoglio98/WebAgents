@@ -9,7 +9,7 @@
 export const SUPPORTED_RUNTIME_VERSION = "0.7.0";
 export const RUNTIME_API = "agentpkg-runtime-v0";
 export const SUPPORTED_EXECUTION_PROFILES: readonly string[] = Object.freeze(["workflow.v0"]);
-export const CORE_VERSION = "0.5.0";
+export const CORE_VERSION = "0.6.0";
 
 /** `(major, minor, patch)` of a semantic version, prerelease dropped. */
 export function release(version: string): number[] {

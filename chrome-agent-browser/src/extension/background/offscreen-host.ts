@@ -5,7 +5,7 @@
  * them and reports back with `host.progress` / `host.finished`.
  */
 import type { ExecutionHostBridge, HostCancelAnswer } from "./runs.js";
-import type { HostCommand, HostStartMessage, HostStatusReply } from "../execution/protocol.js";
+import type { HostCommand, HostEngineMessage, HostModelsMessage, HostStartMessage, HostStatusReply } from "../execution/protocol.js";
 
 const DOCUMENT = "execution.html";
 const JUSTIFICATION = "Runs an authorized agent package in a dedicated Worker so that the run survives the side panel and the service worker being closed (WebAgents execution host).";
@@ -67,6 +67,15 @@ export class OffscreenHostBridge implements ExecutionHostBridge {
   async status(): Promise<HostStatusReply | null> {
     if (!(await chrome.offscreen.hasDocument())) return null;
     return this.send<HostStatusReply>({ type: "host.status" });
+  }
+
+  /**
+   * The in-browser engine and the model cache (T41): a Settings command to the page, creating the
+   * document when needed (a download or a load outlives the side panel and this worker).
+   */
+  async engine(message: HostModelsMessage | HostEngineMessage): Promise<unknown> {
+    await this.ensure();
+    return this.send<unknown>(message);
   }
 
   /** conversation.v0: the person's answer to a card, to the Worker that waits on it (the record carries it too). */

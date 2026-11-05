@@ -1,0 +1,245 @@
+/**
+ * The model cache's manager in the offscreen page (T41, D-444, D-451, D-452): it starts, follows
+ * and cancels downloads in the models Worker, verifies and deletes cached files, and keeps the
+ * IndexedDB rows true to what the Worker did. The offscreen page is the long-lived context (STATE
+ * §10: it keeps running while the side panel and the service worker come and go), so a 26-minute
+ * download is held here, never in the service worker.
+ *
+ * A download starts only from the person's click (the service worker sends `host.models` after
+ * the card's Download), names the entry it was clicked for, and fetches only the URLs that entry
+ * names after `checkModelFileUrl` admits them. A file that does not match its digest is not kept;
+ * a cancelled download leaves no file; a deleted entry's files go unless another row names them.
+ */
+import type { InBrowserEntry } from "../../core/models/in-browser-catalog.js";
+import type { GgufHeaderFacts } from "../../core/models/gguf-header.js";
+import { cacheState, headerFromFacts, newModelRecord, type ModelRecord, type ModelStore } from "../storage/models.js";
+import type { EngineHost } from "./engine-host.js";
+import type { ModelsCommand, ModelsEvent } from "./models-worker.js";
+import type { WithoutId } from "./engine-protocol.js";
+
+export interface ModelsWorkerLike {
+  postMessage(message: ModelsCommand): void;
+  terminate(): void;
+  onmessage: ((event: { data: ModelsEvent }) => void) | null;
+  onerror: ((event: unknown) => void) | null;
+}
+
+export interface DownloadView {
+  entry_id: string;
+  state: "downloading" | "reading_header" | "done" | "failed" | "cancelled";
+  file_index: number;
+  files: number;
+  bytes_done: number;
+  bytes_total: number;
+  resumed_from: number;
+  started_at: string;
+  ended_at: string | null;
+  error: { code: string; message: string } | null;
+}
+
+export class ModelError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ModelError";
+  }
+}
+
+export interface ModelManagerDeps {
+  spawn: () => ModelsWorkerLike;
+  models: ModelStore;
+  engine: Pick<EngineHost, "loadedEntry" | "unload" | "status">;
+  now?: () => Date;
+  onChange?: () => void;
+}
+
+export class ModelManager {
+  private worker: ModelsWorkerLike | null = null;
+  private nextId = 1;
+  private readonly waiting = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void; progress?: (event: Extract<ModelsEvent, { kind: "progress" }>["progress"]) => void }>();
+  private readonly downloads = new Map<string, DownloadView & { id: number | null }>();
+  private readonly now: () => Date;
+
+  constructor(private readonly deps: ModelManagerDeps) {
+    this.now = deps.now ?? (() => new Date());
+  }
+
+  private ask<T>(command: WithoutId<Exclude<ModelsCommand, { kind: "cancel" }>>, onId?: (id: number) => void, progress?: (event: Extract<ModelsEvent, { kind: "progress" }>["progress"]) => void): Promise<T> {
+    if (this.worker === null) {
+      const worker = this.deps.spawn();
+      worker.onmessage = (event) => {
+        const data = event.data;
+        const waiter = this.waiting.get(data.id);
+        if (!waiter) return;
+        if (data.kind === "progress") {
+          waiter.progress?.(data.progress);
+          return;
+        }
+        this.waiting.delete(data.id);
+        if (data.ok) waiter.resolve(data.result);
+        else waiter.reject(new ModelError(data.error.code, data.error.message));
+      };
+      worker.onerror = () => {
+        for (const waiter of this.waiting.values()) waiter.reject(new ModelError("model_cache_error", "the model cache's Worker stopped"));
+        this.waiting.clear();
+        this.worker?.terminate();
+        this.worker = null;
+      };
+      this.worker = worker;
+    }
+    const id = this.nextId++;
+    onId?.(id);
+    const worker = this.worker;
+    return new Promise<T>((resolve, reject) => {
+      this.waiting.set(id, { resolve: resolve as (value: unknown) => void, reject, progress });
+      worker.postMessage({ ...command, id } as ModelsCommand);
+    });
+  }
+
+  private changed(): void {
+    try {
+      this.deps.onChange?.();
+    } catch {
+      // a report that fails never steers the cache
+    }
+  }
+
+  /** List an entry without downloading it (a pasted repository's file, before the person's Download). */
+  async list(entry: InBrowserEntry): Promise<ModelRecord> {
+    const row = await this.deps.models.update(entry.id, (current) => current ?? newModelRecord(entry, this.now()));
+    this.changed();
+    return row!;
+  }
+
+  /** Start a download (the person's click); resolves once it has started, the outcome lands in the row and `status()`. */
+  async download(entry: InBrowserEntry): Promise<DownloadView> {
+    const running = this.downloads.get(entry.id);
+    if (running && (running.state === "downloading" || running.state === "reading_header")) throw new ModelError("model_download_running", `${entry.display_name} is already downloading`);
+    const existing = await this.deps.models.get(entry.id);
+    if (existing && cacheState(existing).verified && existing.entry.weights_digest === entry.weights_digest) throw new ModelError("model_cached", `${entry.display_name} is already downloaded and verified`);
+    const at = this.now().toISOString();
+    await this.deps.models.update(entry.id, (current) => {
+      const base = current !== null && current.entry.weights_digest === entry.weights_digest ? current : newModelRecord(entry, this.now());
+      return { ...base, entry, files: base.files.map((file) => (file.state === "complete" ? file : { ...file, state: "partial" })), last_error: null };
+    });
+    const view: DownloadView & { id: number | null } = { id: null, entry_id: entry.id, state: "downloading", file_index: 0, files: entry.files.length, bytes_done: 0, bytes_total: entry.bytes_total, resumed_from: 0, started_at: at, ended_at: null, error: null };
+    this.downloads.set(entry.id, view);
+    this.changed();
+    const offsets = entry.files.map((_, index) => entry.files.slice(0, index).reduce((sum, file) => sum + file.bytes, 0));
+    let lastReport = 0;
+    void this.ask<{ files: Array<{ sha256: string; bytes: number }> }>({ kind: "download", files: entry.files }, (id) => (view.id = id), (progress) => {
+      view.file_index = progress.file_index;
+      view.bytes_done = offsets[progress.file_index]! + progress.bytes_done;
+      if (progress.resumed_from > 0 && progress.bytes_done === progress.resumed_from) view.resumed_from += progress.resumed_from;
+      const now = Date.now();
+      if (now - lastReport > 1000) {
+        lastReport = now;
+        this.changed();
+      }
+    })
+      .then(async () => {
+        view.state = "reading_header";
+        view.bytes_done = entry.bytes_total;
+        this.changed();
+        let header: GgufHeaderFacts | null = null;
+        let headerError: string | null = null;
+        try {
+          header = await this.ask<GgufHeaderFacts>({ kind: "header", sha256: entry.files[0]!.sha256, bytes: entry.files[0]!.bytes });
+        } catch (error) {
+          headerError = error instanceof Error ? error.message : "the header could not be read";
+        }
+        const done = this.now().toISOString();
+        await this.deps.models.update(entry.id, (current) => ({
+          ...(current ?? newModelRecord(entry, this.now())),
+          entry,
+          files: entry.files.map((file) => ({ name: file.name, sha256: file.sha256, bytes: file.bytes, state: "complete" })),
+          verified: true,
+          mismatch: false,
+          downloaded_at: done,
+          verified_at: done,
+          header: header === null ? null : headerFromFacts(header),
+          last_error: headerError === null ? null : { code: "model_header_unreadable", message: `The file's GGUF header could not be read (${headerError}): its GPU memory is unknown`, at: done },
+        }));
+        view.state = "done";
+        view.ended_at = done;
+      })
+      .catch(async (error: unknown) => {
+        const code = error instanceof ModelError ? error.code : "model_cache_error";
+        const message = error instanceof Error ? error.message : "the download failed";
+        const ended = this.now().toISOString();
+        const cancelled = code === "model_download_cancelled";
+        if (cancelled) {
+          // A cancelled download leaves no file: the files completed in this download go too, unless another row names them.
+          await this.removeFiles(entry, entry.files.map((file) => file.sha256)).catch(() => undefined);
+        }
+        await this.deps.models.update(entry.id, (current) =>
+          current === null
+            ? null
+            : {
+                ...current,
+                files: current.files.map((file) => ({ ...file, state: cancelled || code === "model_digest_mismatch" ? (file.state === "complete" && !cancelled ? "complete" : "missing") : file.state })),
+                verified: false,
+                last_error: cancelled ? null : { code, message, at: ended },
+              },
+        );
+        view.state = cancelled ? "cancelled" : "failed";
+        view.error = cancelled ? null : { code, message };
+        view.ended_at = ended;
+      })
+      .finally(() => {
+        view.id = null;
+        this.changed();
+      });
+    return { ...view };
+  }
+
+  cancel(entryId: string): boolean {
+    const view = this.downloads.get(entryId);
+    if (!view || view.id === null) return false;
+    this.worker?.postMessage({ kind: "cancel", target: view.id });
+    return true;
+  }
+
+  /** Re-hash every cached file of an entry (Verify): the digests and `verified_at` are recorded. */
+  async verify(entryId: string): Promise<ModelRecord> {
+    const row = await this.deps.models.get(entryId);
+    if (row === null || !cacheState(row).cached) throw new ModelError("model_not_cached", "This model is not downloaded");
+    const answer = await this.ask<{ files: Array<{ sha256: string; ok: boolean }> }>({ kind: "verify", files: row.files.map((file) => ({ sha256: file.sha256, bytes: file.bytes })) });
+    const ok = answer.files.every((file) => file.ok);
+    const at = this.now().toISOString();
+    const next = await this.deps.models.update(entryId, (current) => (current === null ? null : { ...current, verified: ok, mismatch: !ok, verified_at: at, last_error: ok ? null : { code: "model_digest_mismatch", message: "the bytes did not match the digest the catalog states", at } }));
+    this.changed();
+    return next!;
+  }
+
+  /** Delete an entry's files and row (a loaded model is unloaded first; one a run is using is refused). */
+  async delete(entryId: string): Promise<void> {
+    const status = this.deps.engine.status();
+    const user = status.runs.find((item) => item.entry === entryId);
+    if (user) throw new ModelError("model_in_use", `This model is in use by run ${user.run_id}; it can be deleted when the run ends`);
+    if (this.deps.engine.loadedEntry() === entryId) await this.deps.engine.unload();
+    this.cancel(entryId);
+    const row = await this.deps.models.get(entryId);
+    if (row !== null) await this.removeFiles(row.entry, row.files.map((file) => file.sha256));
+    await this.deps.models.delete(entryId);
+    this.downloads.delete(entryId);
+    this.changed();
+  }
+
+  private async removeFiles(entry: InBrowserEntry, sha256s: string[]): Promise<void> {
+    const shared = new Set((await this.deps.models.list()).filter((row) => row.entry_id !== entry.id && cacheState(row).cached).flatMap((row) => row.files.map((file) => file.sha256)));
+    const own = sha256s.filter((sha256) => !shared.has(sha256));
+    if (own.length > 0) await this.ask({ kind: "delete", sha256s: own });
+  }
+
+  /** What is cached on disk, for the totals and to find files no row names. */
+  files(): Promise<{ files: Array<{ name: string; size: number }> }> {
+    return this.ask({ kind: "list" });
+  }
+
+  status(): DownloadView[] {
+    return [...this.downloads.values()].map(({ id: _id, ...view }) => ({ ...view }));
+  }
+}

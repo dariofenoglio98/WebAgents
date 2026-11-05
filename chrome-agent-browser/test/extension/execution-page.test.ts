@@ -110,7 +110,7 @@ describe("the offscreen execution host", () => {
     const worker = FakeWorker.created[0]!;
     expect(worker.url).toBe("execution-worker.js");
     expect(worker.options).toEqual({ type: "module", name: "run_1" });
-    expect(worker.posted).toEqual([{ kind: "start", message: START }]);
+    expect(worker.posted).toEqual([{ kind: "start", message: START, enginePort: null }]);
     expect(ask({ type: "host.status" }, serviceWorker).reply).toEqual({ ok: true, result: { runs: [{ run_id: "run_1", status: "preparing" }] } });
     expect(ask(START, serviceWorker).reply).toMatchObject({ ok: false, error: { code: "execution_active" } });
     // A cancel from a content script naming a known run is ignored; the service worker's reaches the Worker.

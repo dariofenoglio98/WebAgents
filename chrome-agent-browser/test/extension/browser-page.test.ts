@@ -213,7 +213,7 @@ describe("Settings → Models: the connection chips describe the providers now (
     const probe = vi.spyOn(h.controller, "probe");
     await go("#settings?section=models");
     // (`go` also dispatches the hashchange happy-dom fires itself, so the page routes twice here.)
-    expect(new Set(probe.mock.calls.map(([provider]) => provider)), "the enabled connections, without pressing Test").toEqual(new Set(["ollama", "chrome-builtin"]));
+    expect(new Set(probe.mock.calls.map(([provider]) => provider)), "the enabled connections, without pressing Test").toEqual(new Set(["in-browser", "ollama", "chrome-builtin"]));
     expect(ollamaChip()?.textContent).toBe("reachable · 1 model · checked 14:02:31");
 
     // Ollama is stopped meanwhile; the person opens the Models section again a few minutes later.
@@ -228,7 +228,7 @@ describe("Settings → Models: the connection chips describe the providers now (
     expect(ollamaCard().textContent).toContain("Testing…");
     tab("Models").click(); // opened again while the tests are still running: no second test of either
     await settle(20);
-    expect(probe.mock.calls.map(([provider]) => provider).sort()).toEqual(["chrome-builtin", "ollama"]);
+    expect(probe.mock.calls.map(([provider]) => provider).sort()).toEqual(["chrome-builtin", "in-browser", "ollama"]);
     answers.get("chrome-builtin")!({ provider: "chrome-builtin", ok: false, models: [], notes: [], error: "unsupported", diagnosis: null });
     answers.get("ollama")!({ provider: "ollama", ok: false, models: [], notes: [], error: "Ollama did not answer at http://127.0.0.1:11434 (/api/tags failed: TypeError)", diagnosis: { state: "not_running", hint: "Nothing answers at http://127.0.0.1:11434." } });
     await settle();

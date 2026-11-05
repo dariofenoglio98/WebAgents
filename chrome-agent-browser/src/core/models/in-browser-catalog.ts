@@ -9,8 +9,10 @@
  * the header, and hands the facts in. Design: `docs/design/in-browser-inference.md` §3, §5.
  */
 import type { CapabilityAnswer } from "../compatibility.js";
+import { CoreError } from "../errors.js";
 import { closedRecord, flag, hex64, invalid, positiveCount, requiredText, text, tristate } from "../fields.js";
 import { sha256HexSync } from "../hash.js";
+import { validatePackageUrl } from "../policy.js";
 import { IN_BROWSER_PROVIDER, inBrowserHostModelId } from "./adapters/in-browser.js";
 
 export const IN_BROWSER_ENTRY_SCHEMA = "agentpkg-in-browser-model-v0";
@@ -480,4 +482,26 @@ export function readModelCatalog(content: unknown): ModelCatalog {
   });
   if (new Set(entries.map((entry) => entry.id)).size !== entries.length) throw invalid("catalog.entries must not repeat an id");
   return { catalog_id: catalogId, version, title: requiredText(record.title, "catalog.title", { limit: 120 }), issued_at: issued, expires_at: expires, entries };
+}
+
+// -- where weights may come from (D-442, D-452) ---------------------------------------------------
+
+/**
+ * The hosts an entry's files may name in v1: the Hugging Face repository host only (D-442; a
+ * second host is a new declared destination, B-272). A redirect to the repository's content host
+ * is followed by `fetch` and needs no check of its own: the digest binds the bytes.
+ */
+export const MODEL_FILE_HOSTS: readonly string[] = Object.freeze(["huggingface.co"]);
+
+/**
+ * Check one file URL before any fetch (T40 review 1, nit 11), through the package URL gate the
+ * extension applies to every HTTPS destination it names (`policy.ts::validatePackageUrl`: https,
+ * port 443, no credentials, no fragment, no IP literal, no local name, both parsers agreeing),
+ * then the host: it must be one this route declares. Throws `url_rejected` with the reason.
+ */
+export function checkModelFileUrl(url: string): string {
+  const { hostname } = validatePackageUrl(url, "Model file");
+  const host = hostname.replace(/\.$/u, "").toLowerCase();
+  if (!MODEL_FILE_HOSTS.includes(host)) throw new CoreError("url_rejected", `Model file URLs must be on ${MODEL_FILE_HOSTS.join(", ")}; this one names ${host}`, { status: 403 });
+  return new URL(url).href;
 }

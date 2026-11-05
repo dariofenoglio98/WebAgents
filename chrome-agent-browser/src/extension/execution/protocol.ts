@@ -16,6 +16,7 @@
 import type { OpenAIReasoningEffort } from "../../core/models/adapters/openai.js";
 import type { MemorySnapshot } from "../../core/memory/store.js";
 import type { TurnStart } from "../../core/execution/runner.js";
+import type { InBrowserEntry } from "../../core/models/in-browser-catalog.js";
 
 export interface HostCredentials {
   openai: string | null;
@@ -63,7 +64,35 @@ export interface HostStartMessage {
   allowedOrigins: string[];
   /** conversation.v0 (D-270): the turn this run is, or null for a one-shot run. */
   turn?: TurnStart | null;
+  /**
+   * The in-browser route (T41, D-441, D-450): when the plan binds `in-browser/<entry>`, what the page
+   * loads before the run starts (the entry at the plan's context, thinking as the switch says) and
+   * the machine's budget the service worker computed; the page refuses before the run when the
+   * model is not cached, verified and within the budget, or another model is in use. Null or
+   * absent for every other route: such a run gets no engine port.
+   */
+  inBrowser?: InBrowserStart | null;
 }
+
+export interface InBrowserStart {
+  entry: string;
+  n_ctx: number;
+  think: boolean;
+  budget: { bytes: number; basis: string };
+  idle_unload_minutes: number;
+}
+
+/** Settings → Models → In this browser: the cache's commands to the offscreen page (T41, D-444). */
+export type HostModelsMessage =
+  | { type: "host.models"; action: "download"; entry: InBrowserEntry }
+  | { type: "host.models"; action: "list"; entry: InBrowserEntry }
+  | { type: "host.models"; action: "cancel" | "verify" | "delete"; entryId: string }
+  | { type: "host.models"; action: "status" | "files" };
+
+/** The engine's commands from Settings (T41, D-450): never a completion, which only a run's port asks for. */
+export type HostEngineMessage =
+  | { type: "host.engine"; action: "probe" | "benchmark" | "status" | "unload" }
+  | { type: "host.engine"; action: "load"; load: { entry: string; n_ctx: number; think: boolean; budget: { bytes: number; basis: string }; idle_unload_minutes: number } };
 
 export interface HostCancelMessage {
   type: "host.cancel";
@@ -82,13 +111,13 @@ export interface HostStatusMessage {
   type: "host.status";
 }
 
-export type HostCommand = HostStartMessage | HostCancelMessage | HostStatusMessage | HostDecideMessage;
+export type HostCommand = HostStartMessage | HostCancelMessage | HostStatusMessage | HostDecideMessage | HostModelsMessage | HostEngineMessage;
 
 export interface HostStatusReply {
   runs: Array<{ run_id: string; status: "preparing" | "running" | "settling" }>;
 }
 
-export const HOST_COMMAND_TYPES: readonly HostCommand["type"][] = ["host.start", "host.cancel", "host.status", "host.decide"];
+export const HOST_COMMAND_TYPES: readonly HostCommand["type"][] = ["host.start", "host.cancel", "host.status", "host.decide", "host.models", "host.engine"];
 
 /**
  * The service worker's script, as the manifest names it (`background.service_worker`; a test
@@ -105,5 +134,6 @@ export function isHostCommand(value: unknown): value is HostCommand {
 }
 
 /** Messages the offscreen page and its Worker exchange (never seen outside the host). */
-export type WorkerCommand = { kind: "start"; message: HostStartMessage } | { kind: "cancel" } | { kind: "decide"; step: string; accepted: boolean };
+/** `start` transfers the engine port (T41, D-450) when the plan binds the in-browser route. */
+export type WorkerCommand = { kind: "start"; message: HostStartMessage; enginePort?: MessagePort | null } | { kind: "cancel" } | { kind: "decide"; step: string; accepted: boolean };
 export type WorkerEvent = { kind: "progress"; runId: string } | { kind: "finished"; runId: string; status: string } | { kind: "failed"; runId: string; code: string; message: string };

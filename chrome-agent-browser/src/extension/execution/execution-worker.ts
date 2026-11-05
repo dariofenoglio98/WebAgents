@@ -1,7 +1,8 @@
 /**
  * The execution Worker inside the offscreen document (D-070): one Worker per run, created by
  * `execution-page.ts`, running `executeRun` over the shared IndexedDB stores, the browser
- * transport and this context's Prompt API. It receives exactly two commands (`start`, `cancel`)
+ * transport, this context's Prompt API and, for a run bound to the in-browser route, the engine
+ * port the page transferred in the start command (T41). It receives exactly two commands (`start`, `cancel`)
  * and reports `progress`, `finished` or `failed`; it never touches chrome.* APIs.
  */
 import { workerComputeEngine, type ComputeWorkerLike } from "../../core/compute/engine.js";
@@ -9,6 +10,7 @@ import { IndexedDbSnapshotStore } from "../storage/snapshots.js";
 import { IndexedDbRunStore } from "../storage/runs.js";
 import { Database } from "../storage/database.js";
 import { languageModelApi, LanguageModelPort } from "./builtin-port.js";
+import { MessagePortEnginePort } from "./in-browser-port.js";
 import { IndexedDbFileStore } from "../storage/files.js";
 import { executeRun, type ExecutionHandle } from "./execute.js";
 import { PDF_WORKER_SCRIPT, workerPdfReader, type WorkerLike } from "./pdf-reader.js";
@@ -61,6 +63,8 @@ scope.onmessage = (event) => {
     message: command.message,
     transports: { model: browserTransport({ allowLoopbackHttp: true }), tool: browserTransport({ allowLoopbackHttp: false }) },
     builtin: api ? new LanguageModelPort(api) : null,
+    // The in-browser engine's port, transferred by the page for a run bound to that route (D-450).
+    inBrowser: command.enginePort ? new MessagePortEnginePort(command.enginePort as unknown as ConstructorParameters<typeof MessagePortEnginePort>[0]) : null,
     files: new IndexedDbFileStore(database),
     // One compute Worker per call, nested in this run's Worker, terminated on answer, deadline and cancel (D-251).
     compute: workerComputeEngine(() => browserWorkerLike(new Worker(COMPUTE_WORKER_SCRIPT, { type: "module" })), { id: engineId(navigator.userAgent) }),
