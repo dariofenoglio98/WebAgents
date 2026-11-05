@@ -18,12 +18,50 @@ def test_the_smoke_preset_is_one_task_per_class_and_one_payload_pair():
     units = campaign.units_for("smoke", ["L9"], list(campaign.SIDES), PAYLOADS)
     per_side = [u for u in units if u["side"] == "FW"]
     classes = {campaign.load_tasks()[u["task_id"]]["class"] for u in per_side}
-    assert classes == {"W1", "W2", "W3", "W4", "W5", "TS-C", "TS-N"}
-    assert not [u for u in units if u["side"] == "Cr" and u["task_set"] == "TS-N"]
+    assert classes == {"W1", "W2", "W3", "W4", "W5", "TS-C", "TS-N"}  # no TS-L on L9 (§2.2)
+    assert [u for u in units if u["side"] == "Cr" and u["task_set"] == "TS-N"]  # T31b, D-359
+    assert campaign.NOT_BUILT == set()
     arms = sorted(campaign.arm_id(u["arm"]) for u in per_side if u["arm"])
     assert arms == ["upload-01@search.fare_name#injected", "upload-01@search.fare_name#twin"]
-    assert len(units) == 3 * len(per_side) - 1 and all(u["phrasing"] == 0 for u in units)
+    assert len(units) == 3 * len(per_side) and all(u["phrasing"] == 0 for u in units)
     assert len({u["id"] for u in units}) == len(units)
+
+
+def test_the_smoke_preset_runs_one_ts_l_question_on_every_side_on_ts_ls_rungs_only():
+    units = campaign.units_for("smoke", ["L9", "L30"], list(campaign.SIDES), PAYLOADS)
+    literature = [u for u in units if u["task_set"] == "TS-L"]
+    assert sorted((u["side"], u["rung"], u["task_id"]) for u in literature) == [
+        ("Cr", "L30", "L1"),
+        ("FW", "L30", "L1"),
+        ("Py", "L30", "L1"),
+    ]
+    assert all(u["arm"] is None for u in literature)
+    narrowed = campaign.units_for(
+        "smoke", ["L9", "L30"], list(campaign.SIDES), PAYLOADS, ("TS-N", "TS-L")
+    )
+    assert {u["task_set"] for u in narrowed} == {"TS-N", "TS-L"}
+    assert len([u for u in narrowed if u["task_set"] == "TS-N"]) == 2 * 3  # two rungs, three sides
+
+
+def test_the_ts_l_attack_arm_is_the_resolvers_abstract_on_py_and_fw_only():
+    units = campaign.units_for("qualification", ["L30"], list(campaign.SIDES), PAYLOADS)
+    attacked = {
+        (u["side"], u["arm"]["placement"]) for u in units if u["task_set"] == "TS-L" and u["arm"]
+    }
+    assert attacked and {side for side, _ in attacked} == {"Py", "FW"}
+    assert {placement for _, placement in attacked} == {"resolver.abstract"}
+    benign = [u for u in units if u["task_set"] == "TS-L" and u["arm"] is None]
+    assert len(benign) == 6 * 3  # every question, one phrasing, every side (E2's parity rows)
+    assert not campaign.units_for("qualification", ["L9"], ["Py"], PAYLOADS, ("TS-L",))
+
+
+def test_the_literature_envelope_is_the_graphs_bound_and_the_policys_caps():
+    table = campaign.envelopes()
+    family = table["literature-review"]
+    assert family == {"per": "run", "model_calls": 47, "tokens": 180_000, "tool_calls": 36}
+    unit = {"task_set": "TS-L", "side": "FW", "phrasing": 0}
+    task = {"turn_sets": [["q"]]}
+    assert campaign.envelope_for(unit, task, table)["model_calls"] == 48  # + the answer step
 
 
 def test_qualification_reaches_a_placement_only_where_the_path_reads_it():
@@ -285,7 +323,7 @@ def test_resume_classifies_a_recorded_unit_without_an_outcome_and_never_reruns_i
     monkeypatch.setattr(campaign, "run_unit", fake_run)
 
     class Stack:
-        def __init__(self, *a):
+        def __init__(self, *a, **kw):
             pass
 
         def __enter__(self):
