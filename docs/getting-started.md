@@ -7,8 +7,9 @@ its own:
    deterministic fixture mode. No OpenClaw, no model, no network. About five minutes.
 2. **Agent Browser** — build and install the OpenClaw plugin, then open, inspect and authorize a
    package from the OpenClaw Control UI.
-3. **Live runs** — bind a real model (local Ollama or a hosted OpenAI model) and run a package from
-   the browser. The Literature Review package also calls live scholarly services.
+3. **Live runs** — bind a real model (one the Chrome extension runs itself in the browser, a local
+   Ollama, or a hosted model) and run a package from the browser. The Literature Review package
+   also calls live scholarly services.
 4. **Chrome Agent Browser** — build the Chrome extension, the second runtime, and discover,
    authorize and run packages in Chrome with your own model; no OpenClaw or Python needed
    ([§6](#6-chrome-agent-browser-level-4)).
@@ -23,7 +24,8 @@ absolute paths for your own checkout.
 | Python 3.11 ≥ 3.11.10, 3.12 ≥ 3.12.4, or 3.13 | everything | 3.13.5; CI also 3.11 (Linux) and 3.12 (macOS) | `agentpkg` dependencies: `jsonschema`, `cryptography`, `pypdf`, `rfc8785`. The URL policy relies on the standard library's `ipaddress` classification. Older patch releases lack CPython's CVE-2024-4032 fix and treat most of `192.0.0.0/24` as public. python.org ships no macOS installer after 3.11.9, so on macOS use 3.12 or 3.13, or a 3.11 from Homebrew or uv. The test suite expects the classification of current patch releases (3.11.14, 3.12.10, 3.13) |
 | Node 24 (≥ 24.16) or ≥ 26.1, and npm | building the plugin | Node 26.9.0 | the range the pinned `openclaw` devDependency declares; only needed to build, test and pack `openclaw-agent-browser` |
 | OpenClaw **2026.9.5** | Agent Browser, live runs | 2026.9.5 (`ec9c1a1`) | the plugin APIs are experimental; execution refuses another OpenClaw release unless you opt out (see below) |
-| Ollama | optional, local models | 0.34.0, `qwen3:30b` | the recorded local runs used Apple M3 Max, 36 GB |
+| A GPU that Chrome exposes through WebGPU | optional, models in the browser (the Chrome extension's default local route, §3) | Apple M3 Max, 36 GB, Chrome 156 | nothing to install: the extension downloads the weights you pick into its own cache |
+| Ollama | optional, other local route | 0.34.0, `qwen3:30b` | the recorded OpenClaw local runs used Apple M3 Max, 36 GB |
 | Google Chrome 137 or newer | the Chrome Agent Browser (level 4) | Chrome 154 | Ed25519 in WebCrypto arrived in Chrome 137; building the extension needs the same Node as the plugin |
 | OpenAI account in OpenClaw | optional, hosted models | `openai/gpt-5.6-luna` | configured as an OpenClaw provider; WebAgents never sees the credential |
 
@@ -162,11 +164,61 @@ pinned for its own package-id prefix.
 
 ## 3. Models
 
-The page lists only models the OpenClaw host itself reports, with a compatibility verdict against
-the package's declared requirements. Nothing is preselected. Configure models in OpenClaw; no
-credential is ever given to WebAgents or stored in a package.
+A package names no model: the person's browser binds one, and the run plan records it. Each browser
+lists only the models it can reach, with a compatibility verdict against the package's declared
+requirements. No credential is ever given to a package or stored in one.
 
-### Local: Ollama
+### In this browser (the default local route)
+
+The Chrome Agent Browser (§6) runs open-weight models itself: inside the extension, on your GPU,
+through WebGPU, with no application beside it and no network once the weights are cached
+(`docs/design/in-browser-inference.md`; the engine is wllama 3.8.1, llama.cpp compiled to
+WebAssembly and bundled in the extension). Open Settings → Models → **In this browser**:
+
+- **This machine** shows the GPU the engine sees, a GPU-memory budget with its basis (no web page
+  can read GPU memory, so it is estimated from the platform, or taken from your statement in
+  *This machine's GPU memory*), and a short GPU benchmark's class.
+- **The list** is the project's signed curated list (five Qwen3 and gpt-oss entries, all
+  Apache-2.0) in four bins with every reason: *recommended*, *possible*, *not suitable* (with a
+  package open: its requirements fail at the context that fits) and *too large*. You can also
+  **paste a Hugging Face repository** (`owner/name`): its GGUF files are listed with their sizes and
+  digests, marked *not reviewed by WebAgents*.
+- **Download…** opens the download card: the name, the size, the licence (linked), the repository,
+  the files and their SHA-256 digests, the storage free before and after, and this machine's
+  verdict. Only its **Download** button starts the download (Chrome asks once to allow
+  `huggingface.co`). Every file is hashed while it arrives and kept only if it matches; an
+  interrupted download resumes; **Cancel** leaves no file. A download continues if you close the
+  page.
+- A downloaded model offers **Load**, **Unload**, **Verify** (re-hash), **Delete** and **Make
+  default**. A run on it loads it first, or refuses before it starts when it is not downloaded,
+  does not fit the budget, or another model is in use. It unloads after 10 idle minutes (a
+  setting). *Let local models think* turns the model's reasoning on (a change reloads it).
+
+A model you download is a cache the browser keeps for this extension, like any site's cached files: you can see every model, its size and when it was last used in Settings → Models, delete any of them, and uninstalling the extension removes them all. An agent never installs anything; it runs on the model you chose, and the weights never leave this browser.
+
+What to expect on an Apple M3 Max (36 GB), from committed reports: Qwen3 4B answered WebAir's
+`interpret` step validly at 131 tok/s prefill and 37 tok/s decode, so a 2,917-token prompt waits
+about 22 s for its first token (`examples/verification/chrome-inbrowser-spike-t40-qwen3-4b.json`);
+the end-to-end run of the extension's own download, load and a WebAir search on it is
+`examples/verification/chrome-inbrowser-e2e.json`. Prefill, not the model, is what long prompts
+wait for: Literature Review needs the 30B class, as with Ollama, and a larger machine. Plug in for
+long runs.
+
+### Other local routes
+
+#### Ollama
+
+Ollama is a separate application: it runs outside the browser's protection, and the browser cannot
+bound what it does with your data. If you already run it, it stays a route you may choose.
+
+*In the Chrome Agent Browser*, Ollama must allow the extension's origin once: for the macOS app,
+`launchctl setenv OLLAMA_ORIGINS "chrome-extension://*"` and restart Ollama; started from a
+terminal, `OLLAMA_ORIGINS="chrome-extension://*" ollama serve`. Settings → Models → *Ollama on this
+computer* shows these commands and tells *not running* apart from *rejecting this extension*. (The
+macOS installer no longer sets this up: since 0.2.0 it installs the native helper only.)
+
+*In the Agent Browser (OpenClaw)*, the page lists only models the OpenClaw host itself reports;
+configure them in OpenClaw. Nothing is preselected.
 
 ```sh
 ollama pull qwen3:30b
@@ -275,7 +327,9 @@ unpacked** and select `chrome-agent-browser/dist/extension`. Pin the WebAgents a
 **Connect a model.** Open the extension's full page (the action's side panel links to it) →
 Settings → Models.
 
-- *Ollama on this machine.* Chrome extensions are a different origin from the ones Ollama allows by
+- *In this browser* (the default). Pick a model recommended for this machine and download it (§3);
+  the extension runs it itself. Nothing else to install.
+- *Ollama on this computer* (other local route, §3). Chrome extensions are a different origin from the ones Ollama allows by
   default, so start Ollama with `OLLAMA_ORIGINS="chrome-extension://*"`. For the macOS app:
   `launchctl setenv OLLAMA_ORIGINS "chrome-extension://*"`, then quit and reopen Ollama. Settings
   shows the exact commands and tells *not running* apart from *rejecting this extension*. Only
@@ -312,6 +366,8 @@ It prints one line per case and writes `conformance/results/<timestamp>/report.m
 
 | Symptom (Chrome) | Likely cause |
 |---|---|
+| Settings → Models → In this browser: *WebGPU is not available to this extension* | Chrome exposes no WebGPU adapter to extensions here (a software fallback counts as none); use another route |
+| an in-browser model is *too large for this machine* | the budget's estimate at its context exceeds this machine's GPU memory; state your GPU memory, choose a smaller context or a smaller model |
 | Settings → Models: Ollama *rejecting this extension* | `OLLAMA_ORIGINS` does not include `chrome-extension://*`, or Ollama was not restarted after setting it |
 | a model shows *not available* | its provider stopped answering; Test connection names the address that failed |
 | **Run** stays disabled | the checklist above it names the first item that does not hold |

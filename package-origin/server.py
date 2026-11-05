@@ -54,6 +54,11 @@ DOCUMENTS = {
         Path(__file__).parent / "documents" / "policies" / "webagents-research.json",
         "aa36d133aeb71eb6a77306822396f57ea34efa76a9e1636904365f04c35dca75",
     ),
+    # T41: the signed curated in-browser model list (examples/model-catalog.json, version 1.0.0).
+    "/model-catalog.json": (
+        Path(__file__).parent / "documents" / "model-catalog.json",
+        "fd67ab974cf4728a02be1176afffc72ca0b1cbe256f7593b03b014187ab65624",
+    ),
 }
 
 

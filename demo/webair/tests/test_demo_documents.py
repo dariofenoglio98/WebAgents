@@ -1,6 +1,6 @@
 """The WebAgents demo documents beside the airline (T8, `origin/demo_documents.py`).
 
-Configured with a directory, the origin serves exactly eight files read once at startup, each
+Configured with a directory, the origin serves exactly nine files read once at startup, each
 at one fixed path with its media type and SHA-256; without one those paths answer 404; a missing
 file or a link refuses to start; nothing else in the directory is reachable.
 """
@@ -18,6 +18,7 @@ from publisher.contract import REPO_ROOT
 
 SOURCES = {
     "agent-index.json": REPO_ROOT / "examples" / "agent-index.json",
+    "model-catalog.json": REPO_ROOT / "examples" / "model-catalog.json",
     "policies/webagents-research.json": REPO_ROOT
     / "examples"
     / "policies"
@@ -53,7 +54,7 @@ def directory(tmp_path):
     return tmp_path / "demo"
 
 
-def test_serves_exactly_the_eight_documents_with_their_media_types(directory):
+def test_serves_exactly_the_nine_documents_with_their_media_types(directory):
     client = TestClient(create_app(None, directory))
     for path, (name, media_type, _limit) in DOCUMENTS.items():
         data = SOURCES[name].read_bytes()
@@ -66,7 +67,7 @@ def test_serves_exactly_the_eight_documents_with_their_media_types(directory):
     for package in ("0.2.9", "0.2.8", "0.2.7", "0.2.6", "0.2.5"):
         assert DOCUMENTS[f"/packages/literature-review-{package}.agent.pkg"][1] == MEDIA_TYPE
     assert DOCUMENTS["/packages/travel-network-0.1.0.agent.pkg"][1] == MEDIA_TYPE
-    assert len(DOCUMENTS) == 8
+    assert len(DOCUMENTS) == 9
     for path in (
         "/secret.txt",
         "/policies/",

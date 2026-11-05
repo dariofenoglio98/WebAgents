@@ -9,6 +9,16 @@ perfectly happily. Both were reading OpenClaw — through two different views.
 This document records which view answers which question, and which one
 availability must follow.
 
+> **Note (T41, 2026-11-05).** This document is about the OpenClaw plugin's host views. In the
+> Chrome Agent Browser a model can also run in the browser itself (the default local route,
+> [`chrome-agent-browser.md` §15](chrome-agent-browser.md#15-in-browser-inference-t41)). There,
+> "available" is decided by the extension alone, with no host to ask: the weights are cached and
+> verified by digest, and the GPU-memory estimate at the plan's context fits this machine's budget
+> (or a load at that context already ran here). Otherwise the descriptor says which one fails
+> ("not downloaded (2.5 GB)", "needs about … GB of GPU memory at a …-token context; this machine's
+> budget is … GB (assumed)"), and a plan on it is refused before the run. Nothing falls back to
+> another model.
+
 ## 1. The two views
 
 `buildModelsProviderData(cfg, agentId, { view })`

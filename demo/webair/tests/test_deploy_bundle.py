@@ -22,6 +22,7 @@ ARTIFACT = REPO_ROOT / "dist" / "webair-0.8.0.agent.pkg"
 START = "python -m origin --host 0.0.0.0 --agent-package agent.pkg --demo-documents demo"
 DEMO_DOCUMENTS = {
     "demo/agent-index.json",
+    "demo/model-catalog.json",
     "demo/policies/webagents-research.json",
     "demo/packages/literature-review-0.2.9.agent.pkg",
     "demo/packages/literature-review-0.2.8.agent.pkg",
@@ -129,6 +130,7 @@ def test_the_bundle_carries_the_signed_demo_documents_and_the_bundled_origin_ser
     bundler.assemble(ARTIFACT, tmp_path / "bundle")
     sources = {
         "demo/agent-index.json": REPO_ROOT / "examples" / "agent-index.json",
+        "demo/model-catalog.json": REPO_ROOT / "examples" / "model-catalog.json",
         "demo/policies/webagents-research.json": REPO_ROOT
         / "examples"
         / "policies"

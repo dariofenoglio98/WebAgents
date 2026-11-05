@@ -19,11 +19,11 @@ its residual). Nothing a specification cites has been removed.
 | P-3 data only | Threats and controls; workflow.v0 boundary; Code in packages |
 | P-4 declared at most, granted no more | Threats and controls; Browser control-plane boundary; Agent Browser plugin boundary; Run surface boundary; Package execution boundary; Tool broker boundary |
 | P-5 prepare, re-verify, then run | Browser control-plane boundary; Agent Browser plugin boundary; Run surface boundary; Model-router bridge boundary; Package execution boundary |
-| P-6 a model's output is data | Run surface boundary; Model-router bridge boundary; workflow.v0 boundary |
+| P-6 a model's output is data | Run surface boundary; Model-router bridge boundary; workflow.v0 boundary; In-browser inference |
 | P-7 control flow is the signed graph | Threats and controls; workflow.v0 boundary; Delegation networks |
 | P-8 tools only through bindings under the address policy | Threats and controls; Browser control-plane boundary; Tool broker boundary; Scholarly search, selected files and pacing; Chrome Agent Browser |
-| P-9 budgets and conservative accounting | Threats and controls; Model-router bridge boundary; Package execution boundary; Tool broker boundary; workflow.v0 boundary; Conversations and consent; Delegation networks |
-| P-10 fail closed | Model-router bridge boundary; Tool broker boundary |
+| P-9 budgets and conservative accounting | Threats and controls; Model-router bridge boundary; Package execution boundary; Tool broker boundary; workflow.v0 boundary; Conversations and consent; Delegation networks; In-browser inference |
+| P-10 fail closed | Model-router bridge boundary; Tool broker boundary; In-browser inference |
 | P-11 a hash-linked audit | Threats and controls; File and memory handling; Package execution boundary; Scholarly search, selected files and pacing; Conversations and consent |
 | P-12 the person's data by type | Threats and controls; File and memory handling; Run surface boundary; Scholarly search, selected files and pacing; User memory |
 | P-13 sealed values | Threats and controls; User memory |
@@ -32,7 +32,7 @@ its residual). Nothing a specification cites has been removed.
 | P-16 consent bound to constructed facts | Conversations and consent; Conversations in Chrome |
 | P-17 confinement across roles | Threats and controls; workflow.v0 boundary; Delegation networks |
 | P-18 inputs from the web grant nothing | Threats and controls; File and memory handling; Browser control-plane boundary; Scholarly search, selected files and pacing; Search and policy subscriptions |
-| P-19 least privilege and secrets at rest (the extension) | Browser control-plane boundary; Agent Browser plugin boundary; Chrome Agent Browser; Native helper and macOS installer; Conversations in Chrome |
+| P-19 least privilege and secrets at rest (the extension) | Browser control-plane boundary; Agent Browser plugin boundary; Chrome Agent Browser; Native helper and macOS installer; Conversations in Chrome; In-browser inference |
 
 The original framing of the first note (September 2026): this prototype treats a downloaded package as
 untrusted data. Its publisher can request capabilities and provide instructions; the operator's
@@ -506,14 +506,13 @@ binary (U8; B-194). Unlocking stays a click: nothing unlocks the store without t
 and the idle lock applies as before.
 
 **The installer.** An unsigned, un-notarized `.pkg` until U8 (Gatekeeper warns; the README says
-how to open it). Its scripts run as root and do only what `installer/macos/dry-run.sh` lists. When
-Ollama is missing it is obtained through Homebrew (run as the person, never as root) or from the
-pinned GitHub release, whose SHA-256 and signing team are checked before the app is moved into
-`/Applications`; a mismatch installs nothing. `OLLAMA_ORIGINS` gets the extension's own
-`chrome-extension://<id>` entries, so other extensions do not gain access to the local models; a
-wildcard the person had set is kept as found. The login LaunchAgent runs one script as the person
-that sets the variable and restarts Ollama only when Ollama rejects the extension's origin. The
-uninstaller removes all of it and never Ollama or its models.
+how to open it). Its scripts run as root and do only what `installer/macos/dry-run.sh` lists. Since
+0.2.0 (T41, D-457) it installs the helper only: it obtains no Ollama, sets no `OLLAMA_ORIGINS` and
+installs no LaunchAgent, because the extension runs models itself (In-browser inference, below).
+0.1.0 also had an Ollama choice (Homebrew as the person, or the pinned release checked by SHA-256
+and signing team; the extension's own origins appended to `OLLAMA_ORIGINS` by a login LaunchAgent).
+The 0.2.0 uninstaller still removes what that choice left, taking only the extension's entries out of
+`OLLAMA_ORIGINS` through that install's own script, and never removes Ollama or its models.
 
 ## User memory (T18, `memory.v0`)
 
@@ -546,6 +545,53 @@ text index and the graph index are derived and may lag a write until rebuilt; an
 stops a person from typing a secret into a note, which the host will then hold in clear like any
 body. The memory family of the enforcement catalog v2 (D-189) starts from the negative cases of the
 spec's §10.
+
+## In-browser inference (T41)
+
+*Properties: P-6, P-9, P-10, P-19 ([the model](security-and-privacy-model.md#3-properties)).*
+
+The Chrome Agent Browser can run an open-weight model itself, on the GPU, inside the browser
+([guide §15](chrome-agent-browser.md#15-in-browser-inference-t41), [design](design/in-browser-inference.md)).
+This adds code to the extension's trusted base and weights the person downloads, and moves no
+authority.
+
+**What is trusted.** The engine: wllama 3.8.1's bundle and its WebAssembly (`wllama.wasm`, one file,
+SHA-256 asserted by `check-pack`), compiled under the extension's `'wasm-unsafe-eval'` CSP (D-253) in
+a dedicated Worker of the offscreen document, with nothing fetched or evaluated at run time
+(`check-pack` finds no `eval`, no `new Function` and no `cdn.jsdelivr.net` in it). It is part of the
+TCB the way pdf.js is: a bug in llama.cpp's GGUF parsing or its WebGPU kernels is a bug in the
+extension.
+
+**What is data.** The weights: tensors the fixed engine reads, fetched only on the person's click,
+only from `https://huggingface.co/…` URLs the entry names (the package URL gate first: HTTPS, port
+443, no credentials, no IP literal, no local name), each file hashed while it arrives and kept only
+when its SHA-256 is the entry's. A curated entry's digests come from the signed list
+(`org.webagents:model-catalog-v0`, the `webagents-catalog` key); a pasted repository's from that
+repository's API, which the card marks *not reviewed by WebAgents*: the digest then proves the bytes
+are the ones the repository published, not that they are benign. Hostile weights are treated as a
+hostile model (P-6): they choose what the model says, never what the run may reach, spend or keep,
+because the contract is the runtime's and every answer is parsed and validated by the router. They
+are also input to a native-code-derived parser; the GGUF header reader in the core walks only the
+key-value section with bounded sizes, and the engine reads the rest.
+
+**The Worker boundary.** The engine Worker answers only the offscreen page (`EngineHost`); a run's
+Worker reaches it through one `MessagePort` per run carrying status, completions and aborts, never a
+load. The run's model requests stay in the browser: the adapter has no transport, so there is no
+destination to refuse, and the observer (D-028) still records each request under
+`in-browser:<entry>` in test mode. The egress view (T44) will show the route as "stayed in this
+browser" from the absence of any `model.called` domain.
+
+**Fail closed.** A model that is not cached and verified, whose estimate at the plan's context
+exceeds the budget, that died at that context before, or another model in use: the run is refused
+before it starts with the reason, never moved to another model. A Worker killed mid-call fails the
+call `model_unavailable` (`engine_worker_died`) and is not restarted by itself. Usage is the engine's
+own count, the whole prompt including its cached part, thinking tokens included; a missing count is
+`model_usage_unavailable` and the reservation is charged (P-9).
+
+**Residual risks.** GPU memory is estimated, not read: a load that does not fit can still kill the
+Worker (Chrome reports a crashed renderer) before the estimate's error is learned. A WebGPU driver
+bug is outside the extension's control. The cache is the extension origin's OPFS: readable by the
+extension's own pages and by anyone with the profile directory, like any site's cached files.
 
 ## Code in packages (T21, `compute.v0`)
 
