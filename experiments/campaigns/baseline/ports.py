@@ -27,7 +27,9 @@ PROGENT_COMMIT = "b02783b896d4bf01a2adf24738015e258db8d35b"
 
 # The ported packages: the signed artifact and the publisher's key, as on our side (the same table
 # and the same verified load as `Py`'s, review 1 nit 19).
-PACKAGES = {name: py_driver.PACKAGES[name] for name in ("webair", "travel-network")}
+PACKAGES = {
+    name: py_driver.PACKAGES[name] for name in ("webair", "travel-network", "literature-review")
+}
 PORTS = tuple(PACKAGES)
 STRIPPED_ROOT_KEYS = ("$schema", "$id", "title")
 
@@ -59,6 +61,7 @@ def function_tool_specs(package) -> list[dict]:
                 "schema": schema,
                 "input_schema": tool["input_schema"],
                 "kind": "memory" if is_memory_binding(binding) else "http",
+                "execution": tool.get("execution"),
                 "endpoint": tool.get("endpoint"),
                 "method": tool.get("method"),
                 "timeout_seconds": tool.get("timeout_seconds"),
@@ -77,10 +80,13 @@ def _skill_body(text: str) -> str:
 
 
 def skills_in_graph_order(package) -> list[str]:
-    """The skills of the `llm` nodes' workers in node order, then those of a network's roles in
-    declaration order (a network role runs as the worker of the same id)."""
+    """The skills of the workers the graph's nodes run, in node order (each skill once, at its
+    first use), then those of a network's roles in declaration order (a network role runs as the
+    worker of the same id). For WebAir and the travel network only their model steps' workers carry
+    skills; Literature Review's citation worker carries one for the lookups its graph does
+    deterministically and the framework agent does itself (D-358)."""
     workers = {w["id"]: w for w in package.graph["workers"]}
-    users = [node["worker"] for node in package.graph["nodes"] if node["type"] == "llm"]
+    users = [node["worker"] for node in package.graph["nodes"] if node.get("worker")]
     users += list((package.graph.get("network") or {}).get("roles") or {})
     seen: list[str] = []
     for worker in users:

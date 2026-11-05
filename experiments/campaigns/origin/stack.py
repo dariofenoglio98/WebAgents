@@ -20,17 +20,13 @@ import time
 from pathlib import Path
 
 import uvicorn
+from origin.app import create_app
+from origin.injection import campaign_app
 
+from campaigns import ROOT  # importing `campaigns` put WebAir's origin on the path
+from campaigns.driver import pacing
 from campaigns.origin import catalog, tls
 from campaigns.origin.sink import Sink
-
-ROOT = Path(__file__).resolve().parents[3]
-for path in (ROOT / "demo" / "webair",):
-    if str(path) not in sys.path:
-        sys.path.insert(0, str(path))
-
-from origin.app import create_app  # noqa: E402
-from origin.injection import campaign_app  # noqa: E402
 
 
 def _free_port() -> int:
@@ -40,7 +36,7 @@ def _free_port() -> int:
 
 
 class _Server:
-    def __init__(self, app, port: int, certs: dict[str, Path]):
+    def __init__(self, app, port: int, certs: dict[str, Path], *, lifespan: str = "off"):
         self.port = port
         config = uvicorn.Config(
             app,
@@ -49,7 +45,7 @@ class _Server:
             ssl_certfile=str(certs["leaf"]),
             ssl_keyfile=str(certs["key"]),
             log_level="warning",
-            lifespan="off",
+            lifespan=lifespan,
             access_log=False,
         )
         self.server = uvicorn.Server(config)
@@ -69,8 +65,18 @@ class _Server:
 
 
 class CampaignStack:
-    def __init__(self, run_dir: Path, *, payloads: dict | None = None, resolver: bool = False):
+    def __init__(
+        self,
+        run_dir: Path,
+        *,
+        payloads: dict | None = None,
+        resolver: bool = False,
+        resolver_upstream=None,
+    ):
+        """`resolver_upstream`: offline tests only, an `httpx` transport that answers the
+        resolver's provider requests in place of the network (still through the Crossref lane)."""
         self.run_dir = Path(run_dir)
+        self.resolver_upstream = resolver_upstream
         self.payloads = catalog.load() if payloads is None else payloads
         self.with_resolver = resolver
         self.servers: list[_Server] = []
@@ -83,12 +89,13 @@ class CampaignStack:
         certs = tls.make(self.run_dir / "campaign-ca")
         self.ca = certs["ca"]
         origin, self.origin_log = campaign_app(create_app(), self.payloads)
-        services = [(tls.WEBAIR_HOST, origin), (tls.SINK_HOST, self.sink)]
+        services = [(tls.WEBAIR_HOST, origin, "off"), (tls.SINK_HOST, self.sink, "off")]
         if self.with_resolver:
-            services.append((tls.RESOLVER_HOST, self._resolver()))
+            # The resolver opens its upstream client in its lifespan (`app.main.create_app`).
+            services.append((tls.RESOLVER_HOST, self._resolver(), "on"))
         try:
-            for host, app in services:
-                server = _Server(app, _free_port(), certs)
+            for host, app, lifespan in services:
+                server = _Server(app, _free_port(), certs, lifespan=lifespan)
                 server.start()
                 self.servers.append(server)
                 self.hosts[host] = ("127.0.0.1", server.port)
@@ -101,9 +108,22 @@ class CampaignStack:
         resolver_root = ROOT / "citation-resolver"
         if str(resolver_root) not in sys.path:
             sys.path.insert(0, str(resolver_root))
+        from app.config import Settings  # noqa: PLC0415
         from app.main import create_app as create_resolver  # noqa: PLC0415
 
-        wrapped, self.resolver_log = campaign_app(create_resolver(), self.payloads)
+        # As the hosted service is configured (`Settings.from_env` with its public domain): its own
+        # hostname is a trusted Host, no contact address (never the user's e-mail for Crossref's
+        # polite pool), and its upstream Crossref requests take the process's Crossref lane
+        # (`driver/pacing.py`) through the transport its factory accepts.
+        settings = Settings(
+            contact_email="",
+            public_base_url=f"https://{tls.RESOLVER_HOST}",
+            allowed_hosts=(*Settings.allowed_hosts, tls.RESOLVER_HOST),
+        )
+        app = create_resolver(
+            settings, transport=pacing.PacedTransport(pacing.CROSSREF, self.resolver_upstream)
+        )
+        wrapped, self.resolver_log = campaign_app(app, self.payloads)
         return wrapped
 
     def __exit__(self, *exc) -> None:

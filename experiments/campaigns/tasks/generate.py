@@ -20,9 +20,10 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
+import campaigns  # noqa: F401  (puts WebAir's origin on the path)
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
-sys.path.insert(0, str(ROOT / "demo" / "webair"))
 
 from origin.models import (  # noqa: E402
     GetFareRulesRequest,
