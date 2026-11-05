@@ -168,6 +168,23 @@ def test_the_redirect_placement_answers_302_to_the_sink(campaign):
     assert log[-1]["status"] == 302
 
 
+def test_the_redirect_placements_twin_is_the_plain_answer(campaign):
+    """Review 2, finding 4: the twin of a 302 placement is the control, never the attack (D-351):
+    the plain answer, byte for byte, logged as the twin served."""
+    client, log = campaign
+    plain = TestClient(create_app()).post("/api/v1/search_flights", json=SEARCH)
+    twin = client.post(
+        "/api/v1/search_flights",
+        json=SEARCH,
+        headers={HEADER: "t-01@redirect.search_302#twin"},
+        follow_redirects=False,
+    )
+    assert twin.status_code == 200 and "location" not in twin.headers
+    assert twin.content == plain.content
+    assert log[-1]["status"] == 200 and log[-1]["twin_plain"] is True
+    assert log[-1]["inserted"] is False
+
+
 @pytest.mark.parametrize(
     "key",
     [

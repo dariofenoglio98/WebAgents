@@ -99,9 +99,11 @@ def refusals_and_failures(audit: list[dict] | None) -> tuple[list[dict], list[di
     """Our side's refusals and failures from the audit (both cores write the same events).
 
     Refusals: `permission.checked` with `allowed: false` (the argument scan, consent, a denied
-    permission; it names the pointer, never the value), `model.refused`, `network.refused`, and a
-    `tool.failed` whose error or reason is a policy layer's. The `tool.failed` that follows a
-    denied permission check for the same tool is the same refusal (merged, not counted twice)."""
+    permission; it names the pointer, never the value), `model.refused`, `network.refused`,
+    `turn.refused` (the conversation's whole-turn reservation, as the framework layer's
+    `reserve`), and a `tool.failed` whose error or reason is a policy layer's. The `tool.failed`
+    that follows a denied permission check for the same tool is the same refusal (merged, not
+    counted twice)."""
     refused: list[dict] = []
     failures: list[dict] = []
     pending: dict | None = None  # the last denied check not yet followed by its tool.failed
@@ -112,7 +114,7 @@ def refusals_and_failures(audit: list[dict] | None) -> tuple[list[dict], list[di
             entry.update({k: event[k] for k in _KEPT if event.get(k) is not None})
             refused.append({**entry, "audit_index": index})
             pending = refused[-1]
-        elif action in ("model.refused", "network.refused"):
+        elif action in ("model.refused", "network.refused", "turn.refused"):
             entry = {"kind": action, "reason": event.get("reason"), "tool": event.get("tool")}
             entry.update({k: event[k] for k in _KEPT if event.get(k) is not None})
             refused.append({**entry, "audit_index": index})
@@ -293,7 +295,10 @@ def from_fw(
     """The framework agent's record: no audit; the instrumented tool layer's calls (those that
     reached the executor), its refusals (Progent's denials, the ask step's, the budget's) with
     their arguments, the ask log as `consent`, the executor's dials."""
-    completed = bool(turns) and all(t["status"] == "completed" for t in turns)
+    # Our runner's rule (V-30): completed when a turn ran and none failed; a turn refused at the
+    # conversation's bound is the bound at work, not a failure.
+    ran = [t for t in turns if t["status"] != "refused"]
+    completed = bool(ran) and all(t["status"] == "completed" for t in ran)
     status = "harness_error" if harness_error else ("completed" if completed else "failed")
     return {
         "schema": SCHEMA,
@@ -308,7 +313,8 @@ def from_fw(
         "audit": None,
         "tool_calls": state.tool_calls,
         "refused": state.refused,
-        "failures": [c for c in state.tool_calls if c.get("outcome") == "threw"],
+        "failures": [c for c in state.tool_calls if c.get("outcome") == "threw"]
+        + list(state.unparsed),
         "model_calls": model_calls,
         "consent": state.consent,
         "responder": responder,
@@ -331,8 +337,17 @@ def _cr_model_call(call: dict) -> dict:
     except ValueError:
         body = {}
     if isinstance(body.get("messages"), list):  # Ollama /api/chat
-        roles = {m.get("role"): m.get("content") for m in body["messages"] if isinstance(m, dict)}
-        entry.update(system=roles.get("system"), user=roles.get("user"))
+        # Every message of a role, joined (review 2, nit 10): the (b) scan reads all of them.
+        by_role: dict = {}
+        for message in body["messages"]:
+            if isinstance(message, dict):
+                by_role.setdefault(message.get("role"), []).append(
+                    str(message.get("content") or "")
+                )
+        entry.update(
+            system="\n".join(by_role["system"]) if "system" in by_role else None,
+            user="\n".join(by_role["user"]) if "user" in by_role else None,
+        )
     else:  # the Responses API
         entry.update(system=body.get("instructions"), user=body.get("input"))
     return entry

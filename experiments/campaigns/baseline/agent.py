@@ -7,7 +7,11 @@ non-strict, validated by jsonschema), the rung's model and sampling (rule 2: Oll
 OpenAI-compatible `/v1` with `temperature` 0, or the Responses API with the user's key), and the
 budgets of our plan (rule 9): `max_turns` = the graph's model-call bound per turn (its `llm`
 nodes), the policy's `hard_tokens` per turn, the per-tool and remote-call caps, the graph's
-deadline. A conversation carries its history as the SDK documents (`result.to_input_list()`).
+deadline; and the conversation's (WebAir's `conversation.budget`, review 2, finding 2): before
+each turn the layer's whole-turn reservation (`ToolLayer.reserve`, our runner's codes) refuses a
+turn that the conversation's turns, tokens or remote calls cannot hold, and the per-tool caps hold
+across turns. A refused turn ends the conversation, as ours. A conversation carries its history
+as the SDK documents (`result.to_input_list()`).
 
 Tracing is disabled: the SDK would otherwise export traces to OpenAI.
 """
@@ -260,6 +264,7 @@ def run_webair(
     meta: dict,
 ) -> dict:
     """One WebAir conversation (TS-W, TS-C) on `FW`; returns the campaign run record."""
+    from agentpkg.conversation.declarations import conversation_of
     from agentpkg.memory.host import cli_memory
 
     run_dir.mkdir(parents=True, exist_ok=False)
@@ -284,6 +289,8 @@ def run_webair(
         responder=responder,
         budget=package.policy["budget"],
         offered=offered,
+        files=package.files,
+        conversation=conversation_of(package.graph)["budget"],
     )
     agent = Agent(
         name="WebAir",
@@ -307,8 +314,28 @@ def run_webair(
         # One event loop for the whole conversation: the model clients are bound to it.
         history: list = []
         for index, text in enumerate(turns, start=1):
-            state.turn = index
-            state.counts, state.turn_remote = {}, 0  # the caps are per run; a turn is one run
+            state.start_turn(index)  # the caps are per run; a turn is one run
+            refusal = layer.reserve(index)
+            if refusal is not None:  # our runner's `turn.refused`: the conversation ends here
+                state.refused.append(
+                    {
+                        "at": time.time(),
+                        "turn": index,
+                        "kind": "turn.refused",
+                        "reason": refusal,
+                        "tool": None,
+                    }
+                )
+                turn_records.append(
+                    {
+                        "turn": index,
+                        "status": "refused",
+                        "error_code": "budget_exhausted",
+                        "refusal": refusal,
+                        "answer": None,
+                    }
+                )
+                return
             hooks = Recorder(model_calls, hard_tokens, index)
             try:
                 result = await asyncio.wait_for(
@@ -321,6 +348,7 @@ def run_webair(
                     timeout=deadline,
                 )
             except Exception as exc:
+                state.tokens += hooks.tokens
                 code = _error_code(exc)
                 if code not in RUN_OUTCOMES:
                     outcome["harness_error"] = f"{type(exc).__name__}: {exc}"[:500]
@@ -331,6 +359,7 @@ def run_webair(
                 )
                 return
             history = result.to_input_list()
+            answer_error = None
             try:
                 formatted = (
                     await Runner.run(answer_agent, history, max_turns=1, hooks=hooks)
@@ -339,7 +368,11 @@ def run_webair(
                 formatted = None
                 if model_calls and "outcome" not in model_calls[-1]:
                     model_calls[-1]["outcome"] = _error_code(exc)
+                if isinstance(exc, BudgetExceeded):  # review 2, nit 9: the turn's cap, not a format
+                    answer_error = "budget_exhausted"
+            state.tokens += hooks.tokens
             answer, code = final_answer(formatted, ports.answer_schema("answer"))
+            code = answer_error or code
             turn_records.append(
                 {
                     "turn": index,

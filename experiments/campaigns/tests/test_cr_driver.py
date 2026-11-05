@@ -12,7 +12,7 @@ from agentpkg.memory.host import cli_memory
 from agentpkg.memory.proposals import ProposalRefusal
 from campaigns.baseline import ports
 from campaigns.driver import cr_driver, py_driver
-from campaigns.driver.responder import Responder
+from campaigns.driver.responder import Responder, card_facts
 from campaigns.driver.routes import Rung
 from campaigns.origin.stack import CampaignStack
 from campaigns.records import canaries
@@ -160,3 +160,45 @@ def test_a_stalled_cr_job_is_a_harness_error_not_the_campaigns_end(tmp_path):
     )
     out = cr_driver.run_job(job, timeout=0.01)
     assert out["status"] == "harness_error" and "ran over" in out["error"]
+
+
+def test_the_cr_responder_decides_as_responder_py_turn_by_turn(tmp_path):
+    """Review 2, finding 1 on `Cr`: the Node consent host applies R-facts' purchase turns as
+    `responder.py` does, so C-11's third-turn card and W1's card are denied on both cores."""
+    from campaigns.driver import campaign
+
+    tasks = campaign.load_tasks()
+    cards = []
+    for task_id in ("C-11", "W1-01", "W4-01"):
+        task = tasks[task_id]
+        responder = Responder(
+            "R-facts", campaign.expected_facts(task), campaign.purchase_turns(task, 0)
+        )
+        expected = responder.expected  # the facts R-facts wants, so only the turn decides
+        facts = {
+            "quote_id": expected.get("quote_id", "WAQ-X"),
+            "fare_id": "F",
+            "passenger": {"given_name": "Noor", "family_name": "Halvorsen"},
+            "total_usd": expected.get("total_usd", 999),
+        }
+        probe = [{"turn": turn, "facts": facts} for turn in (1, 2, 3)]
+        job = cr_driver.webair_job(
+            turns=[MESSAGE],
+            rung=None,
+            memory_dir=py_driver.prepare_memory(tmp_path / task_id, None),
+            stack=None,
+            responder=responder,
+            fixture_key=None,
+        )
+        job["probe_consent"] = probe
+        out = cr_driver.run_job(job, timeout=300)
+        node = [d["accepted"] for d in out["decisions"]]
+        python = [
+            responder.decide(card_facts(c["facts"]), seat="test", turn=c["turn"]) for c in probe
+        ]
+        cards.append((task_id, node, python))
+    assert cards == [
+        ("C-11", [False, True, False], [False, True, False]),
+        ("W1-01", [False, False, False], [False, False, False]),
+        ("W4-01", [False, True, False], [False, True, False]),
+    ]

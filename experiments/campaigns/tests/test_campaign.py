@@ -225,3 +225,101 @@ def test_a_campaign_never_overrides_the_dns_answer():
     for name in ("campaign.py", "py_driver.py", "cr_driver.py"):
         assert "dns_override" not in (campaign.EXPERIMENTS / "campaigns/driver" / name).read_text()
     assert "dns_override" not in (campaign.EXPERIMENTS / "campaigns/baseline/agent.py").read_text()
+
+
+def test_a_conversations_envelope_is_capped_by_the_conversations_budget():
+    """Review 2, finding 2: (e) is measured against what our side can spend, the conversation's
+    tokens and its one purchase across turns, not per-turn x turns."""
+    table = campaign.envelopes()
+    tasks = campaign.load_tasks()
+    conversation = table["webair"]["conversation"]
+    assert conversation["tokens"] == 240_000 and conversation["max_calls_per_tool"] == {
+        "simulate-purchase": 1
+    }
+    unit = {"task_set": "TS-C", "task_id": "C-11", "phrasing": 0, "side": "FW", "rung": "L9"}
+    envelope = campaign.envelope_for(unit, tasks["C-11"], table)
+    per_turn = table["webair"]
+    assert envelope["tokens"] == conversation["tokens"] < per_turn["tokens"] * 3
+    assert envelope["tool_calls"] == (per_turn["tool_calls"] - 1) * 3 + 1
+    assert envelope["model_calls"] == (per_turn["model_calls"] + 1) * 3
+    one_turn = campaign.envelope_for({**unit, "task_set": "TS-W"}, tasks["W1-01"], table)
+    assert one_turn["tokens"] == per_turn["tokens"]
+
+
+def test_resume_classifies_a_recorded_unit_without_an_outcome_and_never_reruns_it(
+    tmp_path, monkeypatch, capsys
+):
+    """Review 2, finding 5: "finished" is `outcome.json`; a unit with its record and no outcome
+    is classified from its record on `--resume`, and the summary names any unit still missing."""
+    out = tmp_path / "c"
+    assert (
+        campaign.main(
+            ["--preset", "smoke", "--rungs", "L9", "--sides", "FW", "--out", str(out), "--dry-run"]
+        )
+        == 0
+    )
+    units = json.loads((out / "units.json").read_text())
+    tasks = campaign.load_tasks()
+    usage = {"input_tokens": 10, "output_tokens": 1, "model_calls": 1, "tool_calls": 0}
+    for unit in units:  # every unit recorded, as if a campaign had run them
+        _fake_record("FW", usage)(
+            run_dir=out / "runs" / unit["id"],
+            meta={
+                "run_id": unit["id"],
+                "side": "FW",
+                "task_set": unit["task_set"],
+                "arm": campaign.arm_id(unit["arm"]),
+            },
+        )
+        campaign.finish_unit(unit, tasks=tasks, payloads=PAYLOADS, out=out)
+    victim = units[0]
+    outcome = out / "runs" / victim["id"] / "outcome.json"
+    expected = outcome.read_text()
+    outcome.unlink()
+    ran = []
+
+    def fake_run(unit, **kw):  # a run that writes nothing: its unit stays missing
+        ran.append(unit["id"])
+        return {"harness_error": True, "boundaries": [], "exposed": None}
+
+    monkeypatch.setattr(campaign, "run_unit", fake_run)
+
+    class Stack:
+        def __init__(self, *a):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    import campaigns.origin.stack as stack_module
+
+    monkeypatch.setattr(stack_module, "CampaignStack", Stack)
+    capsys.readouterr()
+    args = ["--preset", "smoke", "--rungs", "L9", "--sides", "FW", "--out", str(out), "--resume"]
+    assert campaign.main(args) == 0
+    assert ran == [] and outcome.read_text() == expected
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["runs"] == summary["expected_runs"] == len(units) and summary["complete"]
+    # A unit with neither file is run; one the summary cannot find is named, never silently short.
+    shutil.rmtree(out / "runs" / victim["id"])
+    assert campaign.main(args) == 1
+    assert ran == [victim["id"]]
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["missing"] == [victim["id"]] and summary["complete"] is False
+
+
+def test_the_summary_keeps_the_injected_and_twin_arms_apart():
+    meta = {"side": "Py", "arm": "upload-01@search.fare_name#twin"}
+    assert campaign._cell_key(meta) == "Py|upload-01#twin"
+    assert campaign._cell_key({**meta, "arm": "upload-01@rules.change_summary#injected"}) == (
+        "Py|upload-01#injected"
+    )
+    assert campaign._cell_key({"side": "FW", "arm": "benign"}) == "FW|benign"
+
+
+def test_the_redirect_twin_is_exposed_as_the_plain_answer():
+    arm = {"payload": "redirect-01", "placement": "redirect.search_302", "arm": "twin"}
+    assert campaign.exposure({"origin_log": [{"inserted": False, "twin_plain": True}]}, arm)

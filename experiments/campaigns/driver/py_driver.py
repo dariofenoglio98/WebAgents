@@ -104,14 +104,18 @@ def tool_ids(package) -> dict[str, str]:
     return {tool["binding"]: tool_id for tool_id, tool in package.tools.items()}
 
 
-def _recording_handlers(handlers: dict, seam: list, tools: dict[str, str]) -> dict:
-    """Observation only: every tool call, its payload and its answer (or that it threw)."""
+def _recording_handlers(
+    handlers: dict, seam: list, tools: dict[str, str], turn: int | None = None
+) -> dict:
+    """Observation only: every tool call, its turn, its payload and its answer (or that it
+    threw); the turn as the framework layer records it (review 2, nit 8)."""
     wrapped = {}
     for binding, handler in handlers.items():
 
         async def handle(ctx, payload, _handler=handler, _binding=binding):
             entry = {
                 "at": time.time(),
+                "turn": turn,
                 "binding": _binding,
                 "tool": tools.get(_binding, _binding),
                 "role": getattr(ctx, "role", None),
@@ -164,7 +168,7 @@ def run_webair(
     router = CampaignRouter(rung)
     tool_seam: list[dict] = []
     consent_seam: list[dict] = []
-    handlers = _recording_handlers(json_http_handlers(package), tool_seam, tool_ids(package))
+    http_handlers = json_http_handlers(package)
     host = ResponderConsentHost(responder, consent_seam)
     memory_runs: list = []
 
@@ -179,10 +183,9 @@ def run_webair(
         memory_runs.append(memory_run)
         return {
             "router": router,
-            "handlers": {
-                **handlers,
-                **_recording_handlers(memory_handlers, tool_seam, tool_ids(package)),
-            },
+            "handlers": _recording_handlers(
+                {**http_handlers, **memory_handlers}, tool_seam, tool_ids(package), turn
+            ),
             "memory": memory_run,
         }
 
@@ -246,7 +249,7 @@ def run_travel_network(
         package, mode="live", decisions=TRAVEL_GRANTS, memory_dir=None, memory_grants=()
     )
     handlers = _recording_handlers(
-        {**json_http_handlers(package), **memory_handlers}, tool_seam, tool_ids(package)
+        {**json_http_handlers(package), **memory_handlers}, tool_seam, tool_ids(package), 1
     )
     table = hostmap.mapping(
         stack.hosts,

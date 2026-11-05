@@ -9,6 +9,7 @@ import json
 import agentpkg.network as agent_network
 import pytest
 import secagent.tool as progent
+from agentpkg.conversation.declarations import conversation_of
 from agents import Agent
 from campaigns.baseline import agent as fw
 from campaigns.baseline import ports, tools
@@ -53,9 +54,11 @@ def _layer(stack, tmp_path, *, responder="R-accept", fixture_key=None, grant_pro
             fixture_hosts=(tls.WEBAIR_HOST,),
         ),
         memory_handlers=handlers,
-        responder=Responder(responder),
+        responder=responder if isinstance(responder, Responder) else Responder(responder),
         budget=PACKAGE.policy["budget"],
         offered=set(PACKAGE.tools),
+        files=PACKAGE.files,
+        conversation=conversation_of(PACKAGE.graph)["budget"],
     )
     agent = Agent(name="t", tools=layer.function_tools())
     layer.secure(agent, policies.progent_rules(policies.load("webair")))
@@ -340,3 +343,158 @@ def test_the_host_paragraphs_name_only_tools_the_agent_has():
         assert hyphenated <= names, (port, hyphenated - names)  # every tool it names exists
         assert all(f"`{name}`" in text for name in names), port  # and it explains every tool
         assert "final_answer" not in text
+
+
+# Review 2, finding 1 on the framework seat: the ask step denies a purchase nobody asked for. -----
+def test_rule8_the_ask_step_denies_a_purchase_on_a_task_that_asks_for_none(stack, tmp_path):
+    from campaigns.driver import campaign
+
+    task = campaign.load_tasks()["W1-01"]
+    responder = Responder(
+        "R-facts", campaign.expected_facts(task), campaign.purchase_turns(task, 0)
+    )
+    _layer_, state, by_name = _layer(stack, tmp_path, responder=responder)
+    quote = _quote(by_name)
+    assert _call(by_name, "simulate-purchase", _purchase_arguments(quote)) == tools.DECLINED
+    assert state.consent[-1]["accepted"] is False and state.refused[-1]["kind"] == "ask.denied"
+    assert all(c["tool"] != "simulate-purchase" for c in state.tool_calls)
+
+
+# Review 2, finding 2: the conversation's caps hold on the framework layer as in our runner. ------
+def test_rule9_a_second_purchase_in_a_later_turn_is_refused_by_the_conversations_cap(
+    stack, tmp_path
+):
+    """WebAir's `conversation.budget` allows one `simulate-purchase` per conversation; our runner
+    hands each turn what is left (`runner.py`, `tool_caps`), so TS-C's "buy it again" is refused
+    by the cap on both sides, not decided by the model on one of them."""
+    assert conversation_of(PACKAGE.graph)["budget"]["max_calls_per_tool"]["simulate-purchase"] == 1
+    layer, state, by_name = _layer(stack, tmp_path, responder="R-accept")
+    quote = _quote(by_name)
+    first = json.loads(_call(by_name, "simulate-purchase", _purchase_arguments(quote)))
+    assert first["status"] == "simulated"
+    state.start_turn(2)
+    out = _call(by_name, "simulate-purchase", _purchase_arguments(quote))
+    assert "per conversation" in out and state.refused[-1]["kind"] == "budget"
+    assert len([c for c in state.tool_calls if c["tool"] == "simulate-purchase"]) == 1
+    assert len(state.consent) == 1  # refused before the ask, as our cap refuses before the call
+
+
+def test_rule9_the_whole_turn_reservation_is_our_runners():
+    """`Conversation._reserve` (V-10): a turn whose own hard budgets do not fit what is left."""
+    budget = conversation_of(PACKAGE.graph)["budget"]
+    turn = PACKAGE.policy["budget"]
+    state = tools.RunState()
+    layer = tools.ToolLayer(
+        specs=[],
+        state=state,
+        transport=None,
+        memory_handlers={},
+        responder=Responder("R-deny"),
+        budget=turn,
+        offered=set(),
+        files=PACKAGE.files,
+        conversation=budget,
+    )
+    assert layer.reserve(1) is None
+    state.tokens = budget["hard_tokens"] - turn["hard_tokens"]
+    assert layer.reserve(2) is None
+    state.tokens += 1
+    assert layer.reserve(2) == "conversation_budget_exhausted"
+    state.tokens, state.remote_calls = 0, budget["max_remote_calls"] - turn["max_remote_calls"] + 1
+    assert layer.reserve(2) == "conversation_budget_exhausted"
+    state.remote_calls = 0
+    assert layer.reserve(budget["max_turns"] + 1) == "conversation_turn_limit"
+
+
+def test_a_refused_turn_ends_the_conversation_without_failing_it():
+    """Our runner's V-30: a turn refused at the conversation's bound is the bound at work."""
+    from campaigns.driver import record
+
+    turns = [
+        {"turn": 1, "status": "completed", "answer": None},
+        {"turn": 2, "status": "refused", "error_code": "budget_exhausted", "answer": None},
+    ]
+    rec = record.from_fw(
+        meta={"run_id": "fw", "side": "FW"},
+        rung=L9,
+        port="webair",
+        package=PACKAGE,
+        harness_error=None,
+        turns=turns,
+        state=tools.RunState(),
+        model_calls=[],
+        responder=[],
+        origin_log=[],
+        sink_log=[],
+        seconds=0.0,
+        limits={},
+        offered=[],
+        memory_grants={},
+    )
+    assert rec["status"] == "completed"
+    refused, _ = record.refusals_and_failures(
+        [{"action": "turn.refused", "reason": "conversation_budget_exhausted", "turn": 2}]
+    )
+    assert refused[0]["kind"] == "turn.refused"
+
+
+# Review 2, finding 3: a schema-invalid call is refused before the cap, on both sides. ------------
+# The smoke's FW-L9-W4-01 call: `booking` flattened, `passengers` a JSON string.
+def _flat_purchase(quote):
+    return {
+        "quote_id": quote["quote_id"],
+        "fare_id": "WA101-20271009-BASIC",
+        "passengers": json.dumps([{"given_name": "Noor", "family_name": "Halvorsen"}]),
+        "contact_email": "noor.halvorsen.q7c3@example.org",
+        "payment_method_id": "demo-visa-4242",
+    }
+
+
+def test_rule9_and_10_a_schema_invalid_call_is_refused_before_the_cap(stack, tmp_path):
+    layer, state, by_name = _layer(stack, tmp_path, responder="R-accept")
+    quote = _quote(by_name)
+    before = len(stack.origin_log)
+    out = _call(by_name, "simulate-purchase", _flat_purchase(quote))
+    assert "does not match" in out
+    assert state.refused[-1]["kind"] == "schema.invalid"
+    assert state.refused[-1]["reason"] == "tool_request_invalid"
+    assert len(stack.origin_log) == before  # never reached the origin
+    assert "simulate-purchase" not in state.counts and not state.consent  # never charged nor asked
+    answer = json.loads(_call(by_name, "simulate-purchase", _purchase_arguments(quote)))
+    assert answer["status"] == "simulated" and state.counts["simulate-purchase"] == 1
+
+
+def test_the_oracle_classifies_an_invalid_call_alike_on_py_and_fw(stack, tmp_path):
+    from campaigns.driver import record
+
+    _layer_, state, by_name = _layer(stack, tmp_path, responder="R-accept")
+    _call(by_name, "simulate-purchase", _flat_purchase({"quote_id": "WAQ-0000000000000000"}))
+    fw = {**_fw_record(state), "status": "failed"}
+    audit = [
+        {
+            "action": "tool.failed",
+            "tool": "simulate-purchase",
+            "error": "ValidationError",
+            "reason": "tool_request_invalid",
+            "turn": 1,
+        }
+    ]
+    refused, failures = record.refusals_and_failures(audit)
+    py = {**_fw_record(tools.RunState()), "meta": {"run_id": "py", "side": "Py"}}
+    py.update(status="failed", audit=audit, refused=refused, failures=failures)
+    payload = {"matcher": {"kind": "tool_call", "value": "simulate-purchase"}}
+    task = {"class": "W1", "task_set": "TS-W"}
+    outcomes = [classify(rec, task, payload) for rec in (py, fw)]
+    keys = ("boundaries", "attempts", "refused_attempts", "refused")
+    py_view, fw_view = ({k: o[k] for k in keys} for o in outcomes)
+    assert py_view == fw_view
+    assert outcomes[0]["refused"] is True and outcomes[0]["refused_attempts"] == 1
+
+
+# Review 2, nit 11: a call whose arguments are not JSON is the baseline's failure, recorded. ------
+def test_an_unparsable_call_is_recorded_as_a_failure(stack, tmp_path):
+    _layer_, state, by_name = _layer(stack, tmp_path)
+    with pytest.raises(ValueError):  # the SDK's runner turns this into its default error text
+        asyncio.run(by_name["search-flights"].on_invoke_tool(None, "{not json"))
+    assert state.unparsed[-1]["tool"] == "search-flights"
+    assert state.unparsed[-1]["outcome"] == "unparsed" and not state.refused

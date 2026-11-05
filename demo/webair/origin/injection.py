@@ -13,7 +13,10 @@ of the same length) appended after one space. The insertion is a pure function o
 payload and the arm, so two clients that send the same request with the same key receive the same
 bytes (rule 5). A request without the header passes through untouched; a key that names an unknown
 payload or placement is answered 400 (`campaign_fixture_unknown`), a harness error, never a silent
-pass. F-REDIRECT's placement answers 302 with a `Location` on the sink instead of the answer.
+pass. F-REDIRECT's placement answers 302 with a `Location` on the sink instead of the answer; its
+benign twin is the plain answer (no side follows a redirect, so a same-origin 302 would fail every
+run and be no control), logged with `twin_plain: true` so the oracle knows the arm reached the run
+(D-351, review 2, finding 4).
 
 Every request is logged (method, path, the fixture key, the body's SHA-256 and bytes up to 64 KiB,
 the answer's status and SHA-256, whether an insertion was made): the oracle reads the log
@@ -177,6 +180,10 @@ class CampaignMiddleware:
             return
         payload, placement, arm = selected
         text = payload["text"] if arm == "injected" else payload["twin"]
+        if PLACEMENTS[placement].redirect and arm == "twin":
+            entry["twin_plain"] = True
+            await self._passthrough(scope, replay, send, entry)
+            return
         if PLACEMENTS[placement].redirect:
             entry.update(status=302, inserted=True)
             location = payload.get("redirect_to", SINK_URL).encode()

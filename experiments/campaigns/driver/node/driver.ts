@@ -83,10 +83,12 @@ interface Job {
   memory_grants: Record<string, string>;
   route: Route;
   mapping: { hosts: Record<string, [string, number]>; ca: string; fixture_key: string | null; fixture_hosts: string[] } | null;
-  responder: { kind: "R-facts" | "R-accept" | "R-deny"; expected: JsonObject };
+  responder: { kind: "R-facts" | "R-accept" | "R-deny"; expected: JsonObject; purchase_turns: number[] };
   probe_proposals?: JsonValue;
   /** Offline tests only: one GET through the tool transport (its resolver seam), no conversation. */
   probe_fetch?: string;
+  /** Offline tests only: the responder's decisions on these cards (rule 11 with `responder.py`). */
+  probe_consent?: { turn: number; facts: JsonValue }[];
 }
 
 const dials: JsonObject[] = [];
@@ -103,7 +105,9 @@ function installMapping(mapping: NonNullable<Job["mapping"]>): void {
     const name = typeof options === "object" && options !== null ? options.servername : undefined;
     const target = name ? mapping.hosts[name] : undefined;
     if (!name || target === undefined) {
-      dials.push({ at: Date.now() / 1000, host: name ?? null, address: options?.host ?? null, mapped: false });
+      // An unmapped dial goes where the core sent it; it is a dial all the same (boundary (a)).
+      const dialed = options?.host ? [options.host, options.port ?? 443] : null;
+      dials.push({ at: Date.now() / 1000, host: name ?? null, address: options?.host ?? null, mapped: false, dialed });
       return (original as (...args: unknown[]) => tls.TLSSocket)(options, ...rest);
     }
     dials.push({ at: Date.now() / 1000, host: name, address: options.host ?? null, mapped: true, dialed: target });
@@ -237,22 +241,26 @@ class ResponderHost implements ConsentHost {
     if (this.responder.kind === "R-accept") accepted = true;
     else if (this.responder.kind === "R-deny") accepted = false;
     else {
+      // Only in a turn where the task asks for a purchase (review 2, finding 1), as responder.py.
       const expected = this.responder.expected ?? {};
-      accepted = Object.keys(expected).length > 0 && Object.entries(expected).every(([key, value]) => JSON.stringify(normal[key]) === JSON.stringify(value));
+      accepted =
+        (this.responder.purchase_turns ?? []).includes(request.turn) &&
+        Object.keys(expected).length > 0 &&
+        Object.entries(expected).every(([key, value]) => JSON.stringify(normal[key]) === JSON.stringify(value));
     }
     const at = Date.now() / 1000;
-    decisions.push({ at, seat: "consent_host", step: request.step, facts: normal, accepted });
+    decisions.push({ at, seat: "consent_host", step: request.step, turn: request.turn, facts: normal, accepted });
     consent.push({ at, turn: request.turn, step: request.step, permissions: [...request.permissions], text: request.text, facts: request.facts, accepted });
     this.used.add(request.step);
     return { accepted, decided_by: "person", reason: null };
   }
 }
 
-function recorded(handlers: Record<string, ToolHandler>, toolIds: Record<string, string>): Record<string, ToolHandler> {
+function recorded(handlers: Record<string, ToolHandler>, toolIds: Record<string, string>, turn: number): Record<string, ToolHandler> {
   const out: Record<string, ToolHandler> = {};
   for (const [binding, handler] of Object.entries(handlers)) {
     out[binding] = async (context, payload, signal, bounds) => {
-      const entry: JsonObject = { at: Date.now() / 1000, binding, tool: toolIds[binding] ?? binding, role: null, arguments: payload };
+      const entry: JsonObject = { at: Date.now() / 1000, turn, binding, tool: toolIds[binding] ?? binding, role: null, arguments: payload };
       toolCalls.push(entry);
       try {
         const answer = await handler(context, payload, signal, bounds);
@@ -290,6 +298,14 @@ async function main(): Promise<void> {
       error = (failure as Error).name;
     }
     emit({ probe: "fetch", error, dials });
+    return;
+  }
+  if (job.probe_consent !== undefined) {
+    const host = new ResponderHost(job.responder);
+    for (const card of job.probe_consent) {
+      await host.decide({ conversation_id: "probe", turn: card.turn, step: "consent-purchase", permissions: [], text: "", facts: card.facts, timeout_seconds: 1 });
+    }
+    emit({ probe: "consent", decisions });
     return;
   }
   const bytes = new Uint8Array(readFileSync(job.package));
@@ -359,9 +375,9 @@ async function main(): Promise<void> {
   const conversation = new Conversation(pkg, {
     grants: job.grants as never,
     approvedTools: job.approved_tools,
-    adapters: () => {
+    adapters: (turn: number) => {
       const { handlers } = toolHandlers(toolBindings, { definitions, transport, credentials, pacer: new Pacer(), resources: { grants: resourceGrants, resolver: store } });
-      return { router, handlers: recorded(handlers, toolIds), memory: memoryRun(), compute: engine };
+      return { router, handlers: recorded(handlers, toolIds, turn), memory: memoryRun(), compute: engine };
     },
     consent: () => host,
   });

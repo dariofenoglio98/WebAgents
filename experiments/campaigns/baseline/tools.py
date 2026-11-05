@@ -6,7 +6,12 @@
 2. **Progent's wrapper** (`secagent.tool.openai_agent_wrapper`, released code at `b02783b`),
    which runs `check_tool_call` against the committed hand-written policy (rule 7) and returns
    Progent's own error text to the model on a denial;
-3. the **budget** (rule 9): our plan's per-tool call caps and remote-call cap;
+3. the **schema check and the budget** (rules 9 and 10): a call whose arguments do not match the
+   tool's declared input schema is refused (`tool_request_invalid`) before it is counted, as our
+   runtime validates before it charges (review 2, finding 3); then our plan's per-turn caps (per
+   tool, remote calls) and the conversation's (WebAir's `conversation.budget`: the per-tool caps
+   across turns, the remote calls; review 2, finding 2). The conversation's whole-turn reservation
+   (`reserve`: `max_turns`, tokens, remote calls) runs before each turn, as our runner's does;
 4. **rule 8's ask step** before a consequential tool: the shared responder
    (`driver/responder.py`) decides on the facts of the quote this layer recorded for the call's
    `quote_id` (`call_facts`), as our consent host decides on the card's facts, which are that quote;
@@ -16,7 +21,9 @@
    are answered by agentpkg's own memory handlers over the run's copy of the record set (rule 1).
 
 Layers 3–5 are this module's `execute`; layer 1 is `record`; layer 2 is Progent's code, applied by
-`secure` in between.
+`secure` in between. A call whose arguments are not JSON makes Progent's wrapper raise; the SDK
+returns its default error text to the model, and the recorder logs the call in `unparsed` (a
+failure of the baseline's call, never a refusal; review 2, nit 11).
 """
 
 from __future__ import annotations
@@ -30,6 +37,7 @@ from urllib.parse import urlsplit
 
 import httpx
 import secagent.tool as progent
+from agentpkg.validation import ValidationError, validate_instance
 from agents import Agent, FunctionTool
 
 from campaigns.driver import responder as responders
@@ -52,9 +60,16 @@ class RunState:
     memory_events: list = field(default_factory=list)
     quotes: dict = field(default_factory=dict)
     decoded: list = field(default_factory=list)
-    counts: dict = field(default_factory=dict)
-    remote_calls: int = 0  # the run's total
+    counts: dict = field(default_factory=dict)  # this turn's, per tool
+    conversation_counts: dict = field(default_factory=dict)  # every turn's, per tool
+    remote_calls: int = 0  # the conversation's total
     turn_remote: int = 0  # this turn's, for the cap
+    tokens: int = 0  # the conversation's, after each turn
+    unparsed: list = field(default_factory=list)
+
+    def start_turn(self, index: int) -> None:
+        """A turn is one run of the graph: its own caps start again; the conversation's do not."""
+        self.turn, self.counts, self.turn_remote = index, {}, 0
 
 
 @dataclass
@@ -123,6 +138,8 @@ class ToolLayer:
         responder: responders.Responder,
         budget: dict,
         offered: set[str],
+        files: dict,
+        conversation: dict | None = None,
     ):
         self.specs = {s["name"]: s for s in specs if s["tool_id"] in offered}
         self.state = state
@@ -130,6 +147,8 @@ class ToolLayer:
         self.memory_handlers = memory_handlers
         self.responder = responder
         self.budget = budget
+        self.files = files  # the package's members, for the declared input schemas
+        self.conversation = conversation or {}
 
     # Layer 1: the recorder. --------------------------------------------------------------------
     def record(self, invoke, spec: dict):
@@ -146,7 +165,21 @@ class ToolLayer:
                 arguments = decoded
                 input_json = json.dumps(decoded, ensure_ascii=False)
             marker = {"reached": False}
-            result = await invoke(ctx, input_json, *rest, _marker=marker, **kw)
+            try:
+                result = await invoke(ctx, input_json, *rest, _marker=marker, **kw)
+            except Exception as exc:
+                if "_unparsed" in arguments:  # Progent's wrapper cannot parse the call
+                    self.state.unparsed.append(
+                        {
+                            "at": time.time(),
+                            "turn": self.state.turn,
+                            "tool": spec["tool_id"],
+                            "outcome": "unparsed",
+                            "error": f"{type(exc).__name__}: {exc}"[:300],
+                            "arguments": arguments,
+                        }
+                    )
+                raise
             if not marker["reached"]:
                 self.state.refused.append(
                     {
@@ -169,13 +202,21 @@ class ToolLayer:
                 _marker["reached"] = True
             arguments = json.loads(input_json) if input_json else {}
             tool_id = spec["tool_id"]
+            try:
+                validate_instance(self.files, spec["input_schema"], arguments, "tool input")
+            except ValidationError as exc:
+                self._refuse("schema.invalid", "tool_request_invalid", tool_id, arguments)
+                self.state.refused[-1]["detail"] = str(exc)[:300]
+                return f"The host refused this call: {exc}."
             refusal = self._over_budget(spec)
             if refusal is not None:
                 self._refuse("budget", refusal, tool_id, arguments)
                 return f"The host refused this call: {refusal}."
             if tool_id in CONSEQUENTIAL:
                 facts = responders.call_facts(arguments, self.state.quotes)
-                accepted = self.responder.decide(facts, seat="ask_step", step=tool_id)
+                accepted = self.responder.decide(
+                    facts, seat="ask_step", step=tool_id, turn=self.state.turn
+                )
                 self.state.consent.append(
                     {
                         "at": time.time(),
@@ -189,6 +230,9 @@ class ToolLayer:
                     self._refuse("ask.denied", "the person declined", tool_id, arguments)
                     return DECLINED
             self.state.counts[tool_id] = self.state.counts.get(tool_id, 0) + 1
+            self.state.conversation_counts[tool_id] = (
+                self.state.conversation_counts.get(tool_id, 0) + 1
+            )
             entry = {
                 "at": time.time(),
                 "turn": self.state.turn,
@@ -239,13 +283,37 @@ class ToolLayer:
         )
 
     def _over_budget(self, spec: dict) -> str | None:
-        caps = self.budget.get("max_calls_per_tool") or {}
-        cap = caps.get(spec["tool_id"])
-        if cap is not None and self.state.counts.get(spec["tool_id"], 0) >= cap:
-            return f"at most {cap} call(s) to {spec['tool_id']} per run"
-        limit = self.budget.get("max_remote_calls")
-        if spec["kind"] == "http" and limit is not None and self.state.turn_remote >= limit:
-            return f"at most {limit} remote calls per run"
+        tool_id = spec["tool_id"]
+        cap = (self.budget.get("max_calls_per_tool") or {}).get(tool_id)
+        if cap is not None and self.state.counts.get(tool_id, 0) >= cap:
+            return f"at most {cap} call(s) to {tool_id} per run"
+        cap = (self.conversation.get("max_calls_per_tool") or {}).get(tool_id)
+        if cap is not None and self.state.conversation_counts.get(tool_id, 0) >= cap:
+            return f"at most {cap} call(s) to {tool_id} per conversation"
+        if spec["kind"] == "http":
+            limit = self.budget.get("max_remote_calls")
+            if limit is not None and self.state.turn_remote >= limit:
+                return f"at most {limit} remote calls per run"
+            limit = self.conversation.get("max_remote_calls")
+            if limit is not None and self.state.remote_calls >= limit:
+                return f"at most {limit} remote calls per conversation"
+        return None
+
+    def reserve(self, index: int) -> str | None:
+        """Our runner's whole-turn reservation (`Conversation._reserve`, V-10): the turn's own hard
+        budgets must fit in what the conversation has left, else the turn is refused before any
+        model call. The same codes as ours."""
+        if not self.conversation:
+            return None
+        if index > self.conversation["max_turns"]:
+            return "conversation_turn_limit"
+        if self.state.tokens + self.budget["hard_tokens"] > self.conversation["hard_tokens"]:
+            return "conversation_budget_exhausted"
+        if (
+            self.state.remote_calls + self.budget["max_remote_calls"]
+            > self.conversation["max_remote_calls"]
+        ):
+            return "conversation_budget_exhausted"
         return None
 
     async def _http(self, spec: dict, arguments) -> tuple[int, object]:

@@ -60,9 +60,11 @@ def test_a_mapped_dial_reaches_the_stack_with_the_fixture_key(stack, tmp_path):
     assert status == 200
     assert body["flights"][0]["fares"][0]["fare_name"].endswith(catalog.load()["upload-01"]["text"])
     assert stack.origin_log[-1]["fixture"] == key
-    (dial,) = hostmap.read_dial_log(tmp_path / "dials.jsonl")
-    assert dial["mapped"] and dial["lookup"] == {"ok": True, "addresses": [PUBLIC]}
-    assert dial["dialed"] == list(stack.hosts[tls.WEBAIR_HOST])
+    lookup, dial = hostmap.read_dial_log(tmp_path / "dials.jsonl")
+    assert lookup["kind"] == "lookup" and lookup["mapped"]
+    assert lookup["lookup"] == {"ok": True, "addresses": [PUBLIC]}
+    assert dial["mapped"] and dial["dialed"] == list(stack.hosts[tls.WEBAIR_HOST])
+    assert dial["fixture_key"] == key and dial["url"] == URL
 
 
 def test_the_address_policy_still_classifies_the_real_answer(stack, tmp_path):
@@ -78,8 +80,9 @@ def test_a_failed_lookup_is_logged(stack, tmp_path):
     table = _table(stack, tmp_path)
     with hostmap.install(table), pytest.raises(ToolError):
         _post(url="https://unresolvable.invalid/x", allowed=("unresolvable.invalid",))
-    (dial,) = hostmap.read_dial_log(tmp_path / "dials.jsonl")
-    assert dial["lookup"]["ok"] is False and dial["mapped"] is False
+    (lookup,) = hostmap.read_dial_log(tmp_path / "dials.jsonl")  # no dial follows
+    assert lookup["kind"] == "lookup" and lookup["lookup"]["ok"] is False
+    assert lookup["mapped"] is False
 
 
 def test_install_restores_agentpkgs_own_target(stack, tmp_path):
@@ -103,3 +106,32 @@ def test_no_production_code_names_the_mapping():
         [sys.executable, "-I", "-c", script], capture_output=True, text=True, check=True
     )
     assert done.stdout.split() == ["agentpkg.network", "_http_child", "False"]
+
+
+def test_a_url_refused_before_the_dial_logs_no_dial_and_is_no_boundary(stack, tmp_path):
+    """Review 2, finding 6: the sink is a mapped host, but a URL the runtime refuses (P-8: not an
+    approved domain) never connects; before the fix the seam logged it `dialed`, and boundary (a)
+    read a refused request as a connection to an undeclared host."""
+    from campaigns.driver import campaign
+    from campaigns.oracle.classify import boundary_a
+
+    assert tls.SINK_HOST in stack.hosts
+    table = _table(stack, tmp_path)
+    with hostmap.install(table), pytest.raises(ToolError, match="PolicyError"):
+        _post(url=f"https://{tls.SINK_HOST}/collect")
+    dials = hostmap.read_dial_log(tmp_path / "dials.jsonl")
+    assert dials == []  # neither a lookup nor a dial: refused at the URL check
+    rec = {"status": "failed", "dials": dials, "sink_log": []}
+    assert boundary_a(rec) == [] and campaign.promote_failed_lookup(rec)["status"] == "failed"
+
+
+def test_a_dial_to_an_undeclared_host_is_still_boundary_a(stack, tmp_path):
+    """The seam still sees a connection the runtime did make (here the test allows the sink)."""
+    from campaigns.oracle.classify import boundary_a
+
+    table = _table(stack, tmp_path, dns_override={tls.SINK_HOST: PUBLIC})
+    with hostmap.install(table):
+        _post(url=f"https://{tls.SINK_HOST}/collect", allowed=(tls.SINK_HOST,))
+    dials = hostmap.read_dial_log(tmp_path / "dials.jsonl")
+    assert [d.get("kind") for d in dials] == ["lookup", None]
+    assert [b["host"] for b in boundary_a({"dials": dials})] == [tls.SINK_HOST]

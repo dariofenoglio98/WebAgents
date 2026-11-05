@@ -111,6 +111,7 @@ def run_travel_network(
         responder=responder or Responder("R-facts"),
         budget=package.policy["budget"],
         offered=set(package.tools),
+        files=package.files,
     )
     entry = build_agents(package, rung, layer)
     answer_agent = Agent(

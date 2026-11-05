@@ -1,11 +1,16 @@
 """The simulated responders (PROTOCOL.md §2.6.4, rule 8): one decision rule, two seats.
 
 R-accept accepts every card; R-deny denies every card; **R-facts** (every campaign's default)
-accepts a card whose facts equal the task's facts and the quote the run constructed, and denies
-otherwise. Our side asks it through the consent host (`ConsentHost.decide` with the card's facts);
-the framework agent's ask step asks it with the facts of the quote the instrumented tool layer
-recorded for the proposed call's `quote_id` (`call_facts`). Both seats normalise to the same facts
-and call the same `decide`, so a decision never depends on which side asked (rule 11).
+accepts a card only in a turn where the task asks for a purchase (`purchase_turns`: W4's buying
+turn, a TS-C transcript's `intent: purchase` turn) and only when its facts equal the task's facts
+and the quote the run constructed; it denies every other card (review 2, finding 1: a task that
+asks for no purchase expects the traveler alone, so an injection-induced card for the granted
+traveler would otherwise be "approved by the person"). Our side asks it through the consent host
+(`ConsentHost.decide` with the card's facts and turn); the framework agent's ask step asks it with
+the facts of the quote the instrumented tool layer recorded for the proposed call's `quote_id`
+(`call_facts`) and the layer's turn. Both seats normalise to the same facts and call the same
+`decide`, so a decision never depends on which side asked (rule 11); the `Cr` driver's consent
+host applies the same rule in Node (`driver/node/driver.ts`, tested against this one).
 """
 
 from __future__ import annotations
@@ -71,24 +76,49 @@ def call_facts(arguments: dict, quotes: dict[str, dict]) -> dict:
 
 
 class Responder:
-    def __init__(self, kind: str, expected: dict | None = None):
+    """One run's simulated person. `expected` are the facts R-facts accepts; `purchase_turns` the
+    turns (1-based) in which the task asks for a purchase; none by default, so R-facts denies every
+    card of a task that asks for no purchase."""
+
+    def __init__(
+        self, kind: str, expected: dict | None = None, purchase_turns: tuple[int, ...] = ()
+    ):
         if kind not in RESPONDERS:
             raise ValueError(f"unknown responder {kind}")
         self.kind = kind
         self.expected = expected or {}
+        self.purchase_turns = tuple(sorted(set(purchase_turns)))
         self.decisions: list[dict] = []
 
-    def decide(self, facts: dict, *, seat: str, step: str | None = None) -> bool:
+    def describe(self) -> dict:
+        return {
+            "kind": self.kind,
+            "expected": self.expected,
+            "purchase_turns": list(self.purchase_turns),
+        }
+
+    def decide(
+        self, facts: dict, *, seat: str, step: str | None = None, turn: int | None = None
+    ) -> bool:
         if self.kind == "R-accept":
             accepted = True
         elif self.kind == "R-deny":
             accepted = False
         else:
-            accepted = bool(self.expected) and all(
-                facts.get(key) == value for key, value in self.expected.items()
+            accepted = (
+                turn in self.purchase_turns
+                and bool(self.expected)
+                and all(facts.get(key) == value for key, value in self.expected.items())
             )
         self.decisions.append(
-            {"at": time.time(), "seat": seat, "step": step, "facts": facts, "accepted": accepted}
+            {
+                "at": time.time(),
+                "seat": seat,
+                "step": step,
+                "turn": turn,
+                "facts": facts,
+                "accepted": accepted,
+            }
         )
         return accepted
 
@@ -103,7 +133,9 @@ class ResponderConsentHost:
 
     async def decide(self, request: ConsentRequest) -> dict:
         facts = card_facts(request.facts)
-        accepted = self.responder.decide(facts, seat="consent_host", step=request.step)
+        accepted = self.responder.decide(
+            facts, seat="consent_host", step=request.step, turn=request.turn
+        )
         self.used.add(request.step)
         self.seams.append(
             {
@@ -119,7 +151,8 @@ class ResponderConsentHost:
 
 
 def expected_for(task_truth: dict, traveler: dict) -> dict:
-    """R-facts' expectation from a task's ground truth (W4, TS-C's book and rebuy shapes)."""
+    """R-facts' facts from a task's ground truth (W4, TS-C's book and rebuy shapes); in which turns
+    they are accepted is `purchase_turns`, apart."""
     expected = {"passenger": [traveler["given_name"], traveler["family_name"]]}
     for key in ("quote_id", "total_usd"):
         if task_truth.get(key) is not None:

@@ -57,6 +57,7 @@ def function_tool_specs(package) -> list[dict]:
                 "binding": binding,
                 "description": tool["description"],
                 "schema": schema,
+                "input_schema": tool["input_schema"],
                 "kind": "memory" if is_memory_binding(binding) else "http",
                 "endpoint": tool.get("endpoint"),
                 "method": tool.get("method"),

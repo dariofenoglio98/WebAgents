@@ -34,6 +34,7 @@ def _layer(stack, state):
         responder=Responder("R-facts"),
         budget=PACKAGE.policy["budget"],
         offered=set(PACKAGE.tools),
+        files=PACKAGE.files,
     )
 
 

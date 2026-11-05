@@ -211,7 +211,7 @@ def webair_job(
             "fixture_key": fixture_key,
             "fixture_hosts": [tls.WEBAIR_HOST],
         },
-        "responder": {"kind": responder.kind, "expected": responder.expected},
+        "responder": responder.describe(),
     }
     if probe_proposals is not None:
         job["probe_proposals"] = probe_proposals

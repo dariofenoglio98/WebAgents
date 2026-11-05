@@ -14,9 +14,10 @@ How it is installed: `install` replaces `agentpkg.network._http_child`, the modu
 looks up at each call, with `functools.partial(mapped_http_child, mapping)`. The mapping travels in
 that partial's arguments to the spawned child; no configuration file, flag or environment variable
 of agentpkg can name it, and after `install` exits the original function is back
-(tests/test_hostmap.py). Every dial is appended to the run's dial log (the lookup's answer or its
-failure, the mapped address), so a failed lookup is recorded as a harness error, never as our side's
-refusal.
+(tests/test_hostmap.py). agentpkg's own lookup and its own dial are appended to the run's dial log
+(the lookup's answer or its failure; the address connected to), so a failed lookup is recorded as a
+harness error, never as our side's refusal, and a URL the runtime refuses before connecting is no
+dial (boundary (a) reads dials only).
 """
 
 from __future__ import annotations
@@ -62,49 +63,69 @@ def _log(path: str, entry: dict) -> None:
 
 
 def mapped_http_child(table: dict, url: str, kwargs: dict, sender) -> None:
-    """The child's target under the mapping: agentpkg's own `_http_child`, dialing the stack."""
+    """The child's target under the mapping: agentpkg's own `_http_child`, dialing the stack.
+
+    Two observations, both of agentpkg's own steps and in its order (review 2, finding 6): the
+    lookup agentpkg makes for the URL's hostname after its URL check (a `kind: "lookup"` entry,
+    its answer or its failure), and the dial its connection makes (an entry with `dialed`, the
+    address actually connected to). A URL the runtime refuses before connecting therefore logs
+    no dial, and one it refuses before resolving logs nothing, as the `Cr` driver's seams do."""
     import agentpkg.tools as tools
 
     host = urlsplit(url).hostname
-    entry = {"at": time.time(), "url": url, "host": host, "mapped": host in table["hosts"]}
+    log = table["dial_log"]
+    hosts = table["hosts"]
     override = table["dns_override"]
-    if override:
-        real_getaddrinfo = socket.getaddrinfo
+    real_getaddrinfo = socket.getaddrinfo
 
-        def getaddrinfo(name, *args, **kw):
-            if name in override:
-                return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (override[name], 443))]
+    def getaddrinfo(name, *args, **kw):
+        if name != host:  # the dial's own numeric address, or anything else: not observed
             return real_getaddrinfo(name, *args, **kw)
+        entry = {"at": time.time(), "kind": "lookup", "host": name, "mapped": name in hosts}
+        try:
+            if name in override:
+                entry["dns_override"] = True
+                answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (override[name], 443))]
+            else:
+                answer = real_getaddrinfo(name, *args, **kw)
+            entry["lookup"] = {"ok": True, "addresses": sorted({a[4][0] for a in answer})}
+            return answer
+        except OSError as exc:
+            entry["lookup"] = {"ok": False, "error": type(exc).__name__}
+            raise
+        finally:
+            _log(log, entry)
 
-        socket.getaddrinfo = getaddrinfo
-        entry["dns_override"] = True
-    try:
-        answers = sorted({a[4][0] for a in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)})
-        entry["lookup"] = {"ok": True, "addresses": answers}
-    except OSError as exc:
-        entry["lookup"] = {"ok": False, "error": type(exc).__name__}
-    if host in table["hosts"]:
-        address, port = table["hosts"][host]
-        context = ssl.create_default_context(cafile=table["ca"])
-        entry["dialed"] = [address, port]
+    socket.getaddrinfo = getaddrinfo
+    fixture_key = None
+    if host in hosts and table["fixture_key"] and host in table["fixture_hosts"]:
+        fixture_key = table["fixture_key"]
+        kwargs = {**kwargs, "headers": {**(kwargs.get("headers") or {}), HEADER: fixture_key}}
+    campaign_context = ssl.create_default_context(cafile=table["ca"])
 
-        class Mapped(tools._PinnedHTTPS):
-            def connect(self):  # the dial, and only the dial, goes to the stack
-                sock = socket.create_connection((address, port), timeout=self.timeout)
-                try:
-                    self.sock = context.wrap_socket(sock, server_hostname=self.host)
-                except BaseException:
-                    sock.close()
-                    raise
-
-        tools._PinnedHTTPS = Mapped
-        if table["fixture_key"] and host in table["fixture_hosts"]:
-            kwargs = {
-                **kwargs,
-                "headers": {**(kwargs.get("headers") or {}), HEADER: table["fixture_key"]},
+    class Mapped(tools._PinnedHTTPS):
+        def connect(self):  # the dial, and only the dial, goes to the stack
+            mapped = self.host in hosts
+            address, port = hosts[self.host] if mapped else (self.address, 443)
+            entry = {
+                "at": time.time(),
+                "url": url,
+                "host": self.host,
+                "mapped": mapped,
+                "dialed": [address, port],
             }
-            entry["fixture_key"] = table["fixture_key"]
-    _log(table["dial_log"], entry)
+            if fixture_key is not None:
+                entry["fixture_key"] = fixture_key
+            _log(log, entry)
+            context = campaign_context if mapped else self._context
+            sock = socket.create_connection((address, port), timeout=self.timeout)
+            try:
+                self.sock = context.wrap_socket(sock, server_hostname=self.host)
+            except BaseException:
+                sock.close()
+                raise
+
+    tools._PinnedHTTPS = Mapped
     # A spawned child imported agentpkg afresh: this is agentpkg's own, unpatched target.
     agent_network._http_child(url, kwargs, sender)
 

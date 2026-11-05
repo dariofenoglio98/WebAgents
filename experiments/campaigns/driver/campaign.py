@@ -23,13 +23,17 @@ first run.
   instruction hashes, the rungs with their routes and Ollama digests, the host mapping, the
   responder, the list prices, the versions and the Cr build key, the expected runs and the unit
   list's hash. `--resume` recomputes it and refuses a directory whose manifest changed; finished
-  units (`runs/<unit>/run.json`) are skipped.
+  units (`runs/<unit>/outcome.json`) are skipped, and a unit with its record but no outcome (a
+  crash in the oracle) is classified again from its record, never rerun (review 2, finding 5).
 - **Harness errors.** A run whose public hostname did not resolve, or whose driver failed (its
   preparation included), is a harness error (in the denominator, never a refusal, §2.1); a unit
   directory without `run.json` (a crash, an interrupt) is removed and run again on `--resume`.
 - **Outcomes.** Each run's `outcome.json` is the oracle's, with the family's envelope (§2.4.2 (e))
   and the rung's list prices (none for a local rung), and `exposed` for an attack arm (whether
-  the arm's text reached the run).
+  the arm's text reached the run). `summary.json` reports the runs it found against
+  `expected_runs` and names the missing units.
+- **The responder.** R-facts accepts a card only in the turns where the task asks for a purchase
+  (`purchase_turns`) and only on the task's facts (review 2, finding 1).
 
 Entry scripts must guard `__main__`: agentpkg's network child uses `spawn` and re-imports it.
 """
@@ -37,6 +41,7 @@ Entry scripts must guard `__main__`: agentpkg's network child uses `spawn` and r
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import json
 import random
@@ -199,8 +204,13 @@ def ordered(units: list[dict], rungs: list[str], seed: int) -> list[dict]:
 
 
 # -- rungs and the manifest ------------------------------------------------------------------
+@functools.cache
+def _rung_specs() -> dict:
+    return json.loads(RUNGS.read_text())["rungs"]
+
+
 def rung_of(name: str, ollama_url: str) -> Rung:
-    spec = json.loads(RUNGS.read_text())["rungs"][name]
+    spec = _rung_specs()[name]
     return Rung(
         name=name,
         provider=spec["provider"],
@@ -269,9 +279,12 @@ def tree_state(out: Path | None = None) -> tuple[str, str]:
 
 def envelopes() -> dict:
     """§2.4.2 (e): each task family's envelope from our plan, per turn for WebAir (the graph's
-    model-call bound, the policy's `hard_tokens`, the per-tool caps) and per run for the travel
-    network (`worst_case`). The framework agent's answer step (TUNING.md T-1) is one model call
-    more per turn, which the run's envelope adds on `FW` (`envelope_for`)."""
+    model-call bound, the policy's `hard_tokens`, the per-tool caps) under the conversation's
+    budget (WebAir's `conversation.budget`: `max_turns`, `hard_tokens`, the per-tool caps across
+    turns; review 2, finding 2), and per run for the travel network (`worst_case`). The framework
+    agent's answer step (TUNING.md T-1) is one model call more per turn, which the run's envelope
+    adds on `FW` (`envelope_for`)."""
+    from agentpkg.conversation.declarations import conversation_of
     from agentpkg.delegation.analysis import worst_case
 
     from campaigns.baseline import ports
@@ -279,6 +292,7 @@ def envelopes() -> dict:
 
     webair = ports.load("webair")
     budget = webair.policy["budget"]
+    conversation = conversation_of(webair.graph)["budget"]
     network = ports.load("travel-network")
     bound = worst_case(network.graph, network.policy)
     return {
@@ -287,6 +301,12 @@ def envelopes() -> dict:
             "model_calls": model_call_bound(webair),
             "tokens": budget["hard_tokens"],
             "tool_calls": sum(budget["max_calls_per_tool"].values()),
+            "max_calls_per_tool": dict(budget["max_calls_per_tool"]),
+            "conversation": {
+                "max_turns": conversation["max_turns"],
+                "tokens": conversation["hard_tokens"],
+                "max_calls_per_tool": dict(conversation.get("max_calls_per_tool") or {}),
+            },
         },
         "travel-network": {
             "per": "run",
@@ -299,20 +319,34 @@ def envelopes() -> dict:
 
 
 def envelope_for(unit: dict, task: dict, table: dict) -> dict:
-    """The run's envelope: the family's, times the turns for WebAir, plus the answer step on FW."""
+    """The run's envelope: the family's, times the turns for WebAir and never above what the
+    conversation's budget lets any side spend (its turns, its tokens, its per-tool caps across
+    turns), plus the answer step on FW."""
     family = table["travel-network" if unit["task_set"] == "TS-N" else "webair"]
-    turns = 1 if family["per"] == "run" else len(task["turn_sets"][unit["phrasing"]])
     extra = table["fw_answer_step_model_calls"] if unit["side"] == "FW" else 0
+    if family["per"] == "run":
+        return {
+            "model_calls": family["model_calls"] + extra,
+            "tokens": family["tokens"],
+            "tool_calls": family["tool_calls"],
+        }
+    conversation = family["conversation"]
+    turns = min(len(task["turn_sets"][unit["phrasing"]]), conversation["max_turns"])
+    across = conversation["max_calls_per_tool"]
+    tool_calls = sum(
+        min(cap * turns, across.get(tool, cap * turns))
+        for tool, cap in family["max_calls_per_tool"].items()
+    )
     return {
         "model_calls": (family["model_calls"] + extra) * turns,
-        "tokens": family["tokens"] * turns,
-        "tool_calls": family["tool_calls"] * turns,
+        "tokens": min(family["tokens"] * turns, conversation["tokens"]),
+        "tool_calls": tool_calls,
     }
 
 
 def prices_for(rung_name: str) -> dict | None:
     """The rung's list prices (`rungs.json`) in the oracle's terms; none for a local rung."""
-    price = json.loads(RUNGS.read_text())["rungs"][rung_name].get("list_price_usd_per_mtok")
+    price = _rung_specs()[rung_name].get("list_price_usd_per_mtok")
     if not price:
         return None
     return {"input_per_mtok": price["input"], "output_per_mtok": price["output"]}
@@ -331,7 +365,7 @@ def manifest(
     from campaigns.baseline import ports
     from campaigns.baseline.policies import build as policies
 
-    rung_specs = json.loads(RUNGS.read_text())["rungs"]
+    rung_specs = _rung_specs()
     described = {}
     for name in rungs:
         rung = rung_of(name, ollama_url)
@@ -392,6 +426,23 @@ def expected_facts(task: dict) -> dict:
     return expected_for(truth, TRAVELER)
 
 
+def purchase_turns(task: dict, phrasing: int) -> tuple[int, ...]:
+    """The turns (1-based) in which the task asks for a purchase (review 2, finding 1): a TS-W task
+    whose truth is a simulated purchase asks in its last turn (W4: quote, then buy); a TS-C
+    transcript in each turn whose expectation is `intent: purchase`; no other task ever does."""
+    if task["task_set"] == "TS-W":
+        if (task.get("truth") or {}).get("status") == "purchase_simulated":
+            return (len(task["turn_sets"][phrasing]),)
+        return ()
+    if task["task_set"] == "TS-C":
+        return tuple(
+            index
+            for index, expect in enumerate(task["expect"], start=1)
+            if expect.get("intent") == "purchase"
+        )
+    return ()
+
+
 def _runner(side: str):
     if side == "Py":
         from campaigns.driver.py_driver import run_webair
@@ -424,7 +475,10 @@ def exposure(rec: dict, arm: dict | None) -> bool | None:
             c.get("tool") == "travel.profile" and c.get("outcome") == "answered"
             for c in rec.get("tool_calls") or []
         )
-    return any(entry.get("inserted") for entry in rec.get("origin_log") or [])
+    # The redirect placement's twin is the plain answer (D-351): served, nothing inserted.
+    return any(
+        entry.get("inserted") or entry.get("twin_plain") for entry in rec.get("origin_log") or []
+    )
 
 
 def run_unit(
@@ -432,7 +486,6 @@ def run_unit(
 ) -> dict:
     from campaigns.driver import record
     from campaigns.driver.responder import Responder
-    from campaigns.oracle.classify import classify
 
     task = tasks[unit["task_id"]]
     arm = unit["arm"]
@@ -476,7 +529,9 @@ def run_unit(
                 rung=rung,
                 run_dir=run_dir,
                 stack=stack,
-                responder=Responder("R-facts", expected_facts(task)),
+                responder=Responder(
+                    "R-facts", expected_facts(task), purchase_turns(task, unit["phrasing"])
+                ),
                 fixture_key=fixture_key,
                 grant_profile=grant_profile,
                 profile_insertion=profile_insertion,
@@ -488,6 +543,22 @@ def run_unit(
         )
     promote_failed_lookup(rec)
     record.write(run_dir, rec)
+    return finish_unit(
+        unit, tasks=tasks, payloads=payloads, out=out, envelopes_table=envelopes_table
+    )
+
+
+def finish_unit(unit: dict, *, tasks, payloads, out: Path, envelopes_table=None) -> dict:
+    """The oracle's outcome of a recorded unit, written to `outcome.json` (the unit's "finished"
+    mark): run after the driver wrote `run.json`, and on `--resume` for a unit whose record exists
+    without an outcome (review 2, finding 5)."""
+    from campaigns.oracle.classify import classify
+
+    run_dir = out / "runs" / unit["id"]
+    rec = json.loads((run_dir / "run.json").read_text())
+    task = tasks[unit["task_id"]]
+    arm = unit["arm"]
+    payload = payloads[arm["payload"]] if arm else None
     table = envelopes_table or envelopes()
     outcome = classify(
         rec,
@@ -512,7 +583,17 @@ def _network_runner(side: str):
 
 
 # -- the campaign ----------------------------------------------------------------------------
-def summarize(out: Path) -> dict:
+def _cell_key(meta: dict) -> str:
+    """A summary cell: the side and the payload, the injected and twin arms apart (review 2,
+    nit 13: the paired reading needs them apart), the placements of one payload pooled."""
+    if meta["arm"] == "benign":
+        return f"{meta['side']}|benign"
+    payload = meta["arm"].split("@")[0]
+    arm = meta["arm"].rsplit("#", 1)[-1]
+    return f"{meta['side']}|{payload}#{arm}"
+
+
+def summarize(out: Path, units: list[dict] | None = None) -> dict:
     rows = []
     for path in sorted((out / "runs").glob("*/outcome.json")):
         outcome = json.loads(path.read_text())
@@ -520,7 +601,7 @@ def summarize(out: Path) -> dict:
         rows.append((rec["meta"], rec["status"], outcome))
     table: dict = {}
     for meta, status, outcome in rows:
-        key = f"{meta['side']}|{meta['arm'].split('@')[0] if meta['arm'] != 'benign' else 'benign'}"
+        key = _cell_key(meta)
         cell = table.setdefault(
             key,
             {
@@ -538,7 +619,12 @@ def summarize(out: Path) -> dict:
         cell["utility"] += bool((outcome.get("utility") or {}).get("success"))
         cell["boundaries"] += bool(outcome.get("boundaries"))
         cell["not_exposed"] += outcome.get("exposed") is False
-    return {"schema": "campaign.summary.v1", "cells": table, "runs": len(rows)}
+    summary = {"schema": "campaign.summary.v1", "cells": table, "runs": len(rows)}
+    if units is not None:
+        found = {meta["run_id"] for meta, _, _ in rows}
+        missing = [u["id"] for u in units if u["id"] not in found]
+        summary.update(expected_runs=len(units), complete=not missing, missing=missing)
+    return summary
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -600,18 +686,24 @@ def main(argv: list[str] | None = None) -> int:
         CampaignStack(Path(scratch)) as stack,
     ):
         for index, unit in enumerate(units, start=1):
-            if (out / "runs" / unit["id"] / "run.json").is_file():
+            run_dir = out / "runs" / unit["id"]
+            if (run_dir / "outcome.json").is_file():
                 continue
             begun = time.monotonic()
-            outcome = run_unit(
-                unit,
-                tasks=tasks,
-                payloads=payloads,
-                stack=stack,
-                out=out,
-                ollama_url=args.ollama_url,
-                envelopes_table=table,
-            )
+            if (run_dir / "run.json").is_file():  # recorded, not classified: classify it
+                outcome = finish_unit(
+                    unit, tasks=tasks, payloads=payloads, out=out, envelopes_table=table
+                )
+            else:
+                outcome = run_unit(
+                    unit,
+                    tasks=tasks,
+                    payloads=payloads,
+                    stack=stack,
+                    out=out,
+                    ollama_url=args.ollama_url,
+                    envelopes_table=table,
+                )
             line = {
                 "unit": unit["id"],
                 "index": index,
@@ -625,10 +717,13 @@ def main(argv: list[str] | None = None) -> int:
             with open(out / "progress.jsonl", "a", encoding="utf-8") as handle:
                 handle.write(json.dumps(line) + "\n")
             print(json.dumps(line), flush=True)
-    summary = summarize(out)
+    summary = summarize(out, units)
     summary["wall_seconds"] = round(time.monotonic() - started, 1)
     (out / "summary.json").write_text(json.dumps(summary, indent=1) + "\n")
     print(json.dumps(summary["cells"], indent=1))
+    if not summary["complete"]:
+        print(f"campaign: {len(summary['missing'])} of {len(units)} units have no outcome")
+        return 1
     return 0
 
 
