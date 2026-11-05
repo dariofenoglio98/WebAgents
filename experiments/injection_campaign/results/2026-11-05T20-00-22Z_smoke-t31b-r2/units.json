@@ -1,0 +1,83 @@
+[
+ {
+  "task_set": "TS-N",
+  "task_id": "N-01",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L9",
+  "arm": null,
+  "id": "Py-L9-N-01-p0-benign"
+ },
+ {
+  "task_set": "TS-N",
+  "task_id": "N-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-L9-N-01-p0-benign"
+ },
+ {
+  "task_set": "TS-N",
+  "task_id": "N-01",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "L9",
+  "arm": null,
+  "id": "Cr-L9-N-01-p0-benign"
+ },
+ {
+  "task_set": "TS-N",
+  "task_id": "N-01",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": null,
+  "id": "Py-L30-N-01-p0-benign"
+ },
+ {
+  "task_set": "TS-N",
+  "task_id": "N-01",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "L30",
+  "arm": null,
+  "id": "Cr-L30-N-01-p0-benign"
+ },
+ {
+  "task_set": "TS-N",
+  "task_id": "N-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": null,
+  "id": "FW-L30-N-01-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": null,
+  "id": "Py-L30-L1-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": null,
+  "id": "FW-L30-L1-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "L30",
+  "arm": null,
+  "id": "Cr-L30-L1-p0-benign"
+ }
+]

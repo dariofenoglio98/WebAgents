@@ -24,7 +24,7 @@ from agentpkg.memory.host import cli_memory
 from agentpkg.package import load_package
 from agentpkg.signing import verify_package
 
-from campaigns.driver import hostmap, record
+from campaigns.driver import hostmap, pacing, record
 from campaigns.driver.json_http import json_http_handlers
 from campaigns.driver.responder import Responder, ResponderConsentHost
 from campaigns.driver.routes import CampaignRouter, Rung
@@ -46,6 +46,9 @@ PACKAGES = {
         ROOT / "examples/keys/literature-review-publisher.pub.pem",
     ),
 }
+# The campaign stack's hosts that read the run's fixture key (the injection mode): the origin and
+# the Citation Resolver (`resolver.abstract`).
+FIXTURE_HOSTS = (tls.WEBAIR_HOST, tls.RESOLVER_HOST)
 RECORD_IDS = {
     "person.identity": "mem_c31a0000000000000000000000000001",
     "payment.card": "mem_c31a0000000000000000000000000002",
@@ -70,6 +73,48 @@ TRAVEL_GRANTS = {
     "memory.session": "session",
     "network.webair": "session",
 }
+# Literature Review 0.2.9 (TS-L, D-358): the live inputs' grants (`examples/literature-review-
+# live-input*.json` run with the required permissions and the model); the person's research
+# profile, the agent's notes and the remembered review are not asked for (`use_profile`,
+# `keep_notes` false, `reviewed_on` null), so their permissions are denied and their tools are not
+# approved; the PDF reader only when the run is given selected files.
+LITERATURE_GRANTS = {
+    "network.scholarly": "session",
+    "network.citations": "session",
+    "files.pdfs": "deny",
+    "memory.research_profile": "deny",
+    "model.reasoning": "session",
+    "memory.session": "session",
+    "memory.remember": "deny",
+    "memory.agent": "deny",
+    "compute.bookkeeping": "session",
+}
+LITERATURE_TOOLS = ("citation-resolver", "scholarly-search")
+
+
+def literature_input(question: str, documents: dict[str, str] | None = None) -> dict:
+    """The TS-L run's input: the question, no seeds, the selected files by DOI (opaque ids), live,
+    no profile, no notes, no review to remember (the live inputs' shape)."""
+    return {
+        "question": question,
+        "seeds": [],
+        "documents": dict(documents or {}),
+        "mode": "live",
+        "use_profile": False,
+        "keep_notes": False,
+        "reviewed_on": None,
+    }
+
+
+def literature_grants(selected: dict | None) -> tuple[dict, list[str]]:
+    """The grants and the approved tools; `files.pdfs` and the PDF reader only with selected
+    files."""
+    grants = dict(LITERATURE_GRANTS)
+    tools = list(LITERATURE_TOOLS)
+    if selected:
+        grants["files.pdfs"] = "session"
+        tools.append("paper-reader")
+    return grants, sorted(tools)
 
 
 def webair_grants(grant_profile: bool) -> tuple[dict, list[str]]:
@@ -212,7 +257,7 @@ def run_webair(
     result, error = None, None
     try:
         with hostmap.install(table):
-            result = asyncio.run(conversation.run(transcript))
+            result = asyncio.run(router.closing(conversation.run(transcript)))
     except Exception as exc:  # a driver failure: a harness error, in the denominator
         error = f"{type(exc).__name__}: {exc}"[:500]
     seconds = time.monotonic() - started
@@ -235,43 +280,57 @@ def run_webair(
     return record.write(run_dir, rec)
 
 
-def run_travel_network(
-    *, text: str, rung: Rung, run_dir: Path, stack, fixture_key: str | None, meta: dict
+def _run_workflow(
+    *,
+    package,
+    input_value: dict,
+    grants: dict,
+    approved: list[str],
+    handlers: dict,
+    rung: Rung,
+    run_dir: Path,
+    stack,
+    fixture_key: str | None,
+    memory_dir: Path,
+    meta: dict,
+    task_set: str,
 ) -> dict:
-    """One travel-network run (TS-N) on `Py`, composed as `agentpkg run` composes it."""
+    """One `workflow.v0` run on `Py`, composed as `agentpkg run --mode live` composes it: the
+    verified package, the handlers, `cli_memory` over `--memory-dir` (the record set's copy, so the
+    store's two egress scans are active, §2.1; no record is granted), `run_workflow` with the
+    grants and the approved tools; the campaign's router, seams and host mapping."""
     from agentpkg.workflow import run_workflow
 
-    run_dir.mkdir(parents=True, exist_ok=False)
-    package = verified("travel-network")
     router = CampaignRouter(rung)
     tool_seam: list[dict] = []
     memory_run, _folder, memory_handlers = cli_memory(
-        package, mode="live", decisions=TRAVEL_GRANTS, memory_dir=None, memory_grants=()
+        package, mode="live", decisions=grants, memory_dir=memory_dir, memory_grants=()
     )
-    handlers = _recording_handlers(
-        {**json_http_handlers(package), **memory_handlers}, tool_seam, tool_ids(package), 1
-    )
+    recorded = _recording_handlers({**handlers, **memory_handlers}, tool_seam, tool_ids(package), 1)
     table = hostmap.mapping(
         stack.hosts,
         stack.ca,
         run_dir / "dials.jsonl",
         fixture_key=fixture_key,
-        fixture_hosts=(tls.WEBAIR_HOST,),
+        fixture_hosts=FIXTURE_HOSTS,
     )
     origin_start, sink_start = len(stack.origin_log), len(stack.sink.log)
+    resolver_start = len(stack.resolver_log)
     started = time.monotonic()
     result, error = None, None
     try:
         with hostmap.install(table):
             result = asyncio.run(
-                run_workflow(
-                    package,
-                    {"text": text},
-                    grants=TRAVEL_GRANTS,
-                    handlers=handlers,
-                    router=router,
-                    approved_tools=sorted(package.tools),
-                    memory=memory_run,
+                router.closing(
+                    run_workflow(
+                        package,
+                        input_value,
+                        grants=grants,
+                        handlers=recorded,
+                        router=router,
+                        approved_tools=approved,
+                        memory=memory_run,
+                    )
                 )
             )
     except Exception as exc:
@@ -281,19 +340,91 @@ def run_travel_network(
         else:
             error = f"{type(exc).__name__}: {exc}"[:500]
     seconds = time.monotonic() - started
-    return record.write(
-        run_dir,
-        record.from_py_workflow(
-            meta=meta,
-            rung=rung,
-            result=result,
-            harness_error=error,
-            model_calls=router.calls,
-            tool_calls=tool_seam,
-            dials=hostmap.read_dial_log(run_dir / "dials.jsonl"),
-            origin_log=stack.origin_log[origin_start:],
-            sink_log=stack.sink.log[sink_start:],
-            seconds=seconds,
-            package=package,
-        ),
+    rec = record.from_py_workflow(
+        meta=meta,
+        rung=rung,
+        result=result,
+        harness_error=error,
+        model_calls=router.calls,
+        tool_calls=tool_seam,
+        dials=hostmap.read_dial_log(run_dir / "dials.jsonl"),
+        origin_log=stack.origin_log[origin_start:] + stack.resolver_log[resolver_start:],
+        sink_log=stack.sink.log[sink_start:],
+        seconds=seconds,
+        package=package,
+        task_set=task_set,
+    )
+    rec["input"] = input_value
+    rec["grants"] = grants
+    return record.write(run_dir, rec)
+
+
+def run_travel_network(
+    *, text: str, rung: Rung, run_dir: Path, stack, fixture_key: str | None, meta: dict
+) -> dict:
+    """One travel-network run (TS-N) on `Py`, composed as `agentpkg run` composes it."""
+    run_dir.mkdir(parents=True, exist_ok=False)
+    package = verified("travel-network")
+    return _run_workflow(
+        package=package,
+        input_value={"text": text},
+        grants=TRAVEL_GRANTS,
+        approved=sorted(package.tools),
+        handlers=json_http_handlers(package),
+        rung=rung,
+        run_dir=run_dir,
+        stack=stack,
+        fixture_key=fixture_key,
+        memory_dir=prepare_memory(run_dir, None),
+        meta=meta,
+        task_set="TS-N",
+    )
+
+
+def literature_handlers(package, selected: dict | None) -> dict:
+    """The CLI's Literature Review bindings (`agentpkg.tools.create_handlers`, as `agentpkg run`
+    binds them): Crossref live, the Citation Resolver at the package's declared endpoint (the host
+    mapping dials the campaign stack's), the PDF reader over the selected files; the search takes
+    the process's Crossref lane (`pacing.py`). Shared by `Py` and the framework port (rule 1)."""
+    from agentpkg.tools import create_handlers
+
+    handlers = create_handlers(
+        package,
+        selected_files={file_id: str(path) for file_id, path in (selected or {}).values()},
+        resolver_base_url=None,
+    )
+    handlers["scholarly.search"] = pacing.CROSSREF.paced_handler(handlers["scholarly.search"])
+    return handlers
+
+
+def run_literature_review(
+    *,
+    question: str,
+    rung: Rung,
+    run_dir: Path,
+    stack,
+    fixture_key: str | None,
+    meta: dict,
+    selected: dict | None = None,
+) -> dict:
+    """One Literature Review run (TS-L) on `Py`, composed as `agentpkg run` composes it.
+    `selected`: DOI → (opaque file id, PDF path), the files the run is given (none on TS-L's
+    questions as committed; E3's PDF placement, T32)."""
+    run_dir.mkdir(parents=True, exist_ok=False)
+    package = verified("literature-review")
+    grants, approved = literature_grants(selected)
+    documents = {doi: file_id for doi, (file_id, _path) in (selected or {}).items()}
+    return _run_workflow(
+        package=package,
+        input_value=literature_input(question, documents),
+        grants=grants,
+        approved=approved,
+        handlers=literature_handlers(package, selected),
+        rung=rung,
+        run_dir=run_dir,
+        stack=stack,
+        fixture_key=fixture_key,
+        memory_dir=prepare_memory(run_dir, None),
+        meta=meta,
+        task_set="TS-L",
     )

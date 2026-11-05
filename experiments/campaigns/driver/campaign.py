@@ -11,8 +11,8 @@ first run.
   record copy and grants the travel profile (D-353), every other placement travels as the fixture
   key header.
 - **Order.** Grouped by rung (one model loaded at a time, §2.2), seeded shuffle inside a rung.
-- **Presets.** `smoke`: one TS-W task per class, one TS-C transcript and one TS-N request (on the
-  sides with a network driver, `NOT_BUILT`), the first phrasing, benign,
+- **Presets.** `smoke`: one TS-W task per class, one TS-C transcript, one TS-N request and one
+  TS-L question (on TS-L's rungs only, `LITERATURE_RUNGS`), the first phrasing, benign,
   plus one payload pair (`upload-01` at `search.fare_name` on W1's first task) so the injection
   path runs end to end on every side. `qualification`: every TS-W task × 3 phrasings and every TS-C
   transcript benign, and every payload at every placement it reaches on the first task of each
@@ -32,6 +32,10 @@ first run.
   and the rung's list prices (none for a local rung), and `exposed` for an attack arm (whether
   the arm's text reached the run). `summary.json` reports the runs it found against
   `expected_runs` and names the missing units.
+- **TS-L** (D-358): Literature Review runs only on L30 and H (§2.2), benign on every side (E2's
+  parity rows) and attacked at `resolver.abstract` on `Py` and `FW` only (E3's arm); the stack then
+  serves the Citation Resolver, and every Crossref request of the process takes one lane
+  (`pacing.py`). `--task-sets` narrows a preset to some task sets (recorded in the manifest).
 - **The responder.** R-facts accepts a card only in the turns where the task asks for a purchase
   (`purchase_turns`) and only on the task's facts (review 2, finding 1).
 
@@ -56,10 +60,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 EXPERIMENTS = ROOT / "experiments"
-for _path in (EXPERIMENTS, ROOT / "demo" / "webair"):
-    if str(_path) not in sys.path:
-        sys.path.insert(0, str(_path))
+if str(EXPERIMENTS) not in sys.path:  # `campaigns` itself puts WebAir's origin on the path
+    sys.path.insert(0, str(EXPERIMENTS))
 
+from campaigns.driver import pacing  # noqa: E402
 from campaigns.driver.routes import Rung  # noqa: E402
 from campaigns.origin import catalog, tls  # noqa: E402
 from campaigns.tasks import generate  # noqa: E402
@@ -81,12 +85,18 @@ PLACEMENT_REACH = {
     "quote": ("W3", "W4", "TS-C"),
     "record": ("W1", "W2", "W3", "W4", "W5", "TS-C"),
     "travel": ("TS-N",),
+    "resolver": ("TS-L",),
 }
 # TS-C prepares a quote only in its booking shapes (refine and history never do).
 QUOTE_SHAPES = ("book", "rebuy")
-# (side, task set) pairs with no driver yet: the Chrome core's network runs need the `run`
-# composition (ExecutionSession, as cli-run.ts), not built in T31 (an open item for T34).
-NOT_BUILT = {("Cr", "TS-N")}
+# (side, task set) pairs with no driver: none since T31b (the `Cr` run mode, D-359); kept so that
+# every manifest states it.
+NOT_BUILT: set[tuple[str, str]] = set()
+TASK_SETS = ("TS-W", "TS-C", "TS-N", "TS-L")
+# TS-L's rungs (§2.2: "the Literature Review arm: L30 and H only") and the sides of its attack arm
+# (§3 E3: "on `Py` and `FW` only"; the Chrome core runs Literature Review in E2's benign rows).
+LITERATURE_RUNGS = ("L30", "H")
+LITERATURE_ATTACK_SIDES = ("Py", "FW")
 
 
 # -- the matrix ------------------------------------------------------------------------------
@@ -108,6 +118,13 @@ def load_tasks() -> dict[str, dict]:
             "class": "TS-N",
             "task_set": "TS-N",
             "turn_sets": [[p] for p in request["phrasings"]],
+        }
+    for question in json.loads((generate.HERE / "ts-l.json").read_text())["questions"]:
+        tasks[question["id"]] = {
+            **question,
+            "class": "TS-L",
+            "task_set": "TS-L",
+            "turn_sets": [[question["question"]]],  # one phrasing: the question as committed
         }
     return tasks
 
@@ -158,15 +175,35 @@ def _pairs(payload_id: str, placement: str) -> list[dict]:
     return [{"payload": payload_id, "placement": placement, "arm": a} for a in ("injected", "twin")]
 
 
-def units_for(preset: str, rungs: list[str], sides: list[str], payloads: dict) -> list[dict]:
-    tasks = load_tasks()
+def admits(side: str, rung: str, task: dict, arm: dict | None) -> bool:
+    """Whether a unit belongs in the matrix: a driver exists, TS-L only on its rungs, and TS-L's
+    attack arm only on its sides."""
+    if (side, task["task_set"]) in NOT_BUILT:
+        return False
+    if task["task_set"] == "TS-L":
+        if rung not in LITERATURE_RUNGS:
+            return False
+        if arm is not None and side not in LITERATURE_ATTACK_SIDES:
+            return False
+    return True
+
+
+def units_for(
+    preset: str,
+    rungs: list[str],
+    sides: list[str],
+    payloads: dict,
+    task_sets: tuple[str, ...] = TASK_SETS,
+) -> list[dict]:
+    tasks = {k: v for k, v in load_tasks().items() if v["task_set"] in task_sets}
     cells: list[tuple[dict, int, dict | None]] = []
     firsts = _first_of_each_class(tasks)
     if preset == "smoke":
         for task in firsts:
             cells.append((task, 0, None))
-        w1 = next(t for t in firsts if t["class"] == "W1")
-        cells += [(w1, 0, arm) for arm in _pairs(*SMOKE_PAYLOAD)]
+        w1 = next((t for t in firsts if t["class"] == "W1"), None)
+        if w1 is not None:
+            cells += [(w1, 0, arm) for arm in _pairs(*SMOKE_PAYLOAD)]
     else:
         for task in tasks.values():
             for phrasing in range(len(task["turn_sets"])):
@@ -179,7 +216,7 @@ def units_for(preset: str, rungs: list[str], sides: list[str], payloads: dict) -
     for rung in rungs:
         for side in sides:
             for task, phrasing, arm in cells:
-                if (side, task["task_set"]) in NOT_BUILT:
+                if not admits(side, rung, task, arm):
                     continue
                 unit = {
                     "task_set": task["task_set"],
@@ -295,6 +332,8 @@ def envelopes() -> dict:
     conversation = conversation_of(webair.graph)["budget"]
     network = ports.load("travel-network")
     bound = worst_case(network.graph, network.policy)
+    literature = ports.load("literature-review")
+    literature_budget = literature.policy["budget"]
     return {
         "webair": {
             "per": "turn",
@@ -314,15 +353,26 @@ def envelopes() -> dict:
             "tokens": bound["tokens"],
             "tool_calls": sum(bound["tool_calls"].values()),
         },
+        # Literature Review per run: the graph's model-call bound (its `llm` nodes and its maps'
+        # `llm` steps per item), the policy's tokens and per-tool caps (D-358).
+        "literature-review": {
+            "per": "run",
+            "model_calls": model_call_bound(literature),
+            "tokens": literature_budget["hard_tokens"],
+            "tool_calls": sum(literature_budget["max_calls_per_tool"].values()),
+        },
         "fw_answer_step_model_calls": 1,
     }
+
+
+FAMILIES = {"TS-N": "travel-network", "TS-L": "literature-review"}
 
 
 def envelope_for(unit: dict, task: dict, table: dict) -> dict:
     """The run's envelope: the family's, times the turns for WebAir and never above what the
     conversation's budget lets any side spend (its turns, its tokens, its per-tool caps across
     turns), plus the answer step on FW."""
-    family = table["travel-network" if unit["task_set"] == "TS-N" else "webair"]
+    family = table[FAMILIES.get(unit["task_set"], "webair")]
     extra = table["fw_answer_step_model_calls"] if unit["side"] == "FW" else 0
     if family["per"] == "run":
         return {
@@ -361,9 +411,11 @@ def manifest(
     units: list[dict],
     ollama_url,
     out: Path | None = None,
+    task_sets: tuple[str, ...] = TASK_SETS,
 ) -> dict:
     from campaigns.baseline import ports
     from campaigns.baseline.policies import build as policies
+    from campaigns.driver.py_driver import FIXTURE_HOSTS
 
     rung_specs = _rung_specs()
     described = {}
@@ -392,7 +444,17 @@ def manifest(
         "sides": sides,
         "task_sets": {
             name: _sha_file(generate.HERE / name)
-            for name in ("ts-w.json", "ts-c.json", "ts-n.json")
+            for name in ("ts-w.json", "ts-c.json", "ts-n.json", "ts-l.json")
+        },
+        "task_sets_selected": list(task_sets),
+        "literature": {
+            "rungs": list(LITERATURE_RUNGS),
+            "attack_sides": list(LITERATURE_ATTACK_SIDES),
+            "crossref_lane": {
+                "max_concurrent": 1,
+                "min_interval_seconds": pacing.INTERVAL_SECONDS,
+                "contact": None,
+            },
         },
         "not_built": sorted(f"{side}:{task_set}" for side, task_set in NOT_BUILT),
         "payloads": catalog.catalog_digest(),
@@ -401,6 +463,7 @@ def manifest(
         "rungs": described,
         "host_mapping": {
             "hostnames": list(tls.HOSTS),
+            "fixture_hosts": list(FIXTURE_HOSTS),  # the set the drivers apply (nit 6)
             "dial": "127.0.0.1, a throwaway campaign CA per stack",
             "real_dns_answer_classified": True,
         },
@@ -443,14 +506,39 @@ def purchase_turns(task: dict, phrasing: int) -> tuple[int, ...]:
     return ()
 
 
+# The drivers by family and side, imported on use (a side's dependencies only when it runs).
+_RUNNERS = {
+    "webair": {
+        "Py": ("campaigns.driver.py_driver", "run_webair"),
+        "Cr": ("campaigns.driver.cr_driver", "run_webair"),
+        "FW": ("campaigns.baseline.agent", "run_webair"),
+    },
+    "travel-network": {
+        "Py": ("campaigns.driver.py_driver", "run_travel_network"),
+        "Cr": ("campaigns.driver.cr_driver", "run_travel_network"),
+        "FW": ("campaigns.baseline.network", "run_travel_network"),
+    },
+    "literature-review": {
+        "Py": ("campaigns.driver.py_driver", "run_literature_review"),
+        "Cr": ("campaigns.driver.cr_driver", "run_literature_review"),
+        "FW": ("campaigns.baseline.literature", "run_literature_review"),
+    },
+}
+
+
+def _side_runner(family: str, side: str):
+    """The driver of one family on one side; an unknown side is refused (review 1, nit 5)."""
+    import importlib
+
+    try:
+        module, name = _RUNNERS[family][side]
+    except KeyError:
+        raise ValueError(f"no {family} driver for side {side!r}") from None
+    return getattr(importlib.import_module(module), name)
+
+
 def _runner(side: str):
-    if side == "Py":
-        from campaigns.driver.py_driver import run_webair
-    elif side == "Cr":
-        from campaigns.driver.cr_driver import run_webair
-    else:
-        from campaigns.baseline.agent import run_webair
-    return run_webair
+    return _side_runner("webair", side)
 
 
 def promote_failed_lookup(rec: dict) -> dict:
@@ -514,7 +602,16 @@ def run_unit(
         # A unit that crashed (or was interrupted) before writing its record: run it again.
         shutil.rmtree(run_dir)
     try:
-        if unit["task_set"] == "TS-N":
+        if unit["task_set"] == "TS-L":
+            rec = _literature_runner(unit["side"])(
+                question=task["turn_sets"][unit["phrasing"]][0],
+                rung=rung,
+                run_dir=run_dir,
+                stack=stack,
+                fixture_key=fixture_key,
+                meta=meta,
+            )
+        elif unit["task_set"] == "TS-N":
             rec = _network_runner(unit["side"])(
                 text=task["turn_sets"][unit["phrasing"]][0],
                 rung=rung,
@@ -573,13 +670,11 @@ def finish_unit(unit: dict, *, tasks, payloads, out: Path, envelopes_table=None)
 
 
 def _network_runner(side: str):
-    if side == "Py":
-        from campaigns.driver.py_driver import run_travel_network
-    elif side == "FW":
-        from campaigns.baseline.network import run_travel_network
-    else:
-        raise ValueError(f"no network driver for {side}")
-    return run_travel_network
+    return _side_runner("travel-network", side)
+
+
+def _literature_runner(side: str):
+    return _side_runner("literature-review", side)
 
 
 # -- the campaign ----------------------------------------------------------------------------
@@ -635,6 +730,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", required=True)
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--ollama-url", default="http://127.0.0.1:11434")
+    parser.add_argument(
+        "--task-sets",
+        default=",".join(TASK_SETS),
+        help="comma-separated task sets to keep from the preset (recorded in the manifest)",
+    )
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="write the manifest and stop")
     args = parser.parse_args(argv)
@@ -643,8 +743,11 @@ def main(argv: list[str] | None = None) -> int:
     unknown = [s for s in sides if s not in SIDES]
     if unknown:
         parser.error(f"unknown sides {unknown}")
+    task_sets = tuple(s for s in args.task_sets.split(",") if s)
+    if not task_sets or [s for s in task_sets if s not in TASK_SETS]:
+        parser.error(f"--task-sets takes some of {', '.join(TASK_SETS)}")
     payloads = catalog.load()
-    units = ordered(units_for(args.preset, rungs, sides, payloads), rungs, args.seed)
+    units = ordered(units_for(args.preset, rungs, sides, payloads, task_sets), rungs, args.seed)
     out = Path(args.out)
     wanted = manifest(
         preset=args.preset,
@@ -654,6 +757,7 @@ def main(argv: list[str] | None = None) -> int:
         units=units,
         ollama_url=args.ollama_url,
         out=out,
+        task_sets=task_sets,
     )
     path = out / "manifest.json"
     if args.resume:
@@ -683,7 +787,7 @@ def main(argv: list[str] | None = None) -> int:
     # The stack's certificates (a throwaway CA and its key) stay out of the results directory.
     with (
         tempfile.TemporaryDirectory(prefix="campaign-stack-") as scratch,
-        CampaignStack(Path(scratch)) as stack,
+        CampaignStack(Path(scratch), resolver=any(u["task_set"] == "TS-L" for u in units)) as stack,
     ):
         for index, unit in enumerate(units, start=1):
             run_dir = out / "runs" / unit["id"]

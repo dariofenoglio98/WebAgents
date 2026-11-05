@@ -106,7 +106,8 @@ class CampaignRouter:
         self.capabilities = frozenset(capabilities)
         self.context_window = rung.context_window
         self.calls: list[dict] = []
-        self._client = None
+        self._client: httpx.AsyncClient | None = None
+        self._client_loop = None
 
     def describe(self) -> dict:
         return {
@@ -131,9 +132,13 @@ class CampaignRouter:
         started = time.monotonic()
         try:
             if self.rung.provider == "ollama":
-                text, stop, usage, response_model = await self._ollama(rendered, max_output_tokens)
+                text, stop, usage, response_model = await self._ollama(
+                    rendered, max_output_tokens, entry
+                )
             elif self.rung.provider == "openai":
-                text, stop, usage, response_model = await self._openai(rendered, max_output_tokens)
+                text, stop, usage, response_model = await self._openai(
+                    rendered, max_output_tokens, entry
+                )
             else:
                 raise BridgeError("model_unavailable", f"unknown provider {self.rung.provider}")
         except BridgeError as exc:
@@ -187,10 +192,31 @@ class CampaignRouter:
         }
 
     def _http(self) -> httpx.AsyncClient:
-        # One client per event loop: a conversation turn runs in its own loop.
-        return httpx.AsyncClient(timeout=self.rung.timeout_seconds)
+        """One client per event loop, reused across the loop's calls (T31 review 2, nit 14): a
+        client is bound to the loop that opened it, and a run or a conversation is one loop."""
+        import asyncio
 
-    async def _ollama(self, rendered: dict, max_output_tokens: int):
+        loop = asyncio.get_running_loop()
+        if self._client is None or self._client_loop is not loop:
+            self._client = httpx.AsyncClient(timeout=self.rung.timeout_seconds)
+            self._client_loop = loop
+        return self._client
+
+    async def aclose(self) -> None:
+        """Close the loop's client and its keep-alive connections; called by the driver at the end
+        of the run or conversation, inside its loop (T31b review 1, finding 3)."""
+        client, self._client, self._client_loop = self._client, None, None
+        if client is not None:
+            await client.aclose()
+
+    async def closing(self, work):
+        """Await `work` (a run or a conversation), then close the client in the same loop."""
+        try:
+            return await work
+        finally:
+            await self.aclose()
+
+    async def _ollama(self, rendered: dict, max_output_tokens: int, entry: dict):
         options = {"num_ctx": self.rung.context_window, "num_predict": max_output_tokens}
         if self.rung.temperature is not None:
             options["temperature"] = self.rung.temperature
@@ -208,8 +234,8 @@ class CampaignRouter:
         constraint = ollama_format(rendered["output_schema"])
         if constraint is not None:
             body["format"] = constraint
-        async with self._http() as client:
-            response = await client.post(f"{self.rung.base_url.rstrip('/')}/api/chat", json=body)
+        entry["think"] = body.get("think")  # as sent: absent is null (review 2, nit 12)
+        response = await self._http().post(f"{self.rung.base_url.rstrip('/')}/api/chat", json=body)
         if response.status_code != 200:
             raise BridgeError("model_unavailable", f"Ollama answered HTTP {response.status_code}")
         data = response.json()
@@ -221,7 +247,7 @@ class CampaignRouter:
         }
         return message.get("content"), stop, usage, data.get("model")
 
-    async def _openai(self, rendered: dict, max_output_tokens: int):
+    async def _openai(self, rendered: dict, max_output_tokens: int, entry: dict):
         key = os.environ.get(self.rung.api_key_env or "")
         if not key:
             raise BridgeError("model_unavailable", "the hosted rung's key variable is unset")
@@ -244,12 +270,12 @@ class CampaignRouter:
                     "strict": False,
                 }
             }
-        async with self._http() as client:
-            response = await client.post(
-                f"{self.rung.base_url.rstrip('/')}/v1/responses",
-                json=body,
-                headers={"Authorization": f"Bearer {key}"},
-            )
+        entry["think"] = None  # the Responses API takes no `think`
+        response = await self._http().post(
+            f"{self.rung.base_url.rstrip('/')}/v1/responses",
+            json=body,
+            headers={"Authorization": f"Bearer {key}"},
+        )
         if response.status_code != 200:
             raise BridgeError("model_unavailable", f"OpenAI answered HTTP {response.status_code}")
         data = response.json()

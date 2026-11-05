@@ -30,6 +30,7 @@ from campaigns.baseline.agent import (
     JsonSchemaOutput,
     Recorder,
     _error_code,
+    answer_input,
     final_answer,
     model_settings,
     ollama_context,
@@ -152,7 +153,9 @@ def run_travel_network(
             return
         try:
             formatted = (
-                await Runner.run(answer_agent, result.to_input_list(), max_turns=1, hooks=hooks)
+                await Runner.run(
+                    answer_agent, answer_input(result.to_input_list()), max_turns=1, hooks=hooks
+                )
             ).final_output
         except Exception as exc:
             formatted = None
