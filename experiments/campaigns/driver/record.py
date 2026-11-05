@@ -26,7 +26,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from campaigns.tasks.score import from_webair_result
+from campaigns.tasks.score import from_literature_output, from_webair_result
 
 SCHEMA = "campaign.run.v1"
 
@@ -229,11 +229,18 @@ def from_py_workflow(
     sink_log,
     seconds,
     package,
+    task_set: str = "TS-N",
 ) -> dict:
     audit = (result or {}).get("audit")
     output = (result or {}).get("output")
     completed = result is not None and result.get("status") == "completed"
-    answer = {"plan": output.get("plan")} if completed and isinstance(output, dict) else None
+    answer = None
+    if completed and isinstance(output, dict):
+        # TS-N: the plan text; TS-L: the review output mapped onto the campaign answer.
+        if task_set == "TS-L":
+            answer = from_literature_output(output)
+        else:
+            answer = {"plan": output.get("plan")}
     refused, failures = refusals_and_failures(audit)
     return {
         "schema": SCHEMA,
@@ -350,7 +357,48 @@ def _cr_model_call(call: dict) -> dict:
         )
     else:  # the Responses API
         entry.update(system=body.get("instructions"), user=body.get("input"))
+    # The thinking setting as sent (T31 review 2, nit 12): the core's Ollama adapter sends `think`
+    # explicitly; the Responses API takes none.
+    entry["think"] = body.get("think")
     return entry
+
+
+def from_cr_run(*, meta, rung, out, origin_log, sink_log, seconds, package, task_set) -> dict:
+    """The `Cr` driver's `run` report (`driver.ts`'s run mode) as the campaign record: the same
+    fields as `Py`'s workflow record, read from the core's own report, audit and usage."""
+    harness_error = out.get("error") if out.get("status") == "harness_error" else None
+    result = None
+    if out.get("audit") is not None:
+        result = {
+            "status": out.get("status"),
+            "output": out.get("output"),
+            "audit": out.get("audit"),
+            "usage": out.get("usage"),
+            "error": {"code": out.get("error_code")} if out.get("error_code") else None,
+        }
+
+    class _Rung:
+        def describe(self):
+            return rung.describe() if rung is not None else {"name": "refuse"}
+
+    rec = from_py_workflow(
+        meta=meta,
+        rung=_Rung(),
+        result=result,
+        harness_error=harness_error,
+        model_calls=[_cr_model_call(c) for c in out.get("model_calls") or []],
+        tool_calls=out.get("tool_calls") or [],
+        dials=out.get("dials") or [],
+        origin_log=origin_log,
+        sink_log=sink_log,
+        seconds=seconds,
+        package=package,
+        task_set=task_set,
+    )
+    rec["core_version"] = out.get("core_version")
+    rec["run_plan_sha256"] = out.get("run_plan_sha256")
+    rec["files"] = out.get("files")
+    return rec
 
 
 def from_cr_conversation(

@@ -20,10 +20,17 @@ import time
 from pathlib import Path
 
 from campaigns.driver import record
-from campaigns.driver.py_driver import PACKAGES, prepare_memory, webair_grants
+from campaigns.driver.py_driver import (
+    FIXTURE_HOSTS,
+    PACKAGES,
+    TRAVEL_GRANTS,
+    literature_grants,
+    literature_input,
+    prepare_memory,
+    webair_grants,
+)
 from campaigns.driver.responder import Responder
 from campaigns.driver.routes import Rung
-from campaigns.origin import tls
 
 ROOT = Path(__file__).resolve().parents[3]
 CHROME = ROOT / "chrome-agent-browser"
@@ -209,7 +216,7 @@ def webair_job(
             "hosts": {h: [a, p] for h, (a, p) in stack.hosts.items()},
             "ca": str(stack.ca),
             "fixture_key": fixture_key,
-            "fixture_hosts": [tls.WEBAIR_HOST],
+            "fixture_hosts": list(FIXTURE_HOSTS),
         },
         "responder": responder.describe(),
     }
@@ -270,4 +277,130 @@ def run_webair(
             package=package,
             memory_grants=dict(job["memory_grants"]),  # the grants this run made
         ),
+    )
+
+
+# -- the run mode (D-359): one-shot runs composed as `cli-run.ts` composes them ---------------
+def run_job_for(
+    *,
+    name: str,
+    input_value: dict,
+    grants: dict,
+    approved: list[str],
+    rung: Rung | None,
+    memory_dir: Path,
+    stack,
+    fixture_key: str | None,
+) -> dict:
+    """The `run` job: the signed package, its input, the grants and approvals, the record set (no
+    record granted; the store is opened all the same, as `Py`'s `--memory-dir`), the route and the
+    host mapping. The Node CLI binds no selected files, so a `Cr` run has none (D-359)."""
+    package, key = PACKAGES[name]
+    return {
+        "mode": "run",
+        "package": str(package),
+        "trust_key": str(key),
+        "input": input_value,
+        "grants": grants,
+        "approved_tools": sorted(approved),
+        "records": record_texts(memory_dir),
+        "memory_grants": {},
+        "route": route_of(rung),
+        "mapping": None
+        if stack is None
+        else {
+            "hosts": {h: [a, p] for h, (a, p) in stack.hosts.items()},
+            "ca": str(stack.ca),
+            "fixture_key": fixture_key,
+            "fixture_hosts": list(FIXTURE_HOSTS),
+        },
+        "responder": Responder("R-deny").describe(),
+    }
+
+
+def _run(
+    *,
+    name: str,
+    task_set: str,
+    input_value: dict,
+    grants: dict,
+    approved: list[str],
+    rung: Rung,
+    run_dir: Path,
+    stack,
+    fixture_key: str | None,
+    meta: dict,
+) -> dict:
+    from campaigns.baseline import ports
+
+    run_dir.mkdir(parents=True, exist_ok=False)
+    package = ports.load(name)  # verified, as on `Py`; the Node driver verifies it again
+    job = run_job_for(
+        name=name,
+        input_value=input_value,
+        grants=grants,
+        approved=approved,
+        rung=rung,
+        memory_dir=prepare_memory(run_dir, None),
+        stack=stack,
+        fixture_key=fixture_key,
+    )
+    origin_start = len(stack.origin_log)
+    resolver_start = len(stack.resolver_log)
+    sink_start = len(stack.sink.log)
+    started = time.monotonic()
+    out = run_job(job, timeout=float(package.graph.get("deadline_seconds") or 3600) + 600)
+    seconds = time.monotonic() - started
+    rec = record.from_cr_run(
+        meta=meta,
+        rung=rung,
+        out=out,
+        origin_log=stack.origin_log[origin_start:] + stack.resolver_log[resolver_start:],
+        sink_log=stack.sink.log[sink_start:],
+        seconds=seconds,
+        package=package,
+        task_set=task_set,
+    )
+    rec["input"] = input_value
+    rec["grants"] = grants
+    return record.write(run_dir, rec)
+
+
+def run_travel_network(
+    *, text: str, rung: Rung, run_dir: Path, stack, fixture_key: str | None, meta: dict
+) -> dict:
+    """One travel-network run (TS-N) on `Cr`, composed as `cli-run.ts` composes it."""
+    from campaigns.baseline import ports
+
+    return _run(
+        name="travel-network",
+        task_set="TS-N",
+        input_value={"text": text},
+        grants=TRAVEL_GRANTS,
+        approved=list(ports.load("travel-network").tools),
+        rung=rung,
+        run_dir=run_dir,
+        stack=stack,
+        fixture_key=fixture_key,
+        meta=meta,
+    )
+
+
+def run_literature_review(
+    *, question: str, rung: Rung, run_dir: Path, stack, fixture_key: str | None, meta: dict
+) -> dict:
+    """One Literature Review run (TS-L) on `Cr`, composed as `cli-run.ts` composes it, with no
+    selected files (the Node CLI binds none)."""
+    grants, approved = literature_grants(None)
+    return _run(
+        name="literature-review",
+        task_set="TS-L",
+        input_value=literature_input(question),
+        grants=grants,
+        approved=approved,
+        rung=rung,
+        run_dir=run_dir,
+        stack=stack,
+        fixture_key=fixture_key,
+        meta=meta,
     )

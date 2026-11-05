@@ -22,6 +22,17 @@
  *   over the card's facts, the same normalisation;
  * - observation-only wrappers of the tool handlers.
  *
+ * Two modes (D-357, D-359): `conversation` (WebAir, TS-W and TS-C) composes `Conversation` as
+ * `cli-converse.ts` does; `run` (the travel network, TS-N; Literature Review, TS-L) composes
+ * `ExecutionSession` as `cli-run.ts` does (`localExecutionPlan` over the signed package, the host
+ * tool registry and its evaluation, the bound model; `session.begin` with the host's permissive
+ * limits, then `session.run`), with the same record source (the store as `deps.resolver`, a
+ * `MemoryRun` over it as `deps.memory`), host mapping and route. The session builds its tool
+ * handlers itself, so a run's tool calls are observed at the tool transport, each request paired
+ * with the core's own `observe` report (tool id, binding, the exact URL and body), and the answer
+ * the package received is recomputed from the response with the core's own adapter for that
+ * binding (`HTTP_ADAPTERS`, `CROSSREF_WORKS_ADAPTER`): observation only.
+ *
  * Input: one JSON job on stdin. Output: one JSON report on stdout.
  */
 import { syncBuiltinESMExports } from "node:module";
@@ -37,7 +48,7 @@ import { Conversation } from "../src/core/conversation/runner.js";
 import { checkTranscript, readInputTranscript } from "../src/core/conversation/transcript.js";
 import { buildHostToolRegistry, evaluateRegistry, normalizeRegistry, planToolBindings, REGISTRY_SCHEMA } from "../src/core/hosttools.js";
 import type { JsonObject, JsonValue } from "../src/core/json.js";
-import { publicKeyFromPem } from "../src/core/keys.js";
+import { fingerprint, publicKeyFromPem } from "../src/core/keys.js";
 import { agentToolDigests, requestedResourceTypes } from "../src/core/memory/declarations.js";
 import { documentToRecord } from "../src/core/memory/document.js";
 import { RELATIONS, type MemoryRecord } from "../src/core/memory/model.js";
@@ -50,7 +61,14 @@ import { adapterFor } from "../src/core/models/providers.js";
 import { BoundModelRouter } from "../src/core/models/router.js";
 import type { HttpTransport, OutboundModelRequest } from "../src/core/models/transport.js";
 import { loadPackageBytes, type Package } from "../src/core/package.js";
-import { verifyWithTrustedKey } from "../src/core/signature.js";
+import { embeddedPublicKey, verifyWithTrustedKey } from "../src/core/signature.js";
+import { sha256Hex } from "../src/core/hash.js";
+import { ExecutionSession } from "../src/core/execution/runner.js";
+import { PERMISSIVE_HOST_LIMITS } from "../src/core/execution/limits.js";
+import { localExecutionPlan } from "../src/core/execution/plan.js";
+import { CROSSREF_WORKS_ADAPTER } from "../src/core/tools/adapters/crossref.js";
+import { HTTP_ADAPTERS } from "../src/core/tools/adapters/json-http.js";
+import type { ModelBindingDescriptor } from "../src/core/models/binding.js";
 import { normalizeToolBindings } from "../src/core/tools/bindings.js";
 import { toolHandlers } from "../src/core/tools/broker.js";
 import { definitionsFromRegistry, describeDefinition, type CredentialSource } from "../src/core/tools/definitions.js";
@@ -74,9 +92,13 @@ interface Route {
 }
 
 interface Job {
+  /** `conversation` (the default, WebAir) or `run` (a one-shot `workflow.v0` run, as `cli-run.ts`). */
+  mode?: "conversation" | "run";
+  /** The run's input (mode `run`). */
+  input?: JsonValue;
   package: string;
   trust_key: string;
-  transcript: JsonObject;
+  transcript?: JsonObject;
   grants: Record<string, string>;
   approved_tools: string[];
   records: string[];
@@ -87,6 +109,8 @@ interface Job {
   probe_proposals?: JsonValue;
   /** Offline tests only: one GET through the tool transport (its resolver seam), no conversation. */
   probe_fetch?: string;
+  /** Offline tests only: the run mode's recording transport over canned responses (its pairing with `observe` and the adapters' answers). */
+  probe_record?: { observed: Observed[]; requests: { url: string; method: string; body: string | null }[]; responses: { status: number; body: string }[] };
   /** Offline tests only: the responder's decisions on these cards (rule 11 with `responder.py`). */
   probe_consent?: { turn: number; facts: JsonValue }[];
 }
@@ -176,7 +200,7 @@ function modelTransport(route: Route): HttpTransport {
 
 class RefusingRouter implements ModelRouter {
   readonly remote = false;
-  readonly model_id = "campaign/refuse";
+  readonly model_id = "ollama/campaign-refuse";
   readonly router_id = "campaign-refuse";
   readonly capabilities: ReadonlySet<string> = new Set(["structured_output", "reasoning"]);
   readonly context_window = 1_000_000;
@@ -190,8 +214,29 @@ class RefusingRouter implements ModelRouter {
   }
 }
 
+/** The test route's binding, so that a `run` plan can name it (the session checks the router against the plan). */
+function refusingBinding(): ModelBindingDescriptor {
+  return normalizeModelBinding({
+    host_model_id: "ollama/campaign-refuse",
+    provider_id: "ollama",
+    model_id: "campaign-refuse",
+    display_name: "campaign refuse (offline tests)",
+    compatibility_status: null,
+    evidence_strength: null,
+    capabilities: { structured_output: { value: true, basis: null }, reasoning: { value: true, basis: null } },
+    limits: { context_tokens: 1_000_000 },
+    properties: { local: true },
+    pricing: null,
+  });
+}
+
 async function bindRouter(pkg: Package, route: Route): Promise<ModelRouter> {
-  if (route.kind === "refuse") return new RefusingRouter();
+  return (await bindModel(pkg, route)).router;
+}
+
+/** The rung's router and the binding a plan names (`cli-run.ts`'s `bindLive` model half). */
+async function bindModel(pkg: Package, route: Route): Promise<{ router: ModelRouter; binding: ModelBindingDescriptor }> {
+  if (route.kind === "refuse") return { router: new RefusingRouter(), binding: refusingBinding() };
   const provider = route.kind as ProviderId;
   const key = route.api_key_env ? (process.env[route.api_key_env] ?? null) : null;
   const connection: ProviderConnection = {
@@ -226,7 +271,7 @@ async function bindRouter(pkg: Package, route: Route): Promise<ModelRouter> {
     ollama: { baseUrl: route.base_url ?? undefined, think: route.think ?? true },
     openai: { apiKey: key },
   });
-  return new BoundModelRouter(adapter, { requestTimeoutSeconds: route.timeout_seconds ?? 600 });
+  return { router: new BoundModelRouter(adapter, { requestTimeoutSeconds: route.timeout_seconds ?? 600 }), binding };
 }
 
 /** `driver/responder.py`'s rule over the card's facts (`card_facts`), the same normalisation. */
@@ -300,6 +345,21 @@ async function main(): Promise<void> {
     emit({ probe: "fetch", error, dials });
     return;
   }
+  if (job.probe_record !== undefined) {
+    const probe = job.probe_record;
+    let index = 0;
+    const canned: HttpTransport = async () => {
+      const answer = probe.responses[index++]!;
+      return { status: answer.status, headers: {}, body: answer.body };
+    };
+    const pending = [...probe.observed];
+    const transport = recordingTransport(canned, pending);
+    for (const request of probe.requests) {
+      await transport({ url: request.url, method: request.method as "GET" | "POST", headers: {}, body: request.body, signal: AbortSignal.timeout(5_000), maxResponseBytes: 1 << 20 });
+    }
+    emit({ probe: "record", tool_calls: toolCalls, pending: pending as unknown as JsonValue });
+    return;
+  }
   if (job.probe_consent !== undefined) {
     const host = new ResponderHost(job.responder);
     for (const card of job.probe_consent) {
@@ -366,10 +426,14 @@ async function main(): Promise<void> {
   const evaluation = await evaluateRegistry(pkg, registry, { decisions: job.grants as Record<string, "deny" | "once" | "session">, toolApprovals: approvals, now: now() });
   const toolBindings = normalizeToolBindings(planToolBindings(evaluation).filter((binding) => binding.approved));
   const toolIds = Object.fromEntries(Object.entries(pkg.tools).map(([id, tool]) => [String((tool as JsonObject).binding), id]));
-  const router = await bindRouter(pkg, job.route);
   const engine = nodeComputeEngine(new URL("./compute-worker.js", import.meta.url));
+  if (job.mode === "run") {
+    await runMode({ job, pkg, bytes, definitions, toolBindings, resourceGrants, store, memoryRun: memoryRun(), engine });
+    return;
+  }
+  const router = await bindRouter(pkg, job.route);
   const transport = toolTransport(job.mapping);
-  const transcript = await readInputTranscript(job.transcript, "campaign");
+  const transcript = await readInputTranscript(job.transcript!, "campaign");
   await checkTranscript(transcript, pkg, job.grants as never);
   const host = new ResponderHost(job.responder);
   const conversation = new Conversation(pkg, {
@@ -394,6 +458,149 @@ async function main(): Promise<void> {
     transcript: result ? result.transcript : null,
     audit: result ? result.audit : null,
     usage: result ? result.usage : null,
+    model_calls: modelCalls,
+    tool_calls: toolCalls,
+    consent,
+    responder: decisions,
+    dials,
+    core_version: CORE_VERSION,
+  });
+}
+
+/** The transport's view of one tool request, paired with the core's own `observe` report. */
+interface Observed {
+  tool_id: string;
+  binding_id: string;
+  url: string;
+  body: string | null;
+}
+
+/** The arguments the package sent, read back from the request: the JSON body of a POST, else the
+ * query (the Crossref binding's `query.bibliographic` and `rows` are the declared `query` and `limit`). */
+function argumentsOf(request: { url: string; body: string | null }, crossref: boolean): JsonValue {
+  if (request.body !== null) {
+    try {
+      return JSON.parse(request.body) as JsonValue;
+    } catch {
+      return request.body;
+    }
+  }
+  const params = new URL(request.url).searchParams;
+  if (crossref) return { query: params.get("query.bibliographic") ?? "", limit: Number(params.get("rows") ?? 0) };
+  return Object.fromEntries(params.entries());
+}
+
+/**
+ * The run's tool transport with its observation seam (D-359): each request is recorded with the
+ * tool the core said it was for (`observe`, called just before the transport with the exact URL
+ * and body), the response's status, and the answer the package received, recomputed with the
+ * core's own adapter for that binding. Nothing is changed on the way.
+ */
+function recordingTransport(base: HttpTransport, pending: Observed[]): HttpTransport {
+  return async (request) => {
+    const index = pending.findIndex((item) => item.url === request.url && (item.body ?? null) === (request.body ?? null));
+    const seen = index >= 0 ? pending.splice(index, 1)[0]! : null;
+    const crossref = seen?.binding_id.includes("crossref_works_search") ?? false;
+    const entry: JsonObject = {
+      at: Date.now() / 1000,
+      turn: 1,
+      tool: seen?.tool_id ?? null,
+      binding: seen?.binding_id ?? null,
+      role: null,
+      url: request.url,
+      arguments: argumentsOf(request, crossref),
+    };
+    toolCalls.push(entry);
+    let response;
+    try {
+      response = await base(request);
+    } catch (error) {
+      entry.outcome = "threw";
+      entry.error = (error as Error).name;
+      throw error;
+    }
+    entry.status = response.status;
+    try {
+      const json = JSON.parse(response.body) as JsonValue;
+      const implementation = seen ? seen.binding_id.split(":")[1] : null;
+      const adapter = crossref ? CROSSREF_WORKS_ADAPTER : HTTP_ADAPTERS.get(`chrome.tool.${implementation}`) ?? null;
+      if (adapter === null) entry.answer = json;
+      else entry.answer = adapter.response({ status: response.status, json }, entry.arguments as JsonValue, new Date().toISOString());
+      entry.outcome = "answered";
+    } catch (error) {
+      entry.outcome = "threw";
+      entry.error = (error as { code?: string }).code ?? (error as Error).name;
+    }
+    return response;
+  };
+}
+
+/** A one-shot run composed as `cli-run.ts` composes `run --mode live` (D-359). */
+async function runMode(parts: {
+  job: Job;
+  pkg: Package;
+  bytes: Uint8Array;
+  definitions: ReturnType<typeof definitionsFromRegistry>;
+  toolBindings: ReturnType<typeof normalizeToolBindings>;
+  resourceGrants: ResourceGrant[];
+  store: MemoryStore;
+  memoryRun: MemoryRun;
+  engine: ReturnType<typeof nodeComputeEngine>;
+}): Promise<void> {
+  const { job, pkg, bytes } = parts;
+  if (pkg.manifest.entrypoint !== "workflow.v0" || (pkg.graph.conversation !== undefined && pkg.graph.conversation !== null)) {
+    throw new Error("the run mode takes a one-shot workflow.v0 package");
+  }
+  const { router, binding } = await bindModel(pkg, job.route);
+  const signer = await fingerprint(await embeddedPublicKey(pkg.signature!));
+  const { plan, authorization } = localExecutionPlan({
+    pkg,
+    archiveSha256: await sha256Hex(bytes),
+    signerFingerprint: signer,
+    decisions: job.grants,
+    approvedTools: [...new Set(job.approved_tools)].sort(),
+    fixture: false,
+    modelBinding: binding,
+    toolBindings: parts.toolBindings,
+    resourceGrants: parts.resourceGrants,
+  });
+  const pending: Observed[] = [];
+  const session = new ExecutionSession();
+  const begin = await session.begin(
+    {
+      run_id: `run_${randomBytes(16).toString("hex")}`,
+      run_plan: plan,
+      authorization,
+      input: job.input ?? {},
+      limits: { ...PERMISSIVE_HOST_LIMITS },
+      host: { runtime: HOST_RUNTIME, runtime_version: CORE_VERSION, verified_version: CORE_VERSION },
+    },
+    {
+      archive: bytes,
+      router,
+      tools: {
+        definitions: parts.definitions,
+        transport: recordingTransport(toolTransport(job.mapping), pending),
+        credentials: () => null,
+        pacer: new Pacer(),
+        observe: (request) => pending.push(request),
+      },
+      resolver: parts.store,
+      memory: parts.memoryRun,
+      compute: parts.engine,
+    },
+  );
+  const outcome = await session.run();
+  const report = outcome.report;
+  emit({
+    status: outcome.result.status,
+    error: null,
+    error_code: (outcome.result.error_code as string | undefined) ?? null,
+    output: report.output ?? null,
+    audit: report.audit as unknown as JsonValue,
+    usage: outcome.result.usage ?? report.usage,
+    files: outcome.files.map(([name]) => name),
+    run_plan_sha256: begin.run_plan_sha256,
     model_calls: modelCalls,
     tool_calls: toolCalls,
     consent,
