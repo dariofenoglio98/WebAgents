@@ -257,7 +257,7 @@ def run_webair(
     result, error = None, None
     try:
         with hostmap.install(table):
-            result = asyncio.run(conversation.run(transcript))
+            result = asyncio.run(router.closing(conversation.run(transcript)))
     except Exception as exc:  # a driver failure: a harness error, in the denominator
         error = f"{type(exc).__name__}: {exc}"[:500]
     seconds = time.monotonic() - started
@@ -321,14 +321,16 @@ def _run_workflow(
     try:
         with hostmap.install(table):
             result = asyncio.run(
-                run_workflow(
-                    package,
-                    input_value,
-                    grants=grants,
-                    handlers=recorded,
-                    router=router,
-                    approved_tools=approved,
-                    memory=memory_run,
+                router.closing(
+                    run_workflow(
+                        package,
+                        input_value,
+                        grants=grants,
+                        handlers=recorded,
+                        router=router,
+                        approved_tools=approved,
+                        memory=memory_run,
+                    )
                 )
             )
     except Exception as exc:

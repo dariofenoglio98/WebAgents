@@ -202,6 +202,20 @@ class CampaignRouter:
             self._client_loop = loop
         return self._client
 
+    async def aclose(self) -> None:
+        """Close the loop's client and its keep-alive connections; called by the driver at the end
+        of the run or conversation, inside its loop (T31b review 1, finding 3)."""
+        client, self._client, self._client_loop = self._client, None, None
+        if client is not None:
+            await client.aclose()
+
+    async def closing(self, work):
+        """Await `work` (a run or a conversation), then close the client in the same loop."""
+        try:
+            return await work
+        finally:
+            await self.aclose()
+
     async def _ollama(self, rendered: dict, max_output_tokens: int, entry: dict):
         options = {"num_ctx": self.rung.context_window, "num_predict": max_output_tokens}
         if self.rung.temperature is not None:
