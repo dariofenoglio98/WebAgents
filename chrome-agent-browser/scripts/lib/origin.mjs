@@ -53,15 +53,28 @@ export function serveFiles(tls, files, answer = null) {
         response.writeHead(500, { "content-type": "text/plain" });
         return response.end("file unavailable");
       }
-      const stream = createReadStream(file.path);
+      // One `bytes=<start>-[<end>]` range is answered 206 (T41: the model downloader resumes with it);
+      // anything else is the whole file.
+      const range = /^bytes=(\d+)-(\d*)$/u.exec(String(request.headers.range ?? ""));
+      const start = range ? Number(range[1]) : 0;
+      const end = range && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+      if (range && (start >= size || start > end)) {
+        response.writeHead(416, { "content-range": `bytes */${size}` });
+        return response.end();
+      }
+      const stream = createReadStream(file.path, { start, end });
       stream.on("error", () => {
         if (!response.headersSent) {
           response.writeHead(500, { "content-type": "text/plain" });
           response.end("file unavailable");
         } else response.destroy();
       });
+      // A client that goes away (a cancelled download, Chrome closing) releases the file at once (T40 review 2).
+      response.on("close", () => stream.destroy());
       stream.once("open", () => {
-        response.writeHead(200, { "content-type": file.type, "content-length": String(size), "cache-control": "no-cache", "x-content-type-options": "nosniff" });
+        const headers = { "content-type": file.type, "content-length": String(end - start + 1), "cache-control": "no-cache", "x-content-type-options": "nosniff", "accept-ranges": "bytes" };
+        if (range) response.writeHead(206, { ...headers, "content-range": `bytes ${start}-${end}/${size}` });
+        else response.writeHead(200, headers);
         stream.pipe(response);
       });
       return undefined;

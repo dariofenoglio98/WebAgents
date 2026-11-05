@@ -179,6 +179,7 @@ export class InBrowserService {
     const text = await response.text();
     if (text.length > 1024 * 1024) throw new InBrowserError("document_too_large", "The model list exceeds 1 MiB.", 422);
     const next = await this.verifyList(utf8(text));
+    if (next.expires_at !== null && Date.parse(next.expires_at) < this.now().getTime()) throw new InBrowserError("model_catalog_stale", `The model list at this address (${next.version}) expired on ${next.expires_at}; the copy held here is kept.`);
     const current = await this.curated();
     const order = compareRelease(next.version, current.catalog.version);
     if (order < 0) throw new InBrowserError("document_rollback", `The model list at this address is version ${next.version}, older than the version ${current.catalog.version} held here; the newer copy is kept.`);

@@ -102,7 +102,7 @@ export class EngineHost {
   private nextId = 1;
   private readonly answers = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   private loaded: Loaded | null = null;
-  private loading: { entry: string; done: Promise<void> } | null = null;
+  private loading: { entry: string; n_ctx: number; done: Promise<void> } | null = null;
   private readonly users = new Map<string, string>();
   private readonly ports = new Map<string, PortLike>();
   private readonly queue: Pending[] = [];
@@ -147,7 +147,8 @@ export class EngineHost {
 
   /** The Worker died (Chrome killed it, out of memory): fail everything waiting, record the context, never restart by itself. */
   private async died(reason: string): Promise<void> {
-    const failed = this.loaded ?? (this.loading ? { entry: this.loading.entry, n_ctx: 0 } : null);
+    // A Worker that dies while loading is the classic "does not fit" (design §3): that context is recorded too.
+    const failed = this.loaded ?? (this.loading ? { entry: this.loading.entry, n_ctx: this.loading.n_ctx } : null);
     const error = Object.assign(new Error("The in-browser engine stopped (its Worker died, most likely out of GPU or main memory)"), { code: "model_unavailable", detail: { reason } });
     for (const waiter of this.answers.values()) waiter.reject(error);
     this.answers.clear();
@@ -157,6 +158,8 @@ export class EngineHost {
     this.worker?.terminate();
     this.worker = null;
     this.loaded = null;
+    // No run holds a model that is gone; each run's call already failed above.
+    this.users.clear();
     if (failed && failed.n_ctx > 0) {
       this.lastFailure = { entry: failed.entry, n_ctx: failed.n_ctx, reason, at: this.now().toISOString() };
       await this.deps.models.update(failed.entry, (row) => (row === null ? null : { ...row, failed_context: Math.min(row.failed_context ?? Number.POSITIVE_INFINITY, failed.n_ctx) })).catch(() => undefined);
@@ -202,7 +205,8 @@ export class EngineHost {
       await this.deps.models.update(request.entry, (current) => (current === null ? null : { ...current, last_used: this.now().toISOString() }));
       return result;
     })();
-    this.loading = { entry: request.entry, done: loading.then(() => undefined) };
+    // `done` only orders later loads after this one; its failure is the caller's (below), never an unhandled rejection.
+    this.loading = { entry: request.entry, n_ctx: request.n_ctx, done: loading.then(() => undefined, () => undefined) };
     try {
       const result = await loading;
       if (runId !== null) this.users.set(runId, request.entry);
@@ -307,8 +311,9 @@ export class EngineHost {
       .then(
         async (result) => {
           pending.port.postMessage({ id: pending.id, ok: true, result });
-          // The first completion after a load measures the speeds at that context (D-441, D-443).
-          if (!loaded.measured && result.timings && result.timings.prompt_per_second !== null && result.timings.predicted_per_second !== null && result.finish_reason !== "abort") {
+          // The first completion after a load measures the speeds at that context (D-441, D-443); a
+          // CPU-only control load (the harness's GPU-versus-CPU fact) never stands for this machine.
+          if (!loaded.measured && loaded.n_gpu_layers === null && result.timings && result.timings.prompt_per_second !== null && result.timings.predicted_per_second !== null && result.finish_reason !== "abort") {
             loaded.measured = true;
             const at = this.now().toISOString();
             const timings = result.timings;
@@ -316,6 +321,8 @@ export class EngineHost {
           }
         },
         (error: Error & { code?: string; detail?: Record<string, unknown> }) => {
+          // A dead Worker already answered every call it held (`died`): one reply per call.
+          if (this.current !== slot) return;
           const code = error.code === "model_unavailable" ? "model_unavailable" : /context|n_ctx|too long|exceed/iu.test(error.message) ? "model_request_invalid" : "engine_error";
           pending.port.postMessage({ id: pending.id, ok: false, error: { code, message: error.message.slice(0, 500), detail: error.detail ?? { entry: pending.request.entry }, audit_facts: { stage: "engine" } } });
         },
