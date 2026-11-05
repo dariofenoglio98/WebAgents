@@ -36,8 +36,14 @@ export const CURATED = [
   { id: "gpt-oss-20b-mxfp4", repository: "ggml-org/gpt-oss-20b-GGUF", file: "gpt-oss-20b-MXFP4.gguf", display_name: "gpt-oss 20B (MXFP4)", family: "gpt-oss", parameters: 20_000_000_000, quantization: "MXFP4", reasoning: true, notes: "The 20B mixture-of-experts class for 32 GB machines and larger." },
   { id: "qwen3-30b-a3b-q4_k_m", repository: "Qwen/Qwen3-30B-A3B-GGUF", file: "Qwen3-30B-A3B-Q4_K_M.gguf", display_name: "Qwen3 30B-A3B (Q4_K_M)", family: "qwen3", parameters: 30_000_000_000, quantization: "Q4_K_M", reasoning: true, notes: "The family of the only local model that met Literature Review's exact-copy contract (qwen3:30b); 36 GB and larger." },
 ];
-/** WebAir 0.8.0 and Literature Review 0.2.9 declare 16,000 tokens per task: the default context covers them. */
-const DEFAULT_CONTEXT = 16_384;
+/**
+ * The default context: 32,768, the cap the hosts apply to discovered local models (STATE §5). The
+ * packages declare 16,000 tokens per task, but the runtime reserves a call as one token per UTF-8
+ * byte of the request plus the node's output cap (D-055), and WebAir 0.8.0's `interpret` call
+ * reserves more than 16,384 that way (the first e2e run, 2026-11-05: `budget_exhausted` at a 16,384
+ * context). Where memory is short the recommendation halves it (D-443).
+ */
+const DEFAULT_CONTEXT = 32_768;
 const MAX_CONTEXT = 65_536;
 const LICENSES = { "apache-2.0": { name: "Apache License 2.0", url: "https://www.apache.org/licenses/LICENSE-2.0" } };
 
@@ -111,7 +117,7 @@ export async function curatedEntry(core, spec) {
 }
 
 async function main() {
-  const args = { version: "1.0.0", out: join(ROOT, "examples", "model-catalog.content.json") };
+  const args = { version: "1.1.0", out: join(ROOT, "examples", "model-catalog.content.json") };
   for (let index = 2; index < process.argv.length; index += 1) {
     if (process.argv[index] === "--version") args.version = process.argv[(index += 1)];
     else if (process.argv[index] === "--out") args.out = resolve(process.argv[(index += 1)]);

@@ -1,8 +1,8 @@
 {
   "catalog_id": "org.webagents.in-browser-models",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "WebAgents curated in-browser models",
-  "issued_at": "2026-11-05T17:40:30Z",
+  "issued_at": "2026-11-05T19:20:37Z",
   "expires_at": null,
   "entries": [
     {
@@ -26,7 +26,7 @@
       "bytes_total": 428970080,
       "context": {
         "train": 40960,
-        "default": 16384,
+        "default": 32768,
         "max": 40960
       },
       "capabilities": {
@@ -74,7 +74,7 @@
       "bytes_total": 2497280256,
       "context": {
         "train": 40960,
-        "default": 16384,
+        "default": 32768,
         "max": 40960
       },
       "capabilities": {
@@ -122,7 +122,7 @@
       "bytes_total": 5027783488,
       "context": {
         "train": 40960,
-        "default": 16384,
+        "default": 32768,
         "max": 40960
       },
       "capabilities": {
@@ -170,7 +170,7 @@
       "bytes_total": 12109566624,
       "context": {
         "train": 131072,
-        "default": 16384,
+        "default": 32768,
         "max": 65536
       },
       "capabilities": {
@@ -218,7 +218,7 @@
       "bytes_total": 18556685824,
       "context": {
         "train": 40960,
-        "default": 16384,
+        "default": 32768,
         "max": 40960
       },
       "capabilities": {

@@ -187,6 +187,14 @@ export function inBrowserSection(view: InBrowserView | null, settings: Settings,
     el("label", { className: "ab-field ab-inline" }, think, " ", el("span", { text: "Let local models think" })),
     el("p", { className: "ab-hint", text: "Loads the model with its reasoning turned on: slower, sometimes better on multi-step agents. The thinking tokens count against the run's budget. A change reloads the model before its next run." }),
     el("label", { className: "ab-field" }, idle),
+    (() => {
+      // D-448: a feature detect behind a setting, off; v1 keeps its own digest-keyed cache either way.
+      const cos = el("input", { attrs: { type: "checkbox", name: "in-browser-cos", "aria-label": "Use the browser's Cross-Origin Storage" } });
+      cos.checked = settings.models.in_browser.cross_origin_storage;
+      cos.addEventListener("change", () => actions.save({ ...settings, models: { ...settings.models, in_browser: { ...settings.models.in_browser, cross_origin_storage: cos.checked } } }));
+      const present = machine.cross_origin_storage;
+      return el("label", { className: "ab-field ab-inline" }, cos, " ", el("span", { text: `Use the browser's Cross-Origin Storage when it has one (this browser: ${present === true ? "present" : present === false ? "absent" : "not measured"}; not used in this version)` }));
+    })(),
     el("h4", { text: "Loaded now" }),
     view.engine?.loaded
       ? el("div", { className: "ab-inline" }, el("span", { text: `${view.engine.loaded.entry} at ${view.engine.loaded.n_ctx.toLocaleString("en-US")} tokens${view.engine.runs.length > 0 ? `, in use by ${view.engine.runs.map((item) => item.run_id).join(", ")}` : ""}${view.engine.idle_unload_at ? `, unloads at ${whenText(view.engine.idle_unload_at)} if unused` : ""}` }), button("Unload", () => actions.request({ type: "inbrowser.unload" })))

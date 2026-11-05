@@ -89,7 +89,7 @@ describe("the curated list", () => {
   it("falls back to the shipped list when the held one is signed by an unknown key", async () => {
     // A held list must verify under the pinned key; otherwise a note and the shipped one.
     const area = new MemoryStorageArea();
-    await area.set({ [CATALOG_KEY]: { text: await signedText({ ...CONTENT, version: "1.1.0" }) } });
+    await area.set({ [CATALOG_KEY]: { text: await signedText({ ...CONTENT, version: "1.2.0" }) } });
     const curated = await makeService({ area }).service.curated();
     expect(curated.source).toBe("shipped");
     expect(curated.catalog.version).toBe(CATALOG.version);
@@ -98,16 +98,16 @@ describe("the curated list", () => {
 
   it("keeps a newer list from the refresh address and uses it from then on", async () => {
     // A newer version that verifies is kept and chosen over the shipped one.
-    const text = await signedText({ ...CONTENT, version: "1.1.0" });
+    const text = await signedText({ ...CONTENT, version: "1.2.0" });
     const { service, area, fetched } = makeService({ keys: BOTH_KEYS, fetch: () => new Response(text, { status: 200 }) });
     expect((await service.curated()).source).toBe("shipped");
-    expect(await service.refreshCatalog()).toEqual({ version: "1.1.0", source: "refreshed", changed: true });
+    expect(await service.refreshCatalog()).toEqual({ version: "1.2.0", source: "refreshed", changed: true });
     expect(fetched).toEqual([CATALOG_SOURCE.refresh_url]);
     expect(((await area.get(CATALOG_KEY))[CATALOG_KEY] as { text: string }).text).toBe(text);
     const curated = await service.curated();
-    expect(curated).toMatchObject({ source: "refreshed", catalog: { version: "1.1.0" }, notes: [] });
+    expect(curated).toMatchObject({ source: "refreshed", catalog: { version: "1.2.0" }, notes: [] });
     // A second service over the same storage reads the held list.
-    expect((await makeService({ keys: BOTH_KEYS, area }).service.curated()).catalog.version).toBe("1.1.0");
+    expect((await makeService({ keys: BOTH_KEYS, area }).service.curated()).catalog.version).toBe("1.2.0");
   });
 
   it("refuses an older list as a rollback and keeps nothing", async () => {
@@ -130,7 +130,7 @@ describe("the curated list", () => {
   });
 
   it("refuses to fetch a list that has already expired, and keeps nothing", async () => {
-    const text = await signedText({ ...CONTENT, version: "1.1.0", expires_at: "2026-01-01T00:00:00Z" });
+    const text = await signedText({ ...CONTENT, version: "1.2.0", expires_at: "2026-01-01T00:00:00Z" });
     const { service, area } = makeService({ keys: BOTH_KEYS, fetch: () => new Response(text, { status: 200 }) });
     await expect(service.refreshCatalog()).rejects.toMatchObject({ code: "model_catalog_stale" });
     expect(await area.get(CATALOG_KEY)).toEqual({});
@@ -139,7 +139,7 @@ describe("the curated list", () => {
   it("falls back to the shipped list when the held one expired, or is older", async () => {
     // An expired held list is stale; an older one is not chosen either.
     const expired = new MemoryStorageArea();
-    await expired.set({ [CATALOG_KEY]: { text: await signedText({ ...CONTENT, version: "1.1.0", expires_at: "2026-01-01T00:00:00Z" }) } });
+    await expired.set({ [CATALOG_KEY]: { text: await signedText({ ...CONTENT, version: "1.2.0", expires_at: "2026-01-01T00:00:00Z" }) } });
     expect(await makeService({ keys: BOTH_KEYS, area: expired }).service.curated()).toMatchObject({ source: "shipped", catalog: { version: CATALOG.version }, notes: [{ code: "model_catalog_stale" }] });
     const older = new MemoryStorageArea();
     await older.set({ [CATALOG_KEY]: { text: await signedText({ ...CONTENT, version: "0.9.0" }) } });

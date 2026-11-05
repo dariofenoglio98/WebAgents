@@ -26,7 +26,7 @@ function view(cached: string[] = [], loaded: string | null = null): InBrowserVie
   const budget = gpuBudget(MACHINE);
   return {
     catalog: { id: CATALOG.catalog_id, version: CATALOG.version, title: CATALOG.title, source: "shipped", issued_at: CATALOG.issued_at, notes: [], refresh_url: "https://webagents-webair-production.up.railway.app/model-catalog.json" },
-    machine: { ...MACHINE, budget, budget_words: budgetWords(budget), probed_at: "2026-11-05T10:00:00Z", benchmark: { ms: 2.1, gflops: 512, f16: true, kernel_class: "fast", n: 512, repeats: 2, at: "2026-11-05T10:00:00Z" }, webgpu: true, adapter: "apple / metal-3" },
+    machine: { ...MACHINE, budget, budget_words: budgetWords(budget), probed_at: "2026-11-05T10:00:00Z", benchmark: { ms: 2.1, gflops: 512, f16: true, kernel_class: "fast", n: 512, repeats: 2, at: "2026-11-05T10:00:00Z" }, webgpu: true, adapter: "apple / metal-3", cross_origin_storage: false },
     entries: recommendations.map((recommendation) => {
       const entry = CATALOG.entries.find((item) => item.id === recommendation.entry)!;
       const isCached = cached.includes(entry.id);
@@ -74,7 +74,7 @@ describe("Settings → Models → In this browser", () => {
     expect(rows.map((node) => node.dataset.model)).toHaveLength(CATALOG.entries.length);
     const four = root.querySelector<HTMLElement>('[data-model="in-browser/qwen3-4b-q4_k_m"]')!;
     expect(four.dataset.bin).toBe("recommended");
-    expect(four.textContent).toMatch(/fits at a 16,384-token context/u);
+    expect(four.textContent).toMatch(/fits at a 32,768-token context/u);
   });
 
   it("opens the download card on Download… and starts nothing until its own Download button, asking Chrome for huggingface.co", () => {
@@ -90,7 +90,7 @@ describe("Settings → Models → In this browser", () => {
     expect(card.textContent).toContain("1 from huggingface.co");
     expect(card.textContent).toContain(entry.files[0]!.sha256);
     expect(card.textContent).toMatch(/GB free now, .* GB after/u);
-    expect(card.textContent).toMatch(/fits at a 16,384-token context/u);
+    expect(card.textContent).toMatch(/fits at a 32,768-token context/u);
     [...card.querySelectorAll("button")].find((node) => node.textContent!.startsWith("Download ("))!.click();
     expect(requests).toEqual([{ request: { type: "inbrowser.download", entryId: "qwen3-4b-q4_k_m" }, origins: ["https://huggingface.co"] }]);
   });

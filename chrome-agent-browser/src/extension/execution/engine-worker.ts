@@ -76,7 +76,7 @@ function gpu(): Gpu | null {
 async function probe(): Promise<EngineProbe> {
   const nav = navigator as Navigator & { deviceMemory?: number };
   const storage = await navigator.storage.estimate().then((estimate) => ({ quota: estimate.quota ?? null, usage: estimate.usage ?? null })).catch(() => null);
-  const base = { has_webgpu: gpu() !== null, device_memory_gb: nav.deviceMemory ?? null, hardware_concurrency: navigator.hardwareConcurrency ?? null, storage, cross_origin_isolated: (self as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated ?? null };
+  const base = { has_webgpu: gpu() !== null, device_memory_gb: nav.deviceMemory ?? null, hardware_concurrency: navigator.hardwareConcurrency ?? null, storage, cross_origin_isolated: (self as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated ?? null, cross_origin_storage: "crossOriginStorage" in navigator };
   const api = gpu();
   if (api === null) return { ...base, adapter: null, device: false };
   const adapter = await api.requestAdapter();

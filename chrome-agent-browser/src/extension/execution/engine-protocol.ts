@@ -19,6 +19,8 @@ export interface EngineProbe {
   hardware_concurrency: number | null;
   storage: { quota: number | null; usage: number | null } | null;
   cross_origin_isolated: boolean | null;
+  /** Whether this browser exposes Cross-Origin Storage (`navigator.crossOriginStorage`, D-448): a feature detect only; v1 never uses it. */
+  cross_origin_storage?: boolean;
   adapter: { vendor: string | null; architecture: string | null; description: string | null; is_fallback: boolean | null; features: string[]; max_buffer_size: number | null; max_storage_buffer_binding_size: number | null } | null;
   device: boolean | string;
 }

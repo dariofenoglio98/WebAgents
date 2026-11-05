@@ -3,9 +3,9 @@
   "content_type": "org.webagents:model-catalog-v0",
   "content": {
     "catalog_id": "org.webagents.in-browser-models",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "title": "WebAgents curated in-browser models",
-    "issued_at": "2026-11-05T17:40:30Z",
+    "issued_at": "2026-11-05T19:20:37Z",
     "expires_at": null,
     "entries": [
       {
@@ -29,7 +29,7 @@
         "bytes_total": 428970080,
         "context": {
           "train": 40960,
-          "default": 16384,
+          "default": 32768,
           "max": 40960
         },
         "capabilities": {
@@ -77,7 +77,7 @@
         "bytes_total": 2497280256,
         "context": {
           "train": 40960,
-          "default": 16384,
+          "default": 32768,
           "max": 40960
         },
         "capabilities": {
@@ -125,7 +125,7 @@
         "bytes_total": 5027783488,
         "context": {
           "train": 40960,
-          "default": 16384,
+          "default": 32768,
           "max": 40960
         },
         "capabilities": {
@@ -173,7 +173,7 @@
         "bytes_total": 12109566624,
         "context": {
           "train": 131072,
-          "default": 16384,
+          "default": 32768,
           "max": 65536
         },
         "capabilities": {
@@ -221,7 +221,7 @@
         "bytes_total": 18556685824,
         "context": {
           "train": 40960,
-          "default": 16384,
+          "default": 32768,
           "max": 40960
         },
         "capabilities": {
@@ -253,6 +253,6 @@
   "signature": {
     "algorithm": "ed25519",
     "key_fingerprint": "sha256:a6a5004694002f725279cd6c9942e25b7f7455e1247a8b3e7143710cbd50d84b",
-    "value": "+pIc6xiB4lAnnUPkn3XKf4w0aQyasYCdwgq/0G8Lw8RIIKcFaQW77JSyWBRTL5nspIgpKD5ua5eBPnpvfZ7uCQ=="
+    "value": "mi+26iicB69ov1fdOiZtObFa3AdssXWEdugyuJKgt+C2ZJpeVboQ4Aq1hL7UbZHoTv+yJizmDWx3pE9TaOuaBw=="
   }
 }

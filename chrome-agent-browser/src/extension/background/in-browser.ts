@@ -53,7 +53,7 @@ import type { Settings, StorageArea } from "../storage/settings.js";
 export const CATALOG_KEY = "modelCatalog";
 export const MACHINE_KEY = "inBrowserMachine";
 /** The default chosen context when an entry states none that fits (design §3). */
-export const DEFAULT_ENTRY_CONTEXT = 16_384;
+export const DEFAULT_ENTRY_CONTEXT = 32_768;
 export const HUGGING_FACE = "https://huggingface.co";
 /** Families whose models reason (design §5): a pasted entry of one states `reasoning: true`. */
 export const REASONING_FAMILIES: ReadonlyArray<[RegExp, string]> = [
@@ -71,7 +71,7 @@ export interface MachineRecord {
 
 export interface InBrowserView {
   catalog: { id: string; version: string; title: string; source: "shipped" | "refreshed"; issued_at: string; notes: CatalogNote[]; refresh_url: string };
-  machine: MachineFacts & { budget: InBrowserEntryState["budget"]; budget_words: string; probed_at: string | null; benchmark: MachineRecord["benchmark"]; webgpu: boolean | null; adapter: string | null };
+  machine: MachineFacts & { budget: InBrowserEntryState["budget"]; budget_words: string; probed_at: string | null; benchmark: MachineRecord["benchmark"]; webgpu: boolean | null; adapter: string | null; cross_origin_storage: boolean | null };
   entries: Array<{
     entry: InBrowserEntry;
     recommendation: Recommendation;
@@ -323,7 +323,7 @@ export class InBrowserService {
     const cachedRows = [...rows.values()].filter((row) => cacheState(row).cached);
     return {
       catalog: { id: curated.catalog.catalog_id, version: curated.catalog.version, title: curated.catalog.title, source: curated.source, issued_at: curated.catalog.issued_at, notes: curated.notes, refresh_url: CATALOG_SOURCE.refresh_url },
-      machine: { ...machine, budget, budget_words: budgetWords(budget), probed_at: machine.record.probed_at, benchmark: machine.record.benchmark, adapter: machine.gpu ? [machine.gpu.vendor, machine.gpu.architecture].filter(Boolean).join(" / ") || null : null },
+      machine: { ...machine, budget, budget_words: budgetWords(budget), probed_at: machine.record.probed_at, benchmark: machine.record.benchmark, cross_origin_storage: machine.record.probe?.cross_origin_storage ?? null, adapter: machine.gpu ? [machine.gpu.vendor, machine.gpu.architecture].filter(Boolean).join(" / ") || null : null },
       entries: recommendations.map((recommendation) => {
         const entry = entries.find((item) => item.id === recommendation.entry)!;
         const row = rows.get(entry.id) ?? null;
