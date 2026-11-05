@@ -16,7 +16,7 @@
  *     the network's progress (every route decision with its reason) and each role's spend;
  *   - the run export and the recorded requests (the privacy observer, recording on) are written
  *     under `examples/my-chrome-network-<stamp>/`, the reference's fixture run of the same archive
- *     beside them, and `scripts/verify_chrome_network.py` recomputes the checks from those files:
+ *     beside them, and `scripts/verify_network_run.py` recomputes the checks from those files:
  *     the chain, the walk, the decisions, every observed count within the plan's "at most", the
  *     reference's identical walk, plan and decisions, and every request to the two fakes only.
  *
@@ -33,6 +33,7 @@ import { fileURLToPath } from "node:url";
 import { Cdp } from "./lib/cdp.mjs";
 import { grantedBuild } from "./lib/granted-build.mjs";
 import { certificate, serveFiles } from "./lib/origin.mjs";
+import { same } from "./lib/same.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROJECT = resolve(here, "..");
@@ -78,9 +79,6 @@ const check = (name, condition, detail) => {
 };
 const log = (text) => process.stderr.write(`[${Math.round((Date.now() - startedAt.getTime()) / 1000)}s] ${text}\n`);
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
-/** Structural equality with object keys sorted: the fixture matches by canonical JSON. */
-const canonical = (value) => (Array.isArray(value) ? `[${value.map(canonical).join(",")}]` : value && typeof value === "object" ? `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}` : JSON.stringify(value));
-const same = (a, b) => canonical(a) === canonical(b);
 
 /** The package's own fixture, read from the signed archive the run opens. */
 function packageFixture(scratch) {

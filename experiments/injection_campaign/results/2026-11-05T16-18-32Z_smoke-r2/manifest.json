@@ -1,0 +1,116 @@
+{
+ "schema": "campaign.manifest.v1",
+ "commit": "f698c960fc3cdab0c0babdfca705cd1f11044b76",
+ "dirty": false,
+ "dirty_fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ "protocol": {
+  "sha256": "f22b8527ef94783d9ab47c6d6b331bc1a548d62681a1c41268a311b9477adc8f",
+  "version": 1
+ },
+ "seed": 31,
+ "preset": "smoke",
+ "sides": [
+  "Py",
+  "Cr",
+  "FW"
+ ],
+ "task_sets": {
+  "ts-w.json": "b67e5e70770db87b47da7e68abb106e096bc5c442d3ba78f268d11ce1232cd16",
+  "ts-c.json": "ea80a73a435cd869dd032428db7c508d6ee9f11d30a36df52c37c085a62ccfa8",
+  "ts-n.json": "a76a3c15c65efbe905c54bb37268c145e9f3e1de2cd653af0f45ee97604c743f"
+ },
+ "not_built": [
+  "Cr:TS-N"
+ ],
+ "payloads": {
+  "sha256": "0993c4bab27224f9dceac25d8bd237ec6e61733273db49c7d7216033e902e583",
+  "files": {
+   "F-ACTION/action-01.json": "92f0b7bced146c50107f89e5d19d7c24e722dd2647c0c1a301ce5a4ca8e35852",
+   "F-CONSENT/consent-01.json": "814e3a71e5b7cfa7661d818c5e9a2435ad6c6ddee24327db85785263317c1b49",
+   "F-FIELD/field-01.json": "c2178e1d1e3f6983a08868268b1e8855849ffca1e7c0d843fd6c767b22eb2f4c",
+   "F-MEMORY/memory-01.json": "377f90726ef641466c7f5b0e257d77645d095f18902090852153c3bf5a5d316e",
+   "F-PEER/peer-01.json": "701f3bf605215c56a4c62a30dd77cee35fb9066e8a3e10716e718e7fa3e9c5eb",
+   "F-REDIRECT/redirect-01.json": "44eab99245f132c11d60bd90a82c07d11652bf38e39bf94b370dc42882b056e7",
+   "F-STEER/steer-01.json": "ae87b22f9a7e19d668c28f8b921837bb2b26366223be5c132a551be88c17f433",
+   "F-TERMINATE/terminate-01.json": "965bb3792d0911bec37c379cda596d03a41b485df7da04205ca923af523158c4",
+   "F-UPLOAD/upload-01.json": "5d455053a7916892b3b79724dcb1ffaef9bc7f4c24bf173d09d2a82d0798334f",
+   "F-WIDEN/widen-01.json": "8bdb6abb4338486689aa554219ca262f4be56f8edd18bba99467d6209ddb2b54"
+  }
+ },
+ "policies": {
+  "webair": "be9e24ffa0990bebfee4cf6c7b68976434aa40c7926a04d033844dbb004c236c",
+  "travel-network": "a88ea945105d8def138a8bb2d8a7b3acddc0c674fb830401557d93629094e5fb"
+ },
+ "instructions": {
+  "webair": "5d7ebf3b69a577b6c14b5e96fc9c5df35b7d72df98c9dc13f10d0f9b284fbd2e",
+  "travel-network": "834f32a3a55f946ddbd5d58e298e20c172d22b5d1af1240afbb2159e8a4906d5"
+ },
+ "rungs": {
+  "L9": {
+   "name": "L9",
+   "provider": "ollama",
+   "model": "qwen3.5:9b",
+   "base_url": "http://127.0.0.1:11434",
+   "context_window": 32768,
+   "temperature": 0.0,
+   "think": null,
+   "api_key_env": null,
+   "timeout_seconds": 600.0,
+   "remote": false,
+   "ollama_digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+   "list_price_usd_per_mtok": null,
+   "provisional": false
+  }
+ },
+ "host_mapping": {
+  "hostnames": [
+   "webagents-webair-production.up.railway.app",
+   "webagents-citation-resolver-production.up.railway.app",
+   "sink.invalid"
+  ],
+  "dial": "127.0.0.1, a throwaway campaign CA per stack",
+  "real_dns_answer_classified": true
+ },
+ "responder": "R-facts",
+ "envelopes": {
+  "webair": {
+   "per": "turn",
+   "model_calls": 4,
+   "tokens": 120000,
+   "tool_calls": 12,
+   "max_calls_per_tool": {
+    "get-fare-rules": 6,
+    "personal.passenger_identity": 1,
+    "prepare-booking": 1,
+    "search-flights": 1,
+    "simulate-purchase": 1,
+    "travel.profile": 1,
+    "wallet.payment_method": 1
+   },
+   "conversation": {
+    "max_turns": 8,
+    "tokens": 240000,
+    "max_calls_per_tool": {
+     "simulate-purchase": 1
+    }
+   }
+  },
+  "travel-network": {
+   "per": "run",
+   "model_calls": 8,
+   "tokens": 48000,
+   "tool_calls": 3
+  },
+  "fw_answer_step_model_calls": 1
+ },
+ "versions": {
+  "agentpkg": "0.7.1",
+  "python": "3.13.5",
+  "openai-agents": "0.24.0",
+  "secagent": "b02783b896d4bf01a2adf24738015e258db8d35b",
+  "cr_build": "cr-f7718c3cee0ce16ff1fc"
+ },
+ "expected_runs": 26,
+ "units_sha256": "df8ced3ef80e2d02f20345a6fce0ff73524342e3fb980a50ecf0af602a405156",
+ "written_at": "2026-11-05T16:18:44Z"
+}

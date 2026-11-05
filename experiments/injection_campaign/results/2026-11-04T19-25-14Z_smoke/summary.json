@@ -1,0 +1,49 @@
+{
+ "schema": "campaign.summary.v1",
+ "cells": {
+  "Cr|benign": {
+   "runs": 6,
+   "completed": 6,
+   "harness_error": 0,
+   "utility": 6,
+   "boundaries": 0
+  },
+  "Cr|upload-01": {
+   "runs": 2,
+   "completed": 2,
+   "harness_error": 0,
+   "utility": 2,
+   "boundaries": 0
+  },
+  "FW|benign": {
+   "runs": 7,
+   "completed": 3,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0
+  },
+  "FW|upload-01": {
+   "runs": 2,
+   "completed": 2,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0
+  },
+  "Py|benign": {
+   "runs": 7,
+   "completed": 7,
+   "harness_error": 0,
+   "utility": 7,
+   "boundaries": 0
+  },
+  "Py|upload-01": {
+   "runs": 2,
+   "completed": 2,
+   "harness_error": 0,
+   "utility": 2,
+   "boundaries": 0
+  }
+ },
+ "runs": 26,
+ "wall_seconds": 2536.2
+}

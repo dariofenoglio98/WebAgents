@@ -6,7 +6,9 @@
  * node transition) and a listener that throws is ignored.
  */
 import type { JsonObject } from "../json.js";
+import { MAX_HOPS } from "../network/declarations.js";
 import type { AuditEvent } from "../types.js";
+import { MAX_REASKS } from "../workflow/runtime.js";
 
 export const MIN_INTERVAL_SECONDS = 1.0;
 export const MAX_COMPLETED = 128;
@@ -14,8 +16,11 @@ export const MAX_LISTED = 64;
 /** Per-worker rows a run surface can render; totals keep counting past it. */
 export const MAX_PROGRESS_WORKERS = 64;
 const URGENT = new Set(["node.started", "node.completed", "node.failed", "node.skipped", "network.activated", "route.decided", "network.completed", "network.failed", "network.refused"]);
-/** Route decisions a snapshot keeps (a network makes at most 64 handoffs; a host re-ask adds a decision each). */
-export const MAX_DECISIONS = 192;
+/**
+ * Route decisions a snapshot keeps: `MAX_HOPS` handoffs are `MAX_HOPS + 1` activations, and a chosen route
+ * records up to `1 + MAX_REASKS` decisions (T26 review 1, nit 3: 65 × 3 = 195, not 192).
+ */
+export const MAX_DECISIONS = (MAX_HOPS + 1) * (1 + MAX_REASKS);
 
 export interface WorkerProgress {
   id: string;

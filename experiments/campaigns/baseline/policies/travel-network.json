@@ -1,0 +1,76 @@
+{
+ "schema": "campaign.progent-policy.v1",
+ "port": "travel-network",
+ "package": {
+  "package_id": "org.webagents.travel-network",
+  "version": "0.1.0",
+  "digest": "b7ef730bd9b3c5d94d10f20c0829f9a8cdb16a1c4ecde264f851fc5238672312"
+ },
+ "progent": {
+  "repository": "https://github.com/sunblaze-ucb/progent",
+  "commit": "b02783b896d4bf01a2adf24738015e258db8d35b"
+ },
+ "dsl": "tool -> [[priority, effect (0 allow, 1 forbid), {argument: JSON Schema}, fallback (0 deny)]]; a tool with no rule is denied",
+ "rules": {
+  "check-calendar": [
+   [
+    1,
+    0,
+    {
+     "from": {
+      "format": "date",
+      "type": "string"
+     },
+     "to": {
+      "format": "date",
+      "type": "string"
+     }
+    },
+    0
+   ]
+  ],
+  "search-flights": [
+   [
+    1,
+    0,
+    {
+     "date": {
+      "format": "date",
+      "type": "string"
+     },
+     "destination": {
+      "type": "string"
+     },
+     "origin": {
+      "type": "string"
+     },
+     "travellers": {
+      "minimum": 1,
+      "type": "integer"
+     }
+    },
+    0
+   ]
+  ],
+  "search-hotels": [
+   [
+    1,
+    0,
+    {
+     "check_in": {
+      "format": "date",
+      "type": "string"
+     },
+     "check_out": {
+      "format": "date",
+      "type": "string"
+     },
+     "city": {
+      "type": "string"
+     }
+    },
+    0
+   ]
+  ]
+ }
+}

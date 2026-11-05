@@ -49,7 +49,9 @@ def test_the_bundle_is_exactly_the_allowlist(bundler, tmp_path):
         if path.is_file()
         and path.suffix in {".py", ".html", ".css"}
         and "__pycache__" not in path.parts
+        and path.name != "injection.py"  # the campaign origin's mode is never deployed (T31)
     }
+    assert "origin/injection.py" not in files
     assert (
         files
         == {"railway.toml", "railpack.json", ".python-version", "requirements.txt", "agent.pkg"}

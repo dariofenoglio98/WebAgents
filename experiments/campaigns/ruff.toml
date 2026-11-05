@@ -1,0 +1,2 @@
+# The project's own lint settings (agentpkg/pyproject.toml), for the campaign infrastructure (T31).
+extend = "../../agentpkg/pyproject.toml"

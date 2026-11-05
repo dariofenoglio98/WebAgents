@@ -94,8 +94,9 @@ jobs:
                         verify_compute verify_conversation verify_network \
                         check_security_model check_protocol check_extension_privileges; do
             report="$RUNNER_TEMP/$script.json"
-            agentpkg/.venv/bin/python "scripts/$script.py" > "$report"
-            # The scripts report failures in their JSON, not in their exit status.
+            # The scripts report failures in their JSON; some also exit 1, which under `bash -e` would
+            # abort before the report line below prints the problems, so the JSON check decides.
+            agentpkg/.venv/bin/python "scripts/$script.py" > "$report" || true
             agentpkg/.venv/bin/python -c '
           import json, sys
           report = json.load(open(sys.argv[2]))
@@ -697,13 +698,15 @@ jobs:
         run: |
           python -m venv agentpkg/.venv
           agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev,compute]'
+          # The campaign infrastructure (T31): WebAir's origin and the framework baseline.
+          agentpkg/.venv/bin/python -m pip install -r experiments/campaigns/requirements.txt
           (cd openclaw-agent-browser && npm ci && npm run build)
           (cd chrome-agent-browser && npm ci)
       - name: Tests (no test may be skipped)
         # One pytest process per experiment: each puts its own directory first on
         # sys.path, and the experiments have `analyze` modules of their own.
         run: |
-          for experiment in contract_overhead contract_enforcement contract_enforcement/catalog_v2 conformance_report; do
+          for experiment in contract_overhead contract_enforcement contract_enforcement/catalog_v2 conformance_report campaigns; do
             agentpkg/.venv/bin/python -m pytest "experiments/$experiment/tests" -rs \
               --junitxml="$RUNNER_TEMP/${experiment//\//_}.xml"
             agentpkg/.venv/bin/python - "$RUNNER_TEMP/${experiment//\//_}.xml" <<'PY'

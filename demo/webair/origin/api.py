@@ -91,7 +91,20 @@ def _validation_details(exc: ValidationError) -> list[dict]:
     ]
 
 
-def _endpoint(name: str, request_model: type[BaseModel]) -> Callable:
+def json_endpoint(
+    name: str,
+    request_model: type[BaseModel],
+    call: Callable[[Request, BaseModel], BaseModel],
+    *,
+    label: str | None = None,
+    by_alias: bool = False,
+) -> Callable:
+    """A POST endpoint: JSON media type, a bounded body, a strict parse, WebAir's error mapping.
+
+    `call(request, arguments)` answers the parsed arguments; a `WebAirError` it raises becomes the
+    error document with the error's status. WebAir's own API and the travel services share it.
+    """
+
     async def endpoint(request: Request) -> JSONResponse:
         if media_type(request) != "application/json":
             return error_response(
@@ -111,20 +124,29 @@ def _endpoint(name: str, request_model: type[BaseModel]) -> Callable:
             return error_response(
                 422,
                 "invalid_request",
-                f"The {name} arguments do not match the schema.",
+                f"The {label or name} arguments do not match the schema.",
                 _validation_details(exc),
             )
-        service: WebAirService = request.app.state.service
         try:
-            result = getattr(service, name)(arguments)
+            result = call(request, arguments)
         except WebAirError as exc:
             return error_response(
                 exc.status, exc.code, exc.message, [{"field": exc.field, "message": exc.message}]
             )
-        return JSONResponse(result.model_dump(mode="json"), headers={"Cache-Control": "no-store"})
+        return JSONResponse(
+            result.model_dump(mode="json", by_alias=by_alias), headers={"Cache-Control": "no-store"}
+        )
 
     endpoint.__name__ = name
     return endpoint
+
+
+def _endpoint(name: str, request_model: type[BaseModel]) -> Callable:
+    def call(request: Request, arguments: BaseModel) -> BaseModel:
+        service: WebAirService = request.app.state.service
+        return getattr(service, name)(arguments)
+
+    return json_endpoint(name, request_model, call)
 
 
 def schemas_document() -> dict:

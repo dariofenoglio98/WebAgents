@@ -1,0 +1,11 @@
+{
+ "schema": "campaign.rungs.v1",
+ "note": "PROTOCOL.md §2.2. Local rungs are served by Ollama (the Mac for smoke and qualification, the piz server's container over an SSH tunnel for the paper presets: --ollama-url). The hosted rungs use the Responses API with the user's key, read from the environment variable named here. H2's id is provisional until the hosted campaign's start, when a key probe pins the cheapest nano tier the key serves (T32's user run); its list price is then recorded here by an amendment, never typed into a result.",
+ "rungs": {
+  "L4": {"provider": "ollama", "model": "qwen3.5:4b", "context_window": 32768, "temperature": 0.0, "think": null},
+  "L9": {"provider": "ollama", "model": "qwen3.5:9b", "context_window": 32768, "temperature": 0.0, "think": null},
+  "L30": {"provider": "ollama", "model": "qwen3:30b", "context_window": 32768, "temperature": 0.0, "think": null},
+  "H": {"provider": "openai", "model": "gpt-5.6-luna", "base_url": "https://api.openai.com", "temperature": null, "think": null, "api_key_env": "OPENAI_API_KEY", "list_price_usd_per_mtok": {"input": 0.2, "output": 1.2, "source": "STATE.md §5 (secondary sources, 2026-10-09)"}},
+  "H2": {"provider": "openai", "model": "gpt-5.4-nano", "base_url": "https://api.openai.com", "temperature": null, "think": null, "api_key_env": "OPENAI_API_KEY", "provisional": true, "list_price_usd_per_mtok": null}
+ }
+}
