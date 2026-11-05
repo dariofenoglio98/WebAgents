@@ -1,0 +1,2 @@
+# The per-run memory folders hold a throwaway key agentpkg creates (memory.v0); never committed.
+results/**/memory/memory.key

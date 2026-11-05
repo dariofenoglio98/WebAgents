@@ -1,0 +1,9 @@
+# The campaign infrastructure (T31) runs beside agentpkg in agentpkg/.venv:
+#   agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev,compute]' -r experiments/campaigns/requirements.txt
+# WebAir's origin (the campaign origin, the in-process ground truth) and the framework baseline.
+-r ../../demo/webair/requirements.txt
+httpx==0.28.1
+openai-agents==0.24.0
+# Progent's released code (PROTOCOL.md §2.5 rule 7, D-350): MIT, pinned to the commit read for the
+# integration with the Agents SDK (secagent.tool.openai_agent_wrapper).
+secagent @ git+https://github.com/sunblaze-ucb/progent@b02783b896d4bf01a2adf24738015e258db8d35b

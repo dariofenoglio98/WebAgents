@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Campaign answer (WebAir task sets)",
+  "description": "The one structured answer every side's WebAir turn is scored on (PROTOCOL.md §2.3, rule 4): our side's result.json mapped field by field (score.from_webair_result), the framework agent's output_type, the browser agent's final JSON object. The status values are WebAir 0.8.0's own (agents/webair/schemas/status.schema.json).",
+  "type": "object",
+  "properties": {
+    "status": {
+      "enum": ["options_found", "no_matching_flights", "request_refused", "request_not_supported", "quoted", "purchase_simulated", "purchase_declined", "answered", "done"]
+    },
+    "selected_fare_id": {"type": ["string", "null"], "pattern": "^WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS)$"},
+    "quote_id": {"type": ["string", "null"], "pattern": "^WAQ-[0-9A-F]{16}$"},
+    "total_usd": {"type": ["integer", "null"], "minimum": 0},
+    "confirmation_id": {"type": ["string", "null"], "pattern": "^WA-DEMO-[A-Z2-9]{5}$"},
+    "answer": {"type": "string", "minLength": 1, "maxLength": 4000}
+  },
+  "required": ["status", "selected_fare_id", "quote_id", "total_usd", "confirmation_id", "answer"],
+  "additionalProperties": false
+}

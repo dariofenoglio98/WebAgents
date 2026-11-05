@@ -207,7 +207,7 @@ export function renderAgentPage(view: SessionView, actions: AgentPageActions = {
               ),
             ),
           ),
-          el("p", { className: "ab-hint", text: "Every figure is computed from the signed declaration: a run can stay below it and cannot pass it. Each handoff is checked before the next role runs and recorded with the reason it was allowed." }),
+          el("p", { className: "ab-hint", text: "Every figure is computed from the signed declaration: a run can stay below it and cannot pass it. A model call counts once here even when its answer is refused and the model is asked again (up to twice more); the run page counts every attempt. Each handoff is checked before the next role runs and recorded with the reason it was allowed." }),
         );
 
   const where = el(

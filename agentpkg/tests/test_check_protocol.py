@@ -401,3 +401,30 @@ def test_forbidden_patterns_are_check_security_models(checker, monkeypatch):
     import check_security_model
 
     assert checker.FORBIDDEN is check_security_model.FORBIDDEN
+
+
+def test_built_by_continuation_line_is_read(checker, tmp_path, protocol_text):
+    # T29 review 6, nit 5: a field ends at the next field marker, not at any bold line start.
+    start, end = _section_of(protocol_text, "E7")
+    body = protocol_text[start:end].replace(
+        "**Built by.** T38 ", "**Built by.** the overhead task,\n**T99** and ", 1
+    )
+    assert body != protocol_text[start:end]
+    problems = _problems(checker, tmp_path, protocol_text[:start] + body + protocol_text[end:])
+    assert any("E7: 'Built by' names unknown tasks: T99" in p for p in problems), problems
+
+
+def test_a_heading_inside_a_fence_is_not_a_heading(checker, tmp_path, protocol_text):
+    # T29 review 6, nit 6: a `# ` line in a fenced shell snippet does not end the section.
+    start, end = _section_of(protocol_text, "E3")
+    body = protocol_text[start:end]
+    marker = "**Properties.**"
+    snippet = "```sh\n# run the smoke preset\nexperiments/campaigns/run.py --preset smoke\n```\n"
+    mutated_body = body.replace(marker, snippet + marker, 1)
+    assert mutated_body != body
+    report = _run(checker, tmp_path, protocol_text[:start] + mutated_body + protocol_text[end:])
+    assert report["passed"] is True, report["problems"]
+    # The same snippet unfenced cuts the section, so the check is not vacuous.
+    unfenced = body.replace(marker, "# run the smoke preset\n" + marker, 1)
+    problems = _problems(checker, tmp_path, protocol_text[:start] + unfenced + protocol_text[end:])
+    assert any(p.startswith("E3: field") for p in problems), problems

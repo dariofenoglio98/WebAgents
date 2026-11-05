@@ -43,6 +43,7 @@ import json
 import sys
 import zipfile
 from collections import Counter
+from collections.abc import Callable
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,17 +53,28 @@ from agentpkg.delegation.analysis import DONE, worst_case
 from agentpkg.execution.report import verify_audit_chain
 from agentpkg.package import load_package
 
-CHECKS: list[dict] = []
+REQUIRED_FILES = ("run.json", "run-plan.json", "audit.json", "usage.json")
 
 
-def check(name: str, ok: bool, detail=None) -> None:
-    CHECKS.append(
-        {
-            "check": name,
-            "passed": bool(ok),
-            **({} if detail is None else {"detail": detail}),
-        }
-    )
+def _checks() -> tuple[list[dict], Callable[..., None]]:
+    """A fresh check list per verification, so `verify()` is re-entrant (T26 review 1, nit 4)."""
+    checks: list[dict] = []
+
+    def check(name: str, ok: bool, detail=None) -> None:
+        checks.append(
+            {
+                "check": name,
+                "passed": bool(ok),
+                **({} if detail is None else {"detail": detail}),
+            }
+        )
+
+    return checks, check
+
+
+def failed(reason: str) -> dict:
+    """A failed report for an input that cannot be verified at all (never a traceback)."""
+    return {"checks": [{"check": reason, "passed": False}], "passed": False}
 
 
 def read_export(path: Path) -> dict[str, bytes]:
@@ -137,15 +149,15 @@ def observed_walk(audit: list[dict]) -> dict:
 def verify(
     files: dict[str, bytes], reference: Path | None = None, model_hosts=None
 ) -> dict:
-    load = lambda name: json.loads(files[name])
-    for name in ("run.json", "run-plan.json", "audit.json", "usage.json"):
+    checks, check = _checks()
+    for name in REQUIRED_FILES:
         check(f"the export holds {name}", name in files)
-    record, plan, audit, usage = (
-        load("run.json"),
-        load("run-plan.json"),
-        load("audit.json"),
-        load("usage.json"),
-    )
+    try:
+        record, plan, audit, usage = (
+            json.loads(files[name]) for name in REQUIRED_FILES
+        )
+    except (KeyError, ValueError):
+        return {"checks": checks, "passed": False}
     chain = verify_audit_chain(audit)
     check(
         "audit.json is one valid hash chain, the run record's",
@@ -166,7 +178,7 @@ def verify(
         network is not None,
     )
     if archive is None or network is None:
-        return {"checks": CHECKS, "passed": False}
+        return {"checks": checks, "passed": False}
     package = load_package(archive)
     declared = worst_case(package.graph, package.policy)
     check(
@@ -289,7 +301,7 @@ def verify(
         name: (round(observed[name] / at_most[name], 3) if at_most[name] else None)
         for name in observed
     }
-    passed = all(item["passed"] for item in CHECKS)
+    passed = all(item["passed"] for item in checks)
     return {
         "package": {
             "archive": str(archive.relative_to(ROOT)),
@@ -319,7 +331,7 @@ def verify(
         "walk": seen["walk"],
         "decisions": seen["decisions"],
         "per_role": per_role,
-        "checks": CHECKS,
+        "checks": checks,
         "passed": passed,
     }
 
@@ -339,14 +351,30 @@ def main() -> int:
     args = parser.parse_args()
     if args.report:
         report = json.loads(args.report.read_text())
-        files = read_export(ROOT / report["exportDirectory"])
-        hosts = {report["fakes"]["ollama"].split("//", 1)[1]}
-        result = verify(
-            files, reference=ROOT / report["referenceDirectory"], model_hosts=hosts
-        )
+        export = report.get("exportDirectory")
+        ollama = (report.get("fakes") or {}).get("ollama")
+        reference = report.get("referenceDirectory")
+        if not export or not ollama or not reference:
+            # A harness report written after an early failure names no export or fake.
+            result = failed(
+                "the harness report names an export, a reference and the fake model"
+            )
+        elif not (ROOT / export).exists():
+            result = failed(f"the export directory exists: {export}")
+        else:
+            hosts = {
+                ollama.split("//", 1)[-1]
+            }  # a value without a scheme is the host itself
+            result = verify(
+                read_export(ROOT / export),
+                reference=ROOT / reference,
+                model_hosts=hosts,
+            )
         report["network_verification"] = result
         report["passed_network"] = result["passed"]
         args.report.write_text(json.dumps(report, indent=2) + "\n")
+    elif not args.export.exists():
+        result = failed(f"the export exists: {args.export}")
     else:
         result = verify(read_export(args.export))
         if args.out:

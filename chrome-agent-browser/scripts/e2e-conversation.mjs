@@ -34,6 +34,7 @@ import { fileURLToPath } from "node:url";
 import { Cdp } from "./lib/cdp.mjs";
 import { grantedBuild } from "./lib/granted-build.mjs";
 import { certificate, serveFiles } from "./lib/origin.mjs";
+import { same } from "./lib/same.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROJECT = resolve(here, "..");
@@ -85,9 +86,6 @@ const check = (name, condition, detail) => {
 };
 const log = (text) => process.stderr.write(`[${Math.round((Date.now() - startedAt.getTime()) / 1000)}s] ${text}\n`);
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
-/** Structural equality with object keys sorted: the extension stores canonical JSON. */
-const canonical = (value) => (Array.isArray(value) ? `[${value.map(canonical).join(",")}]` : value && typeof value === "object" ? `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}` : JSON.stringify(value));
-const same = (a, b) => canonical(a) === canonical(b);
 
 /** The probe with its order tool remote, built and signed under a throwaway key. */
 function probe(scratch) {

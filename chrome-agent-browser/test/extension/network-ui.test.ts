@@ -7,6 +7,7 @@
  * answering from the package's fixture), and the run surface: the walk under the stages, the
  * handoffs against the envelope, every route decision and each role's spend in Technical details.
  */
+import { MAX_REASKS } from "../../src/core/workflow/runtime.js";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { JsonObject } from "../../src/core/json.js";
@@ -105,6 +106,9 @@ describe("the agent page of a delegation package", () => {
     expect(front.textContent).toContain("The model chooses what follows: Flights (at most 1×), Hotel (at most 1×), Calendar (at most 1×), done");
     expect(page.querySelector<HTMLElement>('.ab-role[data-role="Hotel"]')!.textContent).toContain("Then FrontMan, fixed by the package. Each time: the tool search-hotels, 1 remote call.");
     expect(front.textContent).toContain("Each time: up to 2 model calls, 12,000 tokens, 4 remote calls.");
+    // T26 review 1, should-fix 1 (B-246): the bound counts logical calls; a re-ask is an attempt the run page shows.
+    expect(page.textContent).toContain("A model call counts once here even when its answer is refused and the model is asked again (up to twice more); the run page counts every attempt.");
+    expect(MAX_REASKS).toBe(2); // the sentence's "twice"
   });
 
   it("the plan card states the envelope the plan froze", async () => {

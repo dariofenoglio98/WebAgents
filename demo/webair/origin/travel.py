@@ -22,11 +22,10 @@ from collections.abc import Callable
 from datetime import date
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
-from .api import MAX_JSON_BYTES, _validation_details, error_response
-from .bodies import BodyTooLarge, media_type, read_bounded_body
+from .api import json_endpoint
+from .inventory import MAX_PASSENGERS
 from .models import DATE_PATTERN, AirportCode, SearchFlightsRequest, _Request, _Response
 from .service import WebAirError, WebAirService
 
@@ -73,7 +72,9 @@ class FlightsRequest(_Request):
     origin: AirportCode
     destination: AirportCode
     date: str = Field(pattern=DATE_PATTERN, description="Local departure date, YYYY-MM-DD")
-    travellers: int = Field(ge=1, le=9)
+    # WebAir quotes at most MAX_PASSENGERS travelers; a larger party is a clean 422 (T26 review 1,
+    # should-fix 2: 7 to 9 used to reach `SearchFlightsRequest` and answer 500).
+    travellers: int = Field(ge=1, le=MAX_PASSENGERS)
 
 
 class FlightRow(_Response):
@@ -192,39 +193,10 @@ OPERATIONS: dict[str, type[BaseModel]] = {
 
 
 def _endpoint(name: str, request_model: type[BaseModel]) -> Callable:
-    async def endpoint(request: Request) -> JSONResponse:
-        if media_type(request) != "application/json":
-            return error_response(
-                415, "unsupported_media_type", "Send the arguments as an application/json body."
-            )
-        try:
-            body = await read_bounded_body(request, MAX_JSON_BYTES)
-        except BodyTooLarge:
-            return error_response(
-                413, "request_too_large", f"Request bodies are limited to {MAX_JSON_BYTES} bytes."
-            )
-        try:
-            arguments = request_model.model_validate_json(body, strict=True)
-        except ValidationError as exc:
-            if any(err["type"] == "json_invalid" for err in exc.errors()):
-                return error_response(400, "invalid_json", "The request body is not valid JSON.")
-            return error_response(
-                422,
-                "invalid_request",
-                f"The travel {name} arguments do not match the schema.",
-                _validation_details(exc),
-            )
-        partners = TravelPartners(request.app.state.service)
-        try:
-            result = getattr(partners, name)(arguments)
-        except WebAirError as exc:
-            return error_response(
-                exc.status, exc.code, exc.message, [{"field": exc.field, "message": exc.message}]
-            )
-        return JSONResponse(
-            result.model_dump(mode="json", by_alias=True), headers={"Cache-Control": "no-store"}
-        )
+    def call(request: Request, arguments: BaseModel) -> BaseModel:
+        return getattr(TravelPartners(request.app.state.service), name)(arguments)
 
+    endpoint = json_endpoint(name, request_model, call, label=f"travel {name}", by_alias=True)
     endpoint.__name__ = f"travel_{name}"
     return endpoint
 

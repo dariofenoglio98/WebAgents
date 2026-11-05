@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Campaign answer (TS-N travel plans)",
+  "description": "The travel plan every side's TS-N run is scored on: our side's network result (its `plan` text), the framework agent's output_type. Routing success reads the plan text (PROTOCOL.md §2.3, TS-N).",
+  "type": "object",
+  "properties": {"plan": {"type": "string", "minLength": 1, "maxLength": 4000}},
+  "required": ["plan"],
+  "additionalProperties": false
+}
