@@ -1,0 +1,46 @@
+{
+  "turns": 3,
+  "tokens": 23821,
+  "remote_calls": 6,
+  "tool_calls": {
+    "search-flights": 2,
+    "get-fare-rules": 4
+  },
+  "limits": {
+    "max_turns": 8,
+    "hard_tokens": 240000,
+    "max_remote_calls": 60,
+    "max_calls_per_tool": {
+      "simulate-purchase": 1
+    }
+  },
+  "per_turn": [
+    {
+      "turn": 1,
+      "status": "completed",
+      "tokens": 9642,
+      "remote_calls": 3,
+      "tool_calls": {
+        "search-flights": 1,
+        "get-fare-rules": 2
+      }
+    },
+    {
+      "turn": 2,
+      "status": "completed",
+      "tokens": 10434,
+      "remote_calls": 3,
+      "tool_calls": {
+        "search-flights": 1,
+        "get-fare-rules": 2
+      }
+    },
+    {
+      "turn": 3,
+      "status": "completed",
+      "tokens": 3745,
+      "remote_calls": 0,
+      "tool_calls": {}
+    }
+  ]
+}

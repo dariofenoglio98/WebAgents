@@ -1,0 +1,536 @@
+{
+  "schema": "agentpkg-run-plan-v0",
+  "run_plan_version": "0.1",
+  "run_plan_id": "rp_2dac215c29c84eb8b4d0a6df780e804f",
+  "created_at": "2026-11-05T19:36:29.462Z",
+  "expires_at": "2026-11-05T21:36:26.149Z",
+  "session_id": "9edefeaed5e04f62b4c3512a",
+  "control_plane": {
+    "service": "chrome-agent-browser-control-plane",
+    "api_version": "v0",
+    "instance_id": "6ac3a4b7603246f78394098b3f028c1b"
+  },
+  "source": {
+    "kind": "website",
+    "display": "https://webagents-webair-production.up.railway.app/agent.pkg",
+    "advertised_on": "https://webagents-webair-production.up.railway.app/",
+    "opened_at": "2026-11-05T19:36:26.069Z"
+  },
+  "package": {
+    "package_id": "org.webagents.webair",
+    "name": "WebAir Travel Agent",
+    "version": "0.8.0",
+    "digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+    "archive_sha256": "9c81a9362754fc3c48c923b4968e75daa9e0260ae422be7e77b30f1df1a7eae0",
+    "entrypoint": "workflow.v0",
+    "execution_profile": "workflow.v0"
+  },
+  "publisher": {
+    "claimed_id": "webair-demo",
+    "claimed_name": "WebAir (fictional demo airline)",
+    "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+    "signature_status": "valid",
+    "trust_status": "trusted",
+    "trust_reason": "operator_pinned_key"
+  },
+  "trust_store": {
+    "path": "chrome.storage.local:trustStore",
+    "entry_count": 1,
+    "state_sha256": "7e9f0ea19bc3ea039a4dbed7d67d3af59f121fbd7b366610ef81913a3cc8b55f"
+  },
+  "validation": {
+    "container_status": "valid",
+    "integrity_status": "valid",
+    "schema_status": "valid",
+    "runtime_status": "compatible",
+    "supported_execution_profiles": [
+      "workflow.v0"
+    ],
+    "errors": []
+  },
+  "authorization": {
+    "receipt_id": "7b56d39d-84b6-4f37-a391-aefed342a0d2",
+    "receipt_sha256": "6f1271322f24ac706df762b7f16faa4ac4c39fec486be018603c1164a7796483",
+    "issued_at": "2026-11-05T19:36:26.750Z",
+    "expires_at": "2026-11-05T21:36:26.149Z",
+    "runnable": true,
+    "decisions": {
+      "booking.simulate_purchase": "deny",
+      "compute.fares": "session",
+      "identity.passenger": "deny",
+      "memory.remember": "deny",
+      "memory.session": "session",
+      "memory.travel_profile": "deny",
+      "model.reasoning": "session",
+      "network.webair": "session",
+      "wallet.payment": "deny"
+    },
+    "tool_approvals": {
+      "get-fare-rules": true,
+      "personal.passenger_identity": false,
+      "prepare-booking": false,
+      "search-flights": true,
+      "simulate-purchase": false,
+      "travel.profile": false,
+      "wallet.payment_method": false
+    },
+    "granted_permission_ids": [
+      "compute.fares",
+      "memory.session",
+      "model.reasoning",
+      "network.webair"
+    ],
+    "provenance": {
+      "schema": "org.webagents:decision-provenance-v0",
+      "profile_id": "search",
+      "profile_title": "Search flights",
+      "preset": "balanced",
+      "decisions": {
+        "booking.simulate_purchase": "profile",
+        "compute.fares": "profile",
+        "identity.passenger": "profile",
+        "memory.remember": "profile",
+        "memory.session": "profile",
+        "memory.travel_profile": "profile",
+        "model.reasoning": "profile",
+        "network.webair": "profile",
+        "wallet.payment": "profile"
+      },
+      "tool_approvals": {
+        "get-fare-rules": "profile",
+        "personal.passenger_identity": "profile",
+        "prepare-booking": "profile",
+        "search-flights": "profile",
+        "simulate-purchase": "profile",
+        "travel.profile": "profile",
+        "wallet.payment_method": "profile"
+      },
+      "resource_selections": {}
+    }
+  },
+  "execution": {
+    "profile": "workflow.v0",
+    "mode": "model",
+    "binding_strategy": "single_model",
+    "required_permission_ids": [
+      "model.reasoning"
+    ],
+    "required_tool_ids": [
+      "get-fare-rules",
+      "search-flights"
+    ],
+    "denied_tool_ids": [
+      "personal.passenger_identity",
+      "prepare-booking",
+      "simulate-purchase",
+      "travel.profile",
+      "wallet.payment_method"
+    ],
+    "probe_tool_id": null,
+    "tool_binding_count": 2,
+    "performed": false,
+    "note": "A run plan is a preflight artifact. This control plane never executes a package; a later runner must re-verify the digest, archive hash, signature, trust, receipt, model availability and every tool binding digest before dispatching anything. Declared tools the authorization did not approve are listed in denied_tool_ids; the runtime refuses any call to them (D-022).",
+    "conversation": {
+      "max_turns": 8,
+      "hard_tokens": 240000,
+      "max_remote_calls": 60,
+      "max_calls_per_tool": {
+        "simulate-purchase": 1
+      },
+      "persistent_keys": [
+        "confirmation_ref",
+        "history",
+        "known_fares",
+        "profile_used",
+        "quote_ref"
+      ],
+      "consent_steps": [
+        {
+          "id": "confirm-purchase",
+          "permissions": [
+            "booking.simulate_purchase"
+          ],
+          "kinds": [
+            "payment"
+          ],
+          "pre_decided": null
+        }
+      ],
+      "gated_permissions": {
+        "booking.simulate_purchase": [
+          "confirm-purchase"
+        ]
+      }
+    }
+  },
+  "tool_bindings": [
+    {
+      "tool_id": "get-fare-rules",
+      "binding_name": "webair.get_fare_rules",
+      "binding_id": "chrome:json_http:get-fare-rules:1",
+      "binding_sha256": "f400418197e68d635ee4d5d6dc7852e63a0710f9346040fa38a91185757a0cf4",
+      "implementation_kind": "json_http",
+      "implementation_id": "chrome.tool.json_http",
+      "implementation_version": "0.1.0",
+      "display_name": "get-fare-rules: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules",
+      "remote": true,
+      "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+      "endpoint_path": "/api/v1/get_fare_rules",
+      "method": "POST",
+      "contract_sha256": "fbc1b5d4a1b675dba99fc48e7b158d3c65abe6f97343fc971446aca8449a7267",
+      "input_schema_sha256": "ad5ad98ed1b482225a8d623cf7004270e4042d825fd7cf166651a37a0492e1c8",
+      "output_schema_sha256": "70c5dbb27a550e396ae211b5fe484bc395a67a793fba8c2cafa142840dd50b11",
+      "required_permission_ids": [
+        "network.webair"
+      ],
+      "usable": true,
+      "timeout_seconds": 20,
+      "max_calls": 6,
+      "credentials_required": false,
+      "credentials_configured": false,
+      "approved": true,
+      "approval_source": "authorization_receipt",
+      "compatibility_status": "bound"
+    },
+    {
+      "tool_id": "search-flights",
+      "binding_name": "webair.search_flights",
+      "binding_id": "chrome:json_http:search-flights:1",
+      "binding_sha256": "a1830ee079f719d9603ab4414ab3144c9179c0d5c00f188b47c46db8c6c830af",
+      "implementation_kind": "json_http",
+      "implementation_id": "chrome.tool.json_http",
+      "implementation_version": "0.1.0",
+      "display_name": "search-flights: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/search_flights",
+      "remote": true,
+      "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+      "endpoint_path": "/api/v1/search_flights",
+      "method": "POST",
+      "contract_sha256": "1585099824b6ef600a4e48316758527223a8e92ba843cd2e92ea94ce44058c98",
+      "input_schema_sha256": "66cb6246e48442ed5101adf8b40d8ca29027a499a5acea7c8db5c7ef0f799ba8",
+      "output_schema_sha256": "824d0e39f171a09d424a7a7e40c38632db9747a3a4d1846b0f7a95e26893e4a7",
+      "required_permission_ids": [
+        "network.webair"
+      ],
+      "usable": true,
+      "timeout_seconds": 20,
+      "max_calls": 1,
+      "credentials_required": false,
+      "credentials_configured": false,
+      "approved": true,
+      "approval_source": "authorization_receipt",
+      "compatibility_status": "bound"
+    }
+  ],
+  "tool_registry": {
+    "registry_sha256": "7861706908338078e11612c5f0443547b6acc86c89285a2036323a4ea7586072",
+    "binding_count": 7,
+    "available_binding_count": 7,
+    "host": {
+      "runtime": "chrome-agent-browser",
+      "runtime_version": "0.6.0",
+      "source": "chrome-agent-browser host tool registry (D-054, D-081, D-082): one generic HTTPS JSON binding per declared remote POST tool, derived from the signed declaration after the URL gate; the host's Crossref search for scholarly.search at Crossref's works endpoint; the selected-PDF reader for paper.read; one host-resource binding per vault type; other tools unbound",
+      "captured_at": "2026-11-05T19:36:29.458Z",
+      "agent_id": null
+    }
+  },
+  "resource_grants": [],
+  "resource_registry": {
+    "registry_sha256": "4092ac560c94bacc5f1b1223f59832ef9ed4606312d7d82f6542a71faf3d639d",
+    "type_count": 3,
+    "resource_count": 6
+  },
+  "model_binding": {
+    "strategy": "single_model",
+    "selected_at": "2026-11-05T19:36:29.462Z",
+    "host_model_id": "in-browser/qwen3-4b-q4_k_m",
+    "provider_id": "in-browser",
+    "model_id": "qwen3-4b-q4_k_m",
+    "display_name": "Qwen3 4B (Q4_K_M)",
+    "descriptor": {
+      "schema": "agentpkg-host-model-descriptor-v0",
+      "id": "in-browser/qwen3-4b-q4_k_m",
+      "provider_id": "in-browser",
+      "model_id": "qwen3-4b-q4_k_m",
+      "display_name": "Qwen3 4B (Q4_K_M)",
+      "available": true,
+      "availability_reason": null,
+      "selectable": true,
+      "capabilities": {
+        "reasoning": {
+          "name": "reasoning",
+          "value": true,
+          "basis": "declared",
+          "detail": "The curated catalog entry states it for the qwen3 family."
+        },
+        "structured_output": {
+          "name": "structured_output",
+          "value": true,
+          "basis": "derived",
+          "detail": "The engine constrains the answer with a grammar derived from the schema and the router validates it against the schema, failing closed. This is the runtime's guarantee, not a provider declaration."
+        }
+      },
+      "limits": {
+        "context_tokens": 32768,
+        "native_context_window": 40960,
+        "max_output_tokens": null
+      },
+      "properties": {
+        "local": true,
+        "privacy_class": "local",
+        "cost_class": "free",
+        "status": "cached",
+        "tags": [
+          "local",
+          "in-browser",
+          "gguf",
+          "curated",
+          "context:capped"
+        ]
+      }
+    },
+    "compatibility": {
+      "model_id": "in-browser/qwen3-4b-q4_k_m",
+      "provider_id": "in-browser",
+      "display_name": "Qwen3 4B (Q4_K_M)",
+      "available": true,
+      "availability_reason": null,
+      "selectable": true,
+      "status": "compatible",
+      "selectable_for_run_plan": true,
+      "evidence_strength": "derived",
+      "satisfied": [
+        "capability:reasoning",
+        "capability:structured_output",
+        "context_tokens:minimum"
+      ],
+      "violated": [],
+      "unknown": [],
+      "checks": [
+        {
+          "id": "capability:reasoning",
+          "kind": "capability",
+          "subject": "reasoning",
+          "operator": "is_true",
+          "value": true,
+          "tasks": [
+            "answer",
+            "interpret",
+            "remember",
+            "select"
+          ],
+          "host_value": true,
+          "status": "satisfied",
+          "basis": "declared",
+          "source": "capabilities",
+          "detail": "The curated catalog entry states it for the qwen3 family."
+        },
+        {
+          "id": "capability:structured_output",
+          "kind": "capability",
+          "subject": "structured_output",
+          "operator": "is_true",
+          "value": true,
+          "tasks": [
+            "answer",
+            "interpret",
+            "remember",
+            "select"
+          ],
+          "host_value": true,
+          "status": "satisfied",
+          "basis": "derived",
+          "source": "capabilities",
+          "detail": "The engine constrains the answer with a grammar derived from the schema and the router validates it against the schema, failing closed. This is the runtime's guarantee, not a provider declaration."
+        },
+        {
+          "id": "context_tokens:minimum",
+          "kind": "context_tokens",
+          "subject": "context_tokens",
+          "operator": "at_least",
+          "value": 16000,
+          "tasks": [
+            "answer",
+            "interpret",
+            "remember",
+            "select"
+          ],
+          "host_value": 32768,
+          "status": "satisfied",
+          "basis": "declared",
+          "source": "limits.context_tokens",
+          "detail": null
+        }
+      ],
+      "preferences": [
+        {
+          "id": "preferred_tier:reasoning",
+          "kind": "preferred_tier",
+          "subject": "reasoning",
+          "host_value": [
+            "local",
+            "in-browser",
+            "gguf",
+            "curated",
+            "context:capped"
+          ],
+          "status": "unknown"
+        }
+      ],
+      "limits": {
+        "context_tokens": 32768,
+        "native_context_window": 40960,
+        "max_output_tokens": null
+      },
+      "properties": {
+        "local": true,
+        "privacy_class": "local",
+        "cost_class": "free",
+        "status": "cached",
+        "tags": [
+          "local",
+          "in-browser",
+          "gguf",
+          "curated",
+          "context:capped"
+        ]
+      },
+      "capabilities": {
+        "reasoning": {
+          "value": true,
+          "basis": "declared",
+          "detail": "The curated catalog entry states it for the qwen3 family."
+        },
+        "structured_output": {
+          "value": true,
+          "basis": "derived",
+          "detail": "The engine constrains the answer with a grammar derived from the schema and the router validates it against the schema, failing closed. This is the runtime's guarantee, not a provider declaration."
+        }
+      }
+    },
+    "catalog": {
+      "catalog_sha256": "03ada0d0aad23d4e1a7ccf1f457b35cf4c5bba62a15f35f45631e89bb9caf292",
+      "model_count": 10,
+      "available_model_count": 5,
+      "host": {
+        "runtime": "chrome-agent-browser",
+        "runtime_version": "0.6.0",
+        "source": "chrome-agent-browser model catalog: the in-browser model cache and catalog, Ollama /api/tags + /api/show, OpenAI /v1/models, Anthropic /v1/models, Chrome LanguageModel.availability(); no model was called",
+        "captured_at": "2026-11-05T19:36:29.436Z",
+        "agent_id": null
+      }
+    }
+  },
+  "model_requirements": {
+    "schema": "agentpkg-model-requirements-v0",
+    "package_id": "org.webagents.webair",
+    "package_version": "0.8.0",
+    "package_digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+    "routing": "host",
+    "fallback_policy": "deny",
+    "privacy": null,
+    "latency_preference": null,
+    "cost_sensitivity": null,
+    "tasks": [
+      {
+        "id": "interpret",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "select",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "answer",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "remember",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      }
+    ],
+    "hard_requirements": [
+      {
+        "id": "capability:reasoning",
+        "kind": "capability",
+        "subject": "reasoning",
+        "operator": "is_true",
+        "value": true,
+        "tasks": [
+          "answer",
+          "interpret",
+          "remember",
+          "select"
+        ]
+      },
+      {
+        "id": "capability:structured_output",
+        "kind": "capability",
+        "subject": "structured_output",
+        "operator": "is_true",
+        "value": true,
+        "tasks": [
+          "answer",
+          "interpret",
+          "remember",
+          "select"
+        ]
+      },
+      {
+        "id": "context_tokens:minimum",
+        "kind": "context_tokens",
+        "subject": "context_tokens",
+        "operator": "at_least",
+        "value": 16000,
+        "tasks": [
+          "answer",
+          "interpret",
+          "remember",
+          "select"
+        ]
+      }
+    ],
+    "preferences": [
+      {
+        "id": "preferred_tier:reasoning",
+        "kind": "preferred_tier",
+        "subject": "reasoning"
+      }
+    ],
+    "binding_strategy": "single_model",
+    "note": "Hard requirements must hold for the one selected model, because this profile binds a single model to every declared task."
+  },
+  "browser_policy": {
+    "require_valid_signature": true,
+    "require_trusted_publisher": true,
+    "require_supported_profile": true,
+    "require_confirmed_model_compatibility": true,
+    "require_confirmed_tool_contract": true
+  },
+  "readiness": {
+    "state": "ready",
+    "ready": true,
+    "compatibility_status": "compatible",
+    "blocking_reasons": []
+  },
+  "run_plan_sha256": "e413a23cbc2e334cb26540f5d776d834f8a81267e2d24095b5ffccbd8f721bd5"
+}

@@ -1,0 +1,11 @@
+{
+  "profile": "workflow.v0",
+  "interpreter": "chrome-agent-browser.workflow.Workflow",
+  "package_id": "org.webagents.webair",
+  "package_digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+  "synthetic": false,
+  "conversation": {
+    "conversation_id": "160120ef-1580-4ca2-8f9a-8d0bc567fa91",
+    "turn": 2
+  }
+}

@@ -1,0 +1,662 @@
+{
+  "schema": "chrome-agent-browser-run-record-v0",
+  "runId": "run_dd38792a0a90429f97cc7b21787d63a7",
+  "sessionId": "9edefeaed5e04f62b4c3512a",
+  "runPlanId": "rp_2dac215c29c84eb8b4d0a6df780e804f",
+  "runPlanSha256": "e413a23cbc2e334cb26540f5d776d834f8a81267e2d24095b5ffccbd8f721bd5",
+  "runInvocationSha256": "bf0387ddd3c23893604c8a7773cc95186462f5de485bb6f259f12c7c7b370a90",
+  "inputSha256": "8342af51000b529f659bda0d93c8d4b832dfa8c06a000e493979b374f753d370",
+  "status": "completed",
+  "createdAt": "2026-11-05T19:36:30.077Z",
+  "startedAt": "2026-11-05T19:36:32.739Z",
+  "endedAt": "2026-11-05T19:37:58.299Z",
+  "durationMs": 85560,
+  "package": {
+    "packageId": "org.webagents.webair",
+    "name": "WebAir Travel Agent",
+    "version": "0.8.0",
+    "digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+    "archiveSha256": "9c81a9362754fc3c48c923b4968e75daa9e0260ae422be7e77b30f1df1a7eae0",
+    "executionProfile": "workflow.v0"
+  },
+  "selectedModel": {
+    "hostModelId": "in-browser/qwen3-4b-q4_k_m",
+    "providerId": "in-browser",
+    "modelId": "qwen3-4b-q4_k_m",
+    "displayName": "Qwen3 4B (Q4_K_M)",
+    "local": true
+  },
+  "model": {
+    "planned": "in-browser/qwen3-4b-q4_k_m",
+    "invoked": [
+      "in-browser/qwen3-4b-q4_k_m"
+    ],
+    "calls": 3,
+    "allCallsUsedPlannedModel": true,
+    "providers": [
+      "in-browser"
+    ],
+    "responseModels": [
+      "qwen3-4b-q4_k_m"
+    ]
+  },
+  "grants": {
+    "decisions": [
+      {
+        "permissionId": "booking.simulate_purchase",
+        "decision": "deny"
+      },
+      {
+        "permissionId": "compute.fares",
+        "decision": "session"
+      },
+      {
+        "permissionId": "identity.passenger",
+        "decision": "deny"
+      },
+      {
+        "permissionId": "memory.remember",
+        "decision": "deny"
+      },
+      {
+        "permissionId": "memory.session",
+        "decision": "session"
+      },
+      {
+        "permissionId": "memory.travel_profile",
+        "decision": "deny"
+      },
+      {
+        "permissionId": "model.reasoning",
+        "decision": "session"
+      },
+      {
+        "permissionId": "network.webair",
+        "decision": "session"
+      },
+      {
+        "permissionId": "wallet.payment",
+        "decision": "deny"
+      }
+    ],
+    "grantedPermissionIds": [
+      "compute.fares",
+      "memory.session",
+      "model.reasoning",
+      "network.webair"
+    ]
+  },
+  "resources": [],
+  "limits": {
+    "host": {
+      "totalTokens": 120000,
+      "maxRemoteCalls": 32,
+      "maxParallelWorkers": 3,
+      "maxOutputTokensPerCall": 16000,
+      "runTimeoutSeconds": 600,
+      "modelCallTimeoutSeconds": 300
+    },
+    "effectiveDeadlineSeconds": 600
+  },
+  "usage": {
+    "tokens": 9642,
+    "remoteCalls": 3,
+    "peakParallelWorkers": 2,
+    "toolCalls": 3,
+    "computeCalls": 2,
+    "limits": {
+      "hardTokens": 120000,
+      "maxRemoteCalls": 22,
+      "maxParallelWorkers": 3
+    },
+    "workers": [
+      {
+        "worker": "coordinator",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Interpreter:1",
+        "tokens": 3119,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Personal:2",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Searcher:3",
+        "tokens": 0,
+        "remoteCalls": 1
+      },
+      {
+        "worker": "Selector:4",
+        "tokens": 2482,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Searcher:5",
+        "tokens": 0,
+        "remoteCalls": 1
+      },
+      {
+        "worker": "Searcher:6",
+        "tokens": 0,
+        "remoteCalls": 1
+      },
+      {
+        "worker": "Personal:7",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Personal:8",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Booker:9",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Booker:10",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Writer:11",
+        "tokens": 4041,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Rememberer:12",
+        "tokens": 0,
+        "remoteCalls": 0
+      }
+    ]
+  },
+  "cost": {
+    "status": "unknown",
+    "totalUsd": null,
+    "calls": 3,
+    "callsWithReportedCost": 0
+  },
+  "audit": {
+    "events": 281,
+    "chainValid": true,
+    "finalHash": "2311add0d38fc957e784d7cba7f11e203ec9f98d07ffe89c01d143826d841dbc",
+    "actions": [
+      {
+        "action": "budget.updated",
+        "count": 12
+      },
+      {
+        "action": "compute.called",
+        "count": 2
+      },
+      {
+        "action": "compute.completed",
+        "count": 2
+      },
+      {
+        "action": "delegation.checked",
+        "count": 12
+      },
+      {
+        "action": "memory.cleared",
+        "count": 1
+      },
+      {
+        "action": "memory.proposed",
+        "count": 1
+      },
+      {
+        "action": "model.called",
+        "count": 3
+      },
+      {
+        "action": "model.completed",
+        "count": 3
+      },
+      {
+        "action": "model.count.called",
+        "count": 3
+      },
+      {
+        "action": "node.completed",
+        "count": 54
+      },
+      {
+        "action": "node.skipped",
+        "count": 23
+      },
+      {
+        "action": "node.started",
+        "count": 54
+      },
+      {
+        "action": "permission.checked",
+        "count": 29
+      },
+      {
+        "action": "runtime.started",
+        "count": 1
+      },
+      {
+        "action": "state.committed",
+        "count": 31
+      },
+      {
+        "action": "tool.called",
+        "count": 3
+      },
+      {
+        "action": "tool.completed",
+        "count": 3
+      },
+      {
+        "action": "tool.dispatched",
+        "count": 3
+      },
+      {
+        "action": "tool.settled",
+        "count": 3
+      },
+      {
+        "action": "worker.completed",
+        "count": 12
+      },
+      {
+        "action": "worker.spawned",
+        "count": 12
+      },
+      {
+        "action": "worker.started",
+        "count": 12
+      },
+      {
+        "action": "workflow.completed",
+        "count": 1
+      },
+      {
+        "action": "workflow.started",
+        "count": 1
+      }
+    ],
+    "workers": [
+      "Booker:10",
+      "Booker:9",
+      "Interpreter:1",
+      "Personal:2",
+      "Personal:7",
+      "Personal:8",
+      "Rememberer:12",
+      "Searcher:3",
+      "Searcher:5",
+      "Searcher:6",
+      "Selector:4",
+      "Writer:11",
+      "coordinator"
+    ],
+    "workersSpawned": 12,
+    "nodesCompleted": 54,
+    "modelCalls": 3,
+    "toolCalls": 3,
+    "tasksCalled": [
+      {
+        "task": "answer",
+        "count": 1
+      },
+      {
+        "task": "interpret",
+        "count": 1
+      },
+      {
+        "task": "select",
+        "count": 1
+      }
+    ]
+  },
+  "outputSha256": "af8be1a321e04e8f97e892f755fb7f101c6ae98ee6d7ef34d2286d9a440874a3",
+  "artifacts": [
+    {
+      "name": "result.json",
+      "bytes": 247790,
+      "sha256": "20eca0d73f6290e4c53f1eb9c74f7c4d95cf70d74d2361c2d83f04d80aba6d11"
+    },
+    {
+      "name": "audit.json",
+      "bytes": 197955,
+      "sha256": "de801ae34094dfdfac4039be6b870c69686c6d8563d80bcabd2eb574e206f13c"
+    },
+    {
+      "name": "usage.json",
+      "bytes": 2001,
+      "sha256": "66f75a1bc311403e6b915a879fd1f0278cfe2bfc71d209b1930845237801db1e"
+    },
+    {
+      "name": "provenance.json",
+      "bytes": 342,
+      "sha256": "21d3ca89617585753e9652e95da0f89638073c433c93841859a184c9b74e4439"
+    },
+    {
+      "name": "answer.md",
+      "bytes": 561,
+      "sha256": "563e7faa372880767ebe58ac0b78bacf948e16ce5e577c246ddd21281ce3726c"
+    },
+    {
+      "name": "search.json",
+      "bytes": 2937,
+      "sha256": "238556cd158f91b859293a146a8ee5d97a7815dfee2f8a5fc7b21c588ef3fac8"
+    },
+    {
+      "name": "fare-rules.json",
+      "bytes": 2852,
+      "sha256": "159f0f6b04f614e6fb82e35d30283c747f8f14558594b5d482f1f2f8d397b614"
+    },
+    {
+      "name": "booking.json",
+      "bytes": 42,
+      "sha256": "38068a369bc780ebe17dbc2a84fc7a8d7fc6d7858af6e1c925ecc0a91dd16149"
+    },
+    {
+      "name": "proposals.json",
+      "bytes": 57,
+      "sha256": "f08e2b22a1e32ced94adb3ec45448f0220b3ffeb80849422d79faaf98690c987"
+    }
+  ],
+  "host": {
+    "runtime": "chrome-agent-browser",
+    "runtimeVersion": "0.6.0",
+    "verifiedVersion": "0.6.0",
+    "versionVerified": true
+  },
+  "deadlineExceeded": false,
+  "cancelRequested": false,
+  "errorCode": null,
+  "errorDetail": null,
+  "revalidated": [
+    "preflight_ready",
+    "once_not_spent",
+    "receipt_outlasts_run_deadline",
+    "artifact:archive_sha256",
+    "artifact:container",
+    "artifact:integrity",
+    "artifact:schema",
+    "artifact:package_digest",
+    "artifact:package_identity",
+    "artifact:publisher_signature",
+    "artifact:signer_fingerprint",
+    "artifact:execution_profile",
+    "tool_bindings:2",
+    "model_still_available",
+    "input_bytes:85",
+    "input_bytes:85",
+    "runner:archive_sha256",
+    "runner:container",
+    "runner:integrity",
+    "runner:schema",
+    "runner:package_digest",
+    "runner:package_identity",
+    "runner:publisher_signature",
+    "runner:signer_fingerprint",
+    "runner:execution_profile",
+    "runner:tool_handlers:2",
+    "runner:tool_bound:get-fare-rules",
+    "runner:tool_bound:search-flights"
+  ],
+  "packageExecution": {
+    "workflowInstantiated": true,
+    "packageInstructionsLoaded": true,
+    "toolHandlersInstalled": 2,
+    "toolCalls": 3
+  },
+  "task": {
+    "inputBytes": 85,
+    "attachments": []
+  },
+  "progress": {
+    "events": 281,
+    "last_action": "memory.cleared",
+    "active_nodes": [],
+    "completed_nodes": [
+      "interpret",
+      "check-quote-fare",
+      "profile",
+      "check-open-quote",
+      "profile-used",
+      "search-origin",
+      "search-request",
+      "search",
+      "select",
+      "status",
+      "check-no-flights",
+      "check-not-searched",
+      "refusal",
+      "offered-flights",
+      "offered-fares",
+      "check-options",
+      "selected-booking-fare",
+      "fare-rules",
+      "booking-fare",
+      "offered-booking-fare",
+      "payment",
+      "passenger",
+      "booking-request",
+      "prepare",
+      "quote-total-input",
+      "quote-total",
+      "check-quote",
+      "check-quote-offer",
+      "check-quote-authorized",
+      "purchase-facts",
+      "booking-summary",
+      "confirm-purchase",
+      "quote-ref",
+      "purchase-request",
+      "purchase",
+      "check-confirmation",
+      "status-final",
+      "purchase-fares",
+      "purchase-summary",
+      "known-fares",
+      "purchase-result",
+      "confirmation-ref",
+      "answer",
+      "remember",
+      "history",
+      "assemble",
+      "scrub",
+      "output"
+    ],
+    "failed_nodes": [],
+    "skipped_nodes": [
+      "check-quote-fare",
+      "check-open-quote",
+      "profile",
+      "profile-used",
+      "search-origin",
+      "search-request",
+      "offered-flights",
+      "check-no-flights",
+      "check-not-searched",
+      "offered-booking-fare",
+      "payment",
+      "passenger",
+      "prepare",
+      "quote-total",
+      "check-quote",
+      "check-quote-offer",
+      "check-quote-authorized",
+      "confirm-purchase",
+      "quote-ref",
+      "purchase",
+      "check-confirmation",
+      "confirmation-ref",
+      "remember"
+    ],
+    "nodes_completed": 48,
+    "steps_completed": 6,
+    "workers_spawned": 12,
+    "workers_active": 0,
+    "peak_parallel_workers": 2,
+    "active_workers": [],
+    "model_calls_started": 3,
+    "model_calls_completed": 3,
+    "tool_calls_started": 3,
+    "tool_calls_completed": 3,
+    "tokens": 9642,
+    "remote_calls": 3,
+    "workers": [
+      {
+        "id": "Interpreter:1",
+        "role": "Interpreter",
+        "node": "interpret",
+        "state": "completed",
+        "model_calls": 1,
+        "tool_calls": 0,
+        "duration_ms": 25655
+      },
+      {
+        "id": "Personal:2",
+        "role": "Personal",
+        "node": "profile",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 0
+      },
+      {
+        "id": "Searcher:3",
+        "role": "Searcher",
+        "node": "search",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 1,
+        "duration_ms": 13
+      },
+      {
+        "id": "Selector:4",
+        "role": "Selector",
+        "node": "select",
+        "state": "completed",
+        "model_calls": 1,
+        "tool_calls": 0,
+        "duration_ms": 19133
+      },
+      {
+        "id": "Searcher:5",
+        "role": "Searcher",
+        "node": "fare-rules",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 1,
+        "duration_ms": 33
+      },
+      {
+        "id": "Searcher:6",
+        "role": "Searcher",
+        "node": "fare-rules",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 1,
+        "duration_ms": 33
+      },
+      {
+        "id": "Personal:7",
+        "role": "Personal",
+        "node": "payment",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 0
+      },
+      {
+        "id": "Personal:8",
+        "role": "Personal",
+        "node": "passenger",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 0
+      },
+      {
+        "id": "Booker:9",
+        "role": "Booker",
+        "node": "prepare",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 0
+      },
+      {
+        "id": "Booker:10",
+        "role": "Booker",
+        "node": "purchase",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 0
+      },
+      {
+        "id": "Writer:11",
+        "role": "Writer",
+        "node": "answer",
+        "state": "completed",
+        "model_calls": 1,
+        "tool_calls": 0,
+        "duration_ms": 40425
+      },
+      {
+        "id": "Rememberer:12",
+        "role": "Rememberer",
+        "node": "remember",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 0
+      }
+    ]
+  },
+  "tools": [
+    {
+      "toolId": "get-fare-rules",
+      "bindingId": "chrome:json_http:get-fare-rules:1",
+      "bindingSha256": "f400418197e68d635ee4d5d6dc7852e63a0710f9346040fa38a91185757a0cf4",
+      "remote": true,
+      "calls": 2,
+      "displayName": "get-fare-rules: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules",
+      "retries": 0,
+      "fallbackAnswers": 0
+    },
+    {
+      "toolId": "search-flights",
+      "bindingId": "chrome:json_http:search-flights:1",
+      "bindingSha256": "a1830ee079f719d9603ab4414ab3144c9179c0d5c00f188b47c46db8c6c830af",
+      "remote": true,
+      "calls": 1,
+      "displayName": "search-flights: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/search_flights",
+      "retries": 0,
+      "fallbackAnswers": 0
+    }
+  ],
+  "failure": null,
+  "origin": "live",
+  "conversation": {
+    "conversationId": "160120ef-1580-4ca2-8f9a-8d0bc567fa91",
+    "turn": 1
+  },
+  "memory": {
+    "proposals": {
+      "count": 0,
+      "types": [],
+      "proposals_sha256": "255f0bb2377422c83374e90e78935791e40a87e52bf9e57b73b7f9017d42932f",
+      "offered": 0,
+      "reason": "permission_denied"
+    },
+    "refused": null,
+    "agent": null
+  }
+}

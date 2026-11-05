@@ -1,0 +1,600 @@
+{
+  "schema": "chrome-agent-browser-run-record-v0",
+  "runId": "run_fda8d1674ac040fdbdf9ac4241d8fc79",
+  "sessionId": "9edefeaed5e04f62b4c3512a",
+  "runPlanId": "rp_2dac215c29c84eb8b4d0a6df780e804f",
+  "runPlanSha256": "e413a23cbc2e334cb26540f5d776d834f8a81267e2d24095b5ffccbd8f721bd5",
+  "runInvocationSha256": "c41dfd4e832abf3f13a85debb24c2af65ae19186c6d3adb701413062ec6c5be9",
+  "inputSha256": "4fc1207bfb600be789d6534d7a54fa3d7fd2a87d8fbca249b1b048c3837aa693",
+  "status": "completed",
+  "createdAt": "2026-11-05T19:39:01.763Z",
+  "startedAt": "2026-11-05T19:39:02.153Z",
+  "endedAt": "2026-11-05T19:39:16.671Z",
+  "durationMs": 14518,
+  "package": {
+    "packageId": "org.webagents.webair",
+    "name": "WebAir Travel Agent",
+    "version": "0.8.0",
+    "digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+    "archiveSha256": "9c81a9362754fc3c48c923b4968e75daa9e0260ae422be7e77b30f1df1a7eae0",
+    "executionProfile": "workflow.v0"
+  },
+  "selectedModel": {
+    "hostModelId": "in-browser/qwen3-4b-q4_k_m",
+    "providerId": "in-browser",
+    "modelId": "qwen3-4b-q4_k_m",
+    "displayName": "Qwen3 4B (Q4_K_M)",
+    "local": true
+  },
+  "model": {
+    "planned": "in-browser/qwen3-4b-q4_k_m",
+    "invoked": [
+      "in-browser/qwen3-4b-q4_k_m"
+    ],
+    "calls": 1,
+    "allCallsUsedPlannedModel": true,
+    "providers": [
+      "in-browser"
+    ],
+    "responseModels": [
+      "qwen3-4b-q4_k_m"
+    ]
+  },
+  "grants": {
+    "decisions": [
+      {
+        "permissionId": "booking.simulate_purchase",
+        "decision": "deny"
+      },
+      {
+        "permissionId": "compute.fares",
+        "decision": "session"
+      },
+      {
+        "permissionId": "identity.passenger",
+        "decision": "deny"
+      },
+      {
+        "permissionId": "memory.remember",
+        "decision": "deny"
+      },
+      {
+        "permissionId": "memory.session",
+        "decision": "session"
+      },
+      {
+        "permissionId": "memory.travel_profile",
+        "decision": "deny"
+      },
+      {
+        "permissionId": "model.reasoning",
+        "decision": "session"
+      },
+      {
+        "permissionId": "network.webair",
+        "decision": "session"
+      },
+      {
+        "permissionId": "wallet.payment",
+        "decision": "deny"
+      }
+    ],
+    "grantedPermissionIds": [
+      "compute.fares",
+      "memory.session",
+      "model.reasoning",
+      "network.webair"
+    ]
+  },
+  "resources": [],
+  "limits": {
+    "host": {
+      "totalTokens": 120000,
+      "maxRemoteCalls": 32,
+      "maxParallelWorkers": 3,
+      "maxOutputTokensPerCall": 16000,
+      "runTimeoutSeconds": 600,
+      "modelCallTimeoutSeconds": 300
+    },
+    "effectiveDeadlineSeconds": 600
+  },
+  "usage": {
+    "tokens": 3745,
+    "remoteCalls": 0,
+    "peakParallelWorkers": 1,
+    "toolCalls": 0,
+    "computeCalls": 0,
+    "limits": {
+      "hardTokens": 120000,
+      "maxRemoteCalls": 22,
+      "maxParallelWorkers": 3
+    },
+    "workers": [
+      {
+        "worker": "coordinator",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Interpreter:1",
+        "tokens": 3745,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Personal:2",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Searcher:3",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Selector:4",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Personal:5",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Personal:6",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Booker:7",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Booker:8",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Writer:9",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Rememberer:10",
+        "tokens": 0,
+        "remoteCalls": 0
+      }
+    ]
+  },
+  "cost": {
+    "status": "unknown",
+    "totalUsd": null,
+    "calls": 1,
+    "callsWithReportedCost": 0
+  },
+  "audit": {
+    "events": 213,
+    "chainValid": true,
+    "finalHash": "9f43c75bed6d772735c587681dde6d7650f4465efe1bc5242f94ffdfec517386",
+    "actions": [
+      {
+        "action": "budget.updated",
+        "count": 2
+      },
+      {
+        "action": "delegation.checked",
+        "count": 10
+      },
+      {
+        "action": "memory.cleared",
+        "count": 1
+      },
+      {
+        "action": "memory.proposed",
+        "count": 1
+      },
+      {
+        "action": "model.called",
+        "count": 1
+      },
+      {
+        "action": "model.completed",
+        "count": 1
+      },
+      {
+        "action": "model.count.called",
+        "count": 1
+      },
+      {
+        "action": "node.completed",
+        "count": 48
+      },
+      {
+        "action": "node.skipped",
+        "count": 23
+      },
+      {
+        "action": "node.started",
+        "count": 48
+      },
+      {
+        "action": "permission.checked",
+        "count": 13
+      },
+      {
+        "action": "runtime.started",
+        "count": 1
+      },
+      {
+        "action": "state.committed",
+        "count": 31
+      },
+      {
+        "action": "worker.completed",
+        "count": 10
+      },
+      {
+        "action": "worker.spawned",
+        "count": 10
+      },
+      {
+        "action": "worker.started",
+        "count": 10
+      },
+      {
+        "action": "workflow.completed",
+        "count": 1
+      },
+      {
+        "action": "workflow.started",
+        "count": 1
+      }
+    ],
+    "workers": [
+      "Booker:7",
+      "Booker:8",
+      "Interpreter:1",
+      "Personal:2",
+      "Personal:5",
+      "Personal:6",
+      "Rememberer:10",
+      "Searcher:3",
+      "Selector:4",
+      "Writer:9",
+      "coordinator"
+    ],
+    "workersSpawned": 10,
+    "nodesCompleted": 48,
+    "modelCalls": 1,
+    "toolCalls": 0,
+    "tasksCalled": [
+      {
+        "task": "interpret",
+        "count": 1
+      }
+    ]
+  },
+  "outputSha256": "63b67ac8b9883a84ec2a792d35c5cb15ace9784aaee2b9e11e2427e8eaa7bf1f",
+  "artifacts": [
+    {
+      "name": "result.json",
+      "bytes": 168019,
+      "sha256": "6fe0679abeb15e102b7df844ecf6c317eea7c81eb45d47b7e985067e43b74a65"
+    },
+    {
+      "name": "audit.json",
+      "bytes": 147500,
+      "sha256": "0587da6c96b9687542fa463921cbfba8ec01b122701543cba674ed54f4651f87"
+    },
+    {
+      "name": "usage.json",
+      "bytes": 1648,
+      "sha256": "5fca41fc3323f321bd27c748010dfdbefaf0d715a93e59b789ae0c98b6d0587e"
+    },
+    {
+      "name": "provenance.json",
+      "bytes": 342,
+      "sha256": "efed6de676ef2d5a7ee310fda9b39d5214640bafbcf331dc614ed4f1c694e834"
+    },
+    {
+      "name": "answer.md",
+      "bytes": 61,
+      "sha256": "1090c6c598db241cfab3c1102bff410d8dff98a948ce39e1957585ee9a124470"
+    },
+    {
+      "name": "search.json",
+      "bytes": 5,
+      "sha256": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+    },
+    {
+      "name": "fare-rules.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "name": "booking.json",
+      "bytes": 42,
+      "sha256": "38068a369bc780ebe17dbc2a84fc7a8d7fc6d7858af6e1c925ecc0a91dd16149"
+    },
+    {
+      "name": "proposals.json",
+      "bytes": 57,
+      "sha256": "f08e2b22a1e32ced94adb3ec45448f0220b3ffeb80849422d79faaf98690c987"
+    }
+  ],
+  "host": {
+    "runtime": "chrome-agent-browser",
+    "runtimeVersion": "0.6.0",
+    "verifiedVersion": "0.6.0",
+    "versionVerified": true
+  },
+  "deadlineExceeded": false,
+  "cancelRequested": false,
+  "errorCode": null,
+  "errorDetail": null,
+  "revalidated": [
+    "preflight_ready",
+    "once_spent_by_this_conversation",
+    "receipt_outlasts_run_deadline",
+    "artifact:archive_sha256",
+    "artifact:container",
+    "artifact:integrity",
+    "artifact:schema",
+    "artifact:package_digest",
+    "artifact:package_identity",
+    "artifact:publisher_signature",
+    "artifact:signer_fingerprint",
+    "artifact:execution_profile",
+    "tool_bindings:2",
+    "model_still_available",
+    "input_bytes:33",
+    "input_bytes:33",
+    "runner:archive_sha256",
+    "runner:container",
+    "runner:integrity",
+    "runner:schema",
+    "runner:package_digest",
+    "runner:package_identity",
+    "runner:publisher_signature",
+    "runner:signer_fingerprint",
+    "runner:execution_profile",
+    "runner:tool_handlers:2",
+    "runner:tool_bound:get-fare-rules",
+    "runner:tool_bound:search-flights"
+  ],
+  "packageExecution": {
+    "workflowInstantiated": true,
+    "packageInstructionsLoaded": true,
+    "toolHandlersInstalled": 2,
+    "toolCalls": 0
+  },
+  "task": {
+    "inputBytes": 33,
+    "attachments": []
+  },
+  "progress": {
+    "events": 213,
+    "last_action": "memory.cleared",
+    "active_nodes": [],
+    "completed_nodes": [
+      "interpret",
+      "check-quote-fare",
+      "profile",
+      "check-open-quote",
+      "profile-used",
+      "search-origin",
+      "search-request",
+      "search",
+      "select",
+      "status",
+      "check-no-flights",
+      "check-not-searched",
+      "refusal",
+      "offered-flights",
+      "offered-fares",
+      "check-options",
+      "selected-booking-fare",
+      "fare-rules",
+      "booking-fare",
+      "offered-booking-fare",
+      "payment",
+      "passenger",
+      "booking-request",
+      "prepare",
+      "quote-total-input",
+      "quote-total",
+      "check-quote",
+      "check-quote-offer",
+      "check-quote-authorized",
+      "purchase-facts",
+      "booking-summary",
+      "confirm-purchase",
+      "quote-ref",
+      "purchase-request",
+      "purchase",
+      "check-confirmation",
+      "status-final",
+      "purchase-fares",
+      "purchase-summary",
+      "known-fares",
+      "purchase-result",
+      "confirmation-ref",
+      "answer",
+      "remember",
+      "history",
+      "assemble",
+      "scrub",
+      "output"
+    ],
+    "failed_nodes": [],
+    "skipped_nodes": [
+      "check-quote-fare",
+      "check-open-quote",
+      "profile",
+      "profile-used",
+      "search",
+      "select",
+      "check-no-flights",
+      "status",
+      "check-options",
+      "payment",
+      "passenger",
+      "prepare",
+      "quote-total",
+      "check-quote",
+      "check-quote-offer",
+      "check-quote-authorized",
+      "confirm-purchase",
+      "quote-ref",
+      "purchase",
+      "check-confirmation",
+      "confirmation-ref",
+      "answer",
+      "remember"
+    ],
+    "nodes_completed": 48,
+    "steps_completed": 0,
+    "workers_spawned": 10,
+    "workers_active": 0,
+    "peak_parallel_workers": 1,
+    "active_workers": [],
+    "model_calls_started": 1,
+    "model_calls_completed": 1,
+    "tool_calls_started": 0,
+    "tool_calls_completed": 0,
+    "tokens": 3745,
+    "remote_calls": 0,
+    "workers": [
+      {
+        "id": "Interpreter:1",
+        "role": "Interpreter",
+        "node": "interpret",
+        "state": "completed",
+        "model_calls": 1,
+        "tool_calls": 0,
+        "duration_ms": 14183
+      },
+      {
+        "id": "Personal:2",
+        "role": "Personal",
+        "node": "profile",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 4
+      },
+      {
+        "id": "Searcher:3",
+        "role": "Searcher",
+        "node": "search",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 0
+      },
+      {
+        "id": "Selector:4",
+        "role": "Selector",
+        "node": "select",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 1
+      },
+      {
+        "id": "Personal:5",
+        "role": "Personal",
+        "node": "payment",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 0
+      },
+      {
+        "id": "Personal:6",
+        "role": "Personal",
+        "node": "passenger",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 0
+      },
+      {
+        "id": "Booker:7",
+        "role": "Booker",
+        "node": "prepare",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 0
+      },
+      {
+        "id": "Booker:8",
+        "role": "Booker",
+        "node": "purchase",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 0
+      },
+      {
+        "id": "Writer:9",
+        "role": "Writer",
+        "node": "answer",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 1
+      },
+      {
+        "id": "Rememberer:10",
+        "role": "Rememberer",
+        "node": "remember",
+        "state": "completed",
+        "model_calls": 0,
+        "tool_calls": 0,
+        "duration_ms": 1
+      }
+    ]
+  },
+  "tools": [
+    {
+      "toolId": "get-fare-rules",
+      "bindingId": "chrome:json_http:get-fare-rules:1",
+      "bindingSha256": "f400418197e68d635ee4d5d6dc7852e63a0710f9346040fa38a91185757a0cf4",
+      "remote": true,
+      "calls": 0,
+      "displayName": "get-fare-rules: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules",
+      "retries": 0,
+      "fallbackAnswers": 0
+    },
+    {
+      "toolId": "search-flights",
+      "bindingId": "chrome:json_http:search-flights:1",
+      "bindingSha256": "a1830ee079f719d9603ab4414ab3144c9179c0d5c00f188b47c46db8c6c830af",
+      "remote": true,
+      "calls": 0,
+      "displayName": "search-flights: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/search_flights",
+      "retries": 0,
+      "fallbackAnswers": 0
+    }
+  ],
+  "failure": null,
+  "origin": "live",
+  "conversation": {
+    "conversationId": "160120ef-1580-4ca2-8f9a-8d0bc567fa91",
+    "turn": 3
+  },
+  "memory": {
+    "proposals": {
+      "count": 0,
+      "types": [],
+      "proposals_sha256": "255f0bb2377422c83374e90e78935791e40a87e52bf9e57b73b7f9017d42932f",
+      "offered": 0,
+      "reason": "permission_denied"
+    },
+    "refused": null,
+    "agent": null
+  }
+}
