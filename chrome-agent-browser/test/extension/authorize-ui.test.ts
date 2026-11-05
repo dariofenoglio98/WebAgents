@@ -413,8 +413,8 @@ describe("Settings and Your data", () => {
     [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Save key")!.click();
     expect(keys).toEqual([["openai", "sk-test-secret"]]);
     expect(keyInput.value).toBe(""); // cleared on save, never kept in the page
-    // The first Test connection is the in-browser route's (first in the order, T41); Ollama's is the second.
-    [...root.querySelectorAll<HTMLButtonElement>("button")].filter((button) => button.textContent === "Test connection")[1]!.click();
+    // The in-browser card (first, T41) has no Test connection of its own: its list is read with the view.
+    [...root.querySelectorAll<HTMLButtonElement>("button")].filter((button) => button.textContent === "Test connection")[0]!.click();
     expect(probes).toEqual(["ollama"]);
     state.probes.ollama = await h.controller.probe("ollama");
     current = (await h.controller.handle({ type: "settings.setKey", provider: "openai", key: "sk-test-secret" }, PAGE)) as SettingsView;

@@ -18,6 +18,8 @@ import { describeError, originOfUrl, refusedOrigins, requestNativeMessaging, req
 import { needsUnlock, newUnlockState, renderLockChip, renderUnlockSheet, type UnlockState } from "../ui/unlock.js";
 import { button, card, chip, el, list, replace, row, whenText } from "../ui/dom.js";
 import { newSettingsPageState, refreshProbes, renderSettingsPage, SETTINGS_SECTIONS, type SettingsPageState, type SettingsSection } from "../ui/settings-page.js";
+import { inBrowserSection, newInBrowserPageState, type InBrowserPageState } from "../ui/in-browser-models.js";
+import type { InBrowserView, PasteView } from "../background/in-browser.js";
 import type { ProviderId } from "../../core/models/catalog.js";
 import { renderTrustPage } from "../ui/trust-page.js";
 import { newMemoryPageState, openCard, renderMemoryPage, renderMemorySettings, type MemoryPageState } from "../ui/memory/page.js";
@@ -68,6 +70,11 @@ interface PageState {
   keychain: KeychainView | null;
   /** Settings → Permissions (T16). */
   permissions: PermissionsView | null;
+  /** Settings → Models → In this browser (T41): the worker's view and this page's fields. */
+  inBrowser: InBrowserView | null;
+  inBrowserPage: InBrowserPageState;
+  /** Whether this page already asked the engine to measure the GPU once (D-443: once per session). */
+  inBrowserMeasured: boolean;
   /** What to run again after Allow on an `origin_not_granted` error (T16). */
   retry: (() => void) | null;
 }
@@ -105,8 +112,45 @@ const state: PageState = {
   unlock: newUnlockState(),
   keychain: null,
   permissions: null,
+  inBrowser: null,
+  inBrowserPage: newInBrowserPageState(),
+  inBrowserMeasured: false,
   retry: null,
 };
+
+/** Settings → Models → In this browser: read the view; measure the GPU once per page when nothing was measured yet. */
+async function loadInBrowser(): Promise<void> {
+  try {
+    state.inBrowser = await send<InBrowserView>({ type: "inbrowser.get", sessionId: null });
+    if (!state.inBrowserMeasured && state.inBrowser.machine.probed_at === null) {
+      state.inBrowserMeasured = true;
+      void send({ type: "inbrowser.measure" }).then(() => loadInBrowser(), () => undefined);
+    }
+  } catch (error) {
+    state.error = describeError(error);
+  }
+  render();
+}
+
+/** One in-browser action from a click: Chrome is asked for the origins first (the click is the gesture), then the worker. */
+function inBrowserRequest(request: { type: string; [key: string]: unknown }, origins: string[] = []): void {
+  void (async () => {
+    if (origins.length > 0) await requestOrigins(origins);
+    state.inBrowserPage.busy = request.type;
+    render();
+    try {
+      const result = await send(request as never);
+      if (request.type === "inbrowser.paste") state.inBrowserPage.pasted = result as PasteView;
+      if (request.type === "inbrowser.addPasted") state.inBrowserPage.pasted = null;
+      state.settingsPage.notice = request.type === "inbrowser.download" ? "Download started; it continues if you close this page." : request.type === "inbrowser.refreshCatalog" ? `Model list ${(result as { version: string }).version} (${(result as { changed: boolean }).changed ? "updated" : "already current"}).` : null;
+    } catch (error) {
+      state.error = describeError(error);
+    } finally {
+      state.inBrowserPage.busy = null;
+    }
+    await loadInBrowser();
+  })();
+}
 
 /** The authorization flow for the open session (T3). */
 const flow: AuthorizationController = bindAuthorization({
@@ -369,6 +413,7 @@ function probeProvider(provider: ProviderId): void {
 
 function openModels(): void {
   if (state.settings) refreshProbes(state.settings, state.settingsPage, probeProvider);
+  void loadInBrowser();
   render();
 }
 
@@ -388,6 +433,7 @@ async function load(): Promise<void> {
         if (state.keychain === null) void loadKeychain();
       }
       if (state.settingsPage.section === "permissions") state.permissions = await send<PermissionsView>({ type: "permissions.get" });
+      if (state.settingsPage.section === "models") void loadInBrowser();
     }
     if (state.view === "memory" || (state.view === "settings" && state.settingsPage.section === "memory")) state.memory = await send({ type: "memory.get" });
     if (state.view === "runs") {
@@ -1138,7 +1184,7 @@ function settingsView(): HTMLElement[] {
           },
         );
       },
-    }, state.files, { indexes: state.indexes, policy: state.policy, secrets: state.secrets, keychain: state.keychain, memory: state.settingsPage.section === "memory" ? renderMemorySettings(state.memory, state.memoryPage, { ...memoryActions(), openMemory: () => (location.hash = "memory"), preset: state.settings?.settings.preset ?? "balanced", forgetTyped: state.settingsPage.forgetMemory ?? "", setForgetTyped: (value) => { state.settingsPage.forgetMemory = value; render(); } }) : null, permissions: state.permissions }),
+    }, state.files, { indexes: state.indexes, policy: state.policy, secrets: state.secrets, keychain: state.keychain, inBrowser: state.settingsPage.section === "models" && state.settings ? inBrowserSection(state.inBrowser, state.settings.settings, state.inBrowserPage, { request: inBrowserRequest, rerender: render, save: (settings) => void send<SettingsView>({ type: "settings.set", settings }).then((saved) => { state.settings = saved; state.settingsPage.notice = "Saved."; void loadInBrowser(); }, (error: unknown) => { state.error = describeError(error); render(); }) }) : null, memory: state.settingsPage.section === "memory" ? renderMemorySettings(state.memory, state.memoryPage, { ...memoryActions(), openMemory: () => (location.hash = "memory"), preset: state.settings?.settings.preset ?? "balanced", forgetTyped: state.settingsPage.forgetMemory ?? "", setForgetTyped: (value) => { state.settingsPage.forgetMemory = value; render(); } }) : null, permissions: state.permissions }),
   ].filter((node): node is HTMLElement => node !== null);
 }
 
@@ -1259,6 +1305,8 @@ function render(): void {
 
 subscribe((event) => {
   if (event.type === "event.secrets") void secretsChanged();
+  // The model cache or the engine changed (a download progressed, a model loaded): the In this browser card follows.
+  if (event.type === "event.models" && state.view === "settings" && state.settingsPage.section === "models") void loadInBrowser();
   if (event.type === "event.permissions") {
     void send<PermissionsView>({ type: "permissions.get" }).then((permissions) => {
       state.permissions = permissions;

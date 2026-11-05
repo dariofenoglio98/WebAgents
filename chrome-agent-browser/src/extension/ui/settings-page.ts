@@ -149,6 +149,8 @@ export interface SettingsExtras {
   permissions?: PermissionsView | null;
   /** Settings → Memory (T19, design §6), rendered by the page that holds the memory view. */
   memory?: HTMLElement[] | null;
+  /** Settings → Models → In this browser (T41), rendered by the page that holds the in-browser view (`in-browser-models.ts`). */
+  inBrowser?: HTMLElement[] | null;
 }
 
 /** The one-time Ollama setup (B-117): the commands a person copies, per way of running Ollama. */
@@ -174,8 +176,15 @@ const PROVIDER_HINTS: Record<ProviderId, string> = {
   "chrome-builtin": "Chrome's own small model through the Prompt API, no setup and no cost; needs free disk space and a capable device. Zero-setup tier.",
 };
 
-function connectionCard(view: SettingsView, connection: StoredConnection, state: SettingsPageState, actions: SettingsPageActions): HTMLElement {
+function connectionCard(view: SettingsView, connection: StoredConnection, state: SettingsPageState, actions: SettingsPageActions, extras: SettingsExtras = { indexes: null, policy: null }): HTMLElement {
   const provider = connection.provider;
+  if (provider === "in-browser") {
+    // The in-browser route's own card (T41): its list in bins, the download card, the cache (`in-browser-models.ts`).
+    const on = el("input", { attrs: { type: "checkbox", name: "enabled-in-browser", "aria-label": `Enable ${PROVIDER_TITLES[provider]}` } });
+    on.checked = connection.enabled;
+    on.addEventListener("change", () => actions.onSave(withConnection(view.settings, provider, (item) => ({ ...item, enabled: on.checked }))));
+    return card(PROVIDER_TITLES[provider], el("label", { className: "ab-field ab-inline" }, on, " ", el("span", { text: "Enabled" })), ...(connection.enabled ? (extras.inBrowser ?? [el("p", { className: "ab-busy", text: "Loading…" })]) : [el("p", { className: "ab-hint", text: PROVIDER_HINTS[provider] })]));
+  }
   const probe = state.probes[provider];
   const enabled = el("input", { attrs: { type: "checkbox", name: `enabled-${provider}`, "aria-label": `Enable ${PROVIDER_TITLES[provider]}` } });
   enabled.checked = connection.enabled;
@@ -890,7 +899,7 @@ export function renderSettingsPage(view: SettingsView, status: StatusInfo | null
   );
   const body =
     state.section === "models"
-      ? view.settings.models.connections.map((connection) => connectionCard(view, connection, state, actions))
+      ? view.settings.models.connections.map((connection) => connectionCard(view, connection, state, actions, extras))
       : state.section === "policies"
         ? policiesView(view, actions, state, extras)
         : state.section === "security"
