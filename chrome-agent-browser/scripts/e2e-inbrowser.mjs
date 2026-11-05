@@ -31,6 +31,12 @@
  *   npm run build && node scripts/e2e-inbrowser.mjs [--entry qwen3-4b-q4_k_m] [--cache examples/my-inbrowser-spike-cache]
  *        [--out examples/verification/chrome-inbrowser-e2e.json] [--out-dir examples/my-inbrowser-e2e-<ts>] [--chrome path] [--keep] [--skip-webair]
  *
+ * Not covered here (T41 review 1, nit 11): the local origin answers for `huggingface.co` itself, so
+ * Hugging Face's real redirect from `/resolve/` to its LFS content host, and that host's CORS answer
+ * to the extension's fetch, are exercised only by the headed walk-through against Hugging Face
+ * (T41 user run 2, done 2026-11-05, which downloaded the 4B through them); the digest binds the
+ * bytes either way.
+ *
  * The cache directory holds `<owner>__<repo>__<file>` copies (the T40 spike's); a missing file is
  * downloaded once from Hugging Face by this script (2.5 GB for the 4B) and checked against the list.
  * `scripts/verify_chrome_inbrowser_e2e.py` recomputes the checks over the report and the exports.
@@ -343,11 +349,16 @@ async function main() {
     // The decode and prefill speeds of the run's turns, from the engine's own count of the entry (the row's measurement).
   } else if (!args.skipWebair) {
     report.webair = { skipped: "phase A failed" };
+  } else {
+    // A phase-A-only run (T41 review 1, nit 10) is never a pass: the acceptance needs the WebAir run,
+    // and the report says why it failed instead of failing with an empty list.
+    report.webair = { skipped: "--skip-webair" };
+    report.failures.push("phase B (the WebAir run on the in-browser model) was skipped with --skip-webair: phase A's checks are in this report, the acceptance needs both");
   }
 
   if (!args.keep) rmSync(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   report.completedAt = new Date().toISOString();
-  report.passed = report.failures.length === 0 && !args.skipWebair;
+  report.passed = report.failures.length === 0;
   mkdirSync(dirname(args.out), { recursive: true });
   writeFileSync(args.out, `${JSON.stringify(report, null, 2)}\n`);
   log(`report: ${relative(ROOT, args.out)} (${report.passed ? "passed" : `failed: ${report.failures.join("; ")}`})`);

@@ -520,11 +520,14 @@ in use by run …); never another model (principle 6). The core sees the port on
 the adapter, the catalog format, the recommendation, the GGUF header reader and the weights digest,
 and the boundary test keeps WebGPU and the DOM out of it.
 
-**Lifetime.** One model, one completion at a time (a queue). It stays loaded until Unload, an idle
+**Lifetime.** One model, one completion at a time (a queue); loads and unloads pass one gate, so two
+loads never overlap. It stays loaded until Unload, an idle
 time with no run (10 minutes by default, Settings → Models), a run that needs another entry while
-none uses this one, or the extension unloading. A Worker that dies (out of memory) fails the calls it
-held as `model_unavailable` (`engine_worker_died`), records "failed to run at <context>" on the
-entry, and is not restarted by itself. The first completion after a load records the measured
+none uses this one, or the extension unloading. A Worker that dies (out of memory), or a load that
+has not answered in 180 s, fails the calls it held as `model_unavailable` (`engine_worker_died`,
+`engine_load_timeout`), records "failed to run at <context>" on the entry, and is not restarted by
+itself. That context is not tried again: the recommendation then chooses a smaller one (halving, down
+to 4,096) and says why, and the entry's **Clear** in Settings lets the next load try it again. The first completion after a load records the measured
 prefill and decode speed for the recommendation; a CPU-only control load never does.
 
 **The cache.** IndexedDB `models` (database version 7) holds one row per listed entry (the entry,
@@ -532,7 +535,10 @@ its files' state, `downloaded_at`, `last_used`, `verified_at`, the header facts 
 bytes, the measured speed); the weights are OPFS files `models/<sha256>`, written in place by the
 models Worker (`models-worker.js`) through sync access handles, so a partial file survives a crash
 and an HTTP `Range` resume never copies it. Every file is hashed while it arrives (`@noble/hashes`)
-and kept only if its SHA-256 is the entry's; a mismatch keeps no byte, a cancel leaves no file. The
+and kept only if its SHA-256 is the entry's; a mismatch keeps no byte, a cancel leaves no file, and a
+file already in the cache is re-hashed before a download trusts it. When a newer list changes an
+entry's files, the old ones go at its next download; Settings lists models no longer in the list
+and files no model names, each deletable. The
 extension's OPFS is removed with the extension. Downloads run in the offscreen page, so they continue
 when the side panel or the full page closes.
 
@@ -553,9 +559,12 @@ card.
 
 **Evidence.** The adapter, the catalog, the bins, the header reader, the downloader, the engine
 host's rules and the views are unit-tested (`test/core/models/in-browser*.test.ts`,
-`test/extension/{model-cache,engine-host,in-browser-service,in-browser-ui}.test.ts`). In real Chrome,
+`test/extension/{model-cache,models-manager,engine-host,in-browser-service,in-browser-ui}.test.ts`). In real Chrome,
 `scripts/e2e-inbrowser.mjs` downloads the curated Qwen3 4B through the product's downloader from a
 local origin answering for `huggingface.co`, refuses a digest mismatch and an over-budget load,
 compares the GPU's decode speed with a CPU-only control, sees the idle unload, then runs WebAir
 0.8.0's search conversation on the model; `scripts/verify_chrome_inbrowser_e2e.py` recomputes the
-report ([`chrome-inbrowser-e2e.json`](../examples/verification/chrome-inbrowser-e2e.json)).
+report ([`chrome-inbrowser-e2e.json`](../examples/verification/chrome-inbrowser-e2e.json)). Because
+that origin answers for `huggingface.co` itself, Hugging Face's real redirect to its LFS content host
+and that host's CORS answer are exercised only by a headed download from Hugging Face (done for the
+4B on 2026-11-05).

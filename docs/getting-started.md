@@ -368,6 +368,7 @@ It prints one line per case and writes `conformance/results/<timestamp>/report.m
 |---|---|
 | Settings → Models → In this browser: *WebGPU is not available to this extension* | Chrome exposes no WebGPU adapter to extensions here (a software fallback counts as none); use another route |
 | an in-browser model is *too large for this machine* | the budget's estimate at its context exceeds this machine's GPU memory; state your GPU memory, choose a smaller context or a smaller model |
+| an in-browser model *failed to run at* a context | its engine stopped there (most likely out of memory); the next load uses a smaller context by itself; **Clear** on the model's row tries that context again |
 | Settings → Models: Ollama *rejecting this extension* | `OLLAMA_ORIGINS` does not include `chrome-extension://*`, or Ollama was not restarted after setting it |
 | a model shows *not available* | its provider stopped answering; Test connection names the address that failed |
 | **Run** stays disabled | the checklist above it names the first item that does not hold |
