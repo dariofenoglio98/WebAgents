@@ -184,6 +184,19 @@ def record_texts(memory_dir: Path) -> list[str]:
     return [p.read_text() for p in sorted(Path(memory_dir).glob("*/*.md"))]
 
 
+def host_mapping(stack, fixture_key: str | None) -> dict | None:
+    """The job's host mapping (the stack's hostnames dialed at loopback, its CA, the fixture key
+    and hosts), one for both modes (review 1, nit 7); none without a stack."""
+    if stack is None:
+        return None
+    return {
+        "hosts": {h: [a, p] for h, (a, p) in stack.hosts.items()},
+        "ca": str(stack.ca),
+        "fixture_key": fixture_key,
+        "fixture_hosts": list(FIXTURE_HOSTS),
+    }
+
+
 def webair_job(
     *,
     turns: list[str],
@@ -210,14 +223,7 @@ def webair_job(
         "records": record_texts(memory_dir),
         "memory_grants": dict(flag.split("=", 1) for flag in memory_flags),
         "route": route_of(rung),
-        "mapping": None
-        if stack is None
-        else {
-            "hosts": {h: [a, p] for h, (a, p) in stack.hosts.items()},
-            "ca": str(stack.ca),
-            "fixture_key": fixture_key,
-            "fixture_hosts": list(FIXTURE_HOSTS),
-        },
+        "mapping": host_mapping(stack, fixture_key),
         "responder": responder.describe(),
     }
     if probe_proposals is not None:
@@ -306,14 +312,7 @@ def run_job_for(
         "records": record_texts(memory_dir),
         "memory_grants": {},
         "route": route_of(rung),
-        "mapping": None
-        if stack is None
-        else {
-            "hosts": {h: [a, p] for h, (a, p) in stack.hosts.items()},
-            "ca": str(stack.ca),
-            "fixture_key": fixture_key,
-            "fixture_hosts": list(FIXTURE_HOSTS),
-        },
+        "mapping": host_mapping(stack, fixture_key),
         "responder": Responder("R-deny").describe(),
     }
 
@@ -324,13 +323,14 @@ def _run(
     task_set: str,
     input_value: dict,
     grants: dict,
-    approved: list[str],
+    approved: list[str] | None,
     rung: Rung,
     run_dir: Path,
     stack,
     fixture_key: str | None,
     meta: dict,
 ) -> dict:
+    """`approved` None: every tool the package declares (from this one load, review 1, nit 8)."""
     from campaigns.baseline import ports
 
     run_dir.mkdir(parents=True, exist_ok=False)
@@ -339,7 +339,7 @@ def _run(
         name=name,
         input_value=input_value,
         grants=grants,
-        approved=approved,
+        approved=list(package.tools) if approved is None else approved,
         rung=rung,
         memory_dir=prepare_memory(run_dir, None),
         stack=stack,
@@ -370,14 +370,12 @@ def run_travel_network(
     *, text: str, rung: Rung, run_dir: Path, stack, fixture_key: str | None, meta: dict
 ) -> dict:
     """One travel-network run (TS-N) on `Cr`, composed as `cli-run.ts` composes it."""
-    from campaigns.baseline import ports
-
     return _run(
         name="travel-network",
         task_set="TS-N",
         input_value={"text": text},
         grants=TRAVEL_GRANTS,
-        approved=list(ports.load("travel-network").tools),
+        approved=None,
         rung=rung,
         run_dir=run_dir,
         stack=stack,

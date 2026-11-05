@@ -415,6 +415,7 @@ def manifest(
 ) -> dict:
     from campaigns.baseline import ports
     from campaigns.baseline.policies import build as policies
+    from campaigns.driver.py_driver import FIXTURE_HOSTS
 
     rung_specs = _rung_specs()
     described = {}
@@ -462,7 +463,7 @@ def manifest(
         "rungs": described,
         "host_mapping": {
             "hostnames": list(tls.HOSTS),
-            "fixture_hosts": [tls.WEBAIR_HOST, tls.RESOLVER_HOST],
+            "fixture_hosts": list(FIXTURE_HOSTS),  # the set the drivers apply (nit 6)
             "dial": "127.0.0.1, a throwaway campaign CA per stack",
             "real_dns_answer_classified": True,
         },
@@ -505,14 +506,39 @@ def purchase_turns(task: dict, phrasing: int) -> tuple[int, ...]:
     return ()
 
 
+# The drivers by family and side, imported on use (a side's dependencies only when it runs).
+_RUNNERS = {
+    "webair": {
+        "Py": ("campaigns.driver.py_driver", "run_webair"),
+        "Cr": ("campaigns.driver.cr_driver", "run_webair"),
+        "FW": ("campaigns.baseline.agent", "run_webair"),
+    },
+    "travel-network": {
+        "Py": ("campaigns.driver.py_driver", "run_travel_network"),
+        "Cr": ("campaigns.driver.cr_driver", "run_travel_network"),
+        "FW": ("campaigns.baseline.network", "run_travel_network"),
+    },
+    "literature-review": {
+        "Py": ("campaigns.driver.py_driver", "run_literature_review"),
+        "Cr": ("campaigns.driver.cr_driver", "run_literature_review"),
+        "FW": ("campaigns.baseline.literature", "run_literature_review"),
+    },
+}
+
+
+def _side_runner(family: str, side: str):
+    """The driver of one family on one side; an unknown side is refused (review 1, nit 5)."""
+    import importlib
+
+    try:
+        module, name = _RUNNERS[family][side]
+    except KeyError:
+        raise ValueError(f"no {family} driver for side {side!r}") from None
+    return getattr(importlib.import_module(module), name)
+
+
 def _runner(side: str):
-    if side == "Py":
-        from campaigns.driver.py_driver import run_webair
-    elif side == "Cr":
-        from campaigns.driver.cr_driver import run_webair
-    else:
-        from campaigns.baseline.agent import run_webair
-    return run_webair
+    return _side_runner("webair", side)
 
 
 def promote_failed_lookup(rec: dict) -> dict:
@@ -644,23 +670,11 @@ def finish_unit(unit: dict, *, tasks, payloads, out: Path, envelopes_table=None)
 
 
 def _network_runner(side: str):
-    if side == "Py":
-        from campaigns.driver.py_driver import run_travel_network
-    elif side == "Cr":
-        from campaigns.driver.cr_driver import run_travel_network
-    else:
-        from campaigns.baseline.network import run_travel_network
-    return run_travel_network
+    return _side_runner("travel-network", side)
 
 
 def _literature_runner(side: str):
-    if side == "Py":
-        from campaigns.driver.py_driver import run_literature_review
-    elif side == "Cr":
-        from campaigns.driver.cr_driver import run_literature_review
-    else:
-        from campaigns.baseline.literature import run_literature_review
-    return run_literature_review
+    return _side_runner("literature-review", side)
 
 
 # -- the campaign ----------------------------------------------------------------------------

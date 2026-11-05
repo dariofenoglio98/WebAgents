@@ -86,7 +86,6 @@ def test_a_paper_found_that_no_tool_returned_fails():
     assert _checks(answer)["checks"]["papers_found_recorded"] is False
 
 
-
 def test_a_returned_title_with_a_doi_no_tool_returned_fails():
     """T31b review 1, finding 2: a DOI decides when both carry one; a real title does not make a
     fabricated DOI recorded."""
@@ -106,6 +105,7 @@ def test_a_title_matches_when_the_entry_or_the_returned_record_has_no_doi():
     with_doi = copy.deepcopy(ANSWER)
     with_doi["papers_found"].append({"title": "An undated preprint", "doi": "10.1/preprint"})
     assert _checks(with_doi, [no_doi_record, RESOLVED])["checks"]["papers_found_recorded"] is True
+
 
 def test_a_selected_pdfs_pages_are_a_source_for_its_doi():
     answer = copy.deepcopy(ANSWER)

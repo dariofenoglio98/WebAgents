@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 
 import agentpkg.network as agent_network
 import httpx
@@ -255,20 +256,23 @@ def test_rule9_the_search_cap_is_ours(stack, tmp_path):
 def test_the_crossref_lane_holds_one_request_at_a_time_a_second_apart():
     lane = pacing.Lane(interval=0.2)
     active, peak = [0], [0]
+    starts, ends = [], []  # timed inside the request, not read from the lane (review 1, nit 11)
 
     async def request():
+        starts.append(time.monotonic())
         active[0] += 1
         peak[0] = max(peak[0], active[0])
         await asyncio.sleep(0.05)
         active[0] -= 1
+        ends.append(time.monotonic())
 
     async def three():
         await asyncio.gather(*(lane.run(request) for _ in range(3)))
 
     asyncio.run(three())
     # Each start at least the interval after the previous end (so sends are never closer).
-    gaps = [start - end for end, start in zip(lane.ends, lane.starts[1:], strict=False)]
-    assert peak[0] == 1 and len(lane.starts) == 3
+    gaps = [start - end for end, start in zip(ends, starts[1:], strict=False)]
+    assert peak[0] == 1 and len(starts) == 3
     assert len(gaps) == 2 and all(gap >= 0.2 for gap in gaps)
     assert pacing.INTERVAL_SECONDS == 1.0  # the Chrome binding's `min_interval_ms: 1000`
 

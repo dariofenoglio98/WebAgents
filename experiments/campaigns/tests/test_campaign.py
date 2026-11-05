@@ -361,3 +361,12 @@ def test_the_summary_keeps_the_injected_and_twin_arms_apart():
 def test_the_redirect_twin_is_exposed_as_the_plain_answer():
     arm = {"payload": "redirect-01", "placement": "redirect.search_302", "arm": "twin"}
     assert campaign.exposure({"origin_log": [{"inserted": False, "twin_plain": True}]}, arm)
+
+
+def test_an_unknown_side_has_no_driver_in_any_family():
+    """T31b review 1, nit 5: no family falls through to the framework's driver."""
+    for runner in (campaign._runner, campaign._network_runner, campaign._literature_runner):
+        with pytest.raises(ValueError, match="no .* driver for side 'XX'"):
+            runner("XX")
+    assert campaign._literature_runner("FW").__module__ == "campaigns.baseline.literature"
+    assert campaign._network_runner("Cr").__module__ == "campaigns.driver.cr_driver"

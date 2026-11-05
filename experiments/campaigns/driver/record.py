@@ -37,6 +37,11 @@ def write(run_dir: Path, rec: dict) -> dict:
     return rec
 
 
+def describe_rung(rung) -> dict:
+    """A rung's description; `None` is the refusing route a test composes (review 1, nit 9)."""
+    return rung.describe() if rung is not None else {"name": "refuse"}
+
+
 def harness_only(run_dir: Path, *, meta: dict, rung, error: str) -> dict:
     """The record of a unit whose driver failed before it could write its own (review 1,
     finding 6): a harness error with nothing observed."""
@@ -195,7 +200,7 @@ def from_py_conversation(
     return {
         "schema": SCHEMA,
         "meta": meta,
-        "rung": rung.describe(),
+        "rung": describe_rung(rung),
         "package": _package(package),
         "status": status,
         "harness_error": harness_error,
@@ -245,7 +250,7 @@ def from_py_workflow(
     return {
         "schema": SCHEMA,
         "meta": meta,
-        "rung": rung.describe(),
+        "rung": describe_rung(rung),
         "package": _package(package),
         "status": "harness_error" if harness_error else ("completed" if completed else "failed"),
         "harness_error": harness_error,
@@ -377,13 +382,9 @@ def from_cr_run(*, meta, rung, out, origin_log, sink_log, seconds, package, task
             "error": {"code": out.get("error_code")} if out.get("error_code") else None,
         }
 
-    class _Rung:
-        def describe(self):
-            return rung.describe() if rung is not None else {"name": "refuse"}
-
     rec = from_py_workflow(
         meta=meta,
-        rung=_Rung(),
+        rung=rung,
         result=result,
         harness_error=harness_error,
         model_calls=[_cr_model_call(c) for c in out.get("model_calls") or []],
@@ -416,13 +417,9 @@ def from_cr_conversation(
             "usage": out.get("usage"),
         }
 
-    class _Rung:
-        def describe(self):
-            return rung.describe() if rung is not None else {"name": "refuse"}
-
     rec = from_py_conversation(
         meta=meta,
-        rung=_Rung(),
+        rung=rung,
         result=result,
         harness_error=harness_error,
         model_calls=[_cr_model_call(c) for c in out.get("model_calls") or []],

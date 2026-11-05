@@ -139,7 +139,7 @@ class ToolLayer:
         *,
         specs: list[dict],
         state: RunState,
-        transport: Transport,
+        transport: Transport | None,
         memory_handlers: dict,
         responder: responders.Responder,
         budget: dict,
@@ -341,6 +341,10 @@ class ToolLayer:
         return None
 
     async def _http(self, spec: dict, arguments) -> tuple[int, object]:
+        if self.transport is None:
+            # a port whose every tool runs through its host handlers states no other egress path
+            # (the Literature Review port, review 1, nit 10)
+            raise RuntimeError(f"no transport for the declared endpoint of {spec['binding']}")
         url = spec["endpoint"]
         parts = urlsplit(url)
         host = parts.hostname

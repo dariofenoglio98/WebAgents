@@ -63,7 +63,7 @@ def build(
     layer = tools.ToolLayer(
         specs=ports.function_tool_specs(package),
         state=state,
-        transport=tools.Transport(hosts=stack.hosts, ca=str(stack.ca)),
+        transport=None,  # every tool is agentpkg's own handler (`host_handlers`)
         memory_handlers={},
         responder=Responder("R-deny"),  # no consequential tool: never asked
         budget=package.policy["budget"],
