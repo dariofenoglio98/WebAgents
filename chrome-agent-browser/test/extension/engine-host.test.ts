@@ -16,7 +16,7 @@ import { InBrowserAdapter, type InBrowserCompletionRequest } from "../../src/cor
 import { gb, gpuMemoryEstimate, readModelCatalog, type InBrowserEntry } from "../../src/core/models/in-browser-catalog.js";
 import { render } from "../../src/core/models/render.js";
 import { AdapterError } from "../../src/core/workflow/errors.js";
-import { EngineHost, EngineRefusal, type EngineWorkerLike, type LoadRequest, type PortLike } from "../../src/extension/execution/engine-host.js";
+import { DEFAULT_LOAD_TIMEOUT_MS, EngineHost, EngineRefusal, type EngineWorkerLike, type LoadRequest, type PortLike } from "../../src/extension/execution/engine-host.js";
 import type { EngineCommand, EngineCompletionResult, EngineEvent, EngineLoadResult, PortReply, PortRequest } from "../../src/extension/execution/engine-protocol.js";
 import { MessagePortEnginePort, type RunPortLike } from "../../src/extension/execution/in-browser-port.js";
 import { MemoryModelStore, newModelRecord, type ModelRecord } from "../../src/extension/storage/models.js";
@@ -284,6 +284,67 @@ describe("EngineHost: the single slot", () => {
     expect(worker().received.filter((command) => command.kind !== "abort").map((command) => command.kind === "load" ? `load ${command.entry}` : command.kind)).toEqual([`load ${SMALL.id}`, "unload", `load ${OTHER.id}`]);
     expect(host.status()).toMatchObject({ loaded: { entry: OTHER.id }, runs: [{ run_id: "B", entry: OTHER.id }] });
   });
+  // T41 review 1, finding 1: the gate was checked, then an IndexedDB read awaited, then set; two
+  // callers could both pass it and build two engines at once.
+  it("serialises overlapping ensure calls: a double Load sends one load command", async () => {
+    const { host, workers } = makeHost();
+    const [first, second] = await Promise.all([host.ensure(load(SMALL), null), host.ensure(load(SMALL), null)]);
+    expect(second).toEqual(first);
+    expect(workers).toHaveLength(1);
+    expect(workers[0]!.commands("load")).toHaveLength(1);
+  });
+
+  it("never has two loads in flight: a run's start during a Settings load of another entry waits, then unloads and loads", async () => {
+    // Count the loads the Worker holds unanswered at any moment, from its first command.
+    let inFlight = 0;
+    let most = 0;
+    const { host, workers } = makeHost(undefined, (worker) => {
+      const post = worker.postMessage.bind(worker);
+      worker.postMessage = (command) => {
+        if (command.kind === "load") most = Math.max(most, ++inFlight);
+        post(command);
+      };
+      const send = worker.send.bind(worker);
+      worker.send = (event) => {
+        if (event.kind === "answer" && worker.commands("load").some((command) => "id" in command && command.id === event.id)) inFlight -= 1;
+        send(event);
+      };
+    });
+    const settings = host.ensure(load(SMALL), null);
+    const run = host.ensure(load(OTHER), "R");
+    await expect(settings).resolves.toMatchObject({ entry: SMALL.id });
+    await expect(run).resolves.toMatchObject({ entry: OTHER.id });
+    expect(most).toBe(1);
+    const worker = workers[0]!;
+    expect(workers).toHaveLength(1);
+    expect(worker.received.filter((command) => command.kind !== "abort").map((command) => (command.kind === "load" ? `load ${command.entry}` : command.kind))).toEqual([`load ${SMALL.id}`, "unload", `load ${OTHER.id}`]);
+    expect(host.status()).toMatchObject({ loaded: { entry: OTHER.id }, runs: [{ run_id: "R", entry: OTHER.id }] });
+  });
+
+  it("lets an Unload pressed during a load wait for it, then unload", async () => {
+    const { host, workers } = makeHost();
+    const loading = host.ensure(load(SMALL), null);
+    const unloading = host.unload();
+    await loading;
+    await unloading;
+    expect(host.status().loaded).toBeNull();
+    expect(workers[0]!.received.map((command) => command.kind)).toEqual(["load", "unload"]);
+  });
+
+  // T41 review 1, nit 12: a load that never answers (wllama's nested Worker dying silently).
+  it("treats a load that outlives its deadline as a dead Worker: terminated, refused, context recorded", async () => {
+    const { host, workers, timers, models } = makeHost(undefined, (worker) => (worker.silent = true));
+    const { value: refused } = await withUnhandledRejections(async () => {
+      const pending = host.ensure(load(SMALL), "A");
+      await vi.waitFor(() => expect(timers.filter((timer) => timer.ms === DEFAULT_LOAD_TIMEOUT_MS)).toHaveLength(1));
+      timers.find((timer) => timer.ms === DEFAULT_LOAD_TIMEOUT_MS)!.callback();
+      return refusal(pending);
+    });
+    expect(refused).toMatchObject({ code: "model_unavailable", detail: { reason: "engine_load_timeout", entry: SMALL.id } });
+    expect(workers[0]!.terminated).toBe(true);
+    await vi.waitFor(async () => expect((await models.get(SMALL.id))!.failed_context).toBe(CONTEXT));
+    expect(host.status()).toMatchObject({ loaded: null, loading: null, last_failure: { reason: "engine_load_timeout" } });
+  });
 });
 
 describe("EngineHost: the serial queue", () => {
@@ -333,22 +394,25 @@ describe("EngineHost: the serial queue", () => {
 describe("EngineHost: the idle unload", () => {
   it("starts the idle timer at the release, clears it for a new completion, and unloads when it fires", async () => {
     // idle minutes × 60,000 ms after the last run; a completion clears it; firing unloads.
-    const { host, worker, timers, cleared } = makeHost();
+    const { host, worker, timers: all, cleared } = makeHost();
+    // The load deadline uses the same timer dependency; this test follows the idle timer only.
+    const timers = (): Timer[] => all.filter((timer) => timer.ms !== DEFAULT_LOAD_TIMEOUT_MS);
+    const idle = (index: number): Timer => timers()[index]!;
     const minutes = 5;
     host.setIdleMinutes(minutes);
     await host.ensure(load(SMALL), "A");
-    expect(timers).toHaveLength(0);
+    expect(timers()).toHaveLength(0);
     host.release("A");
-    expect(timers).toHaveLength(1);
-    expect(timers[0]!.ms).toBe(minutes * 60_000);
+    expect(timers()).toHaveLength(1);
+    expect(idle(0).ms).toBe(minutes * 60_000);
     expect(host.status().idle_unload_at).toBe(new Date(NOW.getTime() + minutes * 60_000).toISOString());
     const port = new RecordingPort();
     host.attach("C", port);
     port.ask({ id: 1, kind: "complete", request: request(SMALL) });
-    expect(cleared).toContain(timers[0]!.handle);
+    expect(cleared).toContain(idle(0).handle);
     await vi.waitFor(() => expect(port.reply(1)).toMatchObject({ ok: true }));
-    await vi.waitFor(() => expect(timers).toHaveLength(2));
-    timers[1]!.callback();
+    await vi.waitFor(() => expect(timers()).toHaveLength(2));
+    idle(1).callback();
     await vi.waitFor(() => expect(worker().commands("unload")).toHaveLength(1));
     expect(host.status().loaded).toBeNull();
     expect(host.loadedEntry()).toBeNull();

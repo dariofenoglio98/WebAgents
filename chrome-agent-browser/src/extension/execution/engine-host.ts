@@ -4,6 +4,8 @@
  * page transfers inside `host.start`; Settings reaches it through `host.engine` commands.
  *
  * Its rules (design §3), each a refusal before the run rather than a surprise during it:
+ * - **Serial loads.** Every load and unload passes one gate, taken before any `await` (T41 review 1):
+ *   two loads never overlap, so two engines never coexist.
  * - **Single slot.** A run that needs another entry while a run uses the loaded one is refused
  *   `model_unavailable` ("another in-browser model is in use by run …"); otherwise the loaded model
  *   is unloaded and the needed one loaded. Never another route or entry (principle 6).
@@ -39,6 +41,8 @@ export interface PortLike {
 }
 
 export const DEFAULT_IDLE_UNLOAD_MINUTES = 10;
+/** A load that has not answered by then is treated as a dead Worker (T41 review 1, nit 12; D-450): a 12 GB model reads from OPFS in well under a minute on the machines measured. */
+export const DEFAULT_LOAD_TIMEOUT_MS = 180_000;
 
 export class EngineRefusal extends Error {
   constructor(
@@ -67,6 +71,8 @@ export interface EngineHostDeps {
   now?: () => Date;
   setTimer?: (callback: () => void, ms: number) => unknown;
   clearTimer?: (handle: unknown) => void;
+  /** How long a load may take before the Worker is treated as dead (default `DEFAULT_LOAD_TIMEOUT_MS`). */
+  loadTimeoutMs?: number;
   /** Told when the loaded model or the queue changes, so Settings can say "loaded now". */
   onChange?: () => void;
 }
@@ -102,7 +108,9 @@ export class EngineHost {
   private nextId = 1;
   private readonly answers = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   private loaded: Loaded | null = null;
-  private loading: { entry: string; n_ctx: number; done: Promise<void> } | null = null;
+  private loading: { entry: string; n_ctx: number } | null = null;
+  /** The tail of the serial chain every load and unload joins (`serial`). */
+  private gate: Promise<void> = Promise.resolve();
   private readonly users = new Map<string, string>();
   private readonly ports = new Map<string, PortLike>();
   private readonly queue: Pending[] = [];
@@ -169,12 +177,29 @@ export class EngineHost {
 
   // -- loading -------------------------------------------------------------------------------
   /**
+   * Run `step` after every load, unload and idle unload asked before it (T41 review 1, finding 1).
+   * The gate is taken synchronously, before any `await`, so two callers can never both pass it:
+   * a double click on Load, or a run's `host.start` during a Settings load, waits for the first.
+   */
+  private serial<T>(step: () => Promise<T>): Promise<T> {
+    const result = this.gate.then(step);
+    this.gate = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }
+
+  /**
    * Make `request.entry` the loaded model at its context and thinking, or refuse with the reason.
    * `runId` is the run that needs it (null for Settings' Load); a run that holds another entry
-   * keeps it.
+   * keeps it. Calls are serial (`serial`): the single slot is an invariant, not a likelihood.
    */
-  async ensure(request: LoadRequest, runId: string | null): Promise<EngineLoadResult> {
-    while (this.loading) await this.loading.done.catch(() => undefined);
+  ensure(request: LoadRequest, runId: string | null): Promise<EngineLoadResult> {
+    return this.serial(() => this.ensureNow(request, runId));
+  }
+
+  private async ensureNow(request: LoadRequest, runId: string | null): Promise<EngineLoadResult> {
     const held = this.loaded;
     const same = held !== null && held.entry === request.entry && held.n_ctx === request.n_ctx && held.think === request.think && held.n_gpu_layers === (request.n_gpu_layers ?? null);
     if (same) {
@@ -198,17 +223,13 @@ export class EngineHost {
       if (estimate === null) throw new EngineRefusal("model_unavailable", "GPU memory unknown: the model's header has not been read", { reason: "estimate_unknown", entry: request.entry });
       if (estimate > request.budget.bytes) throw new EngineRefusal("model_unavailable", `needs about ${gb(estimate)} of GPU memory at a ${request.n_ctx.toLocaleString("en-US")}-token context; this machine's budget is ${gb(request.budget.bytes)} (${request.budget.basis})`, { reason: "over_budget", entry: request.entry, estimate_bytes: estimate, budget_bytes: request.budget.bytes });
     }
-    const loading = (async () => {
-      if (held !== null) await this.unload();
-      const result = await this.ask<EngineLoadResult>({ kind: "load", entry: request.entry, files: row.files.map((file) => file.sha256), n_ctx: request.n_ctx, think: request.think, ...(request.n_gpu_layers === undefined ? {} : { n_gpu_layers: request.n_gpu_layers }) });
+    this.loading = { entry: request.entry, n_ctx: request.n_ctx };
+    this.deps.onChange?.();
+    try {
+      if (held !== null) await this.unloadNow();
+      const result = await this.withDeadline(this.ask<EngineLoadResult>({ kind: "load", entry: request.entry, files: row.files.map((file) => file.sha256), n_ctx: request.n_ctx, think: request.think, ...(request.n_gpu_layers === undefined ? {} : { n_gpu_layers: request.n_gpu_layers }) }));
       this.loaded = { entry: request.entry, n_ctx: result.n_ctx, think: request.think, n_gpu_layers: request.n_gpu_layers ?? null, load: result, measured: false };
       await this.deps.models.update(request.entry, (current) => (current === null ? null : { ...current, last_used: this.now().toISOString() }));
-      return result;
-    })();
-    // `done` only orders later loads after this one; its failure is the caller's (below), never an unhandled rejection.
-    this.loading = { entry: request.entry, n_ctx: request.n_ctx, done: loading.then(() => undefined, () => undefined) };
-    try {
-      const result = await loading;
       if (runId !== null) this.users.set(runId, request.entry);
       this.touch();
       this.deps.onChange?.();
@@ -216,13 +237,39 @@ export class EngineHost {
     } catch (error) {
       if (error instanceof EngineRefusal) throw error;
       const code = (error as { code?: string }).code;
-      throw new EngineRefusal("model_unavailable", `The in-browser engine could not load ${request.entry} (${error instanceof Error ? error.message.slice(0, 200) : "error"})`, { reason: code === "model_unavailable" ? "engine_worker_died" : "load_failed", entry: request.entry });
+      const reason = (error as { detail?: { reason?: unknown } }).detail?.reason;
+      throw new EngineRefusal("model_unavailable", `The in-browser engine could not load ${request.entry} (${error instanceof Error ? error.message.slice(0, 200) : "error"})`, { reason: code === "model_unavailable" ? (typeof reason === "string" ? reason : "engine_worker_died") : "load_failed", entry: request.entry });
     } finally {
       this.loading = null;
     }
   }
 
-  async unload(): Promise<void> {
+  /**
+   * A load that never answers (wllama's own nested Worker dying without the outer `onerror`; T41
+   * review 1, nit 12) is treated as the Worker's death after `loadTimeoutMs`: the Worker is
+   * terminated, the context recorded, and the load refused `model_unavailable`.
+   */
+  private withDeadline<T>(answer: Promise<T>): Promise<T> {
+    const ms = this.deps.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS;
+    let timer: unknown = null;
+    const deadline = new Promise<never>((_, reject) => {
+      timer = (this.deps.setTimer ?? setTimeout)(() => {
+        timer = null;
+        void this.died("engine_load_timeout");
+        reject(Object.assign(new Error(`the load did not finish within ${Math.round(ms / 1000)} s`), { code: "model_unavailable", detail: { reason: "engine_load_timeout" } }));
+      }, ms);
+    });
+    return Promise.race([answer, deadline]).finally(() => {
+      if (timer !== null) (this.deps.clearTimer ?? clearTimeout)(timer as ReturnType<typeof setTimeout>);
+    });
+  }
+
+  /** The person's Unload (and Delete's): after any load in progress, never during it. */
+  unload(): Promise<void> {
+    return this.serial(() => this.unloadNow());
+  }
+
+  private async unloadNow(): Promise<void> {
     if (this.loaded === null) return;
     const entry = this.loaded.entry;
     for (const pending of this.queue.splice(0)) pending.port.postMessage({ id: pending.id, ok: true, result: abortAnswer() });
@@ -261,7 +308,10 @@ export class EngineHost {
     this.idleAt = new Date(this.now().getTime() + ms);
     this.idleTimer = (this.deps.setTimer ?? setTimeout)(() => {
       this.idleTimer = null;
-      if (this.users.size === 0 && this.current === null) void this.unload();
+      // Through the gate, and checked again there: a run may have taken the model meanwhile.
+      void this.serial(async () => {
+        if (this.users.size === 0 && this.current === null && this.queue.length === 0) await this.unloadNow();
+      });
     }, ms);
   }
 
