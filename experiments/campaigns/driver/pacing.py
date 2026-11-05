@@ -6,9 +6,12 @@ Crossref's public pool advertises a concurrency of 1 and one request per second
 `scholarly.search` binding already holds itself to that (`max_concurrent: 1`, `min_interval_ms:
 1000`, its own pacer); agentpkg's `create_handlers` does not pace, and the Citation Resolver paces
 arXiv only. So every Crossref request this process sends, whoever sends it, takes this one lane:
-one request at a time, each start at least `INTERVAL_SECONDS` after the previous one's start, the
-Chrome binding's figures. The lane delays a request; it never changes, drops or retries one, so it
-is a timing seam, not a change of what any side sends (stated in the campaign README).
+one request at a time, each starting at least `INTERVAL_SECONDS` after the previous one **ended**.
+That is stricter than the Chrome binding's start-to-start interval, on purpose: agentpkg dials from
+a spawned child whose start-up time varies, so starts 1 s apart let two sends fall 0.79 s apart
+(the T31b smoke's `Py` run); measured from the end, no two sends are closer than the interval.
+The lane delays a request; it never changes, drops or retries one, so it is a timing seam, not a
+change of what any side sends (stated in the campaign README).
 
 Who takes it: `Py`'s and `FW`'s `scholarly.search` handler (`lane.paced_handler`), and the campaign
 stack's Citation Resolver through the transport its `create_app` accepts (`PacedTransport`). The
@@ -30,7 +33,8 @@ INTERVAL_SECONDS = 1.0
 
 
 class Lane:
-    """One request at a time, starts at least `interval` seconds apart. Thread-safe (the resolver
+    """One request at a time, each starting at least `interval` seconds after the previous one
+    ended. Thread-safe (the resolver
     serves from its own thread and event loop, the drivers from theirs) and cancellation-safe: the
     lock is only ever taken without blocking, from the coroutine that then holds it, so a run
     cancelled while it waits (a deadline) never leaves the lane held."""
@@ -40,21 +44,25 @@ class Lane:
     def __init__(self, interval: float = INTERVAL_SECONDS):
         self.interval = interval
         self._held = threading.Lock()
-        self._last_start: float | None = None
+        self._last_end: float | None = None
         self.starts: list[float] = []  # monotonic start times, for the tests
+        self.ends: list[float] = []
 
     async def run(self, coroutine_factory):
         """Await `coroutine_factory()` inside the lane."""
         while not self._held.acquire(blocking=False):
             await asyncio.sleep(self.POLL_SECONDS)
         try:
-            if self._last_start is not None:
-                wait = self._last_start + self.interval - time.monotonic()
+            if self._last_end is not None:
+                wait = self._last_end + self.interval - time.monotonic()
                 if wait > 0:
                     await asyncio.sleep(wait)
-            self._last_start = time.monotonic()
-            self.starts.append(self._last_start)
-            return await coroutine_factory()
+            self.starts.append(time.monotonic())
+            try:
+                return await coroutine_factory()
+            finally:
+                self._last_end = time.monotonic()
+                self.ends.append(self._last_end)
         finally:
             self._held.release()
 

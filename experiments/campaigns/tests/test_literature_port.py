@@ -266,9 +266,10 @@ def test_the_crossref_lane_holds_one_request_at_a_time_a_second_apart():
         await asyncio.gather(*(lane.run(request) for _ in range(3)))
 
     asyncio.run(three())
-    gaps = [b - a for a, b in zip(lane.starts, lane.starts[1:], strict=False)]
+    # Each start at least the interval after the previous end (so sends are never closer).
+    gaps = [start - end for end, start in zip(lane.ends, lane.starts[1:], strict=False)]
     assert peak[0] == 1 and len(lane.starts) == 3
-    assert all(gap >= 0.2 for gap in gaps)
+    assert len(gaps) == 2 and all(gap >= 0.2 for gap in gaps)
     assert pacing.INTERVAL_SECONDS == 1.0  # the Chrome binding's `min_interval_ms: 1000`
 
 
@@ -365,7 +366,7 @@ def test_a_request_cancelled_while_it_waits_never_leaves_the_lane_held():
 
 
 def test_tuning_t6_every_answer_step_ends_with_a_user_turn():
-    """TUNING.md T-6: ending on the assistant's reply, Ollama's `/v1` continues it (L30: nothing)."""
+    """TUNING.md T-6: ending on the assistant's reply, Ollama's `/v1` continues it (L30: empty)."""
     import inspect
 
     from campaigns.baseline import network

@@ -13,7 +13,7 @@ core from their public pieces, and every campaign seam is stated below.
 | `origin/` | The payload catalog (`payloads/<family>/<id>.json`, drafts until T32 freezes them), the logging sink, the throwaway campaign CA and `CampaignStack` (the origin in its injection mode, the sink and, for TS-L, the Citation Resolver in the same mode, on 127.0.0.1 over TLS). The injection mode itself is `demo/webair/origin/injection.py`, installed only by `campaign_app` and absent from the deploy bundle | §2.1, §2.6, D-351, D-358 |
 | `driver/py_driver.py` | `Py`: agentpkg composed as `agentpkg converse` / `run` compose it, live, with the store's memory context (WebAir; the travel network; Literature Review with the CLI's `create_handlers`) | §2.1, D-353, D-358 |
 | `driver/cr_driver.py`, `driver/node/driver.ts` | `Cr`: the Chrome core composed as `cli-converse.ts` (WebAir) and `cli-run.ts` (the travel network, Literature Review: `ExecutionSession`) compose it, with the memory context composed as the extension's host does; built beside a private copy of the core into `.cache/` (git-ignored) | §2.1, D-357, D-359 |
-| `driver/pacing.py` | Crossref's lane: every Crossref request of a campaign process, one at a time, starts 1 s apart | §2.1, D-358 |
+| `driver/pacing.py` | Crossref's lane: every Crossref request of a campaign process, one at a time, each starting 1 s after the previous one ended | §2.1, D-358 |
 | `driver/hostmap.py` | The host mapping for `Py` (the one seam that is not observation only); `Cr`'s is in `driver.ts` | §2.1 |
 | `driver/routes.py`, `driver/rungs.json` | The rungs (L4, L9, L30, H, H2) and `Py`'s model route | §2.2 |
 | `driver/responder.py` | R-facts, R-accept, R-deny: one decision rule for our consent host and the baseline's ask step | §2.6.4 |
