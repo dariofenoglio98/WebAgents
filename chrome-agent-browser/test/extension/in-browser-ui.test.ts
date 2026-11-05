@@ -14,7 +14,7 @@ import { gpuBudget, budgetWords, inBrowserDescriptor, readModelCatalog, recommen
 import type { InBrowserView } from "../../src/extension/background/in-browser.js";
 import { normalizeSettings } from "../../src/extension/storage/settings.js";
 import { inRouteOrder, routeWords } from "../../src/extension/ui/authorize.js";
-import { BIN_TITLES, inBrowserSection, newInBrowserPageState, NOTHING_LEFT_BEHIND, ROUTE_LINE } from "../../src/extension/ui/in-browser-models.js";
+import { BIN_TITLES, busyKey, inBrowserSection, newInBrowserPageState, NOTHING_LEFT_BEHIND, outcomeOf, ROUTE_LINE } from "../../src/extension/ui/in-browser-models.js";
 import { ROOT } from "../helpers/paths.js";
 
 const CATALOG = readModelCatalog(JSON.parse(readFileSync(join(ROOT, "examples", "model-catalog.content.json"), "utf8")));
@@ -107,6 +107,27 @@ describe("Settings → Models → In this browser", () => {
     [...small.querySelectorAll("button")].find((node) => node.textContent === "Make default")!.click();
     expect(requests.map((item) => item.request)).toEqual([{ type: "inbrowser.unload" }, { type: "inbrowser.delete", entryId: "qwen3-0.6b-q4_0" }]);
     expect((saved[0] as { models: { default_model: string } }).models.default_model).toBe("in-browser/qwen3-0.6b-q4_0");
+  });
+
+  it("says Verify is running, then what it found, under the row it was pressed on (the T41 walk-through saw nothing)", () => {
+    const state = newInBrowserPageState();
+    const request = { type: "inbrowser.verify", entryId: "qwen3-4b-q4_k_m" };
+    state.busy = busyKey(request);
+    const busy = render(view(["qwen3-4b-q4_k_m"]), state).root.querySelector<HTMLElement>('[data-model="in-browser/qwen3-4b-q4_k_m"]')!;
+    const labels = [...busy.querySelectorAll("button")].map((node) => [node.textContent, node.disabled]);
+    expect(labels).toContainEqual(["Verifying…", true]);
+    expect(labels).toContainEqual(["Delete", true]);
+    const entry = CATALOG.entries.find((item) => item.id === "qwen3-4b-q4_k_m")!;
+    state.busy = null;
+    state.outcome = outcomeOf(request, { verified: true, files: entry.files.map((file) => ({ bytes: file.bytes })) });
+    const done = render(view(["qwen3-4b-q4_k_m"]), state).root.querySelector<HTMLElement>('[data-model="in-browser/qwen3-4b-q4_k_m"]')!;
+    expect(done.querySelector('[role="status"]')!.textContent).toBe(`Verified just now: all ${(entry.bytes_total / 1e9).toFixed(1)} GB re-read, and every file still matches its SHA-256.`);
+    expect([...done.querySelectorAll("button")].map((node) => node.textContent)).toContain("Verify");
+    // Another row is not touched; a mismatch says what to do.
+    expect(render(view(["qwen3-4b-q4_k_m", "qwen3-0.6b-q4_0"]), state).root.querySelector('[data-model="in-browser/qwen3-0.6b-q4_0"] [role="status"]')).toBeNull();
+    expect(outcomeOf(request, { verified: false, files: [] })).toMatchObject({ tone: "bad", text: expect.stringMatching(/did not match the digest the catalog states\. Delete the model and download it again\.$/u) });
+    expect(outcomeOf({ type: "inbrowser.load", entryId: "x" }, { n_ctx: 32768, load_ms: 3305 })).toEqual({ entry: "x", text: "Loaded at 32,768 tokens in 3.3 s.", tone: "good" });
+    expect(outcomeOf({ type: "inbrowser.unload" }, {})).toBeNull();
   });
 
   it("looks a pasted repository up with huggingface.co asked first", () => {

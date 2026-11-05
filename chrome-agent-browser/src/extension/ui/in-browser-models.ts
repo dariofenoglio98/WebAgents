@@ -38,11 +38,41 @@ export interface InBrowserPageState {
   confirm: string | null;
   /** The GPU memory field's text. */
   gpu: string;
+  /** The action in flight, as `busyKey` names it, so its button says so (T41 walk-through: Verify showed nothing). */
   busy: string | null;
+  /** The last action's outcome for one entry, shown under its row until the next action. */
+  outcome: { entry: string; text: string; tone: "good" | "bad" } | null;
+}
+
+/** `inbrowser.verify:qwen3-4b-q4_k_m`: which action on which entry is running. */
+export function busyKey(request: { type: string; [key: string]: unknown }): string {
+  return `${request.type}:${typeof request.entryId === "string" ? request.entryId : ""}`;
+}
+
+/**
+ * What an action did, in words, for the row it was pressed on: a Verify re-reads every byte and
+ * says whether they still match; a Load says the context and how long it took. Null for actions
+ * whose effect the row already shows.
+ */
+export function outcomeOf(request: { type: string; [key: string]: unknown }, result: unknown): InBrowserPageState["outcome"] {
+  const entry = typeof request.entryId === "string" ? request.entryId : null;
+  if (entry === null) return null;
+  if (request.type === "inbrowser.verify") {
+    const row = result as { verified?: boolean; files?: Array<{ bytes: number }> } | null;
+    const size = gb((row?.files ?? []).reduce((sum, file) => sum + file.bytes, 0));
+    return row?.verified === true
+      ? { entry, text: `Verified just now: all ${size} re-read, and every file still matches its SHA-256.`, tone: "good" }
+      : { entry, text: "Verification failed: the bytes did not match the digest the catalog states. Delete the model and download it again.", tone: "bad" };
+  }
+  if (request.type === "inbrowser.load") {
+    const loaded = result as { n_ctx?: number; load_ms?: number } | null;
+    return { entry, text: `Loaded at ${(loaded?.n_ctx ?? 0).toLocaleString("en-US")} tokens in ${((loaded?.load_ms ?? 0) / 1000).toFixed(1)} s.`, tone: "good" };
+  }
+  return null;
 }
 
 export function newInBrowserPageState(): InBrowserPageState {
-  return { paste: "", pasted: null, confirm: null, gpu: "", busy: null };
+  return { paste: "", pasted: null, confirm: null, gpu: "", busy: null, outcome: null };
 }
 
 export interface InBrowserActions {
@@ -102,14 +132,16 @@ function entryRow(item: InBrowserView["entries"][number], view: InBrowserView, s
   const download = item.download;
   const running = download !== null && (download.state === "downloading" || download.state === "reading_header");
   const isDefault = settings.models.default_model === descriptor.id;
+  // An action on this entry is running: its button says so and the others wait.
+  const working = state.busy !== null && state.busy.endsWith(`:${entry.id}`);
   const actionsRow: Array<HTMLElement | null> = [];
   if (running) {
     actionsRow.push(el("progress", { attrs: { max: String(download.bytes_total), value: String(download.bytes_done), "aria-label": `Downloading ${entry.display_name}` } }), el("span", { className: "ab-hint", text: `${download.state === "reading_header" ? "reading the header" : `${gb(download.bytes_done)} of ${gb(download.bytes_total)} · ${percent(download.bytes_done, download.bytes_total)}`}${download.resumed_from > 0 ? " · resumed" : ""}` }), button("Cancel download", () => actions.request({ type: "inbrowser.cancel", entryId: entry.id }), { variant: "danger" }));
   } else if (item.cached) {
     actionsRow.push(
-      loaded ? button("Unload", () => actions.request({ type: "inbrowser.unload" })) : button("Load", () => actions.request({ type: "inbrowser.load", entryId: entry.id }), { disabled: !descriptor.available, title: descriptor.available ? "Load it now so the next run starts at once" : (descriptor.availability_reason ?? "") }),
-      button("Verify", () => actions.request({ type: "inbrowser.verify", entryId: entry.id })),
-      button("Delete", () => actions.request({ type: "inbrowser.delete", entryId: entry.id }), { variant: "danger" }),
+      loaded ? button("Unload", () => actions.request({ type: "inbrowser.unload" }), { disabled: working }) : button(state.busy === `inbrowser.load:${entry.id}` ? "Loading…" : "Load", () => actions.request({ type: "inbrowser.load", entryId: entry.id }), { disabled: working || !descriptor.available, title: descriptor.available ? "Load it now so the next run starts at once" : (descriptor.availability_reason ?? "") }),
+      button(state.busy === `inbrowser.verify:${entry.id}` ? "Verifying…" : "Verify", () => actions.request({ type: "inbrowser.verify", entryId: entry.id }), { disabled: working, title: `Re-read all ${gb(entry.bytes_total)} and check every file against its SHA-256` }),
+      button("Delete", () => actions.request({ type: "inbrowser.delete", entryId: entry.id }), { variant: "danger", disabled: working }),
       isDefault || !descriptor.available ? null : button("Make default", () => actions.save({ ...settings, models: { ...settings.models, default_model: descriptor.id } }), { variant: "primary" }),
     );
   } else {
@@ -141,6 +173,7 @@ function entryRow(item: InBrowserView["entries"][number], view: InBrowserView, s
     download?.state === "failed" && download.error ? el("p", { className: "ab-banner ab-banner-bad", text: download.error.message, attrs: { role: "status" } }) : null,
     entry.curated ? null : el("p", { className: "ab-hint", text: entry.notes ?? "" }),
     el("div", { className: "ab-inline" }, ...actionsRow),
+    state.outcome?.entry === entry.id ? el("p", { className: `ab-banner ab-banner-${state.outcome.tone === "good" ? "good" : "bad"} ab-outcome-line`, text: state.outcome.text, attrs: { role: "status" } }) : null,
     state.confirm === entry.id ? downloadCard(item, view, state, actions) : null,
   );
 }

@@ -18,7 +18,7 @@ import { describeError, originOfUrl, refusedOrigins, requestNativeMessaging, req
 import { needsUnlock, newUnlockState, renderLockChip, renderUnlockSheet, type UnlockState } from "../ui/unlock.js";
 import { button, card, chip, el, list, replace, row, whenText } from "../ui/dom.js";
 import { newSettingsPageState, refreshProbes, renderSettingsPage, SETTINGS_SECTIONS, type SettingsPageState, type SettingsSection } from "../ui/settings-page.js";
-import { inBrowserSection, newInBrowserPageState, type InBrowserPageState } from "../ui/in-browser-models.js";
+import { busyKey, inBrowserSection, newInBrowserPageState, outcomeOf, type InBrowserPageState } from "../ui/in-browser-models.js";
 import type { InBrowserView, PasteView } from "../background/in-browser.js";
 import type { ProviderId } from "../../core/models/catalog.js";
 import { renderTrustPage } from "../ui/trust-page.js";
@@ -136,15 +136,19 @@ async function loadInBrowser(): Promise<void> {
 function inBrowserRequest(request: { type: string; [key: string]: unknown }, origins: string[] = []): void {
   void (async () => {
     if (origins.length > 0) await requestOrigins(origins);
-    state.inBrowserPage.busy = request.type;
+    state.inBrowserPage.busy = busyKey(request);
+    state.inBrowserPage.outcome = null;
     render();
     try {
       const result = await send(request as never);
+      state.inBrowserPage.outcome = outcomeOf(request, result);
       if (request.type === "inbrowser.paste") state.inBrowserPage.pasted = result as PasteView;
       if (request.type === "inbrowser.addPasted") state.inBrowserPage.pasted = null;
       state.settingsPage.notice = request.type === "inbrowser.download" ? "Download started; it continues if you close this page." : request.type === "inbrowser.refreshCatalog" ? `Model list ${(result as { version: string }).version} (${(result as { changed: boolean }).changed ? "updated" : "already current"}).` : null;
     } catch (error) {
       state.error = describeError(error);
+      // The refusal under the row it was pressed on, too, not only at the top of the page.
+      if (typeof request.entryId === "string") state.inBrowserPage.outcome = { entry: request.entryId, text: describeError(error).message, tone: "bad" };
     } finally {
       state.inBrowserPage.busy = null;
     }
