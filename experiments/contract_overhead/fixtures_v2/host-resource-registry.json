@@ -1,0 +1,71 @@
+{
+  "schema": "agentpkg-host-resource-registry-v0",
+  "host": {
+    "runtime": "chrome-agent-browser",
+    "runtime_version": "0.1.0",
+    "source": "chrome-agent-browser personal vault (chrome.storage.local, HMAC-SHA256 digests under a per-profile key, D-051)",
+    "captured_at": "2026-10-06T12:00:00.000Z"
+  },
+  "types": [
+    {
+      "id": "personal.travel_profile",
+      "display_name": "Travel profile",
+      "description": "Travel preferences: home airport, preferred cabin, whether to prefer nonstop flights, and currency. Preferences, not identity or payment data.",
+      "permission_kind": "personal.read",
+      "schema_sha256": "fae6c1bbbed8ec3e8cd1abaa212baeca82b3cb4d34020cd21dfb7f15987c535b"
+    },
+    {
+      "id": "personal.passenger_identity",
+      "display_name": "Passenger identity",
+      "description": "The name and contact email of one traveler, for a booking.",
+      "permission_kind": "personal.read",
+      "schema_sha256": "ed3aa07a101767b46697661c503b135707f6d61a10080ab5e7c0f4fd4e06d539"
+    },
+    {
+      "id": "wallet.payment_method",
+      "display_name": "Payment method",
+      "description": "Which payment instrument to use, as the opaque identifier a merchant accepts and a display-safe label. Never a card number, security code or wallet credential.",
+      "permission_kind": "personal.read",
+      "schema_sha256": "3bd36ad1899ff7f97655f00d3f4a5b6e785e4ab6ee77d05e3057e4d1b80338d0"
+    }
+  ],
+  "resources": [
+    {
+      "id": "profile_demo_traveler",
+      "type": "personal.travel_profile",
+      "label": "Demo Traveler \u2014 BOS / Economy / Nonstop",
+      "digest": "095e119598f419bc525c6897c529f06f3ca3cc5757f810f6568c5b7df7be6305"
+    },
+    {
+      "id": "profile_demo_explorer",
+      "type": "personal.travel_profile",
+      "label": "Demo Explorer \u2014 JFK / Business / Any stops",
+      "digest": "aa63e17bf8d8d3b11f8746e591fc799d57f2be2d1b7c45594d2032b6d0d5f906"
+    },
+    {
+      "id": "passenger_demo_alex",
+      "type": "personal.passenger_identity",
+      "label": "Alex Traveler \u2014 a***@example.com",
+      "digest": "66bd5667d019fdca72c54c294fdcf9cf81233db0b9706891079281d34ea1136b"
+    },
+    {
+      "id": "passenger_demo_sam",
+      "type": "personal.passenger_identity",
+      "label": "Sam Traveler \u2014 s***@example.com",
+      "digest": "d144133127d5be3f21eec381d0eb017e9106b77ca94bc56c27407e80a949d4c6"
+    },
+    {
+      "id": "payment_demo_visa",
+      "type": "wallet.payment_method",
+      "label": "Demo Visa \u2022\u2022\u2022\u2022 4242",
+      "digest": "3affabc8e3ca9790efb72ad1a4348570eb41a426c5ff98a86abe5999055f3580"
+    },
+    {
+      "id": "payment_demo_travel",
+      "type": "wallet.payment_method",
+      "label": "Demo Travel Card \u2022\u2022\u2022\u2022 1234",
+      "digest": "86568f4dc90e2b032e24b94fa1ae2db9a44c7b798507675341bf33ac30b39af4"
+    }
+  ],
+  "notes": []
+}

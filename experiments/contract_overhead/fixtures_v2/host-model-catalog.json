@@ -1,0 +1,55 @@
+{
+  "schema": "agentpkg-host-model-catalog-v0",
+  "host": {
+    "runtime": "chrome-agent-browser",
+    "runtime_version": "0.1.0",
+    "source": "fixture: one local model as Settings \u2192 Models would state it (STATE.md \u00a75)",
+    "captured_at": "2026-10-06T12:00:00.000Z",
+    "agent_id": null
+  },
+  "models": [
+    {
+      "id": "ollama/qwen3:30b",
+      "provider_id": "ollama",
+      "model_id": "qwen3:30b",
+      "display_name": "qwen3:30b",
+      "available": true,
+      "availability_reason": null,
+      "selectable": true,
+      "capabilities": {
+        "structured_output": {
+          "value": true,
+          "basis": "derived",
+          "detail": "The adapter requests a constrained response and validates every answer against the schema, failing closed. This is the adapter's guarantee, not a provider declaration."
+        },
+        "reasoning": {
+          "value": true,
+          "basis": "declared",
+          "detail": "Ollama /api/show capabilities: completion, tools, thinking."
+        },
+        "tool_use": {
+          "value": true,
+          "basis": "declared",
+          "detail": "Ollama /api/show capabilities: completion, tools, thinking."
+        }
+      },
+      "limits": {
+        "context_tokens": 65536,
+        "native_context_window": 262144,
+        "max_output_tokens": 16384
+      },
+      "properties": {
+        "local": true,
+        "privacy_class": "local",
+        "cost_class": "free",
+        "status": null,
+        "tags": [
+          "local",
+          "limits:settings",
+          "context:capped"
+        ]
+      }
+    }
+  ],
+  "notes": []
+}

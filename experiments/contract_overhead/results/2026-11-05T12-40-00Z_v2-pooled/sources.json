@@ -1,0 +1,29 @@
+[
+  {
+    "directory": "experiments/contract_overhead/results/2026-11-05T05-45-14Z_v2-run1",
+    "commit": "8334b4c290c169b9c6e087f3188d7185d51cf647",
+    "started_at": "2026-11-05T05:45:14.260660+00:00",
+    "observations": {
+      "pre": 56000,
+      "micro": 130000
+    }
+  },
+  {
+    "directory": "experiments/contract_overhead/results/2026-11-05T08-03-15Z_v2-run2",
+    "commit": "8334b4c290c169b9c6e087f3188d7185d51cf647",
+    "started_at": "2026-11-05T08:03:15.804010+00:00",
+    "observations": {
+      "pre": 56000,
+      "micro": 130000
+    }
+  },
+  {
+    "directory": "experiments/contract_overhead/results/2026-11-05T10-19-52Z_v2-run3",
+    "commit": "8334b4c290c169b9c6e087f3188d7185d51cf647",
+    "started_at": "2026-11-05T10:19:52.674406+00:00",
+    "observations": {
+      "pre": 56000,
+      "micro": 130000
+    }
+  }
+]

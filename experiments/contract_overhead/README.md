@@ -8,6 +8,10 @@ with no model, tool, network or human involved.
 It is a systems benchmark of the control plane and runner. It says nothing about model quality,
 task accuracy, LLM latency or tool latency. The end-to-end case studies in the paper cover those.
 
+> **v2 (E7, T38).** The second series, on both runtimes and four packages, with the extensions'
+> run-time costs, is [`DESIGN_v2.md`](DESIGN_v2.md) (`benchmark_v2.py`, `node/bench.ts`, `aggregate_v2.py`). This
+> README describes v1 (RQ2), which v2 leaves untouched and never pools with.
+
 ## Research question
 
 > What local latency does WebAgents' package-to-execution contract introduce before workflow

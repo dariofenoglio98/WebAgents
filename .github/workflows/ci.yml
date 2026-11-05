@@ -92,7 +92,7 @@ jobs:
                         verify_literature_026 verify_literature_027 \
                         verify_webair verify_webair_discovery check_memory_spec \
                         verify_compute verify_conversation verify_network \
-                        check_security_model check_protocol; do
+                        check_security_model check_protocol check_extension_privileges; do
             report="$RUNNER_TEMP/$script.json"
             agentpkg/.venv/bin/python "scripts/$script.py" > "$report"
             # The scripts report failures in their JSON, not in their exit status.
@@ -692,7 +692,8 @@ jobs:
             chrome-agent-browser/package-lock.json
       - name: Install agentpkg, build the plugin, install the Chrome core's toolchain
         # catalog v2 (T30) bundles its Node driver over a private copy of the Chrome core with
-        # the core's own esbuild and type-checks it with the core's TypeScript.
+        # the core's own esbuild and type-checks it with the core's TypeScript; overhead v2 (T38)
+        # bundles its Node benchmark over the core the same way.
         run: |
           python -m venv agentpkg/.venv
           agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev,compute]'
@@ -702,7 +703,7 @@ jobs:
         # One pytest process per experiment: each puts its own directory first on
         # sys.path, and the experiments have `analyze` modules of their own.
         run: |
-          for experiment in contract_overhead contract_enforcement contract_enforcement/catalog_v2; do
+          for experiment in contract_overhead contract_enforcement contract_enforcement/catalog_v2 conformance_report; do
             agentpkg/.venv/bin/python -m pytest "experiments/$experiment/tests" -rs \
               --junitxml="$RUNNER_TEMP/${experiment//\//_}.xml"
             agentpkg/.venv/bin/python - "$RUNNER_TEMP/${experiment//\//_}.xml" <<'PY'

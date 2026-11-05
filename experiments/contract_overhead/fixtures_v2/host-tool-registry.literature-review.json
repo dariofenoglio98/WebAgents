@@ -1,0 +1,162 @@
+{
+  "schema": "agentpkg-host-tool-registry-v0",
+  "host": {
+    "runtime": "chrome-agent-browser",
+    "runtime_version": "0.5.0",
+    "source": "chrome-agent-browser host tool registry (D-054, D-081, D-082): one generic HTTPS JSON binding per declared remote POST tool, derived from the signed declaration after the URL gate; the host's Crossref search for scholarly.search at Crossref's works endpoint; the selected-PDF reader for paper.read; one host-resource binding per vault type; other tools unbound",
+    "captured_at": "2026-11-04T00:00:00.000Z",
+    "agent_id": null
+  },
+  "bindings": [
+    {
+      "id": "chrome:json_http:citation-resolver:1",
+      "tool_id": "citation-resolver",
+      "binding": "citation.resolve",
+      "implementation_kind": "json_http",
+      "implementation_id": "chrome.tool.json_http",
+      "implementation_version": "0.1.0",
+      "display_name": "citation-resolver: one HTTPS POST to https://webagents-citation-resolver-production.up.railway.app/resolve",
+      "description": "This browser's generic JSON-over-HTTPS adapter, bound to exactly the origin, path, method and schemas the package declares for this tool. No other request shape, path or destination is reachable through it; no credential is attached. When the service is unavailable for a DOI, this browser looks that DOI up at https://api.crossref.org/works/ instead (its built-in Crossref lookup, at the same pace as Crossref search) and says so in the answer.",
+      "remote": true,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": {
+        "origin": "https://webagents-citation-resolver-production.up.railway.app",
+        "path": "/resolve",
+        "method": "POST"
+      },
+      "contract": {
+        "input_schema_sha256": "6ebcf0d39ab472236ac42275a84e9299c64d22273847898c95e46096363d9b83",
+        "output_schema_sha256": "0122dc2ac551935269f43020a1b97dcfabb2f180fe07fbdf02734dcb7c1a14f9",
+        "permission_kinds": [
+          "network"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 45,
+        "max_request_bytes": 65536,
+        "max_response_bytes": 4194304,
+        "max_concurrent": 4,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": "settings:crossref.contact"
+      }
+    },
+    {
+      "id": "chrome:selected_pdf_text:paper-reader:1",
+      "tool_id": "paper-reader",
+      "binding": "paper.read",
+      "implementation_kind": "selected_file",
+      "implementation_id": "chrome.tool.selected_pdf_text",
+      "implementation_version": "0.1.0",
+      "display_name": "Selected PDF text",
+      "description": "Extracts page text from one PDF you picked in Settings \u2192 Files and gave this run, named by an opaque id. No path is accepted, no other file is readable, and nothing is fetched, rendered, executed or OCRed; the parser runs in its own Worker under the reference's page and text limits.",
+      "remote": false,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": null,
+      "contract": {
+        "input_schema_sha256": "5b1df5dc0d13ca9a8b76cce86d93639f2b13baf3eb66ec895a725fc9169686ca",
+        "output_schema_sha256": "4feee1362ccba94d82ffbd56e106525c1fab7643e664172d63469ec241ab3167",
+        "permission_kinds": [
+          "files.read"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 20,
+        "max_request_bytes": 1024,
+        "max_response_bytes": 524288,
+        "max_concurrent": 2,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      }
+    },
+    {
+      "id": "chrome:host-resource:research.profile:1",
+      "tool_id": "research.profile",
+      "binding": "host.memory.research.profile",
+      "implementation_kind": "host_resource",
+      "implementation_id": "chrome.tool.host_resource",
+      "implementation_version": "0.1.0",
+      "display_name": "Research profile (held in this browser's memory)",
+      "description": "Returns the one research profile the person granted for this run. It takes no arguments, so nothing a package sends can name another; it reaches no network and writes nothing.",
+      "remote": false,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": null,
+      "contract": {
+        "input_schema_sha256": "71fc596a20f27da3dec80050e5d1f553eba34aea24c2853b853488a811e6b892",
+        "output_schema_sha256": "51ff0f4a0824d8693444d1285b311ff3e414653671182487b43d7a25093b8f4b",
+        "permission_kinds": [
+          "memory.read"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 5,
+        "max_request_bytes": 64,
+        "max_response_bytes": 163840,
+        "max_concurrent": 4,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      },
+      "resource_type": "research.profile"
+    },
+    {
+      "id": "chrome:crossref_works_search:scholarly-search:1",
+      "tool_id": "scholarly-search",
+      "binding": "scholarly.search",
+      "implementation_kind": "json_http",
+      "implementation_id": "chrome.tool.crossref_works_search",
+      "implementation_version": "0.1.0",
+      "display_name": "Crossref works search",
+      "description": "One GET to https://api.crossref.org/works with exactly four parameters (query.bibliographic, rows, a fixed field selection and a fixed filter to scholarly work types) whose names and fixed values are host code, plus mailto when you entered a contact address in Settings \u2192 Services. At most one call at a time and one start per second, as Crossref's public pool asks. The answer is reduced to the declared search result, with markup rendered to text as the Citation Resolver renders the same fields.",
+      "remote": true,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": {
+        "origin": "https://api.crossref.org",
+        "path": "/works",
+        "method": "GET"
+      },
+      "contract": {
+        "input_schema_sha256": "f8a6f920b23bf1731a85d5275c10eee77a9d055fb14917be114c1b9e8249baf2",
+        "output_schema_sha256": "eb83100404221fd9a489046d6741a046aae07c31c672ab6dc2daabffeda3c9ee",
+        "permission_kinds": [
+          "network"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 25,
+        "max_request_bytes": 4096,
+        "max_response_bytes": 524288,
+        "max_concurrent": 1,
+        "min_interval_ms": 1000
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": "settings:crossref.contact"
+      }
+    }
+  ],
+  "notes": []
+}

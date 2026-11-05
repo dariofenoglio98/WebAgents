@@ -1,0 +1,9 @@
+{
+  "zip": "chrome-agent-browser/dist/chrome-agent-browser-0.5.0.zip",
+  "version": "0.5.0",
+  "files": 19,
+  "zip_sha256": "2a906255a3ef3ea44cdf3379e1f4d5f3b79090533cf350914429b579c14145a3",
+  "bundled_packages": 10,
+  "passed": true,
+  "problems": []
+}

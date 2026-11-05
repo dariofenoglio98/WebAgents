@@ -1,0 +1,162 @@
+{
+  "benchmark": {
+    "name": "contract_overhead_v2",
+    "version": "2.0.0",
+    "script_sha256": "d2935e96e02cd36bd9e7b21e42e5d612dd08e7f0bfe6549917cdc1c08ad03b27",
+    "node_source_sha256": "5c369e718107434d7651916689ce5071203a395da460e569469cb78874ce3063",
+    "v1_helpers_sha256": "8322b3961db262a0b80c72397de48023c2ce03adb9ce37db971ebe18fef8fd9c",
+    "config": {
+      "preset": "paper",
+      "runtimes": [
+        "py",
+        "ts"
+      ],
+      "arms": [
+        "pre",
+        "micro"
+      ],
+      "packages": [
+        "meeting-agenda",
+        "literature-review",
+        "webair",
+        "travel-network"
+      ],
+      "warmup": 50,
+      "batches": 5,
+      "iterations": 200,
+      "seed": 20261104,
+      "order": "per (batch, iteration) every package once, order from random.Random(seed); both runtimes follow the same drawn schedule; warmup the same scheme",
+      "scan_payload_kib": [
+        1,
+        16,
+        256,
+        1024
+      ],
+      "scan_set_sizes": [
+        10,
+        100,
+        1000
+      ],
+      "network_roles": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "network_topologies": [
+        "star",
+        "mesh"
+      ],
+      "model_id": "ollama/qwen3:30b",
+      "session_ttl_seconds": 7200
+    },
+    "stages": [
+      "package_open_verify",
+      "authorization_receipt",
+      "compatibility_evaluation",
+      "run_plan_preparation",
+      "host_revalidation_lease",
+      "runner_verification",
+      "workflow_start"
+    ],
+    "groups": {
+      "verification": [
+        "package_open_verify"
+      ],
+      "authorization_and_binding": [
+        "authorization_receipt",
+        "compatibility_evaluation"
+      ],
+      "run_plan": [
+        "run_plan_preparation"
+      ],
+      "revalidation": [
+        "host_revalidation_lease",
+        "runner_verification",
+        "workflow_start"
+      ]
+    }
+  },
+  "protocol": {
+    "path": "experiments/PROTOCOL.md",
+    "sha256": "80c15e8959b60beb16cec64496c24eda5f4e37422b680c74e56aaea6b4114753",
+    "version_line": null,
+    "section": "\u00a73 E7"
+  },
+  "fixtures": {
+    "host-model-catalog.json": "dfa9fce68f0923cac5a93a19a86a20b031c59aec60c3977b5b98e81d3385c41f",
+    "host-resource-registry.json": "6a6d3e751a2bc8c8331790e6e7e269877ff7c711631e3043e16193ab5c2c9445",
+    "authorization.json": "ee2a307d9c73491e24e2aef2d7b94de54c73fa8e06411c8121c869a783b70e19",
+    "host-tool-registry.meeting-agenda.json": "3ae4a7c91726593d5c4b629b8d4e26af3dea49a1815bbeee2e48762721a6baba",
+    "host-tool-registry.literature-review.json": "9cb51bca891db5f40d8940408634f074abbbab33ebe3827106c3ff0dc7c617ac",
+    "host-tool-registry.webair.json": "b7a538c1061e3de144ff323d7f3db69fbb0fca7afb28017093b5f7602b7a510b",
+    "host-tool-registry.travel-network.json": "86cbc4af981ec55e92993e9c1755d82b95c3ce8c161458d058bc5f14ec06fccd",
+    "meeting-agenda-input.json": "1123e537efe3c71b4868924144371dc3839e6acc3a0d963a34ed1ed4289fb367",
+    "literature-review-input.json": "c228eb98152ed373fab9f79e33d221e3d5bb5e42a293b29ee6657911c5c7026c",
+    "webair-input.json": "89f387e8e643dcbd6d28de8fc53f40b3ad51fa72c9b532bb9364c60a3d53daf0",
+    "travel-network-input.json": "fba64dd4db1e18e2605a1d33bf6f35080c3d955e2d8c75498ae67b34c426d1cb"
+  },
+  "software": {
+    "git_commit": "8334b4c290c169b9c6e087f3188d7185d51cf647",
+    "git_dirty": false,
+    "git_tracked_changes": [],
+    "git_untracked": [],
+    "dirty_tree_sha256": null,
+    "git_production_paths_modified": [],
+    "agentpkg_version": "0.7.1",
+    "agentpkg_source": "agentpkg/src/agentpkg",
+    "chrome_core_version": "0.5.0",
+    "node_build": {
+      "key": "b309347ead3bda64a7a2",
+      "tools": {
+        "typescript": "5.9.3",
+        "esbuild": "0.28.2",
+        "node": "v26.9.0"
+      },
+      "typechecked": true,
+      "chrome_src_sha256": "9800176e5a77a7afb4d41585c77f8c17b561b7f0c55bbf229e38e4c702067c2a",
+      "bench_source_sha256": "5c369e718107434d7651916689ce5071203a395da460e569469cb78874ce3063",
+      "bench_bundle_sha256": "9df740b275ce3f1a58f69ce97ffd056d121d1f79df4cba9419b43bd9b8d0eb41",
+      "compute_worker_bundle_sha256": "d275eb5b214326719e3659cda8677fda2a3c20929f592f55e26d55b6fcd23d0f",
+      "exposed": {
+        "file": "chrome-agent-browser/src/core/network/runner.ts",
+        "appended": "\nexport { checkTransition };\n"
+      }
+    },
+    "dependencies": {
+      "jsonschema": "4.26.0",
+      "referencing": "0.37.0",
+      "cryptography": "46.0.7",
+      "rfc8785": "0.1.4",
+      "wasmtime": "49.0.0"
+    }
+  },
+  "machine": {
+    "os": "Darwin",
+    "os_version": "15.7.4",
+    "kernel": "24.6.0",
+    "architecture": "arm64",
+    "cpu_model": "Apple M3 Max",
+    "logical_cpus": 14,
+    "performance_logical_cpus": 10,
+    "efficiency_logical_cpus": 4,
+    "memory_bytes": 38654705664,
+    "python_version": "3.13.5",
+    "python_implementation": "CPython",
+    "python_compiler": "Clang 17.0.0 (clang-1700.0.13.3)",
+    "timer": {
+      "function": "time.perf_counter_ns",
+      "implementation": "mach_absolute_time()",
+      "resolution_s": 4.166666666666666e-08,
+      "monotonic": true
+    }
+  },
+  "started_at": "2026-11-05T05:45:14.260660+00:00",
+  "command": "python experiments/contract_overhead/benchmark_v2.py --label v2-run1",
+  "expected_observations": {
+    "pre_per_runtime_package": 1000,
+    "micro_per_runtime_cell": 1000
+  }
+}

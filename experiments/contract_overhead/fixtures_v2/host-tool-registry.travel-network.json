@@ -1,0 +1,130 @@
+{
+  "schema": "agentpkg-host-tool-registry-v0",
+  "host": {
+    "runtime": "chrome-agent-browser",
+    "runtime_version": "0.5.0",
+    "source": "chrome-agent-browser host tool registry (D-054, D-081, D-082): one generic HTTPS JSON binding per declared remote POST tool, derived from the signed declaration after the URL gate; the host's Crossref search for scholarly.search at Crossref's works endpoint; the selected-PDF reader for paper.read; one host-resource binding per vault type; other tools unbound",
+    "captured_at": "2026-11-04T00:00:00.000Z",
+    "agent_id": null
+  },
+  "bindings": [
+    {
+      "id": "chrome:json_http:check-calendar:1",
+      "tool_id": "check-calendar",
+      "binding": "webair.travel_calendar",
+      "implementation_kind": "json_http",
+      "implementation_id": "chrome.tool.json_http",
+      "implementation_version": "0.1.0",
+      "display_name": "check-calendar: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/travel/calendar",
+      "description": "This browser's generic JSON-over-HTTPS adapter, bound to exactly the origin, path, method and schemas the package declares for this tool. No other request shape, path or destination is reachable through it; no credential is attached.",
+      "remote": true,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": {
+        "origin": "https://webagents-webair-production.up.railway.app",
+        "path": "/api/v1/travel/calendar",
+        "method": "POST"
+      },
+      "contract": {
+        "input_schema_sha256": "df2b6426b92e51c0309ed561bfabd9910f90b111e953077d7dd72b41f87459c0",
+        "output_schema_sha256": "c44d3638997c306f8b82dec4e0d94535be134d4ce01d2e6921dbe60be1a166d9",
+        "permission_kinds": [
+          "network"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 15,
+        "max_request_bytes": 65536,
+        "max_response_bytes": 4194304,
+        "max_concurrent": 4,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      }
+    },
+    {
+      "id": "chrome:json_http:search-flights:1",
+      "tool_id": "search-flights",
+      "binding": "webair.travel_flights",
+      "implementation_kind": "json_http",
+      "implementation_id": "chrome.tool.json_http",
+      "implementation_version": "0.1.0",
+      "display_name": "search-flights: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/travel/flights",
+      "description": "This browser's generic JSON-over-HTTPS adapter, bound to exactly the origin, path, method and schemas the package declares for this tool. No other request shape, path or destination is reachable through it; no credential is attached.",
+      "remote": true,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": {
+        "origin": "https://webagents-webair-production.up.railway.app",
+        "path": "/api/v1/travel/flights",
+        "method": "POST"
+      },
+      "contract": {
+        "input_schema_sha256": "5d3268243328b73bc0c157e720894fd23506ba1649993d802027e053f2cb8224",
+        "output_schema_sha256": "619ad295c5abd0f97d99c6c2ad37bf89db6d6b2986626fe12bbbfdfc1c15aa59",
+        "permission_kinds": [
+          "network"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 15,
+        "max_request_bytes": 65536,
+        "max_response_bytes": 4194304,
+        "max_concurrent": 4,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      }
+    },
+    {
+      "id": "chrome:json_http:search-hotels:1",
+      "tool_id": "search-hotels",
+      "binding": "webair.travel_hotels",
+      "implementation_kind": "json_http",
+      "implementation_id": "chrome.tool.json_http",
+      "implementation_version": "0.1.0",
+      "display_name": "search-hotels: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/travel/hotels",
+      "description": "This browser's generic JSON-over-HTTPS adapter, bound to exactly the origin, path, method and schemas the package declares for this tool. No other request shape, path or destination is reachable through it; no credential is attached.",
+      "remote": true,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": {
+        "origin": "https://webagents-webair-production.up.railway.app",
+        "path": "/api/v1/travel/hotels",
+        "method": "POST"
+      },
+      "contract": {
+        "input_schema_sha256": "736517e18bf7d3eaeac6cfbefbb3932e57a076086f29be7f74937dfbd5db5aca",
+        "output_schema_sha256": "ec7feeaba7601f3406fd79ececa734bb28a4f42cbda65729c1c9c7c695026cf0",
+        "permission_kinds": [
+          "network"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 15,
+        "max_request_bytes": 65536,
+        "max_response_bytes": 4194304,
+        "max_concurrent": 4,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      }
+    }
+  ],
+  "notes": []
+}

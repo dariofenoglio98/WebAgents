@@ -1,0 +1,160 @@
+{
+  "script": "check_extension_privileges",
+  "property": "P-19",
+  "commit": "345130601b98e5d4605280f32af0832e17f3ec2e",
+  "manifest": "chrome-agent-browser/src/extension/manifest.json",
+  "manifest_sha256": "81241916a7ed890d7d4c21165cde5503818dffa2940c442e0ad507baf7282c42",
+  "extension_version": "0.5.0",
+  "checks": [
+    {
+      "check": "manifest_version",
+      "passed": true,
+      "found": 3,
+      "expected": 3
+    },
+    {
+      "check": "permissions",
+      "passed": true,
+      "found": [
+        "activeTab",
+        "alarms",
+        "contextMenus",
+        "offscreen",
+        "scripting",
+        "sidePanel",
+        "storage",
+        "unlimitedStorage"
+      ],
+      "expected": [
+        "activeTab",
+        "alarms",
+        "contextMenus",
+        "offscreen",
+        "scripting",
+        "sidePanel",
+        "storage",
+        "unlimitedStorage"
+      ]
+    },
+    {
+      "check": "never_requested",
+      "passed": true,
+      "found": [],
+      "expected": []
+    },
+    {
+      "check": "optional_permissions",
+      "passed": true,
+      "found": [
+        "nativeMessaging"
+      ],
+      "expected": [
+        "nativeMessaging"
+      ]
+    },
+    {
+      "check": "host_permissions",
+      "passed": true,
+      "found": [
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ],
+      "expected": [
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ]
+    },
+    {
+      "check": "optional_host_permissions",
+      "passed": true,
+      "found": [
+        "https://*/*"
+      ],
+      "expected": [
+        "https://*/*"
+      ]
+    },
+    {
+      "check": "no_content_scripts",
+      "passed": true,
+      "found": false,
+      "expected": false
+    },
+    {
+      "check": "no_externally_connectable",
+      "passed": true,
+      "found": false,
+      "expected": false
+    },
+    {
+      "check": "no_web_accessible_resources",
+      "passed": true,
+      "found": false,
+      "expected": false
+    },
+    {
+      "check": "no_external_message_listener",
+      "passed": true,
+      "found": [],
+      "expected": []
+    },
+    {
+      "check": "csp_script_src",
+      "passed": true,
+      "found": [
+        "'self'",
+        "'wasm-unsafe-eval'"
+      ],
+      "expected": [
+        "'self'",
+        "'wasm-unsafe-eval'"
+      ]
+    },
+    {
+      "check": "csp_object_src",
+      "passed": true,
+      "found": [
+        "'self'"
+      ],
+      "expected": [
+        "'self'"
+      ]
+    },
+    {
+      "check": "csp_no_unsafe",
+      "passed": true,
+      "found": [],
+      "expected": []
+    },
+    {
+      "check": "offscreen_for_workers_only",
+      "passed": true,
+      "found": [
+        "chrome.offscreen.Reason.WORKERS"
+      ],
+      "expected": [
+        "chrome.offscreen.Reason.WORKERS"
+      ]
+    },
+    {
+      "check": "run_in_dedicated_worker",
+      "passed": true,
+      "found": [
+        "execution-worker.js"
+      ],
+      "expected": [
+        "execution-worker.js"
+      ]
+    },
+    {
+      "check": "compute_in_nested_worker",
+      "passed": true,
+      "found": {
+        "nested": true,
+        "script": "compute-worker.js"
+      }
+    }
+  ],
+  "failed": [],
+  "passed": true
+}

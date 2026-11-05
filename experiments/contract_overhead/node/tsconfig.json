@@ -1,0 +1,23 @@
+{
+  // The Node side of benchmark v2, type-checked with the Chrome core's own TypeScript and the
+  // options of chrome-agent-browser/tsconfig.json (benchmark_v2.py runs `tsc -p` before bundling).
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "typeRoots": ["../../../chrome-agent-browser/node_modules/@types"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "declaration": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": false,
+    "resolveJsonModule": true
+  },
+  "include": ["bench.ts"]
+}
