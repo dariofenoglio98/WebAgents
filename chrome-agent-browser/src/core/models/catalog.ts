@@ -2,8 +2,9 @@
  * The host model catalog without calling a model (D-023, D-055): which models this browser
  * can route to, projected into the provider-neutral descriptors `compatibility.ts` evaluates.
  *
- * Four routes: local Ollama, OpenAI and Anthropic with the person's own keys, and Chrome's
- * built-in model through the Prompt API. The core never performs a request itself: every
+ * Five routes: a model the extension runs itself in the browser (T41, D-440), local Ollama,
+ * OpenAI and Anthropic with the person's own keys, and Chrome's built-in model through the
+ * Prompt API. The core never performs a request itself: every
  * probe goes through an injected `Http`, which the shell implements with `fetch` and to which
  * the shell alone adds the credential header for a provider. Keys never enter this module.
  *
@@ -27,11 +28,19 @@
 import { CATALOG_SCHEMA, normalizeCatalog, type CapabilityAnswer, type CatalogNote, type HostCatalog } from "../compatibility.js";
 import { thrownName } from "../errors.js";
 import { isRecord } from "../fields.js";
+import { inBrowserDescriptor, type InBrowserEntry, type InBrowserEntryState } from "./in-browser-catalog.js";
 
-export type ProviderId = "ollama" | "openai" | "anthropic" | "chrome-builtin";
-export const PROVIDER_IDS: readonly ProviderId[] = Object.freeze(["ollama", "openai", "anthropic", "chrome-builtin"]);
+export type ProviderId = "in-browser" | "ollama" | "openai" | "anthropic" | "chrome-builtin";
+/** The routes in the order the picker shows them when each is available (D-446). */
+export const PROVIDER_IDS: readonly ProviderId[] = Object.freeze(["in-browser", "ollama", "openai", "anthropic", "chrome-builtin"]);
+/** The routes that run inside this browser: no endpoint, no key, no origin to grant. */
+export type BrowserProviderId = "in-browser" | "chrome-builtin";
+export type EndpointProviderId = Exclude<ProviderId, BrowserProviderId>;
+export function hasEndpoint(provider: ProviderId | string): provider is EndpointProviderId {
+  return provider === "ollama" || provider === "openai" || provider === "anthropic";
+}
 
-export const DEFAULT_BASE_URLS: Readonly<Record<Exclude<ProviderId, "chrome-builtin">, string>> = Object.freeze({
+export const DEFAULT_BASE_URLS: Readonly<Record<EndpointProviderId, string>> = Object.freeze({
   ollama: "http://127.0.0.1:11434",
   openai: "https://api.openai.com",
   anthropic: "https://api.anthropic.com",
@@ -149,7 +158,7 @@ function positiveInt(value: unknown): number | null {
 
 function base(connection: ProviderConnection): string {
   const configured = connection.base_url?.replace(/\/+$/u, "");
-  return configured && configured.length > 0 ? configured : DEFAULT_BASE_URLS[connection.provider as Exclude<ProviderId, "chrome-builtin">];
+  return configured && configured.length > 0 ? configured : DEFAULT_BASE_URLS[connection.provider as EndpointProviderId];
 }
 
 function overrideFor(connection: ProviderConnection, modelId: string): ModelOverride {
@@ -402,11 +411,45 @@ export function probeBuiltin(connection: ProviderConnection, builtin: BuiltinAva
   return { provider: "chrome-builtin", ok: availability === "available", models: [descriptor], notes: [], error };
 }
 
+// -- in this browser (T41, D-440, D-445) --------------------------------------------------
+/**
+ * What the shell knows about its in-browser models, each fact read before the probe (design §4):
+ * the entries (the verified curated list and the person's pasted repositories), the cache's and
+ * the machine's state per entry, and whether this browser can run the engine at all.
+ */
+export interface InBrowserProbeInput {
+  entries: readonly InBrowserEntry[];
+  /** Per entry; an entry without one is not downloaded and never measured. */
+  states: ReadonlyMap<string, InBrowserEntryState>;
+  /** The machine's budget (D-443), for an entry without a state. */
+  budget: InBrowserEntryState["budget"];
+  /** Notes for the catalog: a list refused and the shipped one used instead, and the like. */
+  notes?: readonly CatalogNote[];
+}
+
+/**
+ * The in-browser route's probe: one descriptor per entry through `inBrowserDescriptor` (T40),
+ * which computes the fit itself at the context it reports. No network request: the cache state,
+ * the budget and the measured facts are inputs. `ok` when at least one entry can be used now.
+ */
+export function probeInBrowser(connection: ProviderConnection, input: InBrowserProbeInput | null): ProbeResult {
+  if (input === null || input.entries.length === 0) return { provider: "in-browser", ok: false, models: [], notes: [...(input?.notes ?? [])], error: input === null ? "The in-browser engine's state was not read." : "No in-browser model is listed." };
+  const models = input.entries.map((entry) => {
+    const state = input.states.get(entry.id) ?? null;
+    const facts: InBrowserEntryState = state ?? { cached: false, verified: false, loaded: false, chosen_context: null, budget: input.budget, measured: null };
+    return inBrowserDescriptor(entry, facts, overrideFor(connection, entry.id));
+  });
+  const ok = models.some((model) => (model as { available: boolean }).available);
+  return { provider: "in-browser", ok, models, notes: [...(input.notes ?? [])], error: ok ? null : "No in-browser model is downloaded, verified and within this machine's GPU memory budget." };
+}
+
 // -- the catalog ---------------------------------------------------------------------------
-/** One provider's probe; `builtin` is the shell's Prompt API reading, used for `chrome-builtin` only. */
-export async function probeProvider(connection: ProviderConnection, http: Http, builtin: BuiltinAvailability | null = null): Promise<ProbeResult> {
+/** One provider's probe; `builtin` is the shell's Prompt API reading, used for `chrome-builtin` only; `inBrowser` the shell's cache and machine facts, for `in-browser` only. */
+export async function probeProvider(connection: ProviderConnection, http: Http, builtin: BuiltinAvailability | null = null, inBrowser: InBrowserProbeInput | null = null): Promise<ProbeResult> {
   try {
     switch (connection.provider) {
+      case "in-browser":
+        return probeInBrowser(connection, inBrowser);
       case "ollama":
         return await probeOllama(connection, http);
       case "openai":
@@ -423,6 +466,8 @@ export async function probeProvider(connection: ProviderConnection, http: Http, 
 
 export interface CatalogOptions {
   builtin: BuiltinAvailability | null;
+  /** The in-browser route's facts (T41); null on a host without the engine. */
+  inBrowser?: InBrowserProbeInput | null;
   runtimeVersion: string | null;
   now?: Date;
   /** Answers already in hand, by provider: those providers are not asked again (a single Test connection merged into the last catalog). */
@@ -436,20 +481,20 @@ export async function buildHostCatalog(connections: readonly ProviderConnection[
   const probes: ProbeResult[] = [];
   for (const connection of connections) {
     if (!connection.enabled) continue;
-    const result = options.probed?.get(connection.provider) ?? (await probeProvider(connection, http, options.builtin));
+    const result = options.probed?.get(connection.provider) ?? (await probeProvider(connection, http, options.builtin, options.inBrowser ?? null));
     probes.push(result);
     models.push(...result.models);
     notes.push(...result.notes);
-    // A built-in model Chrome has not made available is described by its own availability reason, not as an unreachable route.
-    if (!result.ok && connection.provider !== "chrome-builtin") notes.push({ code: `${connection.provider}_unreachable`, detail: result.error });
+    // A model that runs in this browser is described by its own availability reason, not as an unreachable route.
+    if (!result.ok && hasEndpoint(connection.provider)) notes.push({ code: `${connection.provider}_unreachable`, detail: result.error });
   }
-  if (models.length === 0) notes.push({ code: "no_models_available", detail: "No model route is configured or reachable. Start Ollama (with OLLAMA_ORIGINS including chrome-extension://*) or enter an API key in Settings → Models." });
+  if (models.length === 0) notes.push({ code: "no_models_available", detail: "No model route is configured or reachable. Download a model in Settings → Models → In this browser, start Ollama (with OLLAMA_ORIGINS including chrome-extension://*) or enter an API key." });
   const catalog = await normalizeCatalog({
     schema: CATALOG_SCHEMA,
     host: {
       runtime: "chrome-agent-browser",
       runtime_version: options.runtimeVersion,
-      source: "chrome-agent-browser model catalog: Ollama /api/tags + /api/show, OpenAI /v1/models, Anthropic /v1/models, Chrome LanguageModel.availability(); no model was called",
+      source: "chrome-agent-browser model catalog: the in-browser model cache and catalog, Ollama /api/tags + /api/show, OpenAI /v1/models, Anthropic /v1/models, Chrome LanguageModel.availability(); no model was called",
       captured_at: (options.now ?? new Date()).toISOString(),
       agent_id: null,
     },

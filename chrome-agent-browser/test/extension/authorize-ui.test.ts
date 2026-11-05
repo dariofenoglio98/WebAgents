@@ -401,7 +401,7 @@ describe("Settings and Your data", () => {
     let current = settings;
     const render = () => renderSettingsPage(current, null, state, { onSave: (next) => saved.push(next), onSetKey: (provider, key) => keys.push([provider, key]), onProbe: (provider) => probes.push(provider), rerender: () => undefined });
     let root = render();
-    expect(root.textContent).toContain("Ollama (local)");
+    expect(root.textContent).toContain("Ollama on this computer");
     expect(root.textContent).toContain("no key");
     // The endpoint placeholder names the endpoint actually used when the field is empty (user feedback 2026-10-07).
     expect(root.querySelector<HTMLInputElement>('input[name="base-url-openai"]')?.placeholder).toBe("https://api.openai.com (default)");

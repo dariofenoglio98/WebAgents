@@ -1,0 +1,357 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentpkg.local/spec/extensions/model-catalog-v0.schema.json",
+  "title": "org.webagents:model-catalog-v0",
+  "description": "The content of a signed model catalog (D-442, D-453): the project's curated list of models the Agent Browser can run in the browser, each an agentpkg-in-browser-model-v0 entry marked curated. A list widens nothing: an entry names weights by hash and a licence, and the person still clicks every download. A browser keeps the newest valid list it verified (monotone version; a version reused for other content is refused) and falls back to the list it shipped with. $defs.entry is in-browser-model-v0.schema.json without its own $id (a test holds the two equal).",
+  "type": "object",
+  "properties": {
+    "catalog_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,8})(\\.(0|[1-9][0-9]{0,8})){0,2}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "$ref": "#/$defs/unbroken"
+    },
+    "issued_at": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "expires_at": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    }
+  },
+  "required": [
+    "catalog_id",
+    "version",
+    "title",
+    "issued_at",
+    "entries"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "unbroken": {
+      "not": {
+        "pattern": "[\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]"
+      }
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "minLength": 20,
+      "maxLength": 40,
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "entry": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "const": "agentpkg-in-browser-model-v0"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{1,63}$"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "$ref": "#/$defs/unbroken"
+        },
+        "family": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "$ref": "#/$defs/unbroken"
+        },
+        "parameters": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "format": {
+          "enum": [
+            "gguf"
+          ]
+        },
+        "engine": {
+          "enum": [
+            "wllama"
+          ]
+        },
+        "quantization": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "$ref": "#/$defs/unbroken"
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "$ref": "#/$defs/unbroken"
+              },
+              "url": {
+                "type": "string",
+                "minLength": 9,
+                "maxLength": 2048,
+                "pattern": "^https://",
+                "$ref": "#/$defs/unbroken"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            },
+            "required": [
+              "name",
+              "url",
+              "bytes",
+              "sha256"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "weights_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "bytes_total": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "context": {
+          "type": "object",
+          "properties": {
+            "train": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "default": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            }
+          },
+          "required": [
+            "train",
+            "default",
+            "max"
+          ],
+          "additionalProperties": false
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "structured_output": {
+              "type": "boolean"
+            },
+            "reasoning": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "tool_use": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "structured_output",
+            "reasoning"
+          ],
+          "additionalProperties": false
+        },
+        "license": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "$ref": "#/$defs/unbroken"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "$ref": "#/$defs/unbroken"
+            },
+            "url": {
+              "type": "string",
+              "minLength": 9,
+              "maxLength": 2048,
+              "pattern": "^https://",
+              "$ref": "#/$defs/unbroken"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "url"
+          ],
+          "additionalProperties": false
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "repository": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "$ref": "#/$defs/unbroken"
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "$ref": "#/$defs/unbroken"
+            },
+            "api": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 9,
+                  "maxLength": 2048,
+                  "pattern": "^https://",
+                  "$ref": "#/$defs/unbroken"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "repository",
+            "revision"
+          ],
+          "additionalProperties": false
+        },
+        "curated": {
+          "type": "boolean"
+        },
+        "header": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "n_layer": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "n_kv_heads": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "key_length": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "value_length": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "width_basis": {
+                  "const": "embedding"
+                }
+              },
+              "required": [
+                "n_layer",
+                "n_kv_heads",
+                "key_length",
+                "value_length"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "notes": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 4096
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "id",
+        "display_name",
+        "family",
+        "format",
+        "engine",
+        "quantization",
+        "files",
+        "weights_digest",
+        "bytes_total",
+        "context",
+        "capabilities",
+        "license",
+        "source",
+        "curated"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

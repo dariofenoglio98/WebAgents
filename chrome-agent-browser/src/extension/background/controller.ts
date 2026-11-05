@@ -41,7 +41,7 @@ import { indexState, StaticIndexResolver, verifiedIndex, type VerifiedIndex } fr
 import { readQuery, type AgentCandidate, type ResolveNote } from "../../core/resolve/types.js";
 import { AGENT_INDEX_TYPE, MAX_DOCUMENT_BYTES, POLICY_BUNDLE_TYPE, verifySignedDocument, type DocumentContentType, type VerifiedDocument } from "../../core/signed-document.js";
 import { compareRelease } from "../../core/version.js";
-import { buildHostCatalog, DEFAULT_BASE_URLS, probeProvider, PROVIDER_IDS, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
+import { buildHostCatalog, DEFAULT_BASE_URLS, hasEndpoint, probeProvider, PROVIDER_IDS, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import { httpsOrigin, originPattern, planOrigins, patternOrigin, toolBindingsForOrigins, type OriginString, type PlanOrigin } from "../../core/origins.js";
 import { SerialQueue } from "../../core/serial.js";
 import { agentToolDigests, requestedResourceTypes } from "../../core/memory/declarations.js";
@@ -634,9 +634,10 @@ export class Controller {
 
   /** The host's endpoint for a provider: the connection's base URL, else the provider's default; null when it has none. */
   private providerOrigin(settings: Settings, providerId: string): string | null {
-    if (providerId === "chrome-builtin" || !(PROVIDER_IDS as readonly string[]).includes(providerId)) return null;
+    // The routes that run inside this browser have no endpoint and no origin (D-446).
+    if (!hasEndpoint(providerId)) return null;
     const connection = settings.models.connections.find((item) => item.provider === providerId);
-    return connection?.base_url ?? DEFAULT_BASE_URLS[providerId as Exclude<ProviderId, "chrome-builtin">];
+    return connection?.base_url ?? DEFAULT_BASE_URLS[providerId];
   }
 
   /** The origins a prepared plan needs (D-193): a pure function of the plan, the registry's fallbacks and the provider settings. */

@@ -7,7 +7,7 @@
 import { isRecord } from "../../core/fields.js";
 import type { PresetId } from "../../core/types.js";
 import { PRESETS } from "../../core/authorization.js";
-import { DEFAULT_BASE_URLS, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
+import { DEFAULT_BASE_URLS, hasEndpoint, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import { DEFAULT_OPENAI_REASONING_EFFORT, OPENAI_REASONING_EFFORTS } from "../../core/models/adapters/openai.js";
 import { DEFAULT_HOST_LIMITS, type HostExecutionLimits } from "../../core/execution/limits.js";
 import type { FilesView, IndexesView, IndexView, KeychainView, PermissionsView, PolicyView, ProbeView, Request, SecretsView, SettingsView, StatusInfo } from "../messages.js";
@@ -159,14 +159,16 @@ export const OLLAMA_ORIGIN_COMMANDS: ReadonlyArray<{ label: string; command: str
 ];
 
 const PROVIDER_TITLES: Record<ProviderId, string> = {
-  ollama: "Ollama (local)",
+  "in-browser": "In this browser",
+  ollama: "Ollama on this computer",
   openai: "OpenAI (your key)",
   anthropic: "Anthropic (your key)",
   "chrome-builtin": "Chrome built-in (Gemini Nano)",
 };
 
 const PROVIDER_HINTS: Record<ProviderId, string> = {
-  ollama: "Runs on this computer; free. Ollama must allow this extension's origin: set OLLAMA_ORIGINS to include chrome-extension://* before starting Ollama. Discovered models are capped at 32,768 tokens of context unless you state a higher limit below.",
+  "in-browser": "Runs inside this extension on your GPU. No network: nothing leaves this browser.",
+  ollama: "A separate application: it runs outside the browser's protection, and this browser cannot bound what it does with your data. Runs on this computer; free. Ollama must allow this extension's origin: set OLLAMA_ORIGINS to include chrome-extension://* before starting Ollama. Discovered models are capped at 32,768 tokens of context unless you state a higher limit below.",
   openai: "Direct calls to OpenAI with your own key, through the Responses API with the package's schema and output cap. Metered by OpenAI.",
   anthropic: "Direct calls to Anthropic with your own key, through the Messages API. Metered by Anthropic.",
   "chrome-builtin": "Chrome's own small model through the Prompt API, no setup and no cost; needs free disk space and a capable device. Zero-setup tier.",
@@ -231,7 +233,7 @@ function connectionCard(view: SettingsView, connection: StoredConnection, state:
     );
   }
   if (provider === "chrome-builtin") children.push(builtinControls(state, actions));
-  if (provider !== "chrome-builtin") {
+  if (hasEndpoint(provider)) {
     // The placeholder is the endpoint actually used when the field is empty (user feedback,
     // 2026-10-07): a person who pastes the documented `/v1` form sees it normalized on save.
     const url = el("input", { className: "ab-input", attrs: { name: `base-url-${provider}`, placeholder: `${DEFAULT_BASE_URLS[provider]} (default)`, autocomplete: "off" } });

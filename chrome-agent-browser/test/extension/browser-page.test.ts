@@ -203,7 +203,7 @@ describe("Settings → Models: the connection chips describe the providers now (
     vi.restoreAllMocks();
   });
 
-  const ollamaCard = () => [...app().querySelectorAll<HTMLElement>(".ab-card")].find((node) => node.querySelector(".ab-card-title")?.textContent === "Ollama (local)")!;
+  const ollamaCard = () => [...app().querySelectorAll<HTMLElement>(".ab-card")].find((node) => node.querySelector(".ab-card-title")?.textContent === "Ollama on this computer")!;
   const ollamaChip = () => [...ollamaCard().querySelectorAll<HTMLElement>(".ab-chip")].find((node) => /reachable|failed/u.test(node.textContent ?? "")) ?? null;
   const tab = (label: string) => [...app().querySelectorAll<HTMLButtonElement>(".ab-tabs button")].find((node) => node.textContent === label)!;
 

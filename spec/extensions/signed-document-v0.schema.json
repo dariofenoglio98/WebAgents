@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentpkg.local/spec/extensions/signed-document-v0.schema.json",
   "title": "org.webagents:signed-document-v0",
-  "description": "A signed JSON document of the WebAgents extensions (an agent index, a policy bundle). Ed25519 signs UTF8(\"WebAgents signed document v0\") || 0x00 || UTF8(content_type) || 0x00 || JCS(content); the verifier holds the key pinned out of band and selects it by key_fingerprint. The content is validated by the schema its content_type names (spec/extensions/signed-document-v0.md).",
+  "description": "A signed JSON document of the WebAgents extensions (an agent index, a policy bundle, a model catalog). Ed25519 signs UTF8(\"WebAgents signed document v0\") || 0x00 || UTF8(content_type) || 0x00 || JCS(content); the verifier holds the key pinned out of band and selects it by key_fingerprint. The content is validated by the schema its content_type names (spec/extensions/signed-document-v0.md).",
   "type": "object",
   "properties": {
     "format": {
@@ -11,7 +11,8 @@
     "content_type": {
       "enum": [
         "org.webagents:agent-index-v0",
-        "org.webagents:policy-bundle-v0"
+        "org.webagents:policy-bundle-v0",
+        "org.webagents:model-catalog-v0"
       ]
     },
     "content": {
