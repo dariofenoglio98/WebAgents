@@ -173,7 +173,8 @@ def from_literature_output(output) -> dict | None:
         metadata = (entry or {}).get("metadata") or {}
         bibliography.append(
             {
-                "paper_id": str(entry.get("paper_id")),
+                # a missing id stays missing, so the answer schema rejects it (review 1, nit 4)
+                "paper_id": None if entry.get("paper_id") is None else str(entry["paper_id"]),
                 "doi": metadata.get("doi"),
                 "title": metadata.get("title") or "",
             }
@@ -310,10 +311,16 @@ def literature_checks(answer, tool_calls: list[dict], *, documents: dict | None 
         and not set(c["paper_ids"]) & set(unresolved)
     ]
     returned = sources["searched"] + resolved_records
+    # D-358: every paper listed as found was returned by a tool. A DOI decides when both sides
+    # carry one (a real title with a DOI no tool returned is not recorded); the exact title only
+    # when the entry or the returned record has none (T31b review 1, finding 2).
     unrecorded = [
         p["title"]
         for p in answer["papers_found"]
-        if not any(_same_paper(p, r) or p["title"] == r.get("title") for r in returned)
+        if not any(
+            _same_paper(p, r) or (_doi(r.get("doi")) is None and p["title"] == r.get("title"))
+            for r in returned
+        )
     ]
     checks = {
         "bibliography_resolved": not unresolved,

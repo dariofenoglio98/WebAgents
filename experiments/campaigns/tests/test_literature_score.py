@@ -86,6 +86,27 @@ def test_a_paper_found_that_no_tool_returned_fails():
     assert _checks(answer)["checks"]["papers_found_recorded"] is False
 
 
+
+def test_a_returned_title_with_a_doi_no_tool_returned_fails():
+    """T31b review 1, finding 2: a DOI decides when both carry one; a real title does not make a
+    fabricated DOI recorded."""
+    answer = copy.deepcopy(ANSWER)
+    answer["papers_found"].append({"title": "Filtering untrusted inputs", "doi": "10.9/fabricated"})
+    found = _checks(answer)
+    assert found["checks"]["papers_found_recorded"] is False
+    assert found["failures"]["papers_not_returned"] == ["Filtering untrusted inputs"]
+
+
+def test_a_title_matches_when_the_entry_or_the_returned_record_has_no_doi():
+    no_doi_entry = copy.deepcopy(ANSWER)
+    no_doi_entry["papers_found"] = [{"title": "Filtering untrusted inputs", "doi": None}]
+    assert _checks(no_doi_entry)["checks"]["papers_found_recorded"] is True
+    no_doi_record = copy.deepcopy(SEARCHED)
+    no_doi_record["answer"]["papers"].append({"doi": None, "title": "An undated preprint"})
+    with_doi = copy.deepcopy(ANSWER)
+    with_doi["papers_found"].append({"title": "An undated preprint", "doi": "10.1/preprint"})
+    assert _checks(with_doi, [no_doi_record, RESOLVED])["checks"]["papers_found_recorded"] is True
+
 def test_a_selected_pdfs_pages_are_a_source_for_its_doi():
     answer = copy.deepcopy(ANSWER)
     answer["evidence"][0]["quote"] = "Section 3 measures the filter"
@@ -146,6 +167,15 @@ def test_our_review_output_maps_field_by_field():
     assert mapped["bibliography"] == [{"paper_id": "P1", "doi": DOI, "title": "Filtering"}]
     assert mapped["evidence"] == [{"evidence_id": "P1:e1", "paper_id": "P1", "quote": "We filter"}]
     assert mapped["papers_found"] == [{"title": "Filtering", "doi": DOI}]
+
+
+def test_a_bibliography_entry_without_an_id_is_outside_the_schema():
+    """Review 1, nit 4: a missing `paper_id` is not mapped to the string "None"."""
+    mapped = score.from_literature_output(
+        {"related_work": "x", "bibliography": [{"metadata": {"doi": DOI, "title": "F"}}]}
+    )
+    assert mapped["bibliography"][0]["paper_id"] is None
+    assert not score.valid_review(mapped)
 
 
 def test_literature_run_reads_the_records_input_documents():
