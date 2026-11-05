@@ -140,7 +140,15 @@ def answer_fields(port: str) -> str:
     return text[text.index("Answer.") :].strip()
 
 
-def formatter(rung: Rung, package) -> Agent:
+def formatter(
+    rung: Rung,
+    package,
+    *,
+    port: str = "webair",
+    schema: str = "answer",
+    name: str = "WebAir answer",
+    instructions: str = FORMATTER_INSTRUCTIONS,
+) -> Agent:
     """The turn's answer step (TUNING.md T-1, rule 10, a parse fix).
 
     The SDK's structured output (`output_type`) reaches Ollama's OpenAI-compatible route as
@@ -152,13 +160,13 @@ def formatter(rung: Rung, package) -> Agent:
     `output_type` turns the conversation into the turn's campaign answer. Same rung, same sampling;
     its call is recorded with the others and counted in the turn's usage."""
     return Agent(
-        name="WebAir answer",
-        instructions=FORMATTER_INSTRUCTIONS + "\n\n" + answer_fields("webair"),
+        name=name,
+        instructions=instructions + "\n\n" + answer_fields(port),
         model=sdk_model(rung),
         model_settings=ModelSettings(
             temperature=rung.temperature, max_tokens=max_output_tokens(package)
         ),
-        output_type=JsonSchemaOutput(ports.answer_schema("answer")),
+        output_type=JsonSchemaOutput(ports.answer_schema(schema)),
     )
 
 
@@ -176,9 +184,18 @@ def final_answer(output, schema: dict) -> tuple[dict | None, str | None]:
 
 
 def model_call_bound(package) -> int:
-    """Our plan's model-call bound for one run of the graph: one call per `llm` node (the
-    interpreter re-asks nothing on the campaign routes, D-353)."""
-    return sum(1 for node in package.graph["nodes"] if node["type"] == "llm")
+    """Our plan's model-call bound for one run of the graph: one call per `llm` node, and one per
+    `llm` step of a `map` node per item, at most its `max_items` (Literature Review's screening and
+    evidence steps; WebAir's map has none); the interpreter re-asks nothing on the campaign
+    routes (D-353)."""
+    bound = 0
+    for node in package.graph["nodes"]:
+        if node["type"] == "llm":
+            bound += 1
+        elif node["type"] == "map":
+            steps = sum(1 for step in node.get("steps") or [] if step.get("type") == "llm")
+            bound += steps * node["max_items"]
+    return bound
 
 
 def max_output_tokens(package) -> int:

@@ -65,8 +65,18 @@ class _Server:
 
 
 class CampaignStack:
-    def __init__(self, run_dir: Path, *, payloads: dict | None = None, resolver: bool = False):
+    def __init__(
+        self,
+        run_dir: Path,
+        *,
+        payloads: dict | None = None,
+        resolver: bool = False,
+        resolver_upstream=None,
+    ):
+        """`resolver_upstream`: offline tests only, an `httpx` transport that answers the
+        resolver's provider requests in place of the network (still through the Crossref lane)."""
         self.run_dir = Path(run_dir)
+        self.resolver_upstream = resolver_upstream
         self.payloads = catalog.load() if payloads is None else payloads
         self.with_resolver = resolver
         self.servers: list[_Server] = []
@@ -110,7 +120,9 @@ class CampaignStack:
             public_base_url=f"https://{tls.RESOLVER_HOST}",
             allowed_hosts=(*Settings.allowed_hosts, tls.RESOLVER_HOST),
         )
-        app = create_resolver(settings, transport=pacing.PacedTransport(pacing.CROSSREF))
+        app = create_resolver(
+            settings, transport=pacing.PacedTransport(pacing.CROSSREF, self.resolver_upstream)
+        )
         wrapped, self.resolver_log = campaign_app(app, self.payloads)
         return wrapped
 

@@ -19,6 +19,11 @@
    campaign CA (the same mapping our side's host mapping applies), the run's fixture key header on
    the campaign origin, no redirect following (httpx's default); memory and host-resource tools
    are answered by agentpkg's own memory handlers over the run's copy of the record set (rule 1).
+   A port whose bindings agentpkg's CLI implements itself (Literature Review: Crossref, the
+   Citation Resolver, the PDF reader; D-358) passes those handlers as `host_handlers`, and the
+   executor calls them exactly as `Py` does: agentpkg's own URL and address policy before any
+   dial, its own transport under the same host mapping (`driver/hostmap.py`, which logs the lookup
+   and the dial), the same adapters (T31 review 2, carry-over 3).
 
 Layers 3–5 are this module's `execute`; layer 1 is `record`; layer 2 is Progent's code, applied by
 `secure` in between. A call whose arguments are not JSON makes Progent's wrapper raise; the SDK
@@ -58,6 +63,7 @@ class RunState:
     consent: list = field(default_factory=list)
     dials: list = field(default_factory=list)
     memory_events: list = field(default_factory=list)
+    host_events: list = field(default_factory=list)  # agentpkg's host handlers' events
     quotes: dict = field(default_factory=dict)
     decoded: list = field(default_factory=list)
     counts: dict = field(default_factory=dict)  # this turn's, per tool
@@ -140,8 +146,10 @@ class ToolLayer:
         offered: set[str],
         files: dict,
         conversation: dict | None = None,
+        host_handlers: dict | None = None,
     ):
         self.specs = {s["name"]: s for s in specs if s["tool_id"] in offered}
+        self.host_handlers = host_handlers or {}  # binding -> agentpkg's own handler (D-358)
         self.state = state
         self.transport = transport
         self.memory_handlers = memory_handlers
@@ -249,6 +257,15 @@ class ToolLayer:
                         200,
                         await handler(_EventSink(self.state.memory_events), arguments),
                     )
+                elif spec["binding"] in self.host_handlers:
+                    if self._remote(spec):
+                        self.state.remote_calls += 1
+                        self.state.turn_remote += 1
+                    handler = self.host_handlers[spec["binding"]]
+                    status, answer = (
+                        200,
+                        await handler(_EventSink(self.state.host_events), arguments),
+                    )
                 else:
                     self.state.remote_calls += 1
                     self.state.turn_remote += 1
@@ -290,7 +307,7 @@ class ToolLayer:
         cap = (self.conversation.get("max_calls_per_tool") or {}).get(tool_id)
         if cap is not None and self.state.conversation_counts.get(tool_id, 0) >= cap:
             return f"at most {cap} call(s) to {tool_id} per conversation"
-        if spec["kind"] == "http":
+        if self._remote(spec):
             limit = self.budget.get("max_remote_calls")
             if limit is not None and self.state.turn_remote >= limit:
                 return f"at most {limit} remote calls per run"
@@ -298,6 +315,13 @@ class ToolLayer:
             if limit is not None and self.state.remote_calls >= limit:
                 return f"at most {limit} remote calls per conversation"
         return None
+
+    def _remote(self, spec: dict) -> bool:
+        """A call that leaves the host: a declared endpoint, or a host handler of a tool whose
+        declared execution is remote (a PDF read is local)."""
+        if spec["binding"] in self.host_handlers:
+            return spec.get("execution") == "remote"
+        return spec["kind"] == "http"
 
     def reserve(self, index: int) -> str | None:
         """Our runner's whole-turn reservation (`Conversation._reserve`, V-10): the turn's own hard
