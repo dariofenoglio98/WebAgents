@@ -67,7 +67,13 @@ What it shows today, on the WebAir demo site:
    re-verified before the start). **Runs** lists every run this browser made, opens a past run
    read-only, exports a run directory as a zip and clears finished runs. A run whose host was
    unloaded (the browser restarted) is marked interrupted and never resumed (D-071).
-8. **Settings → Models** connects the routes (D-023): Ollama on this machine (with the one-time
+8. **Settings → Models** connects the routes (D-023). First, **In this browser** (T41, the default
+   local route, [design §15](../docs/chrome-agent-browser.md#15-in-browser-inference-t41)): an
+   open-weight model the extension runs itself on the GPU, from a signed curated list in four bins
+   with reasons (recommended, possible, not suitable, too large for this machine) or a pasted Hugging
+   Face repository; Download… opens a card with the size, licence, repository, digests and storage,
+   and only its button downloads; a downloaded model offers Load, Unload, Verify, Delete and Make
+   default, and nothing leaves the browser when it runs. Then Ollama on this computer (with the one-time
    `OLLAMA_ORIGINS` commands to copy, and a diagnosis that tells "not running" apart from
    "rejecting this extension's origin"), OpenAI and Anthropic with your own keys (typed once,
    encrypted at rest under your passphrase, never shown again, never sent anywhere but the

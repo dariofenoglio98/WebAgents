@@ -24,9 +24,12 @@ What the extension does:
   you in words who signed it and whether you trust that key. Trusting a key grants nothing.
 - **Authorizes in two clicks** through the publisher's profiles, or permission by permission:
   every decision is yours, recorded in a receipt and frozen into a run plan with the model you chose.
-- **Runs** the agent in the extension's own background host, with your Ollama models on this
-  machine, Chrome's built-in model, or your own OpenAI or Anthropic key. Every run keeps a
-  hash-linked audit and its artifacts; a run can only reach the origins its plan recorded.
+- **Runs** the agent in the extension's own background host, with a model the extension runs
+  itself, in this browser, on your GPU (an open-weight model you download once from Hugging Face,
+  after a card shows its size, licence and digest; it is kept as a cache you can see and delete,
+  and nothing leaves the browser when it runs), Chrome's built-in model, Ollama on this machine, or
+  your own OpenAI or Anthropic key. Every run keeps a hash-linked audit and its artifacts; a run can
+  only reach the origins its plan recorded.
 - **Protects your keys and records at rest:** provider keys and your personal records are encrypted
   under a passphrase (scrypt, AES-256-GCM), unlocked for a browser session and locked again after
   an idle time you set.
@@ -36,7 +39,8 @@ What the extension does:
 
 The extension sends nothing anywhere at install or start. Requests leave your browser only to the
 origins you allowed: the website that publishes a package, the services that package declares, and
-the model provider you chose. No analytics, no accounts, no server of ours.
+the model provider you chose, and Hugging Face when you download a model. No analytics, no
+accounts, no server of ours.
 
 Open source (Apache-2.0): the extension, the specifications and the reference runtime are in the
 WebAgents repository; the demo site (a fictional airline, "WebAir") shows the whole path from a

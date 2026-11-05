@@ -24,8 +24,9 @@
  *     8. the idle unload: the engine releases the model after its idle time (shortened to 6 s here).
  *   Phase B (`e2e-webair-live.mjs --profile`, the same profile): WebAir 0.8.0 from the local origin,
  *     the search conversation bound to `in-browser/<entry>` in test mode; the evidence is the
- *     conversation's export: the first turn completed with fares, every `model.called` with no
- *     domain, every recorded model request under `in-browser:<entry>`.
+ *     conversation's export, copied with phase B's report beside `--out` (`<out>/search/`,
+ *     `<out>/webair-live.json`, JSON only): the first turn completed with fares, every
+ *     `model.called` with no domain, every recorded model request under `in-browser:<entry>`.
  *
  *   npm run build && node scripts/e2e-inbrowser.mjs [--entry qwen3-4b-q4_k_m] [--cache examples/my-inbrowser-spike-cache]
  *        [--out examples/verification/chrome-inbrowser-e2e.json] [--out-dir examples/my-inbrowser-e2e-<ts>] [--chrome path] [--keep] [--skip-webair]
@@ -36,9 +37,9 @@
  */
 import { spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { createReadStream, createWriteStream, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, createReadStream, createWriteStream, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Cdp, sleep } from "./lib/cdp.mjs";
@@ -300,7 +301,18 @@ async function main() {
       child.on("exit", (status) => resolveExit(status));
     });
     const live = existsSync(webairOut) ? JSON.parse(readFileSync(webairOut, "utf8")) : null;
-    const search = live?.conversations?.search ?? null;
+    const exported = live?.conversations?.search ?? null;
+    // The evidence kept with the report: the conversation's export (JSON only, no screenshots) and
+    // phase B's own report, copied beside `--out` so the verifier reads committed files.
+    const evidence = join(dirname(args.out), basename(args.out, ".json"));
+    let search = exported;
+    if (exported?.directory && existsSync(join(ROOT, exported.directory))) {
+      rmSync(evidence, { recursive: true, force: true });
+      mkdirSync(evidence, { recursive: true });
+      cpSync(join(ROOT, exported.directory), join(evidence, "search"), { recursive: true });
+      cpSync(webairOut, join(evidence, "webair-live.json"));
+      search = { ...exported, directory: relative(ROOT, join(evidence, "search")) };
+    }
     const turns = search?.turns ?? [];
     const first = turns[0] ?? null;
     // Every model call and every recorded model request, read from the export.
@@ -314,7 +326,7 @@ async function main() {
     }
     report.webair = {
       exit_code: code,
-      report: relative(ROOT, webairOut),
+      report: search && search !== exported ? relative(ROOT, join(evidence, "webair-live.json")) : relative(ROOT, webairOut),
       export: search?.directory ?? null,
       live_failures: live?.failures ?? null,
       turns: turns.map((turn) => ({ turn: turn.turn, status: turn.status, reply_status: turn.reply_status, intent: turn.intent, error_code: turn.error_code, tokens: turn.usage?.tokens ?? null, duration_ms: turn.durationMs, model: turn.model })),
