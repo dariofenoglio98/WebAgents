@@ -30,34 +30,33 @@ INTERVAL_SECONDS = 1.0
 
 
 class Lane:
-    """One request at a time, starts at least `interval` seconds apart (thread-safe: the
-    resolver serves from its own thread, the drivers from theirs)."""
+    """One request at a time, starts at least `interval` seconds apart. Thread-safe (the resolver
+    serves from its own thread and event loop, the drivers from theirs) and cancellation-safe: the
+    lock is only ever taken without blocking, from the coroutine that then holds it, so a run
+    cancelled while it waits (a deadline) never leaves the lane held."""
+
+    POLL_SECONDS = 0.02
 
     def __init__(self, interval: float = INTERVAL_SECONDS):
         self.interval = interval
         self._held = threading.Lock()
         self._last_start: float | None = None
-        self.starts: list[float] = []  # monotonic start times, for the tests and the record
-
-    def acquire(self) -> None:
-        self._held.acquire()
-        if self._last_start is not None:
-            wait = self._last_start + self.interval - time.monotonic()
-            if wait > 0:
-                time.sleep(wait)
-        self._last_start = time.monotonic()
-        self.starts.append(self._last_start)
-
-    def release(self) -> None:
-        self._held.release()
+        self.starts: list[float] = []  # monotonic start times, for the tests
 
     async def run(self, coroutine_factory):
         """Await `coroutine_factory()` inside the lane."""
-        await asyncio.to_thread(self.acquire)
+        while not self._held.acquire(blocking=False):
+            await asyncio.sleep(self.POLL_SECONDS)
         try:
+            if self._last_start is not None:
+                wait = self._last_start + self.interval - time.monotonic()
+                if wait > 0:
+                    await asyncio.sleep(wait)
+            self._last_start = time.monotonic()
+            self.starts.append(self._last_start)
             return await coroutine_factory()
         finally:
-            self.release()
+            self._held.release()
 
     def paced_handler(self, handler):
         """An agentpkg tool handler `(ctx, payload)` taken through the lane."""

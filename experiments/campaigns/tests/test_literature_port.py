@@ -343,3 +343,22 @@ def _fixture_output(fixture: dict) -> dict:
         "papers_found": [{"paper_id": "P1", "title": best["title"], "doi": best.get("doi")}],
         "memory_proposals": {"schema": "memory.v0 proposals", "proposals": []},
     }
+
+
+def test_a_request_cancelled_while_it_waits_never_leaves_the_lane_held():
+    lane = pacing.Lane(interval=0.0)
+
+    async def slow():
+        await asyncio.sleep(0.3)
+
+    async def scenario():
+        first = asyncio.create_task(lane.run(slow))
+        await asyncio.sleep(0.05)
+        waiting = asyncio.create_task(lane.run(slow))  # waits for the lane
+        await asyncio.sleep(0.05)
+        waiting.cancel()  # a deadline while it waits
+        await first
+        await asyncio.wait_for(lane.run(lambda: asyncio.sleep(0)), timeout=1)  # free again
+
+    asyncio.run(scenario())
+    assert len(lane.starts) == 2
