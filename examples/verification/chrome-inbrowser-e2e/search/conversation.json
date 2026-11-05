@@ -1,13 +1,13 @@
 {
-  "conversation_id": "160120ef-1580-4ca2-8f9a-8d0bc567fa91",
-  "session_id": "9edefeaed5e04f62b4c3512a",
-  "created_at": "2026-11-05T19:36:29.859Z",
-  "updated_at": "2026-11-05T19:39:16.775Z",
-  "started_at": "2026-11-05T19:36:29.859000+00:00",
+  "conversation_id": "5c095620-91af-4567-adee-be7487679337",
+  "session_id": "a4b03f83e18a47edba3ab200",
+  "created_at": "2026-11-05T22:53:05.702Z",
+  "updated_at": "2026-11-05T22:55:37.016Z",
+  "started_at": "2026-11-05T22:53:05.702000+00:00",
   "plan": {
-    "run_plan_id": "rp_2dac215c29c84eb8b4d0a6df780e804f",
-    "run_plan_sha256": "e413a23cbc2e334cb26540f5d776d834f8a81267e2d24095b5ffccbd8f721bd5",
-    "session_id": "9edefeaed5e04f62b4c3512a",
+    "run_plan_id": "rp_14f0b4127c894cae99e3cbbc2975721f",
+    "run_plan_sha256": "bcd265e95d80728a317a73561f39a7f7b370d9d7d8a5a40b65952b615b809df3",
+    "session_id": "a4b03f83e18a47edba3ab200",
     "package": {
       "package_id": "org.webagents.webair",
       "name": "WebAir Travel Agent",
@@ -164,10 +164,10 @@
     "resource_grants": []
   },
   "authorization": {
-    "receipt_id": "7b56d39d-84b6-4f37-a391-aefed342a0d2",
-    "receipt_sha256": "6f1271322f24ac706df762b7f16faa4ac4c39fec486be018603c1164a7796483",
-    "issued_at": "2026-11-05T19:36:26.750Z",
-    "expires_at": "2026-11-05T21:36:26.149Z",
+    "receipt_id": "54eeb68a-6c80-430e-a64c-6ca71bd0fd25",
+    "receipt_sha256": "c6d665bc791ee4c4363cb1476440d2907f2fb47aa62fd1fa731fec4d18d588d5",
+    "issued_at": "2026-11-05T22:53:02.078Z",
+    "expires_at": "2026-11-06T00:53:01.485Z",
     "decisions": {
       "booking.simulate_purchase": "deny",
       "compute.fares": "session",
@@ -192,20 +192,20 @@
   "run_plan": {
     "schema": "agentpkg-run-plan-v0",
     "run_plan_version": "0.1",
-    "run_plan_id": "rp_2dac215c29c84eb8b4d0a6df780e804f",
-    "created_at": "2026-11-05T19:36:29.462Z",
-    "expires_at": "2026-11-05T21:36:26.149Z",
-    "session_id": "9edefeaed5e04f62b4c3512a",
+    "run_plan_id": "rp_14f0b4127c894cae99e3cbbc2975721f",
+    "created_at": "2026-11-05T22:53:05.228Z",
+    "expires_at": "2026-11-06T00:53:01.485Z",
+    "session_id": "a4b03f83e18a47edba3ab200",
     "control_plane": {
       "service": "chrome-agent-browser-control-plane",
       "api_version": "v0",
-      "instance_id": "6ac3a4b7603246f78394098b3f028c1b"
+      "instance_id": "0b3919546a5d4e3e9d19f2a957940ad8"
     },
     "source": {
       "kind": "website",
       "display": "https://webagents-webair-production.up.railway.app/agent.pkg",
       "advertised_on": "https://webagents-webair-production.up.railway.app/",
-      "opened_at": "2026-11-05T19:36:26.069Z"
+      "opened_at": "2026-11-05T22:53:01.405Z"
     },
     "package": {
       "package_id": "org.webagents.webair",
@@ -240,10 +240,10 @@
       "errors": []
     },
     "authorization": {
-      "receipt_id": "7b56d39d-84b6-4f37-a391-aefed342a0d2",
-      "receipt_sha256": "6f1271322f24ac706df762b7f16faa4ac4c39fec486be018603c1164a7796483",
-      "issued_at": "2026-11-05T19:36:26.750Z",
-      "expires_at": "2026-11-05T21:36:26.149Z",
+      "receipt_id": "54eeb68a-6c80-430e-a64c-6ca71bd0fd25",
+      "receipt_sha256": "c6d665bc791ee4c4363cb1476440d2907f2fb47aa62fd1fa731fec4d18d588d5",
+      "issued_at": "2026-11-05T22:53:02.078Z",
+      "expires_at": "2026-11-06T00:53:01.485Z",
       "runnable": true,
       "decisions": {
         "booking.simulate_purchase": "deny",
@@ -413,26 +413,26 @@
       }
     ],
     "tool_registry": {
-      "registry_sha256": "7861706908338078e11612c5f0443547b6acc86c89285a2036323a4ea7586072",
+      "registry_sha256": "937e799732d8cee4d2de04196f0be74549cc0dda32d4a552d469b0316f0f6836",
       "binding_count": 7,
       "available_binding_count": 7,
       "host": {
         "runtime": "chrome-agent-browser",
         "runtime_version": "0.6.0",
         "source": "chrome-agent-browser host tool registry (D-054, D-081, D-082): one generic HTTPS JSON binding per declared remote POST tool, derived from the signed declaration after the URL gate; the host's Crossref search for scholarly.search at Crossref's works endpoint; the selected-PDF reader for paper.read; one host-resource binding per vault type; other tools unbound",
-        "captured_at": "2026-11-05T19:36:29.458Z",
+        "captured_at": "2026-11-05T22:53:05.225Z",
         "agent_id": null
       }
     },
     "resource_grants": [],
     "resource_registry": {
-      "registry_sha256": "4092ac560c94bacc5f1b1223f59832ef9ed4606312d7d82f6542a71faf3d639d",
+      "registry_sha256": "6a286d36b5e1b93d566be52e48ce7c40f6f211470fc9f4ea7540e7a8618a1da0",
       "type_count": 3,
       "resource_count": 6
     },
     "model_binding": {
       "strategy": "single_model",
-      "selected_at": "2026-11-05T19:36:29.462Z",
+      "selected_at": "2026-11-05T22:53:05.228Z",
       "host_model_id": "in-browser/qwen3-4b-q4_k_m",
       "provider_id": "in-browser",
       "model_id": "qwen3-4b-q4_k_m",
@@ -599,14 +599,14 @@
         }
       },
       "catalog": {
-        "catalog_sha256": "03ada0d0aad23d4e1a7ccf1f457b35cf4c5bba62a15f35f45631e89bb9caf292",
+        "catalog_sha256": "1784a207f744bb44110d1f8b7e9f02c4991ddfdc5cbbe87a870f8ee8cd5540b1",
         "model_count": 10,
         "available_model_count": 5,
         "host": {
           "runtime": "chrome-agent-browser",
           "runtime_version": "0.6.0",
           "source": "chrome-agent-browser model catalog: the in-browser model cache and catalog, Ollama /api/tags + /api/show, OpenAI /v1/models, Anthropic /v1/models, Chrome LanguageModel.availability(); no model was called",
-          "captured_at": "2026-11-05T19:36:29.436Z",
+          "captured_at": "2026-11-05T22:53:05.180Z",
           "agent_id": null
         }
       }
@@ -723,7 +723,7 @@
       "compatibility_status": "compatible",
       "blocking_reasons": []
     },
-    "run_plan_sha256": "e413a23cbc2e334cb26540f5d776d834f8a81267e2d24095b5ffccbd8f721bd5"
+    "run_plan_sha256": "bcd265e95d80728a317a73561f39a7f7b370d9d7d8a5a40b65952b615b809df3"
   },
   "limits": {
     "max_turns": 8,
@@ -838,7 +838,7 @@
     "quote_ref": null
   },
   "chain_tail": {
-    "previous_hash": "b11ccbcacffd1e063fc61f8373fa29bc02541af5efe3f12b913f26084a47dfa2",
+    "previous_hash": "54a1ba0956b42db4ac62aacfe1be086452abd9bd804552a3326b46f70c4f7114",
     "sequence": 784
   },
   "spent": {
@@ -854,7 +854,7 @@
   "turns": [
     {
       "turn": 1,
-      "run_id": "run_dd38792a0a90429f97cc7b21787d63a7",
+      "run_id": "run_eed56ce4006046c2a8f692efc12f1c3a",
       "status": "completed",
       "error_code": null,
       "refusal": null,
@@ -1139,12 +1139,12 @@
           "get-fare-rules": 2
         }
       },
-      "started_at": "2026-11-05T19:36:32.739Z",
-      "ended_at": "2026-11-05T19:37:58.299Z"
+      "started_at": "2026-11-05T22:53:08.979Z",
+      "ended_at": "2026-11-05T22:54:33.907Z"
     },
     {
       "turn": 2,
-      "run_id": "run_864bdfe17ad9475798ef87c825d3897b",
+      "run_id": "run_02e6d4c1959f4ec883a6b9130f769342",
       "status": "completed",
       "error_code": null,
       "refusal": null,
@@ -1428,12 +1428,12 @@
           "get-fare-rules": 2
         }
       },
-      "started_at": "2026-11-05T19:37:59.213Z",
-      "ended_at": "2026-11-05T19:39:01.356Z"
+      "started_at": "2026-11-05T22:54:34.544Z",
+      "ended_at": "2026-11-05T22:55:24.204Z"
     },
     {
       "turn": 3,
-      "run_id": "run_fda8d1674ac040fdbdf9ac4241d8fc79",
+      "run_id": "run_27351a12ce0f4f2388faeb2ebdbebcdc",
       "status": "completed",
       "error_code": null,
       "refusal": null,
@@ -1475,8 +1475,8 @@
         "remote_calls": 0,
         "tool_calls": {}
       },
-      "started_at": "2026-11-05T19:39:02.153Z",
-      "ended_at": "2026-11-05T19:39:16.671Z"
+      "started_at": "2026-11-05T22:55:25.045Z",
+      "ended_at": "2026-11-05T22:55:36.949Z"
     }
   ],
   "active_run_id": null,
@@ -1484,7 +1484,7 @@
   "status": "ended",
   "ended": {
     "reason": "package",
-    "at": "2026-11-05T19:39:16.775000+00:00",
+    "at": "2026-11-05T22:55:37.016000+00:00",
     "turns_not_run": 0
   },
   "title": "Find me a nonstop flight from Boston to Zurich on 9 October under $900.",

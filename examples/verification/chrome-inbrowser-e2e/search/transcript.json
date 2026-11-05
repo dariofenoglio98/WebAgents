@@ -1,16 +1,16 @@
 {
   "schema": "conversation.transcript.v0",
-  "conversation_id": "160120ef-1580-4ca2-8f9a-8d0bc567fa91",
+  "conversation_id": "5c095620-91af-4567-adee-be7487679337",
   "package": {
     "package_id": "org.webagents.webair",
     "version": "0.8.0",
     "digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2"
   },
-  "started_at": "2026-11-05T19:36:29.859000+00:00",
+  "started_at": "2026-11-05T22:53:05.702000+00:00",
   "turns": [
     {
       "turn": 1,
-      "run_id": "run_dd38792a0a90429f97cc7b21787d63a7",
+      "run_id": "run_eed56ce4006046c2a8f692efc12f1c3a",
       "status": "completed",
       "error_code": null,
       "refusal": null,
@@ -295,12 +295,12 @@
           "get-fare-rules": 2
         }
       },
-      "started_at": "2026-11-05T19:36:32.739Z",
-      "ended_at": "2026-11-05T19:37:58.299Z"
+      "started_at": "2026-11-05T22:53:08.979Z",
+      "ended_at": "2026-11-05T22:54:33.907Z"
     },
     {
       "turn": 2,
-      "run_id": "run_864bdfe17ad9475798ef87c825d3897b",
+      "run_id": "run_02e6d4c1959f4ec883a6b9130f769342",
       "status": "completed",
       "error_code": null,
       "refusal": null,
@@ -584,12 +584,12 @@
           "get-fare-rules": 2
         }
       },
-      "started_at": "2026-11-05T19:37:59.213Z",
-      "ended_at": "2026-11-05T19:39:01.356Z"
+      "started_at": "2026-11-05T22:54:34.544Z",
+      "ended_at": "2026-11-05T22:55:24.204Z"
     },
     {
       "turn": 3,
-      "run_id": "run_fda8d1674ac040fdbdf9ac4241d8fc79",
+      "run_id": "run_27351a12ce0f4f2388faeb2ebdbebcdc",
       "status": "completed",
       "error_code": null,
       "refusal": null,
@@ -631,8 +631,8 @@
         "remote_calls": 0,
         "tool_calls": {}
       },
-      "started_at": "2026-11-05T19:39:02.153Z",
-      "ended_at": "2026-11-05T19:39:16.671Z"
+      "started_at": "2026-11-05T22:55:25.045Z",
+      "ended_at": "2026-11-05T22:55:36.949Z"
     }
   ],
   "state": {
@@ -742,7 +742,7 @@
   "spent_permissions": [],
   "ended": {
     "reason": "package",
-    "at": "2026-11-05T19:39:16.775000+00:00",
+    "at": "2026-11-05T22:55:37.016000+00:00",
     "turns_not_run": 0
   }
 }

@@ -1,12 +1,12 @@
 {
   "profile": "chrome-webair-080-live-v0",
-  "recordedAt": "2026-11-05T19:36:23.498Z",
+  "recordedAt": "2026-11-05T22:52:58.748Z",
   "packageVersion": "0.8.0",
   "site": "https://webagents-webair-production.up.railway.app/",
   "model": "in-browser/qwen3-4b-q4_k_m",
   "extension": "chrome-agent-browser/dist/extension",
   "chrome": "Chrome/156.0.8078.80",
-  "outputDirectory": "examples/my-inbrowser-e2e-run3/webair",
+  "outputDirectory": "examples/my-inbrowser-e2e-2026-11-05T22-51-44-230Z/webair",
   "steps": {
     "setup": {
       "probe": {
@@ -38,7 +38,7 @@
       "the public origin advertises the package": "ok"
     },
     "inspect": {
-      "sessionId": "9edefeaed5e04f62b4c3512a",
+      "sessionId": "a4b03f83e18a47edba3ab200",
       "name": "WebAir Travel Agent",
       "version": "0.8.0",
       "digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
@@ -54,9 +54,9 @@
     },
     "searchAuthorization": {
       "banner": "Ready to run",
-      "receiptId": "7b56d39d-84b6-4f37-a391-aefed342a0d2",
-      "runPlanId": "rp_2dac215c29c84eb8b4d0a6df780e804f",
-      "runPlanSha256": "e413a23cbc2e334cb26540f5d776d834f8a81267e2d24095b5ffccbd8f721bd5",
+      "receiptId": "54eeb68a-6c80-430e-a64c-6ca71bd0fd25",
+      "runPlanId": "rp_14f0b4127c894cae99e3cbbc2975721f",
+      "runPlanSha256": "bcd265e95d80728a317a73561f39a7f7b370d9d7d8a5a40b65952b615b809df3",
       "ready": true,
       "decisions": {
         "booking.simulate_purchase": "deny",
@@ -79,7 +79,7 @@
     },
     "reconnect": {
       "stateAfterReload": "running",
-      "conversationId": "160120ef-1580-4ca2-8f9a-8d0bc567fa91",
+      "conversationId": "5c095620-91af-4567-adee-be7487679337",
       "the reloaded page shows the conversation": "ok"
     }
   },
@@ -105,22 +105,22 @@
   "extensionId": "kjegegjdnpdcjhgamhjdphgemegefapb",
   "conversations": {
     "search": {
-      "directory": "examples/my-inbrowser-e2e-run3/webair/search",
+      "directory": "examples/my-inbrowser-e2e-2026-11-05T22-51-44-230Z/webair/search",
       "files": [
         {
           "name": "conversation.json",
           "bytes": 52021,
-          "sha256": "346415ccfdaad4f2b6c4fcf546ab08873e55154173638a33fb4c383a58e6a167"
+          "sha256": "e80531f8a93f533ffa37a2bb10ee26eb386f75e6fa13f107d60cbde7f77901ee"
         },
         {
           "name": "run-plan.json",
           "bytes": 17456,
-          "sha256": "f0ac7dc1358efb2ec570f5295131f014734102ec52aaf0a6f03b39ac39708fa3"
+          "sha256": "6765aaabba879bc5f8b8a9716929a5006f913aaffc7afbbe3e56f6e84c2fd5f3"
         },
         {
           "name": "transcript.json",
           "bytes": 26204,
-          "sha256": "1e98b1853826cb4d31d1b449794e0bfd109259be052296b44527f1f3714ff8a9"
+          "sha256": "d870c643db4827009562366fb883b51e99217a730b4389aa99864fc7c5129782"
         },
         {
           "name": "state.json",
@@ -129,8 +129,8 @@
         },
         {
           "name": "audit.json",
-          "bytes": 551379,
-          "sha256": "e42bf44c234b3aa8bec3d38fb6bb08993826e916c9b9083bcc6a538aa8cbe4d6"
+          "bytes": 551376,
+          "sha256": "5be298fe830bd57f7c2a6fc5291b3edc62de45678443905d991e3323bcc531a8"
         },
         {
           "name": "usage.json",
@@ -140,17 +140,17 @@
         {
           "name": "provenance.json",
           "bytes": 420,
-          "sha256": "27c3ec3d87317d103df27d5c0595cc019dc7d9ac13781f64e3b8496bd61bc7ca"
+          "sha256": "f49fbccc6d7dd00a07f235773ec7633ab5de04ba060e6d3c193323df56a62221"
         },
         {
           "name": "turn-001/run.json",
           "bytes": 15477,
-          "sha256": "ede09c104268a43dac66cc7d2b271fea04816dd06a4bde69c3191b1183d2eb39"
+          "sha256": "5f7b766ea2bda1b165df47e5f29ef7d8d0151e8396664cb56ef4c12458fc2011"
         },
         {
           "name": "turn-001/run-plan.json",
           "bytes": 17456,
-          "sha256": "f0ac7dc1358efb2ec570f5295131f014734102ec52aaf0a6f03b39ac39708fa3"
+          "sha256": "6765aaabba879bc5f8b8a9716929a5006f913aaffc7afbbe3e56f6e84c2fd5f3"
         },
         {
           "name": "turn-001/input.json",
@@ -165,7 +165,7 @@
         {
           "name": "turn-001/audit.json",
           "bytes": 197955,
-          "sha256": "de801ae34094dfdfac4039be6b870c69686c6d8563d80bcabd2eb574e206f13c"
+          "sha256": "4bffab9d1fd34f2c453d08914c045ca43b31cb49a0c50049f4d957aecd9ebb74"
         },
         {
           "name": "turn-001/booking.json",
@@ -185,12 +185,12 @@
         {
           "name": "turn-001/provenance.json",
           "bytes": 342,
-          "sha256": "21d3ca89617585753e9652e95da0f89638073c433c93841859a184c9b74e4439"
+          "sha256": "6b40a4d56ae5992d2da734e017f2d9dbb7a451d799bb337131b56808e691b41e"
         },
         {
           "name": "turn-001/result.json",
           "bytes": 247790,
-          "sha256": "20eca0d73f6290e4c53f1eb9c74f7c4d95cf70d74d2361c2d83f04d80aba6d11"
+          "sha256": "ad8ba877b061d4ad103068fd2e2c315905a94fe5c3ba56d7e9192554e342fe4e"
         },
         {
           "name": "turn-001/search.json",
@@ -204,13 +204,13 @@
         },
         {
           "name": "turn-002/run.json",
-          "bytes": 15571,
-          "sha256": "5c723bf9cd0d7d9392eaa5da10c300742ae3c44ee4822122944c102304b0e674"
+          "bytes": 15570,
+          "sha256": "d3162cb26a7cf2981ff601b1f6807cc1e7cc9c3e610c6274131690f8ab5131e7"
         },
         {
           "name": "turn-002/run-plan.json",
           "bytes": 17456,
-          "sha256": "f0ac7dc1358efb2ec570f5295131f014734102ec52aaf0a6f03b39ac39708fa3"
+          "sha256": "6765aaabba879bc5f8b8a9716929a5006f913aaffc7afbbe3e56f6e84c2fd5f3"
         },
         {
           "name": "turn-002/input.json",
@@ -224,8 +224,8 @@
         },
         {
           "name": "turn-002/audit.json",
-          "bytes": 198852,
-          "sha256": "15e2a5af5f4cb52a9cf7a0f403c2016cc4b40a632607f35783ad10cb6877ae49"
+          "bytes": 198849,
+          "sha256": "5ef5f45a8751d0ee1ecadfaed1f412e8a81119e6bff6346308623b86b8c1f201"
         },
         {
           "name": "turn-002/booking.json",
@@ -245,12 +245,12 @@
         {
           "name": "turn-002/provenance.json",
           "bytes": 342,
-          "sha256": "faeedf0a666bf6b772b4969133240f0e7461822d199af1c5e7396e0b6fc74b95"
+          "sha256": "3d6fbbf7be54a7476d706e5dea57fb622dc502e5504260b756181d28605624e9"
         },
         {
           "name": "turn-002/result.json",
-          "bytes": 250157,
-          "sha256": "7094f4662bc3a21cee310e80f7484a3473049e48156067e841359737909d54c5"
+          "bytes": 250154,
+          "sha256": "1a309dabed554ba3d2f89c4b12f100999d52a1da3101cfff378e31e29812c36b"
         },
         {
           "name": "turn-002/search.json",
@@ -265,12 +265,12 @@
         {
           "name": "turn-003/run.json",
           "bytes": 14217,
-          "sha256": "29cedaf35fe48bbf3e35ba2502f24e08779edc1e00bec30d178419b5445461d1"
+          "sha256": "356669218915ac74fa5e53fd354270284a72d6d1f34ff4cf07d0dd730e2411a2"
         },
         {
           "name": "turn-003/run-plan.json",
           "bytes": 17456,
-          "sha256": "f0ac7dc1358efb2ec570f5295131f014734102ec52aaf0a6f03b39ac39708fa3"
+          "sha256": "6765aaabba879bc5f8b8a9716929a5006f913aaffc7afbbe3e56f6e84c2fd5f3"
         },
         {
           "name": "turn-003/input.json",
@@ -285,7 +285,7 @@
         {
           "name": "turn-003/audit.json",
           "bytes": 147500,
-          "sha256": "0587da6c96b9687542fa463921cbfba8ec01b122701543cba674ed54f4651f87"
+          "sha256": "eeeaae249337ea81f5158705422a0a0591423a0b8dcea6a3688af0a076eec196"
         },
         {
           "name": "turn-003/booking.json",
@@ -305,12 +305,12 @@
         {
           "name": "turn-003/provenance.json",
           "bytes": 342,
-          "sha256": "efed6de676ef2d5a7ee310fda9b39d5214640bafbcf331dc614ed4f1c694e834"
+          "sha256": "b98d51d4e1bdca9434f84252d567a948f84fbb3044fe4f9440f3706d11a759bb"
         },
         {
           "name": "turn-003/result.json",
           "bytes": 168019,
-          "sha256": "6fe0679abeb15e102b7df844ecf6c317eea7c81eb45d47b7e985067e43b74a65"
+          "sha256": "f8793c51bd28f21e3d51f8946011db3573824c3413e645e7d6ac12688a817cf4"
         },
         {
           "name": "turn-003/search.json",
@@ -324,11 +324,11 @@
         }
       ],
       "conversation": {
-        "conversationId": "160120ef-1580-4ca2-8f9a-8d0bc567fa91",
+        "conversationId": "5c095620-91af-4567-adee-be7487679337",
         "status": "ended",
         "ended": {
           "reason": "package",
-          "at": "2026-11-05T19:39:16.775000+00:00",
+          "at": "2026-11-05T22:55:37.016000+00:00",
           "turns_not_run": 0
         },
         "outcome": "completed",
@@ -441,7 +441,7 @@
           "turn": 1,
           "status": "completed",
           "error_code": null,
-          "run_id": "run_dd38792a0a90429f97cc7b21787d63a7",
+          "run_id": "run_eed56ce4006046c2a8f692efc12f1c3a",
           "decisions": [],
           "reply_status": "options_found",
           "intent": "search",
@@ -469,14 +469,14 @@
             "events": 281,
             "chainValid": true
           },
-          "durationMs": 85560,
+          "durationMs": 84928,
           "failure": null
         },
         {
           "turn": 2,
           "status": "completed",
           "error_code": null,
-          "run_id": "run_864bdfe17ad9475798ef87c825d3897b",
+          "run_id": "run_02e6d4c1959f4ec883a6b9130f769342",
           "decisions": [],
           "reply_status": "options_found",
           "intent": "search",
@@ -504,14 +504,14 @@
             "events": 282,
             "chainValid": true
           },
-          "durationMs": 62143,
+          "durationMs": 49660,
           "failure": null
         },
         {
           "turn": 3,
           "status": "completed",
           "error_code": null,
-          "run_id": "run_fda8d1674ac040fdbdf9ac4241d8fc79",
+          "run_id": "run_27351a12ce0f4f2388faeb2ebdbebcdc",
           "decisions": [],
           "reply_status": "done",
           "intent": "done",
@@ -539,7 +539,7 @@
             "events": 213,
             "chainValid": true
           },
-          "durationMs": 14518,
+          "durationMs": 11904,
           "failure": null
         }
       ]
