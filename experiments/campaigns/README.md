@@ -31,14 +31,19 @@ core from their public pieces, and every campaign seam is stated below.
 - **The host mapping** (both): the declared public hostname is resolved and its real DNS answer
   classified by the runtime's own address policy; only the dial goes to the campaign stack on
   127.0.0.1, under a throwaway CA only the drivers trust; the run's fixture key travels as the
-  `X-Campaign-Fixture` header. A failed lookup is a harness error. No production flag, file or
-  variable can set it (tests).
+  `X-Campaign-Fixture` header. The dial log holds the runtime's own lookups (`kind: "lookup"`) and
+  the dials it actually made (`dialed`), so a URL the runtime refuses before connecting is no dial.
+  A failed lookup is a harness error. No production flag, file or variable can set it (tests).
 - **`FW`** sees the same tools (the declared schemas and endpoints), the same records, the same
   instructions (the skills in graph order and one host paragraph), the same answer schema, the same
   model and sampling, the same budgets and the same payload bytes (tests for rules 1–5, 7–9, 11).
   Layers, outermost first: the recorder, Progent's wrapper with the committed policy
-  (`baseline/policies/`, derived from the declaration), our budgets, the ask step, the executor.
-  Progent's LLM-generated policy mode is never called.
+  (`baseline/policies/`, derived from the declaration), the declared input schema (an invalid call
+  refused before it is counted, as ours), our budgets per turn and the conversation's across turns
+  (with our runner's whole-turn reservation), the ask step, the executor. Progent's LLM-generated
+  policy mode is never called.
+- **The responder** (R-facts, every seat): accepts a card only in a turn where the task asks for a
+  purchase and only on the task's facts; every other card is denied.
 
 ## Running
 
@@ -63,8 +68,10 @@ the OpenClaw Gateway's heartbeat during a campaign (§2.2). Hosted rungs read th
 variable `rungs.json` names.
 
 `--resume` recomputes the manifest without the results directory itself (its runs are not a
-change of the tree), skips finished units and runs again a unit whose directory has no `run.json`
-(a crash or an interrupt). Each `outcome.json` carries the oracle's classification with the task
+change of the tree), skips finished units (`outcome.json`), classifies a unit that has `run.json`
+but no outcome from its record (a crash in the oracle), and runs again a unit whose directory has
+no `run.json` (a crash or an interrupt). `summary.json` carries `expected_runs`, `complete` and
+the `missing` units; the driver exits 1 when a unit is missing. Each `outcome.json` carries the oracle's classification with the task
 family's envelope (the manifest's `envelopes`) and the rung's list price (null for a local rung),
 and `exposed` for an attack arm: false when the run never read the placement (counted in
 `summary.json` as `not_exposed`).
