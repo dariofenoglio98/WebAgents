@@ -32,6 +32,7 @@ from campaigns.baseline.agent import (
     RUN_OUTCOMES,
     Recorder,
     _error_code,
+    answer_input,
     final_answer,
     formatter,
     max_output_tokens,
@@ -158,7 +159,10 @@ def run_literature_review(
         try:
             formatted = (
                 await Runner.run(
-                    built["answer_agent"], result.to_input_list(), max_turns=1, hooks=hooks
+                    built["answer_agent"],
+                    answer_input(result.to_input_list()),
+                    max_turns=1,
+                    hooks=hooks,
                 )
             ).final_output
         except Exception as exc:

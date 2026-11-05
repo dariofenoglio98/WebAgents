@@ -133,6 +133,17 @@ FORMATTER_INSTRUCTIONS = (
 )
 
 
+# TUNING.md T-6 (rule 10, a parse fix; rule 12: the fault was our harness's): the answer step's
+# input ends with a user turn. Ending on the assistant's own reply, Ollama's `/v1` treats it as a
+# prefix to continue, and `qwen3:30b` (L30) continued a finished reply with nothing (1 token).
+ANSWER_REQUEST = "Record the answer to my last request as the JSON object the schema describes."
+
+
+def answer_input(history: list) -> list:
+    """The answer step's input: the conversation, then the request to record its answer."""
+    return list(history) + [{"role": "user", "content": ANSWER_REQUEST}]
+
+
 def answer_fields(port: str) -> str:
     """The host paragraph's `Answer.` section: the same field descriptions for the tool agent and
     the answer step (TUNING.md T-4)."""
@@ -379,7 +390,7 @@ def run_webair(
             answer_error = None
             try:
                 formatted = (
-                    await Runner.run(answer_agent, history, max_turns=1, hooks=hooks)
+                    await Runner.run(answer_agent, answer_input(history), max_turns=1, hooks=hooks)
                 ).final_output
             except Exception as exc:
                 formatted = None

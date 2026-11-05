@@ -362,3 +362,16 @@ def test_a_request_cancelled_while_it_waits_never_leaves_the_lane_held():
 
     asyncio.run(scenario())
     assert len(lane.starts) == 2
+
+
+def test_tuning_t6_every_answer_step_ends_with_a_user_turn():
+    """TUNING.md T-6: ending on the assistant's reply, Ollama's `/v1` continues it (L30: nothing)."""
+    import inspect
+
+    from campaigns.baseline import network
+
+    history = [{"role": "user", "content": "q"}, {"role": "assistant", "content": "a"}]
+    asked = fw.answer_input(history)
+    assert asked[:2] == history and asked[-1] == {"role": "user", "content": fw.ANSWER_REQUEST}
+    for run in (fw.run_webair, network.run_travel_network, literature.run_literature_review):
+        assert "answer_input(" in inspect.getsource(run), run.__module__
