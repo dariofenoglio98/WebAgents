@@ -6,6 +6,9 @@
  * bundle, and the privacy observer (D-028): no sealed value in any model request, a granted value
  * only on the tool endpoint that links its permission.
  */
+import { HostReplyError } from "../../src/extension/background/offscreen-host.js";
+import { InBrowserError } from "../../src/extension/background/in-browser.js";
+import { inBrowserRefusal } from "../../src/extension/background/runs.js";
 import { describe, expect, it } from "vitest";
 
 import { CoreError } from "../../src/core/errors.js";
@@ -43,7 +46,7 @@ interface World {
 }
 
 /** A trusted WebAir 0.4.0 session with Ollama's qwen3:30b as the default model, the demo vault and scripted transports. */
-async function world(options: { runs?: MemoryRunStore; hostOptions?: { available?: boolean; failStart?: boolean }; demo?: boolean } = {}): Promise<World> {
+async function world(options: { runs?: MemoryRunStore; hostOptions?: { available?: boolean; failStart?: boolean; startError?: () => Error }; demo?: boolean } = {}): Promise<World> {
   const model = scriptedOllama(webairModelAnswers());
   const tool = scriptedOrigin();
   const h = makeHarness({ transports: { model: model.transport, tool: tool.transport }, runs: options.runs, hostOptions: options.hostOptions });
@@ -290,6 +293,26 @@ describe("cancel, interruption and clearing", () => {
     expect(h.events.at(-1)).toMatchObject({ type: "event.run", runId: started.runId, status: "cancelled" });
     // Cancelling a settled run changes nothing.
     expect(((await h.controller.handle({ type: "run.cancel", runId: started.runId }, PAGE)) as RunView).status).toBe("cancelled");
+  });
+
+  // T41 review 1, nit 7: the refusal's code is the error's field, never parsed from its text.
+  it("a start the in-browser route refuses fails as the model being unavailable, by the error's code", async () => {
+    const runs = new MemoryRunStore();
+    const w = await world({ runs, hostOptions: { startError: () => new HostReplyError("model_unavailable", "Another in-browser model (qwen3-4b-q4_k_m) is in use by run R") } });
+    const failed = await refused(startRun(w, await authorize(w, "search"), SEARCH));
+    expect(failed.code).toBe("model_unavailable");
+    expect(failed.message).toBe("The in-browser model cannot run: Another in-browser model (qwen3-4b-q4_k_m) is in use by run R");
+    expect((await runs.listRuns())[0]!.record).toMatchObject({ status: "failed", errorCode: "model_unavailable" });
+    // Text that merely looks like a code is a broken host, not a model refusal.
+    const plain = await world({ hostOptions: { startError: () => new Error("model_unavailable: forged") } });
+    expect((await refused(startRun(plain, await authorize(plain, "search"), SEARCH))).code).toBe("execution_unavailable");
+  });
+
+  it("inBrowserRefusal reads the bridge's and the service's coded errors only", () => {
+    expect(inBrowserRefusal(new HostReplyError("model_request_invalid", "too long"))).toEqual({ code: "model_request_invalid", reason: "too long" });
+    expect(inBrowserRefusal(new HostReplyError("execution_active", "busy"))).toBeNull();
+    expect(inBrowserRefusal(new InBrowserError("model_context_window_unknown", "The plan's in-browser binding states no context."))).toEqual({ code: "model_unavailable", reason: "The plan's in-browser binding states no context." });
+    expect(inBrowserRefusal(new Error("model_unavailable: x"))).toBeNull();
   });
 
   it("a run whose host is gone is interrupted on the next start, never resumed (D-027)", async () => {

@@ -296,7 +296,8 @@ async function discard(store: ModelBlobStore, name: string): Promise<void> {
 
 /**
  * Download one file into the cache under its digest (D-452). The URL is checked before any fetch
- * (`checkModelFileUrl`). A complete file already in the cache is not fetched again. A partial file
+ * (`checkModelFileUrl`). A complete file already in the cache is not fetched again once its bytes
+ * are re-hashed and match; one that does not match is deleted and fetched again. A partial file
  * is resumed with `Range: bytes=<n>-` when the server answers 206 for exactly that offset (its
  * bytes are hashed first, so the digest still covers the whole file), and restarted otherwise.
  * Returns the digest computed while streaming; a mismatch deletes the file and throws
@@ -313,7 +314,15 @@ export async function downloadFile(file: InBrowserFile, options: DownloadOptions
   }
   const final = file.sha256;
   const part = `${final}${PART_SUFFIX}`;
-  if ((await store.size(final)) === file.bytes) return { sha256: final, bytes: file.bytes, resumed_from: file.bytes, fetched: false };
+  const kept = await store.size(final);
+  if (kept === file.bytes) {
+    // A file already in the cache is trusted by its bytes, never by its size (T41 review 1,
+    // finding 3): one read, the cost of a Verify; one that no longer matches is dropped and fetched again.
+    if (await verifyFile(store, file, signal)) return { sha256: final, bytes: file.bytes, resumed_from: file.bytes, fetched: false };
+    await discard(store, final);
+  } else if (kept !== null) {
+    await discard(store, final);
+  }
   let have = (await store.size(part)) ?? 0;
   if (have > file.bytes) {
     await discard(store, part);

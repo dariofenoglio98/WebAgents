@@ -87,7 +87,7 @@ export type HostModelsMessage =
   | { type: "host.models"; action: "download"; entry: InBrowserEntry }
   | { type: "host.models"; action: "list"; entry: InBrowserEntry }
   | { type: "host.models"; action: "cancel" | "verify" | "delete"; entryId: string }
-  | { type: "host.models"; action: "status" | "files" };
+  | { type: "host.models"; action: "status" | "files" | "prune" };
 
 /** The engine's commands from Settings (T41, D-450): never a completion, which only a run's port asks for. */
 export type HostEngineMessage =

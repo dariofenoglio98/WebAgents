@@ -84,7 +84,22 @@ export interface InBrowserView {
   suggestion: Recommendation | null;
   engine: EngineStatus | null;
   totals: { cached_bytes: number; entries_cached: number };
+  /**
+   * What the cache keeps that no listed entry shows (T41 review 1, finding 4): rows of curated
+   * entries a newer list no longer names (their files stay until Delete), and files no row names
+   * (`orphan_files`, null when the execution host was not asked); both deletable here.
+   */
+  unlisted: Array<{ entry_id: string; display_name: string; bytes: number; cached: boolean; downloaded_at: string | null }>;
+  orphan_files: { count: number; bytes: number } | null;
   settings: Settings["models"]["in_browser"] & { think: boolean };
+}
+
+/** The execution host's `host.models status` answer. */
+export interface HostModelsStatus {
+  downloads: DownloadView[];
+  engine: EngineStatus;
+  /** Cached files no row names (`ModelManager.orphans`), or null when the listing failed. */
+  orphans?: Array<{ name: string; size: number }> | null;
 }
 
 export interface PastedCandidate {
@@ -305,10 +320,11 @@ export class InBrowserService {
     const { entries, rows } = await this.entries();
     const curated = await this.curated();
     const machine = await this.machine(settings);
-    let status: { downloads: DownloadView[]; engine: EngineStatus } | null = null;
+    let status: HostModelsStatus | null = null;
     if (this.deps.host !== null) {
       try {
-        status = (await this.deps.host({ type: "host.models", action: "status" })) as { downloads: DownloadView[]; engine: EngineStatus };
+        // Null when no execution host is open (T41 review 1, nit 8): nothing is loaded and nothing downloads.
+        status = (await this.deps.host({ type: "host.models", action: "status" })) as HostModelsStatus | null;
       } catch {
         status = null;
       }
@@ -321,6 +337,7 @@ export class InBrowserService {
     const overrides = settings.models.connections.find((item) => item.provider === "in-browser")?.overrides ?? {};
     const budget = gpuBudget(machine);
     const cachedRows = [...rows.values()].filter((row) => cacheState(row).cached);
+    const shown = new Set(entries.map((entry) => entry.id));
     return {
       catalog: { id: curated.catalog.catalog_id, version: curated.catalog.version, title: curated.catalog.title, source: curated.source, issued_at: curated.catalog.issued_at, notes: curated.notes, refresh_url: CATALOG_SOURCE.refresh_url },
       machine: { ...machine, budget, budget_words: budgetWords(budget), probed_at: machine.record.probed_at, benchmark: machine.record.benchmark, cross_origin_storage: machine.record.probe?.cross_origin_storage ?? null, adapter: machine.gpu ? [machine.gpu.vendor, machine.gpu.architecture].filter(Boolean).join(" / ") || null : null },
@@ -341,6 +358,8 @@ export class InBrowserService {
       suggestion: defaultSuggestion(recommendations.filter((item) => byEntry.get(item.entry)!.bin === "recommended"), entries),
       engine: status?.engine ?? null,
       totals: { cached_bytes: cachedRows.reduce((sum, row) => sum + row.files.reduce((total, file) => total + file.bytes, 0), 0), entries_cached: cachedRows.length },
+      unlisted: [...rows.values()].filter((row) => !shown.has(row.entry_id)).map((row) => ({ entry_id: row.entry_id, display_name: row.entry.display_name, bytes: row.files.reduce((total, file) => total + file.bytes, 0), cached: cacheState(row).cached, downloaded_at: row.downloaded_at })),
+      orphan_files: status?.orphans ? { count: status.orphans.length, bytes: status.orphans.reduce((sum, file) => sum + file.size, 0) } : null,
       settings: { ...settings.models.in_browser, think: inBrowserThink(settings) },
     };
   }
@@ -359,6 +378,21 @@ export class InBrowserService {
 
   async command(action: "cancel" | "verify" | "delete", entryId: string): Promise<unknown> {
     return this.host()({ type: "host.models", action, entryId });
+  }
+
+  /** Remove the cached files no row names (the cache section's "Remove them"). */
+  async prune(): Promise<unknown> {
+    return this.host()({ type: "host.models", action: "prune" });
+  }
+
+  /**
+   * Forget a context at which a load died (the row's "Clear", T41 review 1, finding 2): the next
+   * load may try that context again. Until then the recommendation picks a smaller one by itself.
+   */
+  async clearFailure(entryId: string): Promise<{ entry_id: string; failed_context: null }> {
+    const row = await this.deps.models.update(entryId, (current) => (current === null ? null : { ...current, failed_context: null }));
+    if (row === null) throw new InBrowserError("model_unknown", `No in-browser model ${JSON.stringify(entryId)} is in this browser's cache.`, 404);
+    return { entry_id: entryId, failed_context: null };
   }
 
   async load(entryId: string, settings: Settings): Promise<unknown> {
@@ -433,9 +467,9 @@ export function inBrowserThink(settings: Settings): boolean {
   return settings.models.connections.find((item) => item.provider === "in-browser")?.think === true;
 }
 
-function cacheStateWithMeasure(row: ModelRecord | null): Pick<InBrowserEntryState, "cached" | "verified" | "measured"> {
+function cacheStateWithMeasure(row: ModelRecord | null): Pick<InBrowserEntryState, "cached" | "verified" | "measured" | "failed_context"> {
   const { cached, verified } = cacheState(row);
-  return { cached, verified, measured: row?.measured ? { prefill_tok_per_s: row.measured.prefill_tok_per_s, decode_tok_per_s: row.measured.decode_tok_per_s, context: row.measured.context } : null };
+  return { cached, verified, measured: row?.measured ? { prefill_tok_per_s: row.measured.prefill_tok_per_s, decode_tok_per_s: row.measured.decode_tok_per_s, context: row.measured.context } : null, failed_context: row?.failed_context ?? null };
 }
 
 /** `owner/repo` from what the person pasted: the id itself or the repository page's URL. */
@@ -480,13 +514,29 @@ export function groupSplits(files: Array<{ name: string; bytes: number; sha256: 
   return out.sort((a, b) => a.bytes_total - b.bytes_total || (a.file < b.file ? -1 : 1));
 }
 
+/** At most 64 characters (`ENTRY_ID`); a longer slug keeps its head and gains this many hex digits of the weights digest. */
+const PASTED_ID_DIGEST_HEX = 8;
+
+/**
+ * The id of a pasted file: `owner/repo/stem`, lower-case, runs of other characters as `-`. When that
+ * exceeds 64 characters, its head is kept and the weights digest's first 8 hex digits appended, so
+ * two files of a long-named repository (whose quantization lies past the cut) never share an id
+ * (T41 review 1, finding 5). `ModelManager.list` also refuses an id held by other weights.
+ */
+export function pastedEntryId(repository: string, stem: string, digest: string): string {
+  const slug = `${repository}/${stem}`.toLowerCase().replace(/[^a-z0-9._-]+/gu, "-").replace(/^[^a-z0-9]+/u, "").replace(/[-._]+$/u, "");
+  if (slug.length <= 64) return slug;
+  const suffix = digest.replace(/^sha256:/u, "").slice(0, PASTED_ID_DIGEST_HEX);
+  return `${slug.slice(0, 64 - PASTED_ID_DIGEST_HEX - 1).replace(/[-._]+$/u, "")}-${suffix}`;
+}
+
 /** The entry of a pasted file: uncurated, its header unknown until the download (design §5). */
 export function pastedEntry(view: PasteView, candidate: PastedCandidate): InBrowserEntry {
   const stem = candidate.file.replace(/(-\d{5}-of-\d{5})?\.gguf$/iu, "");
-  const id = `${view.repository}/${stem}`.toLowerCase().replace(/[^a-z0-9._-]+/gu, "-").replace(/^[^a-z0-9]+/u, "").slice(0, 64).replace(/[-._]+$/u, "");
   const family = REASONING_FAMILIES.find(([pattern]) => pattern.test(`${view.repository} ${candidate.file}`))?.[1] ?? null;
   const quantization = /(?:^|[-_.])((?:I?Q\d[A-Z0-9_]*)|(?:F16|BF16|F32|MXFP4))(?:[-_.]|$)/iu.exec(stem)?.[1]?.toUpperCase() ?? "unknown";
   const files = candidate.files.map((file) => ({ name: file.name, url: `${HUGGING_FACE}/${view.repository}/resolve/${view.revision}/${encodeURIComponent(file.name).replace(/%2F/gu, "/")}`, bytes: file.bytes, sha256: file.sha256 }));
+  const id = pastedEntryId(view.repository, stem, weightsDigest(files.map((file) => file.sha256)));
   return normalizeInBrowserEntry({
     schema: IN_BROWSER_ENTRY_SCHEMA,
     id,

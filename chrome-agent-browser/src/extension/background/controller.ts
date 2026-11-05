@@ -484,6 +484,10 @@ export class Controller {
         return this.inBrowserAction(async () => this.inBrowser.load(request.entryId, await this.deps.settings.settings()));
       case "inbrowser.unload":
         return this.inBrowserAction(() => this.inBrowser.unload());
+      case "inbrowser.clearFailure":
+        return this.inBrowserAction(() => this.inBrowser.clearFailure(request.entryId));
+      case "inbrowser.prune":
+        return this.inBrowserAction(() => this.inBrowser.prune());
       case "inbrowser.measure":
         return this.inBrowserAction(() => this.inBrowser.measure());
       case "inbrowser.paste":
@@ -597,8 +601,8 @@ export class Controller {
       case "host.modelsChanged":
         // The model cache or the engine changed in the offscreen page (T41): re-read the catalog, tell the views.
         if (!sender.offscreen) throw reject("not_allowed", "Only the execution host may report on the model cache", 403);
-        this.invalidateCatalog();
         this.inBrowser.invalidate();
+        this.refreshInBrowserCatalog();
         this.deps.broadcast({ type: "event.models" });
         return { received: true };
       case "host.progress":
@@ -1830,11 +1834,16 @@ export class Controller {
   private catalogProbe: Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> | null = null;
   /** Bumped when the settings change: a probe started before then does not write the cache. */
   private catalogGeneration = 0;
+  /** The held catalog an in-browser rebuild started from (`refreshInBrowserCatalog`), until it lands. */
+  private inBrowserBase: { catalog: HostCatalog; probes: ProbeResult[]; at: number } | null = null;
+  private inBrowserRebuild: Promise<unknown> | null = null;
 
   private invalidateCatalog(): void {
     this.catalogCache = null;
     this.catalogProbe = null;
     this.catalogGeneration += 1;
+    this.inBrowserBase = null;
+    this.inBrowserRebuild = null;
   }
 
   /**
@@ -1873,6 +1882,36 @@ export class Controller {
    */
   private async currentCatalog(): Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> {
     return this.catalogCache ?? (await this.catalog());
+  }
+
+  /**
+   * The model cache or the engine changed (`host.modelsChanged`, about once a second during a
+   * download): only the in-browser part of the held catalog is built again, from the cache and the
+   * machine facts (no network); the other providers' answers are kept with their time (T41
+   * review 1, nit 9). The rebuild starts synchronously, so a check made meanwhile joins it rather
+   * than reading the old in-browser part. With no catalog held, or a full probe running, the next
+   * check builds a whole one.
+   */
+  private refreshInBrowserCatalog(): void {
+    // The ticks come faster than a rebuild may finish: the other providers' answers are kept in
+    // `inBrowserBase` until the rebuild lands, so a tick during one starts another from them.
+    const held = this.catalogCache ?? this.inBrowserBase;
+    if (held === null || (this.catalogProbe !== null && this.inBrowserBase === null)) {
+      this.invalidateCatalog();
+      return;
+    }
+    this.inBrowserBase = held;
+    const probed = new Map<ProviderId, ProbeResult>(held.probes.filter((item) => item.provider !== "in-browser").map((item) => [item.provider, item]));
+    this.catalogCache = null;
+    const rebuild = this.catalog(0, probed, held.at);
+    this.inBrowserRebuild = rebuild;
+    void rebuild
+      .catch(() => undefined)
+      .finally(() => {
+        if (this.inBrowserRebuild !== rebuild) return;
+        this.inBrowserRebuild = null;
+        this.inBrowserBase = null;
+      });
   }
 
   /**

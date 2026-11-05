@@ -14,14 +14,15 @@ import { gpuBudget, budgetWords, inBrowserDescriptor, readModelCatalog, recommen
 import type { InBrowserView } from "../../src/extension/background/in-browser.js";
 import { normalizeSettings } from "../../src/extension/storage/settings.js";
 import { inRouteOrder, routeWords } from "../../src/extension/ui/authorize.js";
-import { BIN_TITLES, busyKey, inBrowserSection, newInBrowserPageState, NOTHING_LEFT_BEHIND, outcomeOf, ROUTE_LINE } from "../../src/extension/ui/in-browser-models.js";
+import { BIN_TITLES, busyKey, failureWords, inBrowserSection, newInBrowserPageState, NOTHING_LEFT_BEHIND, outcomeOf, ROUTE_LINE } from "../../src/extension/ui/in-browser-models.js";
 import { ROOT } from "../helpers/paths.js";
 
 const CATALOG = readModelCatalog(JSON.parse(readFileSync(join(ROOT, "examples", "model-catalog.content.json"), "utf8")));
 const MACHINE: MachineFacts = { gpu: { vendor: "apple", architecture: "metal-3", is_fallback: false, features: ["shader-f16"], max_buffer_size: 2 ** 32 }, device_memory_gb: 16, storage: { quota: 50e9, usage: 5e9 }, kernel_class: "fast", declared_gpu_bytes: null };
 
-function view(cached: string[] = [], loaded: string | null = null): InBrowserView {
-  const states = new Map(CATALOG.entries.map((entry) => [entry.id, { cached: cached.includes(entry.id), verified: cached.includes(entry.id), measured: null }]));
+function view(cached: string[] = [], loaded: string | null = null, extra: { failed?: Record<string, number>; unlisted?: InBrowserView["unlisted"]; orphan_files?: InBrowserView["orphan_files"] } = {}): InBrowserView {
+  const failed = extra.failed ?? {};
+  const states = new Map(CATALOG.entries.map((entry) => [entry.id, { cached: cached.includes(entry.id), verified: cached.includes(entry.id), measured: null, failed_context: failed[entry.id] ?? null }]));
   const recommendations = recommendInBrowser({ entries: CATALOG.entries, states, machine: MACHINE, evaluate: null });
   const budget = gpuBudget(MACHINE);
   return {
@@ -33,16 +34,18 @@ function view(cached: string[] = [], loaded: string | null = null): InBrowserVie
       return {
         entry,
         recommendation,
-        descriptor: inBrowserDescriptor(entry, { cached: isCached, verified: isCached, loaded: loaded === entry.id, chosen_context: recommendation.context, budget, measured: null }),
+        descriptor: inBrowserDescriptor(entry, { cached: isCached, verified: isCached, loaded: loaded === entry.id, chosen_context: recommendation.context, budget, measured: null, failed_context: failed[entry.id] ?? null }),
         cached: isCached,
         verified: isCached,
-        row: isCached ? { downloaded_at: "2026-11-05T10:00:00Z", verified_at: "2026-11-05T10:00:00Z", last_used: null, measured: null, failed_context: null, last_error: null, header: null, mismatch: false } : null,
+        row: isCached ? { downloaded_at: "2026-11-05T10:00:00Z", verified_at: "2026-11-05T10:00:00Z", last_used: null, measured: null, failed_context: failed[entry.id] ?? null, last_error: null, header: null, mismatch: false } : null,
         download: null,
       };
     }),
     suggestion: null,
     engine: loaded === null ? null : { loaded: { entry: loaded, n_ctx: 16384, think: false, load_ms: 3000, n_gpu_layers: null, offload_log: [] }, loading: null, busy: false, queued: 0, runs: [], idle_unload_at: null, last_failure: null },
     totals: { cached_bytes: 0, entries_cached: cached.length },
+    unlisted: extra.unlisted ?? [],
+    orphan_files: extra.orphan_files ?? null,
     settings: { gpu_memory_gb: null, idle_unload_minutes: 10, cross_origin_storage: false, think: false },
   };
 }
@@ -128,6 +131,36 @@ describe("Settings → Models → In this browser", () => {
     expect(outcomeOf(request, { verified: false, files: [] })).toMatchObject({ tone: "bad", text: expect.stringMatching(/did not match the digest the catalog states\. Delete the model and download it again\.$/u) });
     expect(outcomeOf({ type: "inbrowser.load", entryId: "x" }, { n_ctx: 32768, load_ms: 3305 })).toEqual({ entry: "x", text: "Loaded at 32,768 tokens in 3.3 s.", tone: "good" });
     expect(outcomeOf({ type: "inbrowser.unload" }, {})).toBeNull();
+  });
+
+  // T41 review 1, finding 2: after a dead load the person had no field and no way out but Delete.
+  it("shows a context that failed with Clear, and still offers Load at the smaller context the recommendation chose", () => {
+    const { root, requests } = render(view(["qwen3-4b-q4_k_m"], null, { failed: { "qwen3-4b-q4_k_m": 32_768 } }));
+    const four = root.querySelector<HTMLElement>('[data-model="in-browser/qwen3-4b-q4_k_m"]')!;
+    expect(four.querySelector("[data-failed-context]")!.textContent).toContain("Failed to run at a 32,768-token context on this machine (its engine stopped, most likely out of memory); the next load uses 16,384 tokens. Clear it to try 32,768 again.");
+    const load = [...four.querySelectorAll("button")].find((node) => node.textContent === "Load")!;
+    expect(load.disabled).toBe(false);
+    [...four.querySelectorAll("button")].find((node) => node.textContent === "Clear")!.click();
+    expect(requests.map((item) => item.request)).toEqual([{ type: "inbrowser.clearFailure", entryId: "qwen3-4b-q4_k_m" }]);
+    expect(failureWords(4096, 4096)).toBe("Failed to run at a 4,096-token context on this machine (its engine stopped, most likely out of memory). Clear it to try 4,096 again.");
+  });
+
+  // T41 review 1, finding 4: cached bytes no listed entry showed were counted and unreachable.
+  it("lists models no longer in the list with Delete, and files no model names with Remove them", () => {
+    const unlisted = [{ entry_id: "qwen3-1.7b-q4_k_m", display_name: "Qwen3 1.7B (Q4_K_M)", bytes: 1.1e9, cached: true, downloaded_at: "2026-11-01T10:00:00Z" }];
+    const { root, requests } = render(view([], null, { unlisted, orphan_files: { count: 2, bytes: 2.5e9 } }));
+    const row = root.querySelector<HTMLElement>('[data-unlisted="qwen3-1.7b-q4_k_m"]')!;
+    expect(row.textContent).toContain("Qwen3 1.7B (Q4_K_M)");
+    expect(row.textContent).toContain("1.1 GB");
+    [...row.querySelectorAll("button")].find((node) => node.textContent === "Delete")!.click();
+    const orphans = root.querySelector<HTMLElement>(".ab-orphans")!;
+    expect(orphans.textContent).toContain("2 cached files no model names (2.5 GB)");
+    [...orphans.querySelectorAll("button")].find((node) => node.textContent === "Remove them")!.click();
+    expect(requests.map((item) => item.request)).toEqual([{ type: "inbrowser.delete", entryId: "qwen3-1.7b-q4_k_m" }, { type: "inbrowser.prune" }]);
+    // Nothing unlisted and no orphan: neither line is drawn.
+    const clean = render(view([], null, { orphan_files: { count: 0, bytes: 0 } })).root;
+    expect(clean.querySelector("[data-unlisted]")).toBeNull();
+    expect(clean.querySelector(".ab-orphans")).toBeNull();
   });
 
   it("looks a pasted repository up with huggingface.co asked first", () => {

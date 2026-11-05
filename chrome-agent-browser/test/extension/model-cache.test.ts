@@ -244,14 +244,46 @@ describe("downloadFile: transfers", () => {
   });
 
   it("does not fetch a file already complete in the cache", async () => {
-    // A complete file under its digest is not fetched again.
+    // A complete file under its digest is not fetched again, once its bytes were read and matched.
     const bytes = testBytes(512);
     const file = fileFor(bytes);
     const store = new MemoryBlobStore();
     store.files.set(file.sha256, bytes);
+    const reads: number[] = [];
+    const read = store.read.bind(store);
+    store.read = async (name, offset, length) => {
+      reads.push(length);
+      return read(name, offset, length);
+    };
     const { fetch, calls } = fakeFetch(() => new Response(streamOf([bytes]), { status: 200 }));
     expect(await downloadFile(file, { store, fetch, signal: live() })).toEqual({ sha256: file.sha256, bytes: bytes.length, resumed_from: bytes.length, fetched: false });
     expect(calls).toHaveLength(0);
+    expect(reads.reduce((sum, length) => sum + length, 0)).toBe(bytes.length);
+  });
+
+  // T41 review 1, finding 3: a complete file was trusted by its size alone.
+  it("re-hashes a complete cached file and fetches it again when one byte differs", async () => {
+    const bytes = testBytes(512);
+    const file = fileFor(bytes);
+    const store = new MemoryBlobStore();
+    const damaged = bytes.slice();
+    damaged[100] = damaged[100]! ^ 0xff;
+    store.files.set(file.sha256, damaged);
+    const { fetch, calls } = fakeFetch(() => new Response(streamOf([bytes]), { status: 200 }));
+    expect(await downloadFile(file, { store, fetch, signal: live() })).toMatchObject({ sha256: file.sha256, bytes: bytes.length, resumed_from: 0, fetched: true });
+    expect(calls).toHaveLength(1);
+    expect(store.files.get(file.sha256)).toEqual(bytes);
+  });
+
+  it("drops a final file of the wrong size before downloading", async () => {
+    const bytes = testBytes(512);
+    const file = fileFor(bytes);
+    const store = new MemoryBlobStore();
+    store.files.set(file.sha256, bytes.slice(0, 100));
+    const { fetch, calls } = fakeFetch(() => new Response(streamOf([bytes]), { status: 200 }));
+    expect(await downloadFile(file, { store, fetch, signal: live() })).toMatchObject({ fetched: true });
+    expect(calls).toHaveLength(1);
+    expect(store.files.get(file.sha256)).toEqual(bytes);
   });
 
   it("drops a partial file larger than the stated size and downloads from zero", async () => {

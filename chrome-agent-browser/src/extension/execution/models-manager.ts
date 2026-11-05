@@ -14,7 +14,7 @@ import type { InBrowserEntry } from "../../core/models/in-browser-catalog.js";
 import type { GgufHeaderFacts } from "../../core/models/gguf-header.js";
 import { cacheState, headerFromFacts, newModelRecord, type ModelRecord, type ModelStore } from "../storage/models.js";
 import type { EngineHost } from "./engine-host.js";
-import type { ModelsCommand, ModelsEvent } from "./models-worker.js";
+import type { ModelsCommand, ModelsEvent } from "./models-commands.js";
 import type { WithoutId } from "./engine-protocol.js";
 
 export interface ModelsWorkerLike {
@@ -59,7 +59,7 @@ export class ModelManager {
   private worker: ModelsWorkerLike | null = null;
   private nextId = 1;
   private readonly waiting = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void; progress?: (event: Extract<ModelsEvent, { kind: "progress" }>["progress"]) => void }>();
-  private readonly downloads = new Map<string, DownloadView & { id: number | null }>();
+  private readonly downloads = new Map<string, DownloadView & { id: number | null; settled: Promise<void> }>();
   private readonly now: () => Date;
 
   constructor(private readonly deps: ModelManagerDeps) {
@@ -108,7 +108,16 @@ export class ModelManager {
 
   /** List an entry without downloading it (a pasted repository's file, before the person's Download). */
   async list(entry: InBrowserEntry): Promise<ModelRecord> {
-    const row = await this.deps.models.update(entry.id, (current) => current ?? newModelRecord(entry, this.now()));
+    const taken: ModelRecord[] = [];
+    const row = await this.deps.models.update(entry.id, (current) => {
+      if (current !== null && current.entry.weights_digest !== entry.weights_digest) {
+        taken.push(current);
+        return null;
+      }
+      return current ?? newModelRecord(entry, this.now());
+    });
+    // Another file under the same id would show one file's digest under the other's name (T41 review 1, finding 5).
+    if (taken.length > 0) throw new ModelError("model_id_taken", `The id ${entry.id} already names other weights (${taken[0]!.entry.display_name}); delete that model first.`);
     this.changed();
     return row!;
   }
@@ -119,17 +128,26 @@ export class ModelManager {
     if (running && (running.state === "downloading" || running.state === "reading_header")) throw new ModelError("model_download_running", `${entry.display_name} is already downloading`);
     const existing = await this.deps.models.get(entry.id);
     if (existing && cacheState(existing).verified && existing.entry.weights_digest === entry.weights_digest) throw new ModelError("model_cached", `${entry.display_name} is already downloaded and verified`);
+    if (existing && existing.entry.weights_digest !== entry.weights_digest) {
+      // A newer list changed this entry's files (D-453): the old files go now, or no row would name
+      // them and nothing would show or delete them (T41 review 1, finding 4).
+      const user = this.deps.engine.status().runs.find((item) => item.entry === entry.id);
+      if (user) throw new ModelError("model_in_use", `This model is in use by run ${user.run_id}; it can be downloaded again when the run ends`);
+      if (this.deps.engine.loadedEntry() === entry.id) await this.deps.engine.unload();
+      const named = new Set(entry.files.map((file) => file.sha256));
+      await this.removeFiles(entry, existing.files.map((file) => file.sha256).filter((sha256) => !named.has(sha256)));
+    }
     const at = this.now().toISOString();
     await this.deps.models.update(entry.id, (current) => {
       const base = current !== null && current.entry.weights_digest === entry.weights_digest ? current : newModelRecord(entry, this.now());
       return { ...base, entry, files: base.files.map((file) => (file.state === "complete" ? file : { ...file, state: "partial" })), last_error: null };
     });
-    const view: DownloadView & { id: number | null } = { id: null, entry_id: entry.id, state: "downloading", file_index: 0, files: entry.files.length, bytes_done: 0, bytes_total: entry.bytes_total, resumed_from: 0, started_at: at, ended_at: null, error: null };
+    const view: DownloadView & { id: number | null; settled: Promise<void> } = { id: null, settled: Promise.resolve(), entry_id: entry.id, state: "downloading", file_index: 0, files: entry.files.length, bytes_done: 0, bytes_total: entry.bytes_total, resumed_from: 0, started_at: at, ended_at: null, error: null };
     this.downloads.set(entry.id, view);
     this.changed();
     const offsets = entry.files.map((_, index) => entry.files.slice(0, index).reduce((sum, file) => sum + file.bytes, 0));
     let lastReport = 0;
-    void this.ask<{ files: Array<{ sha256: string; bytes: number }> }>({ kind: "download", files: entry.files }, (id) => (view.id = id), (progress) => {
+    view.settled = this.ask<{ files: Array<{ sha256: string; bytes: number }> }>({ kind: "download", files: entry.files }, (id) => (view.id = id), (progress) => {
       view.file_index = progress.file_index;
       view.bytes_done = offsets[progress.file_index]! + progress.bytes_done;
       if (progress.resumed_from > 0 && progress.bytes_done === progress.resumed_from) view.resumed_from += progress.resumed_from;
@@ -139,7 +157,9 @@ export class ModelManager {
         this.changed();
       }
     })
-      .then(async () => {
+      .then(async (answer) => {
+        // The row says verified only for the digests the Worker computed, file by file.
+        if (answer.files.length !== entry.files.length || answer.files.some((file, index) => file.sha256 !== entry.files[index]!.sha256)) throw new ModelError("model_digest_mismatch", "the bytes did not match the digest the catalog states");
         view.state = "reading_header";
         view.bytes_done = entry.bytes_total;
         this.changed();
@@ -192,7 +212,8 @@ export class ModelManager {
         view.id = null;
         this.changed();
       });
-    return { ...view };
+    const { id: _id, settled: _settled, ...shown } = view;
+    return { ...shown };
   }
 
   cancel(entryId: string): boolean {
@@ -220,7 +241,9 @@ export class ModelManager {
     const user = status.runs.find((item) => item.entry === entryId);
     if (user) throw new ModelError("model_in_use", `This model is in use by run ${user.run_id}; it can be deleted when the run ends`);
     if (this.deps.engine.loadedEntry() === entryId) await this.deps.engine.unload();
-    this.cancel(entryId);
+    // A download in flight holds its partial file open: cancel it and wait for it to let go (T41 review 1, nit 6).
+    const running = this.downloads.get(entryId);
+    if (this.cancel(entryId)) await running?.settled;
     const row = await this.deps.models.get(entryId);
     if (row !== null) await this.removeFiles(row.entry, row.files.map((file) => file.sha256));
     await this.deps.models.delete(entryId);
@@ -239,7 +262,29 @@ export class ModelManager {
     return this.ask({ kind: "list" });
   }
 
+  /**
+   * The cache's files no row names (T41 review 1, finding 4): left by an earlier version, or by a
+   * row removed outside this manager. A download in flight names its own partial file.
+   */
+  async orphans(): Promise<Array<{ name: string; size: number }>> {
+    const named = new Set((await this.deps.models.list()).flatMap((row) => row.files.map((file) => file.sha256)));
+    const { files } = await this.files();
+    return files.filter((file) => {
+      const match = /^([0-9a-f]{64})(\.part)?$/u.exec(file.name);
+      return match !== null && !named.has(match[1]!);
+    });
+  }
+
+  /** Remove every file `orphans` names (the cache section's "Remove them"). */
+  async prune(): Promise<{ removed: number; bytes: number }> {
+    const orphans = await this.orphans();
+    const sha256s = [...new Set(orphans.map((file) => file.name.slice(0, 64)))];
+    if (sha256s.length > 0) await this.ask({ kind: "delete", sha256s });
+    this.changed();
+    return { removed: orphans.length, bytes: orphans.reduce((sum, file) => sum + file.size, 0) };
+  }
+
   status(): DownloadView[] {
-    return [...this.downloads.values()].map(({ id: _id, ...view }) => ({ ...view }));
+    return [...this.downloads.values()].map(({ id: _id, settled: _settled, ...view }) => ({ ...view }));
   }
 }

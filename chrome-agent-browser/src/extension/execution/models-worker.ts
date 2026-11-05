@@ -6,22 +6,11 @@
  * the page's `ModelManager` asks, records the outcome in IndexedDB, and reports to the service
  * worker. A cancel stops the transfer and leaves no file.
  */
-import type { InBrowserFile } from "../../core/models/in-browser-catalog.js";
-import { DigestMismatchError, DownloadError, downloadFile, PART_SUFFIX, readCachedHeader, verifyFile, type DownloadProgress } from "../storage/models.js";
+import { DigestMismatchError, DownloadError } from "../storage/models.js";
 import { OpfsBlobStore } from "../storage/opfs-models.js";
+import { runModelsCommand, type ModelsCommand, type ModelsEvent } from "./models-commands.js";
 
-export type ModelsCommand =
-  | { id: number; kind: "download"; files: InBrowserFile[] }
-  | { id: number; kind: "verify"; files: Array<Pick<InBrowserFile, "sha256" | "bytes">> }
-  | { id: number; kind: "header"; sha256: string; bytes: number }
-  | { id: number; kind: "delete"; sha256s: string[] }
-  | { id: number; kind: "list" }
-  | { kind: "cancel"; target: number };
-
-export type ModelsEvent =
-  | { kind: "progress"; id: number; progress: DownloadProgress & { file_index: number; files: number } }
-  | { kind: "answer"; id: number; ok: true; result: unknown }
-  | { kind: "answer"; id: number; ok: false; error: { code: string; message: string; file?: string } };
+export type { ModelsCommand, ModelsEvent } from "./models-commands.js";
 
 const scope = self as unknown as { onmessage: ((event: MessageEvent<ModelsCommand>) => void) | null; postMessage(message: ModelsEvent): void };
 const running = new Map<number, AbortController>();
@@ -29,31 +18,7 @@ let opened: Promise<OpfsBlobStore> | null = null;
 const store = (): Promise<OpfsBlobStore> => (opened ??= OpfsBlobStore.open());
 
 async function handle(command: Exclude<ModelsCommand, { kind: "cancel" }>, signal: AbortSignal): Promise<unknown> {
-  const files = await store();
-  switch (command.kind) {
-    case "download": {
-      const results = [];
-      for (const [index, file] of command.files.entries()) {
-        results.push(await downloadFile(file, { store: files, fetch: (url, init) => fetch(url, init), signal, onProgress: (progress) => scope.postMessage({ kind: "progress", id: command.id, progress: { ...progress, file_index: index, files: command.files.length } }) }));
-      }
-      return { files: results };
-    }
-    case "verify": {
-      const results = [];
-      for (const file of command.files) results.push({ sha256: file.sha256, ok: await verifyFile(files, file, signal) });
-      return { files: results };
-    }
-    case "header":
-      return readCachedHeader(files, command.sha256, command.bytes);
-    case "delete":
-      for (const sha256 of command.sha256s) {
-        await files.remove(sha256);
-        await files.remove(`${sha256}${PART_SUFFIX}`);
-      }
-      return { deleted: command.sha256s.length };
-    case "list":
-      return { files: await files.list() };
-  }
+  return runModelsCommand(command, signal, { store: await store(), fetch: (url, init) => fetch(url, init), progress: (event) => scope.postMessage(event) });
 }
 
 scope.onmessage = (event) => {

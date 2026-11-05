@@ -96,8 +96,8 @@ export type Request =
   | { type: "models.evaluate"; sessionId: string; refresh: boolean }
   | { type: "models.probe"; provider: ProviderId }
   | { type: "inbrowser.get"; sessionId: string | null }
-  | { type: "inbrowser.download" | "inbrowser.cancel" | "inbrowser.verify" | "inbrowser.delete" | "inbrowser.load"; entryId: string }
-  | { type: "inbrowser.unload" | "inbrowser.measure" | "inbrowser.refreshCatalog" }
+  | { type: "inbrowser.download" | "inbrowser.cancel" | "inbrowser.verify" | "inbrowser.delete" | "inbrowser.load" | "inbrowser.clearFailure"; entryId: string }
+  | { type: "inbrowser.unload" | "inbrowser.measure" | "inbrowser.refreshCatalog" | "inbrowser.prune" }
   | { type: "inbrowser.paste"; repository: string }
   | { type: "inbrowser.addPasted"; repository: string; file: string }
   | { type: "host.modelsChanged" }
@@ -983,11 +983,13 @@ export function parseRequest(value: unknown): Request {
     case "inbrowser.verify":
     case "inbrowser.delete":
     case "inbrowser.load":
+    case "inbrowser.clearFailure":
       only(fields, ["type", "entryId"]);
       return { type, entryId: text(fields.entryId, "entryId", 64) };
     case "inbrowser.unload":
     case "inbrowser.measure":
     case "inbrowser.refreshCatalog":
+    case "inbrowser.prune":
     case "host.modelsChanged":
       only(fields, ["type"]);
       return { type };

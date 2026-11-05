@@ -18,7 +18,7 @@ import { MemoryStorageArea, normalizeSettings, normalizeBaseUrl } from "../../sr
 import { MemorySnapshotStore } from "../../src/extension/storage/snapshots.js";
 import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
 import { ROOT, SHIPPED } from "../helpers/paths.js";
-import { DEMO, LITERATURE_URL, makeHarness, OLLAMA_ANSWERS, PAGE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
+import { DEMO, LITERATURE_URL, makeHarness, OFFSCREEN, OLLAMA_ANSWERS, PAGE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
 
 async function refused(promise: Promise<unknown>): Promise<CoreError> {
   try {
@@ -413,6 +413,23 @@ describe("models, settings and the vault", () => {
     const probe = await h.controller.handle({ type: "models.probe", provider: "ollama" }, PAGE);
     expect(probe).toMatchObject({ provider: "ollama", ok: true });
     expect(await h.controller.handle({ type: "models.probe", provider: "openai" }, PAGE)).toMatchObject({ ok: false, error: expect.stringContaining("No OpenAI API key") });
+  });
+
+  // T41 review 1, nit 9: a change tick during a download dropped the whole catalog, so the next
+  // evaluate asked Ollama (and every hosted provider) again although only the in-browser facts moved.
+  it("host.modelsChanged rebuilds the in-browser part only: the next evaluate asks no provider again", async () => {
+    const h = makeHarness();
+    const session = await openWebair(h);
+    const evaluate = async () => (await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: false }, PAGE)) as ModelsView;
+    await evaluate();
+    const tags = () => h.httpLog.filter((request) => request.url.endsWith("/api/tags")).length;
+    expect(tags()).toBe(1);
+    await expect(h.controller.handle({ type: "host.modelsChanged" }, PAGE)).rejects.toMatchObject({ code: "not_allowed" });
+    for (let tick = 0; tick < 3; tick += 1) expect(await h.controller.handle({ type: "host.modelsChanged" }, OFFSCREEN)).toEqual({ received: true });
+    const after = await evaluate();
+    expect(tags()).toBe(1);
+    expect(after.evaluation.models.filter((model) => model.provider_id === "in-browser")).toHaveLength(5);
+    expect(after.evaluation.models.find((model) => model.model_id === QWEN)).toMatchObject({ available: true });
   });
 
   it("settings normalize strictly, keys are stored apart and reported by presence only, and nothing goes to storage.sync", async () => {

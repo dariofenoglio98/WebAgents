@@ -546,10 +546,12 @@ export class RunManager {
         const said = error instanceof Error ? error.message : "error";
         // The in-browser route refuses before the run with the model's own reason (T41, D-441:
         // not downloaded, over the budget, another model in use): the run fails as the model
-        // being unavailable, never as a broken host, and never on another model.
-        const modelRefusal = /^(model_unavailable|model_request_invalid): /u.exec(said);
-        const code = modelRefusal ? modelRefusal[1]! : "execution_unavailable";
-        const detail = modelRefusal ? `The in-browser model cannot run: ${said.slice(modelRefusal[0].length)}` : `The execution host could not be started: ${said}`;
+        // being unavailable, never as a broken host, and never on another model. The code is the
+        // error's field (the bridge's `HostReplyError`, the service's `InBrowserError`), never
+        // parsed from its text (T41 review 1, nit 7).
+        const modelRefusal = inBrowserRefusal(error);
+        const code = modelRefusal?.code ?? "execution_unavailable";
+        const detail = modelRefusal ? `The in-browser model cannot run: ${modelRefusal.reason}` : `The execution host could not be started: ${said}`;
         // Atomic, and never over a record the host may already have settled (finding 1).
         const failed = await this.deps.runs.updateRun(runId, (current) => (isTerminal(current.record.status) ? null : { ...current, record: failRunRecord(current.record, { code, message: detail }, now), updated_at: now.toISOString() }));
         leases.release(lease.lease_id);
@@ -919,4 +921,18 @@ function declaredCustomTypes(pkg: Package): MemoryType[] | null {
   } catch {
     return null; // refused at validation already; a run of such a package never starts
   }
+}
+
+/**
+ * A start refused by the in-browser route, as `{code, reason}`: the execution host's own refusal
+ * (`model_unavailable`, `model_request_invalid`, carried by `HostReplyError`), or the service's
+ * `InBrowserError` from `startFor` (any code: the binding cannot be started, so the model is
+ * unavailable). Null for anything else (a host that could not start at all).
+ */
+export function inBrowserRefusal(error: unknown): { code: "model_unavailable" | "model_request_invalid"; reason: string } | null {
+  if (!(error instanceof Error)) return null;
+  const fields = error as Error & { code?: unknown; reason?: unknown };
+  if (error.name === "HostReplyError" && (fields.code === "model_unavailable" || fields.code === "model_request_invalid")) return { code: fields.code, reason: typeof fields.reason === "string" ? fields.reason : error.message };
+  if (error.name === "InBrowserError" && typeof fields.code === "string") return { code: "model_unavailable", reason: error.message };
+  return null;
 }

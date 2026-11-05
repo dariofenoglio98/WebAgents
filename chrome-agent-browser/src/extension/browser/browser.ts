@@ -144,7 +144,7 @@ function inBrowserRequest(request: { type: string; [key: string]: unknown }, ori
       state.inBrowserPage.outcome = outcomeOf(request, result);
       if (request.type === "inbrowser.paste") state.inBrowserPage.pasted = result as PasteView;
       if (request.type === "inbrowser.addPasted") state.inBrowserPage.pasted = null;
-      state.settingsPage.notice = request.type === "inbrowser.download" ? "Download started; it continues if you close this page." : request.type === "inbrowser.refreshCatalog" ? `Model list ${(result as { version: string }).version} (${(result as { changed: boolean }).changed ? "updated" : "already current"}).` : null;
+      state.settingsPage.notice = request.type === "inbrowser.download" ? "Download started; it continues if you close this page." : request.type === "inbrowser.refreshCatalog" ? `Model list ${(result as { version: string }).version} (${(result as { changed: boolean }).changed ? "updated" : "already current"}).` : request.type === "inbrowser.prune" ? `Removed ${(result as { removed: number }).removed} cached file(s) no model named.` : null;
     } catch (error) {
       state.error = describeError(error);
       // The refusal under the row it was pressed on, too, not only at the top of the page.

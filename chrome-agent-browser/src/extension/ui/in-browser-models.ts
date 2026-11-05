@@ -10,9 +10,10 @@
  *   loaded now              the model the engine holds, its context, Unload
  *   the list                the curated list in four bins with every reason, then the pasted models;
  *                           per model: Download… (the download card), progress and Cancel, or Load,
- *                           Unload, Verify, Delete, Make default
+ *                           Unload, Verify, Delete, Make default; a context that failed, with Clear
  *   paste a repository      owner/name or the page's address → its GGUF files → Add
- *   the cache               totals and the storage estimate; Check for a newer list
+ *   the cache               totals and the storage estimate; models no longer listed and files no
+ *                           model names, each deletable; Check for a newer list
  *
  * Nothing downloads by itself: Download… opens the card (name, size, licence, repository, files,
  * digests, storage before and after, the budget verdict) and only its Download button starts it.
@@ -69,6 +70,11 @@ export function outcomeOf(request: { type: string; [key: string]: unknown }, res
     return { entry, text: `Loaded at ${(loaded?.n_ctx ?? 0).toLocaleString("en-US")} tokens in ${((loaded?.load_ms ?? 0) / 1000).toFixed(1)} s.`, tone: "good" };
   }
   return null;
+}
+
+/** The words beside a context whose load died (D-441), with the context the next load uses. */
+export function failureWords(failed: number, next: number): string {
+  return `Failed to run at a ${failed.toLocaleString("en-US")}-token context on this machine (its engine stopped, most likely out of memory)${next < failed ? `; the next load uses ${next.toLocaleString("en-US")} tokens` : ""}. Clear it to try ${failed.toLocaleString("en-US")} again.`;
 }
 
 export function newInBrowserPageState(): InBrowserPageState {
@@ -170,6 +176,16 @@ function entryRow(item: InBrowserView["entries"][number], view: InBrowserView, s
       ? null
       : el("p", { className: "ab-hint", text: [`downloaded ${whenText(row.downloaded_at ?? "")}`, row.verified_at ? `verified ${whenText(row.verified_at)}` : null, row.last_used ? `last used ${whenText(row.last_used)}` : "never used", row.measured ? `measured ${row.measured.decode_tok_per_s} tok/s decode, ${row.measured.prefill_tok_per_s} tok/s prefill at ${row.measured.context.toLocaleString("en-US")} tokens` : null].filter(Boolean).join(" · ") }),
     row?.last_error ? el("p", { className: "ab-banner ab-banner-warn", text: row.last_error.message, attrs: { role: "status" } }) : null,
+    // T41 review 1, finding 2: a context whose load died is never tried again by itself; the
+    // recommendation picks a smaller one, and Clear lets the person try that size again.
+    row?.failed_context !== null && row?.failed_context !== undefined
+      ? el(
+          "div",
+          { className: "ab-inline ab-model-failure", attrs: { "data-failed-context": String(row.failed_context) } },
+          el("span", { className: "ab-hint ab-warn", text: failureWords(row.failed_context, descriptor.limits.context_tokens) }),
+          button(state.busy === `inbrowser.clearFailure:${entry.id}` ? "Clearing…" : "Clear", () => actions.request({ type: "inbrowser.clearFailure", entryId: entry.id }), { disabled: working, title: `Forget the failure: the next load may try ${row.failed_context.toLocaleString("en-US")} tokens again` }),
+        )
+      : null,
     download?.state === "failed" && download.error ? el("p", { className: "ab-banner ab-banner-bad", text: download.error.message, attrs: { role: "status" } }) : null,
     entry.curated ? null : el("p", { className: "ab-hint", text: entry.notes ?? "" }),
     el("div", { className: "ab-inline" }, ...actionsRow),
@@ -232,7 +248,7 @@ export function inBrowserSection(view: InBrowserView | null, settings: Settings,
     view.engine?.loaded
       ? el("div", { className: "ab-inline" }, el("span", { text: `${view.engine.loaded.entry} at ${view.engine.loaded.n_ctx.toLocaleString("en-US")} tokens${view.engine.runs.length > 0 ? `, in use by ${view.engine.runs.map((item) => item.run_id).join(", ")}` : ""}${view.engine.idle_unload_at ? `, unloads at ${whenText(view.engine.idle_unload_at)} if unused` : ""}` }), button("Unload", () => actions.request({ type: "inbrowser.unload" })))
       : el("p", { className: "ab-hint", text: view.engine?.loading ? `Loading ${view.engine.loading}…` : "No model is loaded. A run on an in-browser model loads it first." }),
-    view.engine?.last_failure ? el("p", { className: "ab-banner ab-banner-warn", text: `${view.engine.last_failure.entry} stopped at a ${view.engine.last_failure.n_ctx.toLocaleString("en-US")}-token context (${view.engine.last_failure.reason}): it is not retried at that size; choose a smaller context or model.`, attrs: { role: "status" } }) : null,
+    view.engine?.last_failure && view.entries.some((item) => item.entry.id === view.engine!.last_failure!.entry && item.row?.failed_context !== null && item.row?.failed_context !== undefined) ? el("p", { className: "ab-banner ab-banner-warn", text: `${view.engine.last_failure.entry} stopped at a ${view.engine.last_failure.n_ctx.toLocaleString("en-US")}-token context (${view.engine.last_failure.reason}): it is not retried at that size; the next load uses a smaller context.`, attrs: { role: "status" } }) : null,
     ...bins.flatMap(([bin, items]) => [el("h4", {}, chip(BIN_TITLES[bin]!, BIN_TONES[bin])), list(items.map((item) => entryRow(item, view, settings, state, actions)))]),
     el("h4", { text: "Paste a Hugging Face repository" }),
     el("div", { className: "ab-inline" }, paste, button("Look up", () => {
@@ -249,6 +265,18 @@ export function inBrowserSection(view: InBrowserView | null, settings: Settings,
       : null,
     el("h4", { text: "This browser's model cache" }),
     el("p", { className: "ab-hint", text: `${view.totals.entries_cached} model${view.totals.entries_cached === 1 ? "" : "s"}, ${gb(view.totals.cached_bytes)} kept by this browser${storage?.quota ? ` · storage ${gb(storage.usage ?? 0)} used of ${gb(storage.quota)} available to this extension` : ""}.` }),
+    // T41 review 1, finding 4: nothing the cache keeps is out of sight or out of reach.
+    view.unlisted.length > 0
+      ? el(
+          "div",
+          { className: "ab-unlisted" },
+          el("p", { className: "ab-hint", text: "No longer in the model list (kept until you delete them):" }),
+          list(view.unlisted.map((item) => el("div", { className: "ab-inline", attrs: { "data-unlisted": item.entry_id } }, el("strong", { text: item.display_name }), el("code", { className: "ab-model-id", text: item.entry_id }), chip(gb(item.bytes)), item.cached ? null : chip("partial", "warn"), button(state.busy === `inbrowser.delete:${item.entry_id}` ? "Deleting…" : "Delete", () => actions.request({ type: "inbrowser.delete", entryId: item.entry_id }), { variant: "danger", disabled: state.busy !== null && state.busy.endsWith(`:${item.entry_id}`) })))),
+        )
+      : null,
+    view.orphan_files !== null && view.orphan_files.count > 0
+      ? el("div", { className: "ab-inline ab-orphans" }, el("span", { className: "ab-hint", text: `${view.orphan_files.count} cached file${view.orphan_files.count === 1 ? "" : "s"} no model names (${gb(view.orphan_files.bytes)}), left by an earlier version of a model.` }), button(state.busy === "inbrowser.prune:" ? "Removing…" : "Remove them", () => actions.request({ type: "inbrowser.prune" }), { variant: "danger", disabled: state.busy === "inbrowser.prune:" }))
+      : null,
     el("p", { className: "ab-hint", text: `Curated list ${view.catalog.version} (${view.catalog.source === "shipped" ? "shipped with this extension" : "fetched and verified"}, issued ${whenText(view.catalog.issued_at)}), signed by the WebAgents catalog key.` }),
     ...view.catalog.notes.map((note) => el("p", { className: "ab-hint ab-warn", text: note.detail ?? note.code })),
     button("Check for a newer list", () => actions.request({ type: "inbrowser.refreshCatalog" }, [new URL(view.catalog.refresh_url).origin])),

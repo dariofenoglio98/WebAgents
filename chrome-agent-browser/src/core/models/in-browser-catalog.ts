@@ -340,7 +340,7 @@ export const BIN_ORDER: readonly RecommendationBin[] = Object.freeze(["recommend
 export interface Recommendation {
   entry: string;
   bin: RecommendationBin;
-  /** The largest context from `context.default`, halving down to 4,096, at which the estimate fits `0.8 × budget`; null when none does. */
+  /** The largest context from `context.default`, halving down to 4,096, below any context that failed here, at which the estimate fits `0.8 × budget`; null when none does. */
   context: number | null;
   /** The estimate at `context` (or at 4,096 when none fits), or null when the header is unknown. */
   estimate_bytes: number | null;
@@ -357,18 +357,34 @@ export type PackageEvaluation = (descriptor: Record<string, unknown>) => { statu
 export interface RecommendInput {
   entries: readonly InBrowserEntry[];
   /** The cache's and the machine's facts per entry id (absent: not downloaded, never measured). */
-  states: ReadonlyMap<string, Pick<InBrowserEntryState, "cached" | "verified" | "measured">>;
+  states: ReadonlyMap<string, Pick<InBrowserEntryState, "cached" | "verified" | "measured" | "failed_context">>;
   machine: MachineFacts;
   /** Null with no package open: the "not suitable" step is skipped. */
   evaluate: PackageEvaluation | null;
 }
 
-function fitAt(entry: InBrowserEntry, limit: number): { context: number | null; estimate: number | null; afterDownload: boolean } {
+/**
+ * The context to start the fit from: the entry's default, halved (down to 4,096) until it is below a
+ * context at which a load died on this machine (D-441; T41 review 1, finding 2: without this the
+ * next load picked the same context and was refused, a dead end). Null when even 4,096 failed.
+ */
+function startContext(entry: InBrowserEntry, failed: number | null): number | null {
+  let context = entry.context.default;
+  while (failed !== null && context >= failed) {
+    if (context <= MIN_RECOMMENDED_CONTEXT) return null;
+    context = Math.max(MIN_RECOMMENDED_CONTEXT, Math.floor(context / 2));
+  }
+  return context;
+}
+
+function fitAt(entry: InBrowserEntry, limit: number, failed: number | null): { context: number | null; estimate: number | null; afterDownload: boolean } {
+  const start = startContext(entry, failed);
   if (entry.header === null) {
     const estimate = Math.ceil(entry.bytes_total * (1 + WEIGHTS_OVERHEAD_FRACTION) + FIXED_OVERHEAD_BYTES);
-    return { context: estimate <= limit ? entry.context.default : null, estimate, afterDownload: true };
+    return { context: estimate <= limit ? start : null, estimate, afterDownload: true };
   }
-  let context = entry.context.default;
+  if (start === null) return { context: null, estimate: gpuMemoryEstimate(entry, MIN_RECOMMENDED_CONTEXT), afterDownload: false };
+  let context = start;
   for (;;) {
     const estimate = gpuMemoryEstimate(entry, context)!;
     if (estimate <= limit) return { context, estimate, afterDownload: false };
@@ -386,8 +402,8 @@ function violatedWords(check: { id: string; host_value: unknown; value: unknown;
 
 /**
  * Rank every entry into four bins with reasons (D-443, design §6). Tried in order, the first that
- * applies wins, every applicable reason kept: **too large** (no context fits `0.8 × budget`, or the
- * files do not fit the free storage less 1 GB), **not suitable** (fits, but the open package's
+ * applies wins, every applicable reason kept: **too large** (no context fits `0.8 × budget` below any
+ * context whose load died here, or the files do not fit the free storage less 1 GB), **not suitable** (fits, but the open package's
  * requirements evaluate `incompatible` at that context), **possible** (fits; and `unverified`, or no
  * measured speed with a slow or unknown kernel class, or a measured decode under 8 tok/s),
  * **recommended** (fits, `compatible`, and fast enough by measurement or by kernel class).
@@ -401,11 +417,16 @@ export function recommendInBrowser(input: RecommendInput): Recommendation[] {
   const out: Recommendation[] = [];
   for (const entry of input.entries) {
     const state = input.states.get(entry.id) ?? { cached: false, verified: false, measured: null };
-    const fit = fitAt(entry, limit);
+    const failed = state.failed_context ?? null;
+    const fit = fitAt(entry, limit, failed);
     const reasons: string[] = [];
     let bin: RecommendationBin | null = null;
     const where = budgetWords(budget);
-    if (fit.context === null) {
+    const failedWords = failed === null ? null : `it failed to run at a ${failed.toLocaleString("en-US")}-token context on this machine`;
+    if (fit.context === null && failedWords !== null && startContext(entry, failed) === null) {
+      bin = "too_large";
+      reasons.push(`${failedWords}, and no context of at least ${MIN_RECOMMENDED_CONTEXT.toLocaleString("en-US")} tokens is left below it`);
+    } else if (fit.context === null) {
       bin = "too_large";
       reasons.push(fit.afterDownload ? `needs about ${gb(fit.estimate!)} of GPU memory (estimate after download); ${Math.round(RECOMMEND_FRACTION * 100)} % of the ${where}` : `needs about ${gb(fit.estimate!)} of GPU memory even at a ${MIN_RECOMMENDED_CONTEXT.toLocaleString("en-US")}-token context; ${Math.round(RECOMMEND_FRACTION * 100)} % of the ${where}`);
     }
@@ -428,7 +449,7 @@ export function recommendInBrowser(input: RecommendInput): Recommendation[] {
     if (decode !== null) reasons.push(`measured ${decode.toFixed(1)} tok/s decode on this machine`);
     else reasons.push(input.machine.kernel_class === null ? "speed unknown until the GPU benchmark runs or the model is loaded once" : `this GPU's benchmark class is ${input.machine.kernel_class}`);
     if (bin === null) bin = status === "unverified" || !fastEnough ? "possible" : "recommended";
-    if (fit.context !== null) reasons.unshift(`fits at a ${fit.context.toLocaleString("en-US")}-token context: about ${gb(fit.estimate!)} of the ${where}${fit.afterDownload ? " (estimate after download)" : ""}`);
+    if (fit.context !== null) reasons.unshift(`fits at a ${fit.context.toLocaleString("en-US")}-token context: about ${gb(fit.estimate!)} of the ${where}${fit.afterDownload ? " (estimate after download)" : ""}${failedWords === null ? "" : ` (${failedWords}, so a smaller one is chosen)`}`);
     out.push({ entry: entry.id, bin, context: fit.context, estimate_bytes: fit.estimate, estimate_after_download: fit.afterDownload, reasons, cached: state.cached });
   }
   const sizes = new Map(input.entries.map((entry) => [entry.id, entry.bytes_total]));

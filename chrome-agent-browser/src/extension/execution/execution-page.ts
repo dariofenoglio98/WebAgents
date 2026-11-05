@@ -67,9 +67,11 @@ async function modelsCommand(message: HostModelsMessage): Promise<unknown> {
       await modelManager.delete(message.entryId);
       return { deleted: true };
     case "status":
-      return { downloads: modelManager.status(), engine: engineHost.status() };
+      return { downloads: modelManager.status(), engine: engineHost.status(), orphans: await modelManager.orphans().catch(() => null) };
     case "files":
       return modelManager.files();
+    case "prune":
+      return modelManager.prune();
   }
 }
 

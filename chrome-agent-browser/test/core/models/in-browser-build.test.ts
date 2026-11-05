@@ -255,6 +255,25 @@ describe("the recommendation bins (D-443): machine classes × the five curated e
     expect(eight.reasons[0]).toMatch(/even at a 4,096-token context; 80 % of the budget 6.0 GB, assumed/u);
   });
 
+  // T41 review 1, finding 2: a context whose load died was picked again (and refused) until Delete.
+  it("halves below a context whose load died here, says why, and is too large when even 4,096 failed", () => {
+    const mac = MACHINES["a 16 GB Mac"]!;
+    const four = "qwen3-4b-q4_k_m";
+    const pick = (failed: number | null) => recommendInBrowser({ entries: [entry(four)], states: new Map([[four, { cached: true, verified: true, measured: null, failed_context: failed }]]), machine: mac, evaluate: null })[0]!;
+    const fresh = pick(null);
+    expect(fresh.context).toBe(entry(four).context.default);
+    const after = pick(fresh.context);
+    expect(after.context).toBe(fresh.context! / 2);
+    expect(after.bin).toBe("recommended");
+    expect(after.reasons[0]).toContain(`it failed to run at a ${fresh.context!.toLocaleString("en-US")}-token context on this machine, so a smaller one is chosen`);
+    // A failure below the default still leaves the largest power-of-two step under it.
+    expect(pick(12_000).context).toBe(8192);
+    const none = pick(4096);
+    expect(none.context).toBeNull();
+    expect(none.bin).toBe("too_large");
+    expect(none.reasons[0]).toBe("it failed to run at a 4,096-token context on this machine, and no context of at least 4,096 tokens is left below it");
+  });
+
   it("not suitable: WebAir's 16,000-token context on a machine where the 4B fits only at 8,192; never on a larger machine", () => {
     const webair = packageEvaluation({ context: 16_000 });
     const laptop = recommendInBrowser({ entries: CATALOG.entries, states: states(), machine: MACHINES["an 8 GB laptop with an integrated GPU"]!, evaluate: webair });

@@ -14,9 +14,9 @@ import { describe, expect, it } from "vitest";
 
 import { publicKeyFromPem } from "../../src/core/keys.js";
 import { probeInBrowser, type ProviderConnection } from "../../src/core/models/catalog.js";
-import { checkModelFileUrl, gpuBudget, MAX_CONTEXT, normalizeInBrowserEntry, readModelCatalog, type InBrowserEntry } from "../../src/core/models/in-browser-catalog.js";
+import { checkModelFileUrl, ENTRY_ID, gpuBudget, MAX_CONTEXT, normalizeInBrowserEntry, readModelCatalog, type InBrowserEntry } from "../../src/core/models/in-browser-catalog.js";
 import { buildSignedDocument, MODEL_CATALOG_TYPE, serializeSignedDocument } from "../../src/core/signed-document.js";
-import { CATALOG_KEY, CATALOG_SOURCE, InBrowserService, MACHINE_KEY, PASTED_NOTE, repositoryOf, type MachineRecord } from "../../src/extension/background/in-browser.js";
+import { CATALOG_KEY, CATALOG_SOURCE, InBrowserService, MACHINE_KEY, PASTED_NOTE, pastedEntryId, repositoryOf, type MachineRecord } from "../../src/extension/background/in-browser.js";
 import type { EngineProbe } from "../../src/extension/execution/engine-protocol.js";
 import type { HostEngineMessage, HostModelsMessage } from "../../src/extension/execution/protocol.js";
 import { MemoryModelStore, newModelRecord, type ModelRecord } from "../../src/extension/storage/models.js";
@@ -45,7 +45,7 @@ interface Setup {
   fetched: string[];
 }
 
-function makeService(options: { fetch?: (url: string) => Response | Promise<Response>; keys?: Uint8Array[]; area?: MemoryStorageArea; models?: MemoryModelStore } = {}): Setup {
+function makeService(options: { fetch?: (url: string) => Response | Promise<Response>; keys?: Uint8Array[]; area?: MemoryStorageArea; models?: MemoryModelStore; answer?: (message: HostMessage) => unknown } = {}): Setup {
   const models = options.models ?? new MemoryModelStore();
   const area = options.area ?? new MemoryStorageArea();
   const sent: HostMessage[] = [];
@@ -55,7 +55,7 @@ function makeService(options: { fetch?: (url: string) => Response | Promise<Resp
     area,
     host: async (message) => {
       sent.push(structuredClone(message));
-      return {};
+      return options.answer ? options.answer(message) : {};
     },
     fetch: async (url) => {
       fetched.push(url);
@@ -346,5 +346,90 @@ describe("probeInput", () => {
         expect(descriptor.availability_reason).toContain("not downloaded");
       }
     }
+  });
+});
+
+const APPLE_16: MachineRecord = {
+  probe: { has_webgpu: true, device_memory_gb: 16, hardware_concurrency: 10, storage: { quota: 500e9, usage: 0 }, cross_origin_isolated: false, adapter: { vendor: "apple", architecture: "metal-3", description: null, is_fallback: false, features: ["shader-f16"], max_buffer_size: 4294967296, max_storage_buffer_binding_size: 4294967296 }, device: true },
+  benchmark: { ms: 2, gflops: 900, f16: true, kernel_class: "fast", n: 512, repeats: 2, at: NOW.toISOString() },
+  probed_at: NOW.toISOString(),
+};
+
+function cached(entry: InBrowserEntry, changes: Partial<ModelRecord> = {}): ModelRecord {
+  const row: ModelRecord = { ...newModelRecord(entry, NOW), verified: true, verified_at: NOW.toISOString(), downloaded_at: NOW.toISOString(), ...changes };
+  row.files = row.files.map((file) => ({ ...file, state: "complete" }));
+  return row;
+}
+
+// T41 review 1, finding 5.
+describe("pastedEntryId", () => {
+  const digest = (seed: string) => `sha256:${createHash("sha256").update(seed).digest("hex")}`;
+  it("keeps two files of a long-named repository apart, within 64 characters", () => {
+    const repository = "unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF";
+    const m = pastedEntryId(repository, "Qwen3-30B-A3B-Instruct-2507-Q4_K_M", digest("m"));
+    const s = pastedEntryId(repository, "Qwen3-30B-A3B-Instruct-2507-Q4_K_S", digest("s"));
+    expect(m).not.toBe(s);
+    for (const id of [m, s]) {
+      expect(id.length).toBeLessThanOrEqual(64);
+      expect(ENTRY_ID.test(id)).toBe(true);
+    }
+    // The head is cut at 55 characters, its trailing dash dropped, then "-" and 8 hex digits of the weights digest.
+    expect(m).toBe(`unsloth-qwen3-30b-a3b-instruct-2507-gguf-qwen3-30b-a3b-${digest("m").slice(7, 15)}`);
+  });
+
+  it("leaves a slug that fits as it was", () => {
+    expect(pastedEntryId("unsloth/Qwen3-1.7B-GGUF", "Qwen3-1.7B-Q4_K_M", digest("x"))).toBe("unsloth-qwen3-1.7b-gguf-qwen3-1.7b-q4_k_m");
+  });
+});
+
+// T41 review 1, finding 2.
+describe("a context whose load died", () => {
+  it("makes Load ask for half that context, and Clear forgets it", async () => {
+    const four = curatedEntry("qwen3-4b-q4_k_m");
+    const models = new MemoryModelStore();
+    await models.put(cached(four, { failed_context: four.context.default }));
+    const area = new MemoryStorageArea();
+    await area.set({ [MACHINE_KEY]: APPLE_16 });
+    const { service, sent } = makeService({ models, area });
+    const settings = normalizeSettings({});
+    await service.load(four.id, settings);
+    expect((sent.at(-1) as Extract<HostEngineMessage, { action: "load" }>).load.n_ctx).toBe(four.context.default / 2);
+    // The plan's descriptor states the smaller context and is available.
+    const input = await service.probeInput(settings);
+    expect(input.states.get(four.id)).toMatchObject({ chosen_context: four.context.default / 2, failed_context: four.context.default });
+    expect(await service.clearFailure(four.id)).toEqual({ entry_id: four.id, failed_context: null });
+    expect((await models.get(four.id))!.failed_context).toBeNull();
+    await service.load(four.id, settings);
+    expect((sent.at(-1) as Extract<HostEngineMessage, { action: "load" }>).load.n_ctx).toBe(four.context.default);
+    await expect(service.clearFailure("nothing-here")).rejects.toMatchObject({ code: "model_unknown" });
+  });
+});
+
+// T41 review 1, finding 4 and nit 8.
+describe("what the cache keeps beyond the listed entries", () => {
+  it("shows a curated row the list no longer names, and the host's count of files no row names", async () => {
+    const gone = normalizeInBrowserEntry({ ...(CONTENT.entries as Array<Record<string, unknown>>)[0], id: "qwen3-1.7b-q4_k_m", display_name: "Qwen3 1.7B (Q4_K_M)" });
+    const models = new MemoryModelStore();
+    await models.put(cached(gone));
+    const { service } = makeService({ models, answer: (message) => (message.action === "status" ? { downloads: [], engine: { loaded: null, loading: null, busy: false, queued: 0, runs: [], idle_unload_at: null, last_failure: null }, orphans: [{ name: "a".repeat(64), size: 1e9 }, { name: `${"b".repeat(64)}.part`, size: 5e8 }] } : {}) });
+    const view = await service.view(normalizeSettings({}));
+    expect(view.entries.map((item) => item.entry.id)).not.toContain(gone.id);
+    expect(view.unlisted).toEqual([{ entry_id: gone.id, display_name: "Qwen3 1.7B (Q4_K_M)", bytes: gone.bytes_total, cached: true, downloaded_at: NOW.toISOString() }]);
+    expect(view.orphan_files).toEqual({ count: 2, bytes: 1.5e9 });
+    expect(view.totals.entries_cached).toBe(1);
+  });
+
+  it("reads a host with no document (a null status) as nothing loaded and nothing downloading", async () => {
+    const { service } = makeService({ answer: () => null });
+    const view = await service.view(normalizeSettings({}));
+    expect(view.engine).toBeNull();
+    expect(view.orphan_files).toBeNull();
+    expect(view.entries.every((item) => item.download === null)).toBe(true);
+  });
+
+  it("sends prune to the host", async () => {
+    const { service, sent } = makeService();
+    await service.prune();
+    expect(sent).toEqual([{ type: "host.models", action: "prune" }]);
   });
 });
