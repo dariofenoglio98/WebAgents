@@ -61,7 +61,12 @@ count it.
 and the reference has no conversational execution host other than its CLI. Its two runner stages
 are therefore `agentpkg converse`'s composition over the leased bytes, with the fixture adapters
 the CLI would build. No adapter is called before the stop. The Chrome core runs a turn through the
-same `ExecutionSession` as a one-shot run, as the extension does.
+same `ExecutionSession` as a one-shot run, as the extension does. The two Python runner stages
+therefore include fixture-replay construction the Node side does not pay (its host is given a
+refusing transport and an empty store): `fixture_adapters(package)` inside `runner_verification`
+and `cli_memory(mode="fixture")` inside `workflow_start`. T38's review measured them at a few
+milliseconds per observation, against stages of hundreds of milliseconds (review 1, finding 9), so
+the stages' numbers stand; a later series can build the adapters before the stage's first timestamp.
 
 **Literature Review 0.2.9 on Python: no plan exists.** The reference shell's control plane
 (`agentpkg/browser/hosttools.py`) binds four implementation kinds and not `memory_agent`, the
@@ -95,6 +100,17 @@ Their SHA-256 are recorded in `metadata.json` → `micro_inputs`.
 | `network_worst_case`, `network_enumerate`, `network_route_data` | star and mesh networks of 3 … 8 roles, shaped as the Travel Network (the 4-role star is its own graph, a test checks) | `worst_case` (the reservation's bound, R-21), `enumerate_walks` under `DEFAULT_EFFORT` (R-23; a cap reached is recorded and the call times to the cap: mesh networks of 6 or more roles reach it), `route_data` (R-13) |
 | `transition_check` | the Travel Network's runtime, an allowed hand-off at hop 0 | `_check_transition` / `checkTransition` (R-14), which records `route.decided` |
 | `consent_gate` | WebAir 0.8.0's runtime in a turn: `simulate-purchase` after its step was accepted; `search-flights` (not gated) | `_check_consent` / `checkConsent` (V-9) |
+
+**What the Node compute cells mean.** On Node, cold and warm are close by construction (runtime
+`ts`, arms `compute_cold` and `compute_warm` in
+`results/2026-11-05T12-40-00Z_v2-pooled/pooled_micro_summary.csv`): the engine spawns a nested Worker for every call (D-251), so
+each call pays a Worker's start, and V8 compiles the `fares` module lazily in well under 0.1 ms (measured in T38's review with identical and with nonce-distinct bytes, so no module cache
+hides a compile). The Node "cold" cell is therefore not a compile cost; the Python cold cell is
+(wasmtime compiles eagerly). Both cold arms keep each observation's compiled copy under its own
+key for the rest of the process (one per observation, warmup included); the comment in `node/bench.ts` that says "a fresh
+engine compiles the module" predates D-305 and means the host's one engine. The measured code is
+left as it ran (its SHA-256 is in each run's metadata); a later series can drop the key after the
+call.
 
 **One addition to the Node bundle.** The transition check is module-private in the Chrome core.
 An esbuild `onLoad` hook therefore appends one line, `export { checkTransition };`, to

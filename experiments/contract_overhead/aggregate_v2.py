@@ -11,8 +11,10 @@ in. Per runtime x package: each of the seven stages, the four paper groups and t
 per-observation interval (a group is the sum of its contiguous stages of one observation); per
 runtime x arm x cell: the per-operation costs. `analyze` writes `summary.json`, `summary.csv`,
 `micro_summary.csv` and `report.md` into the run's directory (once, after the run); `pool`
-refuses runs that do not share the commit, a clean tree, the benchmark, the protocol, the
-fixtures, the configuration, the machine and the package artifacts (a pooled directory that mixes
+refuses runs that do not share the commit, the benchmark and its Node bundle and toolchain, the
+protocol, the fixtures, the configuration, the machine and the package artifacts, and runs with a
+tracked change or an untracked file under a production path (untracked result directories of
+earlier runs are allowed: such a tree has no tracked change, which is what "clean" means here) (a pooled directory that mixes
 commits is E7's defect), and writes a new directory. v1's series are cited beside, never pooled
 (D-019).
 """
@@ -40,12 +42,19 @@ GROUP_LABELS = {
     "revalidation": "Pre-execution revalidation",
 }
 RUNTIME_LABELS = {"py": "Python reference", "ts": "Chrome core (Node)"}
+# Paths whose untracked files would change what a run measures (benchmark_v2's production paths).
+PRODUCTION_PREFIXES = ("agentpkg/src", "chrome-agent-browser/src", "dist/")
 # Facts every pooled run must share (paths into metadata.json).
 MUST_MATCH = (
     ("software", "git_commit"),
     ("software", "chrome_core_version"),
     ("software", "agentpkg_version"),
     ("software", "dependencies"),
+    ("software", "node_build", "tools"),
+    ("software", "node_build", "chrome_src_sha256"),
+    ("software", "node_build", "bench_source_sha256"),
+    ("software", "node_build", "bench_bundle_sha256"),
+    ("software", "node_build", "compute_worker_bundle_sha256"),
     ("benchmark", "name"),
     ("benchmark", "version"),
     ("benchmark", "script_sha256"),
@@ -309,6 +318,15 @@ def check_series(runs: list[tuple[Path, dict]], *, require_clean: bool) -> list[
             problems.append(f"{directory.name}: production paths modified")
         if require_clean and software["git_tracked_changes"]:
             problems.append(f"{directory.name}: tracked changes in the working tree")
+        untracked = [
+            p
+            for p in software.get("git_untracked", [])
+            if p.startswith(PRODUCTION_PREFIXES)
+        ]
+        if untracked:
+            problems.append(
+                f"{directory.name}: untracked files under production paths: {untracked}"
+            )
         if (
             metadata["guards"]["offline_violations"]
             or metadata["guards"]["node_violations"]

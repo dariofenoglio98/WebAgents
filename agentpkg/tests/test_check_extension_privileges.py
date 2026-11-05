@@ -118,6 +118,16 @@ def test_the_copy_passes(copy):
             {"csp_object_src"},
         ),
         (lambda m: m.update(manifest_version=2), {"manifest_version"}),
+        (
+            lambda m: m["content_security_policy"].update(
+                sandbox="sandbox allow-scripts; script-src 'self' 'unsafe-eval' https://cdn.example"
+            ),
+            {"csp_extension_pages_only"},
+        ),
+        (
+            lambda m: m.update(sandbox={"pages": ["sandbox.html"]}),
+            {"no_sandbox"},
+        ),
     ],
 )
 def test_each_manifest_change_is_refused(copy, change, expected):
@@ -128,6 +138,24 @@ def test_each_manifest_change_is_refused(copy, change, expected):
 def test_an_external_message_listener_is_refused(copy):
     path = copy / checker.EXTENSION / "background" / "listener.ts"
     path.write_text("chrome.runtime.onMessageExternal.addListener(() => undefined);\n")
+    assert _failed(copy) == ["no_external_message_listener"]
+
+
+@pytest.mark.parametrize(
+    ("name", "text"),
+    [
+        ("listener.js", "chrome.runtime.onConnectExternal.addListener(() => undefined);\n"),
+        ("listener.mjs", "chrome.runtime.onMessageExternal.addListener(() => undefined);\n"),
+        (
+            "page.html",
+            "<!doctype html><script>chrome.runtime.onMessageExternal.addListener(() => 0)"
+            "</script>\n",
+        ),
+    ],
+)
+def test_a_listener_in_a_script_or_a_page_is_refused(copy, name, text):
+    (copy / checker.EXTENSION / "ui").mkdir(parents=True, exist_ok=True)
+    (copy / checker.EXTENSION / "ui" / name).write_text(text)
     assert _failed(copy) == ["no_external_message_listener"]
 
 

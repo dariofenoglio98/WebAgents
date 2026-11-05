@@ -987,8 +987,10 @@ person did not allow.
 `chrome-agent-browser/src/extension/manifest.json`.
 
 **Conformance.** None: a shell property. The unit tests, the committed secret-store vectors,
-`npm run check-pack` (the manifest's permission list and CSP tokens) and the real-Chrome harnesses
-cover it.
+`npm run check-pack` (the packed zip's members, the manifest's permission list and CSP tokens),
+`scripts/check_extension_privileges.py` (the reviewable path: the permissions and host permissions,
+the CSP tokens with no sandbox policy, no static reach into pages, the Worker placement; CI's offline
+loop, its JSON kept in E8's report directory) and the real-Chrome harnesses cover it.
 
 **Experiment.** None (a product property; its evidence is the test suites and the review of the
 build; listed as a gap in the evidence matrix).

@@ -27,9 +27,18 @@ agentpkg/.venv/bin/python experiments/conformance_report/report.py \
 
 `report.py` writes a new directory `results/<UTC>/` holding `summary.json`, `report.md` and copies of the two JSON inputs. It computes
 every number from the inputs: the cases per family, the agreed ones and the documented differences;
-the log's counts by class, resolution and how each item was found; and the two checks. It passes
-only when the suite passed on a clean tree, every case that is not a documented difference agreed,
-the privileges check passed, and the inputs name one commit. A case that disagrees at the final
-commit and is not a documented difference is E8's defect.
+the log's counts by class, resolution, how each item was found, the runtime that differed and the
+task; and the two checks. The families are listed by case head in `report.py` (the four extensions,
+the control plane, package format and trust, authorization and execution, and the shipped packages
+as `<name>-<x.y.z>`); a head no family lists is an error, so a new case family is named before it
+is counted (D-307). It passes only when the suite passed on a clean tree, every case that is not a
+documented difference agreed, the privileges check passed, the conformance run and the privileges
+JSON each name a commit and the same one, check-pack's extension version is the run's Chrome core
+(its line names no commit), and the log's summary tables equal what its rows give. A case that
+disagrees at the final commit and is not a documented difference is E8's defect.
+
+To recompute a kept report directory, pass its own copies: `--privileges <dir>/privileges.json
+--check-pack <dir>/check-pack.json` (`--check-pack` reads a whole JSON file, or the last line of
+npm's output) with a new `--out`.
 
 The paper's report directory is listed in [`../README.md`](../README.md).

@@ -54,7 +54,7 @@ no pending case. Figures: see the summary.
 
 ## Summary
 
-**67 divergences**, 40 fixed and 27 documented. The counts below are computed from the table.
+**67 divergences**, 40 fixed and 27 documented. The counts below are computed from the table: `experiments/conformance_report/report.py` recomputes this line and every table of this section from the log's rows and fails when one differs.
 
 ### By class and resolution
 

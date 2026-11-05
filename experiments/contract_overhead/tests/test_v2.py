@@ -309,3 +309,26 @@ def test_analysis_files_and_pooling_rules(smoke, tmp_path):
     (other / "metadata.json").write_text(json.dumps(metadata))
     with pytest.raises(SystemExit):
         aggregate_v2.pool([directory, other], tmp_path / "mixed", require_clean=False)
+    # Another Node toolchain, or an untracked file under a production path, is refused too.
+    metadata["software"]["git_commit"] = json.loads(
+        (directory / "metadata.json").read_text()
+    )["software"]["git_commit"]
+    problems = aggregate_v2.check_series(
+        [
+            (directory, json.loads((directory / "metadata.json").read_text())),
+            (other, metadata),
+        ],
+        require_clean=False,
+    )
+    assert problems == []
+    metadata["software"]["node_build"]["tools"]["esbuild"] = "0.0.0"
+    metadata["software"]["git_untracked"] = ["agentpkg/src/agentpkg/extra.py"]
+    problems = aggregate_v2.check_series(
+        [
+            (directory, json.loads((directory / "metadata.json").read_text())),
+            (other, metadata),
+        ],
+        require_clean=False,
+    )
+    assert any("node_build.tools differs" in p for p in problems)
+    assert any("untracked files under production paths" in p for p in problems)

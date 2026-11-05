@@ -9,11 +9,13 @@ Reads, never edits: the conformance suite's `report.json` (`node conformance/run
 final commit), the JSON of `scripts/check_extension_privileges.py` and of `npm run check-pack`
 at the same commit, and the table of `docs/conformance-divergences.md`. Writes one new directory
 (it must not exist) with `summary.json` and `report.md` (Tab. 10's rows: cases per family, agreed,
-documented differences; the divergence log counted by class, resolution and how it was found;
-P-19's two checks) and copies of the two JSON inputs. Every number is computed here; nothing is
-typed in. Prints one JSON line with `"passed"`: the suite passed at a clean commit, every case
-that is not a documented difference agreed, the privileges check passed, and every input names
-the same commit.
+documented differences; the divergence log counted by class, resolution, how it was found, the
+runtime that differed and the task; P-19's two checks) and copies of the two JSON inputs. Every
+number is computed here; nothing is typed in. Every case head must belong to a listed family (an
+unknown head is an error). Prints one JSON line with `"passed"`: the suite passed at a clean
+commit, every case that is not a documented difference agreed, the privileges check passed, the
+conformance run and the privileges check each name a commit and it is the same one, check-pack's
+extension version is the run's Chrome core, and the log's summary tables equal what its rows give.
 """
 
 from __future__ import annotations
@@ -31,28 +33,54 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 DIVERGENCES = ROOT / "docs" / "conformance-divergences.md"
 
-# A case's family, from its id's first segment (conformance/README.md's sections).
+# A case's family, from its id's first segment. Every head is listed; an unknown head is an error,
+# so a new case family must be named here before a report can count it.
 FAMILIES = (
     ("Agent Memory", ("memory", "memory-probe")),
     ("Agent Compute", ("compute", "compute-test")),
     ("Agent Conversations", ("conversation", "conversation-test")),
     ("Agent Delegation", ("network", "network-test", "travel-network")),
     ("Control plane", ("control-plane",)),
+    ("Package format and trust", ("tampered-bytes", "unpinned-key", "wrong-key")),
+    (
+        "Authorization and execution",
+        (
+            "missing-approval",
+            "denied-permission",
+            "once-overused",
+            "budget-overrun",
+            "schema-invalid-output",
+            "answer-check-refused",
+            "answer-checks",
+        ),
+    ),
 )
-PACKAGE_PREFIXES = ("webair-", "literature-review-", "meeting-agenda-")
+SHIPPED = "Shipped packages (fixture parity)"
+# A shipped package's cases are headed `<name>-<version>`.
+SHIPPED_HEAD = re.compile(r"(webair|literature-review|meeting-agenda)-\d+\.\d+\.\d+")
 CLASSES = ("behaviour", "wording", "timing", "platform")
 RESOLUTIONS = ("fixed", "documented")
 FOUND = ("suite", "test", "review", "live")
+# The log's Wrong column, by its first token, and the label its summary table uses.
+RUNTIMES = (
+    ("Cr", "Cr (Chrome core)"),
+    ("Py", "Py (Python reference)"),
+    ("both", "both / neither alone"),
+)
+
+
+class UnknownFamily(ValueError):
+    """A case id whose head no family lists."""
 
 
 def family_of(case_id: str) -> str:
     head = case_id.split("/")[0]
-    for name, prefixes in FAMILIES:
-        if head in prefixes:
+    for name, heads in FAMILIES:
+        if head in heads:
             return name
-    if head.startswith(PACKAGE_PREFIXES):
-        return "Shipped packages (fixture parity)"
-    return "Package-format refusals"
+    if SHIPPED_HEAD.fullmatch(head):
+        return SHIPPED
+    raise UnknownFamily(f"no family lists the case head {head!r} ({case_id})")
 
 
 def divergence_rows(path: Path) -> list[dict]:
@@ -68,6 +96,8 @@ def divergence_rows(path: Path) -> list[dict]:
                 "task": cells[2],
                 "found_by": cells[4],
                 "wrong": cells[5],
+                "runtime": cells[5].split()[0] if cells[5] else "",
+                "first_task": (re.findall(r"T\d+[a-z]?", cells[2]) or [""])[0],
                 "class": cells[6],
                 "resolution": cells[7],
                 "commits": re.findall(r"`([0-9a-f]{7,40})`", cells[8]),
@@ -76,11 +106,96 @@ def divergence_rows(path: Path) -> list[dict]:
     return rows
 
 
+def summary_tables(path: Path) -> dict[str, list[list[str]]]:
+    """The tables under the log's `## Summary`, by their `###` heading, as rows of cells."""
+    tables: dict[str, list[list[str]]] = {}
+    heading = None
+    in_summary = False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("## "):
+            in_summary = line.strip() == "## Summary"
+            heading = None
+        elif in_summary and line.startswith("### "):
+            heading = line[4:].strip()
+            tables[heading] = []
+        elif heading and line.startswith("|") and not line.startswith("|---"):
+            tables[heading].append(
+                [cell.strip() for cell in line.strip().strip("|").split("|")]
+            )
+    # Drop each table's header row.
+    return {name: rows[1:] for name, rows in tables.items() if rows}
+
+
+def _row(label: str, counts: Counter) -> list[str]:
+    fixed, documented = counts.get("fixed", 0), counts.get("documented", 0)
+    return [label, str(fixed), str(documented), str(fixed + documented)]
+
+
+def _task_key(task: str) -> tuple[int, str]:
+    match = re.fullmatch(r"T(\d+)([a-z]?)", task)
+    return (int(match.group(1)), match.group(2)) if match else (10**6, task)
+
+
+def expected_tables(divergences: list[dict]) -> dict[str, list[list[str]]]:
+    """The summary tables the log's rows imply, in the log's own layout."""
+
+    def by(key: str, value: str) -> Counter:
+        return Counter(r["resolution"] for r in divergences if r[key] == value)
+
+    total = Counter(r["resolution"] for r in divergences)
+    tasks = []
+    for task in sorted({r["first_task"] for r in divergences}, key=_task_key):
+        rows = [r for r in divergences if r["first_task"] == task]
+        classes = Counter(r["class"] for r in rows)
+        resolutions = Counter(r["resolution"] for r in rows)
+        tasks.append(
+            [
+                task,
+                *(str(classes.get(k, 0)) for k in CLASSES),
+                str(resolutions.get("fixed", 0)),
+                str(resolutions.get("documented", 0)),
+                str(len(rows)),
+            ]
+        )
+    return {
+        "By class and resolution": [
+            *(_row(k, by("class", k)) for k in CLASSES),
+            _row("**all**", total),
+        ],
+        "By how it was found": [_row(k, by("found_by", k)) for k in FOUND],
+        "By runtime that differed": [
+            _row(label, by("runtime", key)) for key, label in RUNTIMES
+        ],
+        "By task": tasks,
+    }
+
+
+def check_log_tables(path: Path, divergences: list[dict]) -> list[str]:
+    """Each summary table of the log against its rows; one problem per table that differs."""
+    found = summary_tables(path)
+    problems = []
+    for name, rows in expected_tables(divergences).items():
+        if found.get(name) != rows:
+            problems.append(
+                f"the divergence log's table {name!r} differs from its rows: "
+                f"the rows give {rows}, the file has {found.get(name)}"
+            )
+    fixed = sum(r["resolution"] == "fixed" for r in divergences)
+    headline = (
+        f"**{len(divergences)} divergences**, {fixed} fixed and "
+        f"{len(divergences) - fixed} documented."
+    )
+    if headline not in path.read_text(encoding="utf-8"):
+        problems.append(f"the divergence log's summary does not read {headline!r}")
+    return problems
+
+
 def summarize(
     conformance: dict,
     privileges: dict,
     check_pack: dict | None,
     divergences: list[dict],
+    log_problems: list[str] | None = None,
 ) -> dict:
     families: dict[str, dict] = {}
     for case in conformance["cases"]:
@@ -118,12 +233,26 @@ def summarize(
             for k in FOUND
         },
         "by_resolution": Counter(r["resolution"] for r in divergences),
+        "by_runtime": {
+            key: dict(
+                Counter(r["resolution"] for r in divergences if r["runtime"] == key)
+            )
+            for key, _ in RUNTIMES
+        },
+        "by_task": {
+            task: dict(
+                Counter(r["resolution"] for r in divergences if r["first_task"] == task)
+            )
+            for task in sorted({r["first_task"] for r in divergences}, key=_task_key)
+        },
         "unclassified": [
             r["id"]
             for r in divergences
             if r["class"] not in CLASSES
             or r["resolution"] not in RESOLUTIONS
             or r["found_by"] not in FOUND
+            or r["runtime"] not in dict(RUNTIMES)
+            or not r["first_task"]
         ],
         "without_commit": [r["id"] for r in divergences if not r["commits"]],
     }
@@ -150,10 +279,24 @@ def summarize(
         )
     if check_pack is not None and not check_pack.get("passed"):
         problems.append("npm run check-pack failed")
-    if len(set(commits.values())) != 1:
+    if check_pack is not None:
+        # check-pack's line names no commit; when it carries one, it must be the same. Its
+        # extension version must be the one the conformance run's Chrome core names.
+        if "commit" in check_pack:
+            commits["check_pack"] = check_pack["commit"]
+        core = str(environment.get("chrome_core") or "")
+        if f"chrome-agent-browser {check_pack.get('version')} " not in core + " ":
+            problems.append(
+                f"check-pack's version {check_pack.get('version')!r} is not the conformance "
+                f"run's Chrome core ({core!r})"
+            )
+    if None in commits.values() or "" in commits.values():
+        problems.append(f"an input names no commit: {commits}")
+    elif len(set(commits.values())) != 1:
         problems.append(f"the inputs name different commits: {commits}")
     if log["unclassified"] or log["without_commit"]:
         problems.append("a divergence row is unclassified or names no commit")
+    problems.extend(log_problems or [])
     return {
         "conformance": {
             "generated_at": conformance["generated_at"],
@@ -237,6 +380,25 @@ def report(summary: dict, sources: dict) -> str:
         lines.append(
             f"| {name} | {counts.get('fixed', 0)} | {counts.get('documented', 0)} | {sum(counts.values())} |"
         )
+    lines += [
+        "",
+        "| Runtime that differed | fixed | documented | total |",
+        "|---|---:|---:|---:|",
+    ]
+    for key, label in RUNTIMES:
+        counts = log["by_runtime"][key]
+        lines.append(
+            f"| {label} | {counts.get('fixed', 0)} | {counts.get('documented', 0)} | {sum(counts.values())} |"
+        )
+    lines += [
+        "",
+        "| Task (first named) | fixed | documented | total |",
+        "|---|---:|---:|---:|",
+    ]
+    for task, counts in log["by_task"].items():
+        lines.append(
+            f"| {task} | {counts.get('fixed', 0)} | {counts.get('documented', 0)} | {sum(counts.values())} |"
+        )
     privileges = summary["privileges"]
     pack = summary["check_pack"]
     lines += [
@@ -256,6 +418,16 @@ def report(summary: dict, sources: dict) -> str:
         "",
     ]
     return "\n".join(lines)
+
+
+def read_check_pack(path: Path) -> dict:
+    """`npm run check-pack`'s JSON: the whole file when it is one document (the pretty-printed
+    copy a results directory keeps), else its last line (the npm output piped through `tail`)."""
+    text = path.read_text(encoding="utf-8").strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return json.loads(text.splitlines()[-1])
 
 
 def _rel(path: Path) -> str:
@@ -288,13 +460,14 @@ def main(argv=None) -> int:
         (args.conformance / "report.json").read_text(encoding="utf-8")
     )
     privileges = json.loads(args.privileges.read_text(encoding="utf-8"))
-    check_pack = (
-        json.loads(args.check_pack.read_text(encoding="utf-8").strip().splitlines()[-1])
-        if args.check_pack
-        else None
-    )
+    check_pack = read_check_pack(args.check_pack) if args.check_pack else None
+    rows = divergence_rows(args.divergences)
     summary = summarize(
-        conformance, privileges, check_pack, divergence_rows(args.divergences)
+        conformance,
+        privileges,
+        check_pack,
+        rows,
+        check_log_tables(args.divergences, rows),
     )
     sources = {
         "Conformance run": _rel(args.conformance),

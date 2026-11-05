@@ -21,7 +21,10 @@ security and privacy model's P-19 (`docs/security-and-privacy-model.md`):
   message the extension);
 * **content security policy**: `script-src` admits exactly `'self'` and `'wasm-unsafe-eval'`
   (own scripts and WebAssembly compilation only), `object-src 'self'`, no `unsafe-eval`, no
-  `unsafe-inline`, no remote script source;
+  `unsafe-inline`, no remote script source; `extension_pages` is the only policy (no `sandbox`
+  policy) and the manifest declares no `sandbox` pages, whose looser policy would escape these
+  tokens; the external-listener scan reads every `.ts`, `.js`, `.mjs` and `.html` file under the
+  extension's sources, so an inline `<script>` in a page is read too;
 * **Worker placement**: the service worker creates the offscreen document for `WORKERS` only;
   the offscreen page runs each run in a dedicated module Worker (`execution-worker.js`); that
   Worker gives every compute call its own nested Worker (`compute-worker.js`).
@@ -74,6 +77,7 @@ OPTIONAL_PERMISSIONS = ["nativeMessaging"]
 LOOPBACK_HOSTS = ["http://127.0.0.1/*", "http://localhost/*"]
 OPTIONAL_HOSTS = ["https://*/*"]
 SCRIPT_SRC = ["'self'", "'wasm-unsafe-eval'"]
+SOURCE_SUFFIXES = (".ts", ".js", ".mjs", ".html")
 
 
 def _csp(policy: str) -> dict[str, list[str]]:
@@ -146,13 +150,31 @@ def check(root: Path) -> dict:
     ):
         checks.append(_check(f"no_{key}", key not in manifest, key in manifest, False))
     listeners = []
-    for path in sorted((root / EXTENSION).rglob("*.ts")):
+    sources = sorted(
+        path
+        for path in (root / EXTENSION).rglob("*")
+        if path.is_file() and path.suffix in SOURCE_SUFFIXES
+    )
+    for path in sources:
         text = path.read_text(encoding="utf-8")
         for name in ("onMessageExternal", "onConnectExternal"):
             if re.search(rf"\b{name}\b", text):
                 listeners.append(f"{path.relative_to(root)}: {name}")
     checks.append(_check("no_external_message_listener", not listeners, listeners, []))
-    policy = (manifest.get("content_security_policy") or {}).get("extension_pages", "")
+    policies = manifest.get("content_security_policy") or {}
+    keys = sorted(policies) if isinstance(policies, dict) else [repr(policies)]
+    checks.append(
+        _check(
+            "csp_extension_pages_only",
+            keys == ["extension_pages"],
+            keys,
+            ["extension_pages"],
+        )
+    )
+    checks.append(
+        _check("no_sandbox", "sandbox" not in manifest, "sandbox" in manifest, False)
+    )
+    policy = policies.get("extension_pages", "") if isinstance(policies, dict) else ""
     directives = _csp(policy)
     script_src = sorted(directives.get("script-src", []))
     checks.append(
