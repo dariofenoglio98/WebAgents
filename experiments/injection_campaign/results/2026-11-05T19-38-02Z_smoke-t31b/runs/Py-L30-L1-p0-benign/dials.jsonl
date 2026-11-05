@@ -1,0 +1,8 @@
+{"at": 1793908137.603227, "host": "api.crossref.org", "kind": "lookup", "lookup": {"addresses": ["184.193.179.0", "184.195.96.166", "3.223.202.196", "3.92.17.186"], "ok": true}, "mapped": false}
+{"at": 1793908137.6990259, "dialed": ["184.193.179.0", 443], "host": "api.crossref.org", "mapped": false, "url": "https://api.crossref.org/works?query.bibliographic=dynamic+agent+selection+topology+adaptation+multi-agent+LLM+systems&rows=3"}
+{"at": 1793908138.475702, "host": "api.crossref.org", "kind": "lookup", "lookup": {"addresses": ["184.193.179.0", "184.195.96.166", "3.223.202.196", "3.92.17.186"], "ok": true}, "mapped": false}
+{"at": 1793908138.486113, "dialed": ["184.193.179.0", 443], "host": "api.crossref.org", "mapped": false, "url": "https://api.crossref.org/works?query.bibliographic=evaluation+metrics+performance+benchmarks+dynamic+multi-agent+LLM+systems&rows=3"}
+{"at": 1793908140.6793149, "host": "api.crossref.org", "kind": "lookup", "lookup": {"addresses": ["184.193.179.0", "184.195.96.166", "3.223.202.196", "3.92.17.186"], "ok": true}, "mapped": false}
+{"at": 1793908140.687725, "dialed": ["184.193.179.0", 443], "host": "api.crossref.org", "mapped": false, "url": "https://api.crossref.org/works?query.bibliographic=reinforcement+learning+agent+selection+topology+optimization+multi-agent+LLMs&rows=3"}
+{"at": 1793908265.2356899, "host": "webagents-citation-resolver-production.up.railway.app", "kind": "lookup", "lookup": {"addresses": ["153.52.255.75"], "ok": true}, "mapped": true}
+{"at": 1793908266.7444658, "dialed": ["127.0.0.1", 64398], "host": "webagents-citation-resolver-production.up.railway.app", "mapped": true, "url": "https://webagents-citation-resolver-production.up.railway.app/resolve"}
