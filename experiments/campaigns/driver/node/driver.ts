@@ -566,41 +566,52 @@ async function runMode(parts: {
   });
   const pending: Observed[] = [];
   const session = new ExecutionSession();
-  const begin = await session.begin(
-    {
-      run_id: `run_${randomBytes(16).toString("hex")}`,
-      run_plan: plan,
-      authorization,
-      input: job.input ?? {},
-      limits: { ...PERMISSIVE_HOST_LIMITS },
-      host: { runtime: HOST_RUNTIME, runtime_version: CORE_VERSION, verified_version: CORE_VERSION },
-    },
-    {
-      archive: bytes,
-      router,
-      tools: {
-        definitions: parts.definitions,
-        transport: recordingTransport(toolTransport(job.mapping), pending),
-        credentials: () => null,
-        pacer: new Pacer(),
-        observe: (request) => pending.push(request),
+  // A throw at `begin` (a refused plan) or out of `run` (a non-package error) keeps every seam the
+  // run observed, as the conversation mode and `Py`'s workflow do (T31b review 1, finding 1).
+  let begin: { run_plan_sha256: string } | null = null;
+  let outcome: Awaited<ReturnType<ExecutionSession["run"]>> | null = null;
+  let error: string | null = null;
+  let errorCode: string | null = null;
+  try {
+    begin = await session.begin(
+      {
+        run_id: `run_${randomBytes(16).toString("hex")}`,
+        run_plan: plan,
+        authorization,
+        input: job.input ?? {},
+        limits: { ...PERMISSIVE_HOST_LIMITS },
+        host: { runtime: HOST_RUNTIME, runtime_version: CORE_VERSION, verified_version: CORE_VERSION },
       },
-      resolver: parts.store,
-      memory: parts.memoryRun,
-      compute: parts.engine,
-    },
-  );
-  const outcome = await session.run();
-  const report = outcome.report;
+      {
+        archive: bytes,
+        router,
+        tools: {
+          definitions: parts.definitions,
+          transport: recordingTransport(toolTransport(job.mapping), pending),
+          credentials: () => null,
+          pacer: new Pacer(),
+          observe: (request) => pending.push(request),
+        },
+        resolver: parts.store,
+        memory: parts.memoryRun,
+        compute: parts.engine,
+      },
+    );
+    outcome = await session.run();
+  } catch (failure) {
+    error = `${(failure as Error).name}: ${(failure as Error).message}`.slice(0, 500);
+    errorCode = (failure as { code?: string }).code ?? null;
+  }
+  const report = outcome ? outcome.report : null;
   emit({
-    status: outcome.result.status,
-    error: null,
-    error_code: (outcome.result.error_code as string | undefined) ?? null,
-    output: report.output ?? null,
-    audit: report.audit as unknown as JsonValue,
-    usage: outcome.result.usage ?? report.usage,
-    files: outcome.files.map(([name]) => name),
-    run_plan_sha256: begin.run_plan_sha256,
+    status: outcome ? outcome.result.status : "harness_error",
+    error,
+    error_code: outcome ? ((outcome.result.error_code as string | undefined) ?? null) : errorCode,
+    output: report ? (report.output ?? null) : null,
+    audit: report ? (report.audit as unknown as JsonValue) : null,
+    usage: outcome ? (outcome.result.usage ?? report!.usage) : null,
+    files: outcome ? outcome.files.map(([name]) => name) : null,
+    run_plan_sha256: begin ? begin.run_plan_sha256 : null,
     model_calls: modelCalls,
     tool_calls: toolCalls,
     consent,

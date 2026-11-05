@@ -9,7 +9,7 @@ import json
 
 import pytest
 from campaigns.baseline import ports
-from campaigns.driver import cr_driver, py_driver
+from campaigns.driver import cr_driver, py_driver, record
 from campaigns.driver.routes import Rung
 from campaigns.origin.stack import CampaignStack
 from campaigns.records import canaries
@@ -174,3 +174,29 @@ def test_the_run_transport_records_each_call_with_the_cores_tool_and_its_answer(
     assert search["answer"]["papers"][0]["doi"] == "10.1000/x1"
     assert resolve["tool"] == "citation-resolver" and resolve["answer"] == RESOLVER_ANSWER
     assert resolve["arguments"] == json.loads(RESOLVER_BODY)
+
+
+def test_a_run_refused_at_begin_keeps_the_seams_and_is_a_harness_error(tmp_path):
+    """T31b review 1, finding 1: a throw at `session.begin` (here a plan whose required permission
+    is denied) or out of `session.run` is caught in the run mode, which emits every observed seam
+    with `status: harness_error`, as the conversation mode does; the record carries the error."""
+    job = _cr_job("travel-network", py_driver.prepare_memory(tmp_path, None))
+    job["grants"] = {**job["grants"], "network.webair": "deny"}
+    out = cr_driver.run_job(job, timeout=300)
+    assert out["status"] == "harness_error"
+    assert out["error_code"] == "execution_permission_denied"
+    assert "network.webair" in out["error"]
+    for seam in ("model_calls", "tool_calls", "dials", "consent", "responder"):
+        assert out[seam] == [], seam  # present (and empty: nothing ran before `begin`)
+    assert out["core_version"] and out["run_plan_sha256"] is None
+    rec = record.from_cr_run(
+        meta={"side": "Cr", "task_set": "TS-N"},
+        rung=None,
+        out=out,
+        origin_log=[],
+        sink_log=[],
+        seconds=0.0,
+        package=ports.load("travel-network"),
+        task_set="TS-N",
+    )
+    assert rec["harness_error"] == out["error"]
