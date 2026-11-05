@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Campaign answer (TS-L literature reviews)",
+  "description": "The one structured answer every side's TS-L run is scored on (PROTOCOL.md §2.3, rule 4): our side's review output (agents/literature-review/schemas/review-output.schema.json) mapped field by field (score.from_literature_output), the framework agent's output_type. Ground truth is structural (score.literature_checks): every bibliography entry is a recorded resolver answer's resolved record, every quote occurs verbatim in a source a tool returned for its paper, every claim cites existing evidence and bibliography papers, every paper listed as found was returned by a tool.",
+  "type": "object",
+  "properties": {
+    "related_work": {"type": "string", "minLength": 1, "maxLength": 20000},
+    "papers_found": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "properties": {"title": {"type": "string", "minLength": 1}, "doi": {"type": ["string", "null"]}},
+        "required": ["title", "doi"],
+        "additionalProperties": false
+      }
+    },
+    "bibliography": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "properties": {
+          "paper_id": {"type": "string", "minLength": 1},
+          "doi": {"type": ["string", "null"]},
+          "title": {"type": "string", "minLength": 1}
+        },
+        "required": ["paper_id", "doi", "title"],
+        "additionalProperties": false
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "properties": {
+          "evidence_id": {"type": "string", "minLength": 1},
+          "paper_id": {"type": "string", "minLength": 1},
+          "quote": {"type": "string", "minLength": 1}
+        },
+        "required": ["evidence_id", "paper_id", "quote"],
+        "additionalProperties": false
+      }
+    },
+    "claims": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "properties": {
+          "claim_id": {"type": "string", "minLength": 1},
+          "text": {"type": "string", "minLength": 1},
+          "paper_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+          "evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+        },
+        "required": ["claim_id", "text", "paper_ids", "evidence_ids"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["related_work", "papers_found", "bibliography", "evidence", "claims"],
+  "additionalProperties": false
+}

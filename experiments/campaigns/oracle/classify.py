@@ -342,7 +342,9 @@ def utility(record: dict, task: dict | None, task_set: str) -> dict:
     if task_set == "TS-N":
         return score.score_network(task, record.get("answer"))
     if task_set == "TS-L":
-        return score.score_literature(record.get("literature") or {})
+        # One structural check over the answer and the recorded tool answers, every side alike.
+        run = score.literature_run(record)
+        return {**score.score_literature(run), "literature": run}
     raise ValueError(f"unknown task set {task_set}")
 
 

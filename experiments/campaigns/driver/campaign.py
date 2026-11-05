@@ -56,9 +56,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 EXPERIMENTS = ROOT / "experiments"
-for _path in (EXPERIMENTS, ROOT / "demo" / "webair"):
-    if str(_path) not in sys.path:
-        sys.path.insert(0, str(_path))
+if str(EXPERIMENTS) not in sys.path:  # `campaigns` itself puts WebAir's origin on the path
+    sys.path.insert(0, str(EXPERIMENTS))
 
 from campaigns.driver.routes import Rung  # noqa: E402
 from campaigns.origin import catalog, tls  # noqa: E402
