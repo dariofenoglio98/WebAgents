@@ -67,7 +67,7 @@ async function modelsCommand(message: HostModelsMessage): Promise<unknown> {
       await modelManager.delete(message.entryId);
       return { deleted: true };
     case "status":
-      return { downloads: modelManager.status(), engine: engineHost.status(), orphans: await modelManager.orphans().catch(() => null) };
+      return { downloads: modelManager.status(), engine: engineHost.status(), orphans: await modelManager.cachedOrphans().catch(() => null) };
     case "files":
       return modelManager.files();
     case "prune":

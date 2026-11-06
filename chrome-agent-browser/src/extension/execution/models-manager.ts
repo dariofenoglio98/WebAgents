@@ -32,6 +32,8 @@ export interface DownloadView {
   bytes_done: number;
   bytes_total: number;
   resumed_from: number;
+  /** A complete cached file is being re-hashed before it is kept (T41 review 2, nit 6). */
+  verifying?: boolean;
   started_at: string;
   ended_at: string | null;
   error: { code: string; message: string } | null;
@@ -59,7 +61,9 @@ export class ModelManager {
   private worker: ModelsWorkerLike | null = null;
   private nextId = 1;
   private readonly waiting = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void; progress?: (event: Extract<ModelsEvent, { kind: "progress" }>["progress"]) => void }>();
-  private readonly downloads = new Map<string, DownloadView & { id: number | null; settled: Promise<void> }>();
+  private readonly downloads = new Map<string, DownloadView & { id: number | null; settled: Promise<void>; sha256s: ReadonlySet<string> }>();
+  /** The last orphan listing (`cachedOrphans`), dropped whenever this manager adds or removes files (T41 review 2, nit 9). */
+  private orphanList: Promise<Array<{ name: string; size: number }>> | null = null;
   private readonly now: () => Date;
 
   constructor(private readonly deps: ModelManagerDeps) {
@@ -98,6 +102,11 @@ export class ModelManager {
     });
   }
 
+  /** Files were added or removed: the next status read lists the cache again. */
+  private filesMoved(): void {
+    this.orphanList = null;
+  }
+
   private changed(): void {
     try {
       this.deps.onChange?.();
@@ -118,6 +127,7 @@ export class ModelManager {
     });
     // Another file under the same id would show one file's digest under the other's name (T41 review 1, finding 5).
     if (taken.length > 0) throw new ModelError("model_id_taken", `The id ${entry.id} already names other weights (${taken[0]!.entry.display_name}); delete that model first.`);
+    this.filesMoved();
     this.changed();
     return row!;
   }
@@ -138,17 +148,22 @@ export class ModelManager {
       await this.removeFiles(entry, existing.files.map((file) => file.sha256).filter((sha256) => !named.has(sha256)));
     }
     const at = this.now().toISOString();
+    // The files an earlier download completed: a cancel of this one keeps them (D-452: it removes what this download fetched).
+    const earlier = new Set<string>();
     await this.deps.models.update(entry.id, (current) => {
       const base = current !== null && current.entry.weights_digest === entry.weights_digest ? current : newModelRecord(entry, this.now());
+      for (const file of base.files) if (file.state === "complete") earlier.add(file.sha256);
       return { ...base, entry, files: base.files.map((file) => (file.state === "complete" ? file : { ...file, state: "partial" })), last_error: null };
     });
-    const view: DownloadView & { id: number | null; settled: Promise<void> } = { id: null, settled: Promise.resolve(), entry_id: entry.id, state: "downloading", file_index: 0, files: entry.files.length, bytes_done: 0, bytes_total: entry.bytes_total, resumed_from: 0, started_at: at, ended_at: null, error: null };
+    const view: DownloadView & { id: number | null; settled: Promise<void>; sha256s: ReadonlySet<string> } = { id: null, settled: Promise.resolve(), sha256s: new Set(entry.files.map((file) => file.sha256)), entry_id: entry.id, state: "downloading", file_index: 0, files: entry.files.length, bytes_done: 0, bytes_total: entry.bytes_total, resumed_from: 0, started_at: at, ended_at: null, error: null };
     this.downloads.set(entry.id, view);
+    this.filesMoved();
     this.changed();
     const offsets = entry.files.map((_, index) => entry.files.slice(0, index).reduce((sum, file) => sum + file.bytes, 0));
     let lastReport = 0;
     view.settled = this.ask<{ files: Array<{ sha256: string; bytes: number }> }>({ kind: "download", files: entry.files }, (id) => (view.id = id), (progress) => {
       view.file_index = progress.file_index;
+      view.verifying = progress.verifying === true;
       view.bytes_done = offsets[progress.file_index]! + progress.bytes_done;
       if (progress.resumed_from > 0 && progress.bytes_done === progress.resumed_from) view.resumed_from += progress.resumed_from;
       const now = Date.now();
@@ -161,6 +176,7 @@ export class ModelManager {
         // The row says verified only for the digests the Worker computed, file by file.
         if (answer.files.length !== entry.files.length || answer.files.some((file, index) => file.sha256 !== entry.files[index]!.sha256)) throw new ModelError("model_digest_mismatch", "the bytes did not match the digest the catalog states");
         view.state = "reading_header";
+        view.verifying = false;
         view.bytes_done = entry.bytes_total;
         this.changed();
         let header: GgufHeaderFacts | null = null;
@@ -190,16 +206,20 @@ export class ModelManager {
         const message = error instanceof Error ? error.message : "the download failed";
         const ended = this.now().toISOString();
         const cancelled = code === "model_download_cancelled";
+        // A cancel removes what this download fetched (D-452), unless another row names it; a file an
+        // earlier download completed stays when it is still whole on disk (T41 review 2, nit 6).
+        const kept = new Set<string>();
         if (cancelled) {
-          // A cancelled download leaves no file: the files completed in this download go too, unless another row names them.
-          await this.removeFiles(entry, entry.files.map((file) => file.sha256)).catch(() => undefined);
+          const whole = new Map(((await this.files().catch(() => ({ files: [] }))).files ?? []).map((file) => [file.name, file.size]));
+          for (const file of entry.files) if (earlier.has(file.sha256) && whole.get(file.sha256) === file.bytes) kept.add(file.sha256);
+          await this.removeFiles(entry, entry.files.map((file) => file.sha256).filter((sha256) => !kept.has(sha256))).catch(() => undefined);
         }
         await this.deps.models.update(entry.id, (current) =>
           current === null
             ? null
             : {
                 ...current,
-                files: current.files.map((file) => ({ ...file, state: cancelled || code === "model_digest_mismatch" ? (file.state === "complete" && !cancelled ? "complete" : "missing") : file.state })),
+                files: current.files.map((file) => ({ ...file, state: cancelled ? (kept.has(file.sha256) ? "complete" : "missing") : code === "model_digest_mismatch" ? (file.state === "complete" ? "complete" : "missing") : file.state })),
                 verified: false,
                 last_error: cancelled ? null : { code, message, at: ended },
               },
@@ -210,9 +230,11 @@ export class ModelManager {
       })
       .finally(() => {
         view.id = null;
+        view.verifying = false;
+        this.filesMoved();
         this.changed();
       });
-    const { id: _id, settled: _settled, ...shown } = view;
+    const { id: _id, settled: _settled, sha256s: _sha256s, ...shown } = view;
     return { ...shown };
   }
 
@@ -248,6 +270,7 @@ export class ModelManager {
     if (row !== null) await this.removeFiles(row.entry, row.files.map((file) => file.sha256));
     await this.deps.models.delete(entryId);
     this.downloads.delete(entryId);
+    this.filesMoved();
     this.changed();
   }
 
@@ -255,6 +278,14 @@ export class ModelManager {
     const shared = new Set((await this.deps.models.list()).filter((row) => row.entry_id !== entry.id && cacheState(row).cached).flatMap((row) => row.files.map((file) => file.sha256)));
     const own = sha256s.filter((sha256) => !shared.has(sha256));
     if (own.length > 0) await this.ask({ kind: "delete", sha256s: own });
+    this.filesMoved();
+  }
+
+  /** The digests a download in flight is writing: never an orphan, whatever its row says yet. */
+  private downloading(): Set<string> {
+    const busy = new Set<string>();
+    for (const view of this.downloads.values()) if (view.id !== null) for (const sha256 of view.sha256s) busy.add(sha256);
+    return busy;
   }
 
   /** What is cached on disk, for the totals and to find files no row names. */
@@ -264,27 +295,45 @@ export class ModelManager {
 
   /**
    * The cache's files no row names (T41 review 1, finding 4): left by an earlier version, or by a
-   * row removed outside this manager. A download in flight names its own partial file.
+   * row removed outside this manager. The files are listed before the rows are read, so a download
+   * that starts in between has its row read too, and a download in flight is never an orphan
+   * (T41 review 2, nit 8).
    */
   async orphans(): Promise<Array<{ name: string; size: number }>> {
-    const named = new Set((await this.deps.models.list()).flatMap((row) => row.files.map((file) => file.sha256)));
     const { files } = await this.files();
+    const named = new Set((await this.deps.models.list()).flatMap((row) => row.files.map((file) => file.sha256)));
+    for (const sha256 of this.downloading()) named.add(sha256);
     return files.filter((file) => {
       const match = /^([0-9a-f]{64})(\.part)?$/u.exec(file.name);
       return match !== null && !named.has(match[1]!);
     });
   }
 
-  /** Remove every file `orphans` names (the cache section's "Remove them"). */
+  /** `orphans` for a status read: listed once, again only after this manager added or removed files (T41 review 2, nit 9). */
+  cachedOrphans(): Promise<Array<{ name: string; size: number }>> {
+    if (this.orphanList === null) {
+      const listing = this.orphans();
+      this.orphanList = listing;
+      listing.catch(() => {
+        if (this.orphanList === listing) this.orphanList = null;
+      });
+    }
+    return this.orphanList;
+  }
+
+  /** Remove every file `orphans` names (the cache section's "Remove them"), never one a download started since is writing. */
   async prune(): Promise<{ removed: number; bytes: number }> {
     const orphans = await this.orphans();
-    const sha256s = [...new Set(orphans.map((file) => file.name.slice(0, 64)))];
+    const busy = this.downloading();
+    const sha256s = [...new Set(orphans.map((file) => file.name.slice(0, 64)))].filter((sha256) => !busy.has(sha256));
     if (sha256s.length > 0) await this.ask({ kind: "delete", sha256s });
+    this.filesMoved();
     this.changed();
-    return { removed: orphans.length, bytes: orphans.reduce((sum, file) => sum + file.size, 0) };
+    const removed = orphans.filter((file) => sha256s.includes(file.name.slice(0, 64)));
+    return { removed: removed.length, bytes: removed.reduce((sum, file) => sum + file.size, 0) };
   }
 
   status(): DownloadView[] {
-    return [...this.downloads.values()].map(({ id: _id, settled: _settled, ...view }) => ({ ...view }));
+    return [...this.downloads.values()].map(({ id: _id, settled: _settled, sha256s: _sha256s, ...view }) => ({ ...view }));
   }
 }

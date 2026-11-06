@@ -269,6 +269,8 @@ export interface DownloadProgress {
   bytes_total: number;
   /** Bytes taken from an earlier partial file (a `Range` resume), not transferred now. */
   resumed_from: number;
+  /** True while a complete cached file is re-hashed before it is kept (T41 review 2, nit 6): `bytes_done` counts the bytes read. */
+  verifying?: boolean;
 }
 
 export interface DownloadOptions {
@@ -318,7 +320,9 @@ export async function downloadFile(file: InBrowserFile, options: DownloadOptions
   if (kept === file.bytes) {
     // A file already in the cache is trusted by its bytes, never by its size (T41 review 1,
     // finding 3): one read, the cost of a Verify; one that no longer matches is dropped and fetched again.
-    if (await verifyFile(store, file, signal)) return { sha256: final, bytes: file.bytes, resumed_from: file.bytes, fetched: false };
+    const reread = (done: number): void => options.onProgress?.({ file: file.name, sha256: final, bytes_done: done, bytes_total: file.bytes, resumed_from: 0, verifying: true });
+    reread(0);
+    if (await verifyFile(store, file, signal, reread)) return { sha256: final, bytes: file.bytes, resumed_from: file.bytes, fetched: false };
     await discard(store, final);
   } else if (kept !== null) {
     await discard(store, final);

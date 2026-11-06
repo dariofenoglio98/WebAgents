@@ -7,6 +7,9 @@
  *   finding 4  a list that changed an entry's files orphaned the old file; files no row names
  *   finding 5  a pasted id held by other weights was silently kept with the first file's digest
  *   nit 6      a Delete during a download tried to remove a partial file the download held open
+ * and three review-2 nits: a cancel removed a file an earlier download had completed (nit 6), a
+ * download that started during the orphan listing was listed as an orphan (nit 8), and every status
+ * read listed the cache again (nit 9);
  * plus the ordinary paths: a download kept by digest, a cancel that leaves nothing, Verify, Delete.
  */
 import { createHash } from "node:crypto";
@@ -202,6 +205,24 @@ describe("ModelManager: a download", () => {
     expect(worker().kinds()).toContain("cancel");
   });
 
+  // T41 review 2, nit 6: D-452 says a cancel removes what this download fetched, not what an earlier one completed.
+  it("keeps a file an earlier download completed when the person cancels this one", async () => {
+    const entry = entryOf("test-ab", [
+      { name: "ab-00001-of-00002.gguf", bytes: A },
+      { name: "ab-00002-of-00002.gguf", bytes: B },
+    ]);
+    const { manager, models, store } = setup({ blobs: [{ entry, data: [A, B] }], hold: true });
+    store.files.set(entry.files[0]!.sha256, A);
+    const row = newModelRecord(entry, NOW);
+    await models.put({ ...row, files: row.files.map((file, index) => ({ ...file, state: index === 0 ? "complete" : "missing" })) });
+    await manager.download(entry);
+    await vi.waitFor(() => expect(store.files.has(`${entry.files[1]!.sha256}.part`)).toBe(true));
+    manager.cancel(entry.id);
+    expect((await settled(manager, entry.id)).state).toBe("cancelled");
+    expect([...store.files.keys()]).toEqual([entry.files[0]!.sha256]);
+    expect((await models.get(entry.id))!.files.map((file) => file.state)).toEqual(["complete", "missing"]);
+  });
+
   it("refuses a second download of the same entry while one runs, and an entry already verified", async () => {
     const entry = entryOf("test-a", [{ name: "a.gguf", bytes: A }]);
     const held = setup({ blobs: [{ entry, data: [A] }], hold: true });
@@ -297,6 +318,50 @@ describe("ModelManager: what the cache keeps (finding 4)", () => {
     expect((await manager.orphans()).map((file) => file.name).sort()).toEqual([stray, `${sha256Hex(B)}.part`].sort());
     expect(await manager.prune()).toEqual({ removed: 2, bytes: C.length + 100 });
     expect([...store.files.keys()].sort()).toEqual([kept.files[0]!.sha256, "not-a-digest"].sort());
+  });
+});
+
+describe("ModelManager: the orphan listing (review 2, nits 8 and 9)", () => {
+  it("never lists the partial file of a download that started while the rows were being read", async () => {
+    const entry = entryOf("test-a", [{ name: "a.gguf", bytes: A }]);
+    const { manager, models, store } = setup({ blobs: [{ entry, data: [A] }], hold: true });
+    const list = models.list.bind(models);
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => (open = resolve));
+    models.list = async () => {
+      const rows = await list();
+      await gate;
+      return rows;
+    };
+    const listing = manager.orphans();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await manager.download(entry);
+    await vi.waitFor(() => expect(store.files.has(`${entry.files[0]!.sha256}.part`)).toBe(true));
+    open();
+    expect(await listing).toEqual([]);
+    expect(await manager.prune()).toEqual({ removed: 0, bytes: 0 });
+    expect(store.files.has(`${entry.files[0]!.sha256}.part`)).toBe(true);
+    manager.cancel(entry.id);
+    await settled(manager, entry.id);
+  });
+
+  it("lists the cache once for status reads, and again only after files were added or removed", async () => {
+    const entry = entryOf("test-a", [{ name: "a.gguf", bytes: A }]);
+    const { manager, store, worker } = setup({ blobs: [{ entry, data: [A] }] });
+    const lists = () => worker().kinds().filter((kind) => kind === "list").length;
+    store.files.set(sha256Hex(C), C);
+    expect((await manager.cachedOrphans()).map((file) => file.name)).toEqual([sha256Hex(C)]);
+    await manager.cachedOrphans();
+    await manager.cachedOrphans();
+    expect(lists()).toBe(1);
+    await manager.prune();
+    expect(await manager.cachedOrphans()).toEqual([]);
+    const afterPrune = lists();
+    await manager.download(entry);
+    await settled(manager, entry.id);
+    await manager.cachedOrphans();
+    await manager.cachedOrphans();
+    expect(lists()).toBe(afterPrune + 1);
   });
 });
 

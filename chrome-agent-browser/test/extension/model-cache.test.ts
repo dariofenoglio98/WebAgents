@@ -261,6 +261,19 @@ describe("downloadFile: transfers", () => {
     expect(reads.reduce((sum, length) => sum + length, 0)).toBe(bytes.length);
   });
 
+  // T41 review 2, nit 6: the re-hash of a 2.5 GB cached file takes seconds and showed "0 bytes".
+  it("reports the re-hash of a complete cached file as progress, marked as a check", async () => {
+    const bytes = testBytes(512);
+    const file = fileFor(bytes);
+    const store = new MemoryBlobStore();
+    store.files.set(file.sha256, bytes);
+    const progress: Array<{ bytes_done: number; verifying?: boolean }> = [];
+    const { fetch } = fakeFetch(() => new Response(streamOf([bytes]), { status: 200 }));
+    await downloadFile(file, { store, fetch, signal: live(), onProgress: (event) => progress.push({ bytes_done: event.bytes_done, verifying: event.verifying }) });
+    expect(progress[0]).toEqual({ bytes_done: 0, verifying: true });
+    expect(progress.at(-1)).toEqual({ bytes_done: bytes.length, verifying: true });
+  });
+
   // T41 review 1, finding 3: a complete file was trusted by its size alone.
   it("re-hashes a complete cached file and fetches it again when one byte differs", async () => {
     const bytes = testBytes(512);

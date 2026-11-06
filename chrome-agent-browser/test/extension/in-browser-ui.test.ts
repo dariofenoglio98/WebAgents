@@ -134,6 +134,17 @@ describe("Settings → Models → In this browser", () => {
   });
 
   // T41 review 1, finding 2: after a dead load the person had no field and no way out but Delete.
+  // T41 review 2, nit 6: a resumed download re-hashes the complete file first; the row says so with the bytes read.
+  it("says a download is checking the cached file while it re-hashes it", () => {
+    const current = view();
+    const item = current.entries[0]!;
+    const base = { entry_id: item.entry.id, state: "downloading" as const, file_index: 0, files: 1, bytes_done: 1e9, bytes_total: item.entry.bytes_total, resumed_from: 0, started_at: "2026-11-05T10:00:00Z", ended_at: null, error: null };
+    item.download = { ...base, verifying: true };
+    expect(render(current).root.textContent).toContain("checking the cached file · 1.0 GB of");
+    item.download = { ...base, verifying: false };
+    expect(render(current).root.textContent).not.toContain("checking the cached file");
+  });
+
   it("shows a context that failed with Clear, and still offers Load at the smaller context the recommendation chose", () => {
     const { root, requests } = render(view(["qwen3-4b-q4_k_m"], null, { failed: { "qwen3-4b-q4_k_m": 32_768 } }));
     const four = root.querySelector<HTMLElement>('[data-model="in-browser/qwen3-4b-q4_k_m"]')!;
