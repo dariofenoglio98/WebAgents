@@ -16,7 +16,7 @@ import { InBrowserAdapter, type InBrowserCompletionRequest } from "../../src/cor
 import { gb, gpuMemoryEstimate, readModelCatalog, type InBrowserEntry } from "../../src/core/models/in-browser-catalog.js";
 import { render } from "../../src/core/models/render.js";
 import { AdapterError } from "../../src/core/workflow/errors.js";
-import { DEFAULT_LOAD_TIMEOUT_MS, EngineHost, EngineRefusal, type EngineWorkerLike, type LoadRequest, type PortLike } from "../../src/extension/execution/engine-host.js";
+import { DEFAULT_LOAD_TIMEOUT_MS, DEFAULT_UNLOAD_TIMEOUT_MS, EngineHost, EngineRefusal, type EngineWorkerLike, type LoadRequest, type PortLike } from "../../src/extension/execution/engine-host.js";
 import type { EngineCommand, EngineCompletionResult, EngineEvent, EngineLoadResult, PortReply, PortRequest } from "../../src/extension/execution/engine-protocol.js";
 import { MessagePortEnginePort, type RunPortLike } from "../../src/extension/execution/in-browser-port.js";
 import { MemoryModelStore, newModelRecord, type ModelRecord } from "../../src/extension/storage/models.js";
@@ -50,10 +50,12 @@ class FakeEngine implements EngineWorkerLike {
   nextCompletionError: { code: string; message: string } | null = null;
   /** Answer nothing at all (a Worker that will die mid-command). */
   silent = false;
+  /** Answer nothing to these commands only (an unload that never returns). */
+  readonly silentKinds = new Set<EngineCommand["kind"]>();
 
   postMessage(command: EngineCommand): void {
     this.received.push(structuredClone(command));
-    if (command.kind === "abort" || this.silent) return;
+    if (command.kind === "abort" || this.silent || this.silentKinds.has(command.kind)) return;
     if (command.kind === "complete") {
       if (this.hold) {
         this.held.push(command.id);
@@ -396,7 +398,7 @@ describe("EngineHost: the idle unload", () => {
     // idle minutes × 60,000 ms after the last run; a completion clears it; firing unloads.
     const { host, worker, timers: all, cleared } = makeHost();
     // The load deadline uses the same timer dependency; this test follows the idle timer only.
-    const timers = (): Timer[] => all.filter((timer) => timer.ms !== DEFAULT_LOAD_TIMEOUT_MS);
+    const timers = (): Timer[] => all.filter((timer) => timer.ms !== DEFAULT_LOAD_TIMEOUT_MS && timer.ms !== DEFAULT_UNLOAD_TIMEOUT_MS);
     const idle = (index: number): Timer => timers()[index]!;
     const minutes = 5;
     host.setIdleMinutes(minutes);
@@ -419,7 +421,81 @@ describe("EngineHost: the idle unload", () => {
   });
 });
 
+describe("EngineHost: the idle unload, a stale timer", () => {
+  // T41 review 2, finding 1: A's idle timer fires while a Settings Load of B holds the gate; its
+  // callback queues behind the load and, once B is in (no run holds it), must not unload B.
+  it("never lets an idle callback that fired during a Settings load unload the model that load brought in", async () => {
+    const { host, worker, timers } = makeHost();
+    const idle = (): Timer[] => timers.filter((timer) => timer.ms === 10 * 60_000);
+    await host.ensure(load(SMALL), null);
+    expect(idle()).toHaveLength(1);
+    const loadingOther = host.ensure(load(OTHER), null);
+    idle()[0]!.callback(); // fires at 9:59, after the Load was pressed
+    await expect(loadingOther).resolves.toMatchObject({ entry: OTHER.id });
+    await settle();
+    expect(host.status().loaded).toMatchObject({ entry: OTHER.id });
+    expect(worker().commands("unload")).toHaveLength(1); // A's, during the switch; none for B
+    expect(idle()).toHaveLength(2); // B's own timer, armed by its load
+    idle()[1]!.callback();
+    await vi.waitFor(() => expect(worker().commands("unload")).toHaveLength(2));
+    expect(host.status().loaded).toBeNull();
+  });
+});
+
+describe("EngineHost: an unload that never answers", () => {
+  // T41 review 2, finding 2: wllama's nested Worker can die silently during `exit()` as during a
+  // load; the gate must move on rather than hold every later load, unload and run start.
+  it("treats an Unload that outlives its deadline as a dead Worker, records no context, and lets the next load through", async () => {
+    const { host, workers, timers, models } = makeHost();
+    await host.ensure(load(SMALL), null);
+    workers[0]!.silentKinds.add("unload");
+    const unloading = host.unload();
+    const next = host.ensure(load(OTHER), "R");
+    await vi.waitFor(() => expect(timers.filter((timer) => timer.ms === DEFAULT_UNLOAD_TIMEOUT_MS)).toHaveLength(1));
+    timers.find((timer) => timer.ms === DEFAULT_UNLOAD_TIMEOUT_MS)!.callback();
+    await unloading;
+    await expect(next).resolves.toMatchObject({ entry: OTHER.id });
+    expect(workers[0]!.terminated).toBe(true);
+    expect(workers).toHaveLength(2); // spawned because the run asked for a load, not by itself
+    expect((await models.get(SMALL.id))!.failed_context).toBeNull();
+    expect(host.status()).toMatchObject({ loaded: { entry: OTHER.id }, last_failure: null });
+  });
+
+  it("records nothing against the entry being loaded when the unload before it hangs", async () => {
+    const { host, workers, timers, models } = makeHost();
+    await host.ensure(load(SMALL), null);
+    workers[0]!.silentKinds.add("unload");
+    const switching = host.ensure(load(OTHER), "R");
+    await vi.waitFor(() => expect(timers.filter((timer) => timer.ms === DEFAULT_UNLOAD_TIMEOUT_MS)).toHaveLength(1));
+    timers.find((timer) => timer.ms === DEFAULT_UNLOAD_TIMEOUT_MS)!.callback();
+    await expect(switching).resolves.toMatchObject({ entry: OTHER.id });
+    expect((await models.get(OTHER.id))!.failed_context).toBeNull();
+    expect((await models.get(SMALL.id))!.failed_context).toBeNull();
+  });
+});
+
 describe("EngineHost: a dead Worker", () => {
+  // T41 review 2, nit 3: two runs start together on one entry; the first load kills the Worker. The
+  // second must read the failed context the death records, not retry the context that just died.
+  it("records a dead load's context before the next queued load reads the row", async () => {
+    const { host, workers, models } = makeHost(undefined, (worker) => (worker.silent = true));
+    const update = models.update.bind(models);
+    models.update = async (...args) => {
+      for (let index = 0; index < 3; index += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+      return update(...args);
+    };
+    const { value } = await withUnhandledRejections(async () => {
+      const first = host.ensure(load(SMALL), "A");
+      const second = host.ensure(load(SMALL), "B");
+      await vi.waitFor(() => expect(workers[0]?.commands("load")).toHaveLength(1));
+      workers[0]!.die();
+      return [await refusal(first), await refusal(second)];
+    });
+    expect(value[0]).toMatchObject({ detail: { reason: "engine_worker_died" } });
+    expect(value[1]).toMatchObject({ detail: { reason: "failed_before", failed_context: CONTEXT } });
+    expect(workers).toHaveLength(1);
+  });
+
   it("fails the in-flight and queued completions, records the context, and is not restarted by itself", async () => {
     // onerror: engine_worker_died to every waiting call, failed_context on the row, no automatic spawn.
     const { host, models, workers, worker } = makeHost();

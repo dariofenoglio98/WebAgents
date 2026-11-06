@@ -5,7 +5,9 @@
  *
  * Its rules (design §3), each a refusal before the run rather than a surprise during it:
  * - **Serial loads.** Every load and unload passes one gate, taken before any `await` (T41 review 1):
- *   two loads never overlap, so two engines never coexist.
+ *   two loads never overlap, so two engines never coexist. A load unanswered after 180 s and an
+ *   unload unanswered after 30 s are the Worker's death, so one silent Worker never holds the gate
+ *   (T41 reviews 1 and 2).
  * - **Single slot.** A run that needs another entry while a run uses the loaded one is refused
  *   `model_unavailable` ("another in-browser model is in use by run …"); otherwise the loaded model
  *   is unloaded and the needed one loaded. Never another route or entry (principle 6).
@@ -14,7 +16,8 @@
  *   an unknown estimate (no header) is not a fit.
  * - **Serial calls.** Completions queue in arrival order; a map step's parallel workers wait.
  * - **Idle unload.** No run using the model for the idle time (a setting, default 10 minutes):
- *   unloaded. A person's Unload and Delete unload at once.
+ *   unloaded. A person's Unload and Delete unload at once. A timer that fired before a later load
+ *   or unload passed the gate is stale and unloads nothing (T41 review 2).
  * - **A dead Worker** (out of memory: Chrome kills it) fails the call in flight and every queued one
  *   `model_unavailable` (`engine_worker_died`), records "failed to run at <context>" on the entry,
  *   and is never restarted by itself.
@@ -43,6 +46,8 @@ export interface PortLike {
 export const DEFAULT_IDLE_UNLOAD_MINUTES = 10;
 /** A load that has not answered by then is treated as a dead Worker (T41 review 1, nit 12; D-450): a 12 GB model reads from OPFS in well under a minute on the machines measured. */
 export const DEFAULT_LOAD_TIMEOUT_MS = 180_000;
+/** An unload that has not answered by then is the Worker's death too (T41 review 2, finding 2; D-450): wllama's `exit()` frees GPU buffers in well under a second. */
+export const DEFAULT_UNLOAD_TIMEOUT_MS = 30_000;
 
 export class EngineRefusal extends Error {
   constructor(
@@ -73,6 +78,8 @@ export interface EngineHostDeps {
   clearTimer?: (handle: unknown) => void;
   /** How long a load may take before the Worker is treated as dead (default `DEFAULT_LOAD_TIMEOUT_MS`). */
   loadTimeoutMs?: number;
+  /** How long an unload may take before the Worker is treated as dead (default `DEFAULT_UNLOAD_TIMEOUT_MS`). */
+  unloadTimeoutMs?: number;
   /** Told when the loaded model or the queue changes, so Settings can say "loaded now". */
   onChange?: () => void;
 }
@@ -117,6 +124,10 @@ export class EngineHost {
   private current: { pending: Pending; engineId: number } | null = null;
   private idleTimer: unknown = null;
   private idleAt: Date | null = null;
+  /** Bumped whenever the idle timer is cleared or armed: a callback that fired before then is stale (T41 review 2, finding 1). */
+  private idleGeneration = 0;
+  /** The death in progress (`died`): a failed load waits for its row update before the gate moves on (T41 review 2, nit 3). */
+  private dying: Promise<void> | null = null;
   private idleMinutes = DEFAULT_IDLE_UNLOAD_MINUTES;
   private lastFailure: EngineStatus["last_failure"] = null;
   private readonly now: () => Date;
@@ -138,7 +149,7 @@ export class EngineHost {
       if (data.ok) waiter.resolve(data.result);
       else waiter.reject(Object.assign(new Error(data.error.message), { code: data.error.code }));
     };
-    worker.onerror = () => void this.died("engine_worker_died");
+    worker.onerror = () => void this.died("engine_worker_died", true);
     this.worker = worker;
     return worker;
   }
@@ -153,10 +164,25 @@ export class EngineHost {
     });
   }
 
-  /** The Worker died (Chrome killed it, out of memory): fail everything waiting, record the context, never restart by itself. */
-  private async died(reason: string): Promise<void> {
+  /**
+   * The Worker died (Chrome killed it, out of memory): fail everything waiting, record the context,
+   * never restart by itself. `record` is false for an unload that never answered: the model had
+   * already been given up, so no context failed to fit. The returned promise (also `dying`) settles
+   * once the context is recorded.
+   */
+  private died(reason: string, record: boolean): Promise<void> {
+    const death = this.dieNow(reason, record);
+    this.dying = death;
+    const settle = (): void => {
+      if (this.dying === death) this.dying = null;
+    };
+    void death.then(settle, settle);
+    return death;
+  }
+
+  private async dieNow(reason: string, record: boolean): Promise<void> {
     // A Worker that dies while loading is the classic "does not fit" (design §3): that context is recorded too.
-    const failed = this.loaded ?? (this.loading ? { entry: this.loading.entry, n_ctx: this.loading.n_ctx } : null);
+    const failed = record ? (this.loaded ?? (this.loading ? { entry: this.loading.entry, n_ctx: this.loading.n_ctx } : null)) : null;
     const error = Object.assign(new Error("The in-browser engine stopped (its Worker died, most likely out of GPU or main memory)"), { code: "model_unavailable", detail: { reason } });
     for (const waiter of this.answers.values()) waiter.reject(error);
     this.answers.clear();
@@ -227,7 +253,7 @@ export class EngineHost {
     this.deps.onChange?.();
     try {
       if (held !== null) await this.unloadNow();
-      const result = await this.withDeadline(this.ask<EngineLoadResult>({ kind: "load", entry: request.entry, files: row.files.map((file) => file.sha256), n_ctx: request.n_ctx, think: request.think, ...(request.n_gpu_layers === undefined ? {} : { n_gpu_layers: request.n_gpu_layers }) }));
+      const result = await this.withDeadline(this.ask<EngineLoadResult>({ kind: "load", entry: request.entry, files: row.files.map((file) => file.sha256), n_ctx: request.n_ctx, think: request.think, ...(request.n_gpu_layers === undefined ? {} : { n_gpu_layers: request.n_gpu_layers }) }), this.deps.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS, "engine_load_timeout", "load");
       this.loaded = { entry: request.entry, n_ctx: result.n_ctx, think: request.think, n_gpu_layers: request.n_gpu_layers ?? null, load: result, measured: false };
       await this.deps.models.update(request.entry, (current) => (current === null ? null : { ...current, last_used: this.now().toISOString() }));
       if (runId !== null) this.users.set(runId, request.entry);
@@ -236,6 +262,8 @@ export class EngineHost {
       return result;
     } catch (error) {
       if (error instanceof EngineRefusal) throw error;
+      // A dead Worker records the failed context before the gate lets the next load read the row (T41 review 2, nit 3).
+      if (this.dying !== null) await this.dying.catch(() => undefined);
       const code = (error as { code?: string }).code;
       const reason = (error as { detail?: { reason?: unknown } }).detail?.reason;
       throw new EngineRefusal("model_unavailable", `The in-browser engine could not load ${request.entry} (${error instanceof Error ? error.message.slice(0, 200) : "error"})`, { reason: code === "model_unavailable" ? (typeof reason === "string" ? reason : "engine_worker_died") : "load_failed", entry: request.entry });
@@ -245,18 +273,18 @@ export class EngineHost {
   }
 
   /**
-   * A load that never answers (wllama's own nested Worker dying without the outer `onerror`; T41
-   * review 1, nit 12) is treated as the Worker's death after `loadTimeoutMs`: the Worker is
-   * terminated, the context recorded, and the load refused `model_unavailable`.
+   * A load or unload that never answers (wllama's own nested Worker dying without the outer
+   * `onerror`; T41 review 1, nit 12, and review 2, finding 2) is treated as the Worker's death after
+   * `ms`: the Worker is terminated (a load's context recorded) and the call refused
+   * `model_unavailable`, so the gate moves on rather than waiting for ever.
    */
-  private withDeadline<T>(answer: Promise<T>): Promise<T> {
-    const ms = this.deps.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS;
+  private withDeadline<T>(answer: Promise<T>, ms: number, reason: "engine_load_timeout" | "engine_unload_timeout", what: "load" | "unload"): Promise<T> {
     let timer: unknown = null;
     const deadline = new Promise<never>((_, reject) => {
       timer = (this.deps.setTimer ?? setTimeout)(() => {
         timer = null;
-        void this.died("engine_load_timeout");
-        reject(Object.assign(new Error(`the load did not finish within ${Math.round(ms / 1000)} s`), { code: "model_unavailable", detail: { reason: "engine_load_timeout" } }));
+        void this.died(reason, what === "load");
+        reject(Object.assign(new Error(`the ${what} did not finish within ${Math.round(ms / 1000)} s`), { code: "model_unavailable", detail: { reason } }));
       }, ms);
     });
     return Promise.race([answer, deadline]).finally(() => {
@@ -277,7 +305,7 @@ export class EngineHost {
     this.loaded = null;
     this.clearIdle();
     for (const [run, held] of [...this.users.entries()]) if (held === entry) this.users.delete(run);
-    if (this.worker) await this.ask({ kind: "unload" }).catch(() => undefined);
+    if (this.worker) await this.withDeadline(this.ask({ kind: "unload" }), this.deps.unloadTimeoutMs ?? DEFAULT_UNLOAD_TIMEOUT_MS, "engine_unload_timeout", "unload").catch(() => undefined);
     this.deps.onChange?.();
   }
 
@@ -296,6 +324,7 @@ export class EngineHost {
   }
 
   private clearIdle(): void {
+    this.idleGeneration += 1;
     if (this.idleTimer !== null) (this.deps.clearTimer ?? clearTimeout)(this.idleTimer as ReturnType<typeof setTimeout>);
     this.idleTimer = null;
     this.idleAt = null;
@@ -306,10 +335,15 @@ export class EngineHost {
     if (this.loaded === null || this.users.size > 0 || this.current !== null || this.queue.length > 0) return;
     const ms = this.idleMinutes * 60_000;
     this.idleAt = new Date(this.now().getTime() + ms);
+    const generation = this.idleGeneration;
     this.idleTimer = (this.deps.setTimer ?? setTimeout)(() => {
+      if (generation !== this.idleGeneration) return;
       this.idleTimer = null;
-      // Through the gate, and checked again there: a run may have taken the model meanwhile.
+      // Through the gate, and checked again there: a run may have taken the model meanwhile, and a
+      // load that ran ahead of this callback (a Settings Load) cleared or re-armed the timer, which
+      // makes this callback stale (T41 review 2, finding 1).
       void this.serial(async () => {
+        if (generation !== this.idleGeneration) return;
         if (this.users.size === 0 && this.current === null && this.queue.length === 0) await this.unloadNow();
       });
     }, ms);
