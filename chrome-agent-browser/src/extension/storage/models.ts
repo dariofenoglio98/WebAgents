@@ -271,6 +271,8 @@ export interface DownloadProgress {
   resumed_from: number;
   /** True while a complete cached file is re-hashed before it is kept (T41 review 2, nit 6): `bytes_done` counts the bytes read. */
   verifying?: boolean;
+  /** True on the one event after a re-hash that matched (T41 review 3, nits 3–4): the cached file is kept, nothing is fetched, and the check is over. */
+  cached?: boolean;
 }
 
 export interface DownloadOptions {
@@ -322,7 +324,10 @@ export async function downloadFile(file: InBrowserFile, options: DownloadOptions
     // finding 3): one read, the cost of a Verify; one that no longer matches is dropped and fetched again.
     const reread = (done: number): void => options.onProgress?.({ file: file.name, sha256: final, bytes_done: done, bytes_total: file.bytes, resumed_from: 0, verifying: true });
     reread(0);
-    if (await verifyFile(store, file, signal, reread)) return { sha256: final, bytes: file.bytes, resumed_from: file.bytes, fetched: false };
+    if (await verifyFile(store, file, signal, reread)) {
+      options.onProgress?.({ file: file.name, sha256: final, bytes_done: file.bytes, bytes_total: file.bytes, resumed_from: 0, verifying: false, cached: true });
+      return { sha256: final, bytes: file.bytes, resumed_from: file.bytes, fetched: false };
+    }
     await discard(store, final);
   } else if (kept !== null) {
     await discard(store, final);

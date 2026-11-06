@@ -267,11 +267,13 @@ describe("downloadFile: transfers", () => {
     const file = fileFor(bytes);
     const store = new MemoryBlobStore();
     store.files.set(file.sha256, bytes);
-    const progress: Array<{ bytes_done: number; verifying?: boolean }> = [];
+    const progress: Array<{ bytes_done: number; verifying?: boolean; cached?: boolean }> = [];
     const { fetch } = fakeFetch(() => new Response(streamOf([bytes]), { status: 200 }));
-    await downloadFile(file, { store, fetch, signal: live(), onProgress: (event) => progress.push({ bytes_done: event.bytes_done, verifying: event.verifying }) });
+    await downloadFile(file, { store, fetch, signal: live(), onProgress: (event) => progress.push({ bytes_done: event.bytes_done, verifying: event.verifying, ...(event.cached === undefined ? {} : { cached: event.cached }) }) });
     expect(progress[0]).toEqual({ bytes_done: 0, verifying: true });
-    expect(progress.at(-1)).toEqual({ bytes_done: bytes.length, verifying: true });
+    // The last event ends the check (T41 review 3, nit 4): the file is kept, nothing is fetched.
+    expect(progress.at(-2)).toEqual({ bytes_done: bytes.length, verifying: true });
+    expect(progress.at(-1)).toEqual({ bytes_done: bytes.length, verifying: false, cached: true });
   });
 
   // T41 review 1, finding 3: a complete file was trusted by its size alone.

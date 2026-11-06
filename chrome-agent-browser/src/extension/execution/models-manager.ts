@@ -161,9 +161,13 @@ export class ModelManager {
     this.changed();
     const offsets = entry.files.map((_, index) => entry.files.slice(0, index).reduce((sum, file) => sum + file.bytes, 0));
     let lastReport = 0;
+    // The files this download fetches bytes for (T41 review 3, nit 3): an earlier file whose re-hash
+    // failed is discarded and fetched again, and then it is this download's, so a cancel removes it.
+    const fetching = new Set<string>();
     view.settled = this.ask<{ files: Array<{ sha256: string; bytes: number }> }>({ kind: "download", files: entry.files }, (id) => (view.id = id), (progress) => {
       view.file_index = progress.file_index;
       view.verifying = progress.verifying === true;
+      if (progress.verifying !== true && progress.cached !== true) fetching.add(progress.sha256);
       view.bytes_done = offsets[progress.file_index]! + progress.bytes_done;
       if (progress.resumed_from > 0 && progress.bytes_done === progress.resumed_from) view.resumed_from += progress.resumed_from;
       const now = Date.now();
@@ -207,11 +211,12 @@ export class ModelManager {
         const ended = this.now().toISOString();
         const cancelled = code === "model_download_cancelled";
         // A cancel removes what this download fetched (D-452), unless another row names it; a file an
-        // earlier download completed stays when it is still whole on disk (T41 review 2, nit 6).
+        // earlier download completed stays when it is still whole on disk and this download fetched
+        // none of its bytes (T41 review 2, nit 6; review 3, nit 3).
         const kept = new Set<string>();
         if (cancelled) {
           const whole = new Map(((await this.files().catch(() => ({ files: [] }))).files ?? []).map((file) => [file.name, file.size]));
-          for (const file of entry.files) if (earlier.has(file.sha256) && whole.get(file.sha256) === file.bytes) kept.add(file.sha256);
+          for (const file of entry.files) if (earlier.has(file.sha256) && !fetching.has(file.sha256) && whole.get(file.sha256) === file.bytes) kept.add(file.sha256);
           await this.removeFiles(entry, entry.files.map((file) => file.sha256).filter((sha256) => !kept.has(sha256))).catch(() => undefined);
         }
         await this.deps.models.update(entry.id, (current) =>
@@ -324,13 +329,15 @@ export class ModelManager {
   /** Remove every file `orphans` names (the cache section's "Remove them"), never one a download started since is writing. */
   async prune(): Promise<{ removed: number; bytes: number }> {
     const orphans = await this.orphans();
+    // One filter (T41 review 3, nit 5): `orphans` left out the downloads in flight when it listed;
+    // this drops one that started in the tick since, and what is removed is what is counted.
     const busy = this.downloading();
-    const sha256s = [...new Set(orphans.map((file) => file.name.slice(0, 64)))].filter((sha256) => !busy.has(sha256));
+    const removable = orphans.filter((file) => !busy.has(file.name.slice(0, 64)));
+    const sha256s = [...new Set(removable.map((file) => file.name.slice(0, 64)))];
     if (sha256s.length > 0) await this.ask({ kind: "delete", sha256s });
     this.filesMoved();
     this.changed();
-    const removed = orphans.filter((file) => sha256s.includes(file.name.slice(0, 64)));
-    return { removed: removed.length, bytes: removed.reduce((sum, file) => sum + file.size, 0) };
+    return { removed: removable.length, bytes: removable.reduce((sum, file) => sum + file.size, 0) };
   }
 
   status(): DownloadView[] {

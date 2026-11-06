@@ -73,8 +73,8 @@ class LockingBlobStore extends MemoryBlobStore {
   }
 }
 
-/** The fake fetch: each URL's bytes; `hold` keeps a body open after its first half until the request's signal aborts. */
-function origin(blobs: Map<string, Uint8Array>, options: { hold?: boolean } = {}) {
+/** The fake fetch: each URL's bytes; `hold` (every URL, or the URLs named) keeps a body open after its first half until the request's signal aborts. */
+function origin(blobs: Map<string, Uint8Array>, options: { hold?: boolean | ReadonlySet<string> } = {}) {
   const calls: string[] = [];
   const fetch: FetchLike = async (url, init) => {
     calls.push(url);
@@ -82,9 +82,10 @@ function origin(blobs: Map<string, Uint8Array>, options: { hold?: boolean } = {}
     if (!bytes) return new Response(null, { status: 404 });
     const half = Math.floor(bytes.length / 2);
     const signal = init.signal ?? undefined;
+    const holding = options.hold instanceof Set ? options.hold.has(url) : options.hold === true;
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
-        if (!options.hold) {
+        if (!holding) {
           controller.enqueue(bytes);
           controller.close();
           return;
@@ -136,7 +137,7 @@ class FakeModelsWorker implements ModelsWorkerLike {
 
 const IDLE: EngineStatus = { loaded: null, loading: null, busy: false, queued: 0, runs: [], idle_unload_at: null, last_failure: null };
 
-function setup(options: { blobs?: Array<{ entry: InBrowserEntry; data: Uint8Array[] }>; hold?: boolean; store?: MemoryBlobStore; engine?: { loaded?: string | null; runs?: EngineStatus["runs"] } } = {}) {
+function setup(options: { blobs?: Array<{ entry: InBrowserEntry; data: Uint8Array[] }>; hold?: boolean | ReadonlySet<string>; store?: MemoryBlobStore; engine?: { loaded?: string | null; runs?: EngineStatus["runs"] } } = {}) {
   const store = options.store ?? new MemoryBlobStore();
   const served = new Map<string, Uint8Array>();
   for (const { entry, data } of options.blobs ?? []) entry.files.forEach((file, index) => served.set(file.url, data[index]!));
@@ -221,6 +222,29 @@ describe("ModelManager: a download", () => {
     expect((await settled(manager, entry.id)).state).toBe("cancelled");
     expect([...store.files.keys()]).toEqual([entry.files[0]!.sha256]);
     expect((await models.get(entry.id))!.files.map((file) => file.state)).toEqual(["complete", "missing"]);
+  });
+
+  // T41 review 3, nit 3: the row's earlier "complete" is not enough. A cached file whose re-hash
+  // failed is discarded and fetched again by this download, so a cancel removes it too.
+  it("removes on a cancel an earlier file this download fetched again after its re-hash failed", async () => {
+    const entry = entryOf("test-ab", [
+      { name: "ab-00001-of-00002.gguf", bytes: A },
+      { name: "ab-00002-of-00002.gguf", bytes: B },
+    ]);
+    const { manager, models, store, calls } = setup({ blobs: [{ entry, data: [A, B] }], hold: new Set([entry.files[1]!.url]) });
+    const damaged = A.slice();
+    damaged[10] = damaged[10]! ^ 0xff;
+    store.files.set(entry.files[0]!.sha256, damaged);
+    const row = newModelRecord(entry, NOW);
+    await models.put({ ...row, files: row.files.map((file, index) => ({ ...file, state: index === 0 ? "complete" : "missing" })) });
+    await manager.download(entry);
+    await vi.waitFor(() => expect(store.files.has(`${entry.files[1]!.sha256}.part`)).toBe(true));
+    expect(store.files.get(entry.files[0]!.sha256)).toEqual(A);
+    expect(calls).toEqual([entry.files[0]!.url, entry.files[1]!.url]);
+    manager.cancel(entry.id);
+    expect((await settled(manager, entry.id)).state).toBe("cancelled");
+    expect([...store.files.keys()]).toEqual([]);
+    expect((await models.get(entry.id))!.files.map((file) => file.state)).toEqual(["missing", "missing"]);
   });
 
   it("refuses a second download of the same entry while one runs, and an entry already verified", async () => {
