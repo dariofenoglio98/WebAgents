@@ -40,12 +40,13 @@ def test_aclose_closes_the_loops_client():
     assert value == "done" and client.is_closed and router._client is None
 
 
-@pytest.fixture(scope="module")
-def stack(tmp_path_factory):
-    from campaigns.origin.stack import CampaignStack
+@pytest.fixture
+def stack():
+    """No full `CampaignStack`: the dead route fails the first model call, before any dial
+    (T31b review 2, nit 7)."""
+    from conftest import FakeStack
 
-    with CampaignStack(tmp_path_factory.mktemp("stack")) as running:
-        yield running
+    return FakeStack()
 
 
 @pytest.mark.parametrize("kind", ["run", "conversation"])

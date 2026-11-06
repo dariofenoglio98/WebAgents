@@ -109,6 +109,8 @@ interface Job {
   probe_proposals?: JsonValue;
   /** Offline tests only: one GET through the tool transport (its resolver seam), no conversation. */
   probe_fetch?: string;
+  /** Offline tests only: one `tls.connect` through the mapping (the dial seam's `connected`). */
+  probe_dial?: { servername: string; host: string; port: number };
   /** Offline tests only: the run mode's recording transport over canned responses (its pairing with `observe` and the adapters' answers). */
   probe_record?: { observed: Observed[]; requests: { url: string; method: string; body: string | null }[]; responses: { status: number; body: string }[] };
   /** Offline tests only: the responder's decisions on these cards (rule 11 with `responder.py`). */
@@ -128,14 +130,28 @@ function installMapping(mapping: NonNullable<Job["mapping"]>): void {
   const mapped = ((options: tls.ConnectionOptions, ...rest: unknown[]) => {
     const name = typeof options === "object" && options !== null ? options.servername : undefined;
     const target = name ? mapping.hosts[name] : undefined;
+    // `connected`: whether the TCP connection was established, set from the socket's outcome as
+    // the other two seams set it (T31 review 3, carry-over 1; D-360).
+    const observe = (socket: tls.TLSSocket, entry: JsonObject): tls.TLSSocket => {
+      entry.connected = false;
+      socket.once("connect", () => {
+        entry.connected = true;
+      });
+      socket.once("error", (error: Error) => {
+        if (entry.connected !== true) entry.error = error.name;
+      });
+      return socket;
+    };
     if (!name || target === undefined) {
       // An unmapped dial goes where the core sent it; it is a dial all the same (boundary (a)).
       const dialed = options?.host ? [options.host, options.port ?? 443] : null;
-      dials.push({ at: Date.now() / 1000, host: name ?? null, address: options?.host ?? null, mapped: false, dialed });
-      return (original as (...args: unknown[]) => tls.TLSSocket)(options, ...rest);
+      const entry: JsonObject = { at: Date.now() / 1000, host: name ?? null, address: options?.host ?? null, mapped: false, dialed };
+      dials.push(entry);
+      return observe((original as (...args: unknown[]) => tls.TLSSocket)(options, ...rest), entry);
     }
-    dials.push({ at: Date.now() / 1000, host: name, address: options.host ?? null, mapped: true, dialed: target });
-    return (original as (...args: unknown[]) => tls.TLSSocket)({ ...options, host: target[0], port: target[1], ca }, ...rest);
+    const entry: JsonObject = { at: Date.now() / 1000, host: name, address: options.host ?? null, mapped: true, dialed: target };
+    dials.push(entry);
+    return observe((original as (...args: unknown[]) => tls.TLSSocket)({ ...options, host: target[0], port: target[1], ca }, ...rest), entry);
   }) as typeof tls.connect;
   tls.connect = mapped;
   syncBuiltinESMExports();
@@ -343,6 +359,19 @@ async function main(): Promise<void> {
       error = (failure as Error).name;
     }
     emit({ probe: "fetch", error, dials });
+    return;
+  }
+  if (job.probe_dial !== undefined) {
+    const { servername, host, port } = job.probe_dial;
+    const error = await new Promise<string | null>((done) => {
+      const socket = tls.connect({ servername, host, port });
+      socket.once("secureConnect", () => {
+        socket.destroy();
+        done(null);
+      });
+      socket.once("error", (failure: Error) => done(failure.name));
+    });
+    emit({ probe: "dial", error, dials });
     return;
   }
   if (job.probe_record !== undefined) {

@@ -162,6 +162,11 @@ def valid_review(answer) -> bool:
     return isinstance(answer, dict) and not list(_LITERATURE.iter_errors(answer))
 
 
+def _id(value) -> str | None:
+    """An id as text, a missing one as None (T31b review 2, nit 3), never the string "None"."""
+    return None if value is None else str(value)
+
+
 def from_literature_output(output) -> dict | None:
     """Our side's review output (Literature Review 0.2.9's `review-output` schema) as the campaign
     answer, field by field: the bibliography's resolver records give each paper's DOI and title,
@@ -174,7 +179,7 @@ def from_literature_output(output) -> dict | None:
         bibliography.append(
             {
                 # a missing id stays missing, so the answer schema rejects it (review 1, nit 4)
-                "paper_id": None if entry.get("paper_id") is None else str(entry["paper_id"]),
+                "paper_id": _id(entry.get("paper_id")),
                 "doi": metadata.get("doi"),
                 "title": metadata.get("title") or "",
             }
@@ -188,15 +193,15 @@ def from_literature_output(output) -> dict | None:
         "bibliography": bibliography,
         "evidence": [
             {
-                "evidence_id": str(row.get("evidence_id")),
-                "paper_id": str(row.get("paper_id")),
+                "evidence_id": _id(row.get("evidence_id")),
+                "paper_id": _id(row.get("paper_id")),
                 "quote": row.get("quote") or "",
             }
             for row in output.get("evidence_table") or []
         ],
         "claims": [
             {
-                "claim_id": str(c.get("claim_id")),
+                "claim_id": _id(c.get("claim_id")),
                 "text": c.get("text") or "",
                 "paper_ids": list(c.get("paper_ids") or []),
                 "evidence_ids": list(c.get("evidence_ids") or []),

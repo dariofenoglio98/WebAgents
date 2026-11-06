@@ -250,7 +250,7 @@ def run_webair(
         stack.ca,
         run_dir / "dials.jsonl",
         fixture_key=fixture_key,
-        fixture_hosts=(tls.WEBAIR_HOST,),
+        fixture_hosts=FIXTURE_HOSTS,
     )
     origin_start, sink_start = len(stack.origin_log), len(stack.sink.log)
     started = time.monotonic()

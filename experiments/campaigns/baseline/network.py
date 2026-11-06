@@ -38,9 +38,9 @@ from campaigns.baseline.agent import (
 )
 from campaigns.baseline.policies import build as policies
 from campaigns.driver import record
+from campaigns.driver.py_driver import FIXTURE_HOSTS
 from campaigns.driver.responder import Responder
 from campaigns.driver.routes import Rung
-from campaigns.origin import tls
 
 PORT = "travel-network"
 
@@ -106,7 +106,7 @@ def run_travel_network(
             hosts=stack.hosts,
             ca=str(stack.ca),
             fixture_key=fixture_key,
-            fixture_hosts=(tls.WEBAIR_HOST,),
+            fixture_hosts=FIXTURE_HOSTS,
         ),
         memory_handlers={},
         responder=responder or Responder("R-facts"),

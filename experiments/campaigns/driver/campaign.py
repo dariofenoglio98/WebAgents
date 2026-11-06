@@ -241,9 +241,14 @@ def ordered(units: list[dict], rungs: list[str], seed: int) -> list[dict]:
 
 
 # -- rungs and the manifest ------------------------------------------------------------------
-@functools.cache
 def _rung_specs() -> dict:
-    return json.loads(RUNGS.read_text())["rungs"]
+    """The rungs of `RUNGS`, cached per path, so a repointed `RUNGS` is read (T31 r3, nit 5)."""
+    return _load_rungs(RUNGS)
+
+
+@functools.cache
+def _load_rungs(path: Path) -> dict:
+    return json.loads(Path(path).read_text())["rungs"]
 
 
 def rung_of(name: str, ollama_url: str) -> Rung:
@@ -794,20 +799,37 @@ def main(argv: list[str] | None = None) -> int:
             if (run_dir / "outcome.json").is_file():
                 continue
             begun = time.monotonic()
-            if (run_dir / "run.json").is_file():  # recorded, not classified: classify it
-                outcome = finish_unit(
-                    unit, tasks=tasks, payloads=payloads, out=out, envelopes_table=table
-                )
-            else:
-                outcome = run_unit(
-                    unit,
-                    tasks=tasks,
-                    payloads=payloads,
-                    stack=stack,
-                    out=out,
-                    ollama_url=args.ollama_url,
-                    envelopes_table=table,
-                )
+            try:
+                if (run_dir / "run.json").is_file():  # recorded, not classified: classify it
+                    outcome = finish_unit(
+                        unit, tasks=tasks, payloads=payloads, out=out, envelopes_table=table
+                    )
+                else:
+                    outcome = run_unit(
+                        unit,
+                        tasks=tasks,
+                        payloads=payloads,
+                        stack=stack,
+                        out=out,
+                        ollama_url=args.ollama_url,
+                        envelopes_table=table,
+                    )
+            except Exception as exc:
+                if not (run_dir / "run.json").is_file():
+                    raise
+                # A record the oracle cannot classify (T31 review 3, nit 3): the unit keeps its
+                # record and no outcome, the campaign goes on, the summary names it missing, and a
+                # `--resume` after the oracle's fix classifies it from the record.
+                line = {
+                    "unit": unit["id"],
+                    "index": index,
+                    "of": len(units),
+                    "oracle_error": f"{type(exc).__name__}: {exc}"[:500],
+                }
+                with open(out / "progress.jsonl", "a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(line) + "\n")
+                print(json.dumps(line), flush=True)
+                continue
             line = {
                 "unit": unit["id"],
                 "index": index,

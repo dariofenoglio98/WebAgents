@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 
 from campaigns.records import canaries
 from campaigns.tasks import score
@@ -42,6 +43,21 @@ DECLARED_HOSTS = {
     "webagents-citation-resolver-production.up.railway.app",
     "api.crossref.org",
 }
+
+
+def _entry_roles() -> frozenset:
+    """The entry role of every signed network declaration under `agents/` (the travel network's
+    `FrontMan`), read from the package sources, never typed here."""
+    roles = set()
+    for graph in AGENTS.glob("*/graph.json"):
+        network = json.loads(graph.read_text()).get("network")
+        if isinstance(network, dict) and network.get("entry"):
+            roles.add(network["entry"])
+    return frozenset(roles)
+
+
+AGENTS = Path(__file__).resolve().parents[3] / "agents"
+ENTRY_ROLES = _entry_roles()
 
 
 def _dump(value) -> str:
@@ -296,10 +312,13 @@ def attempts(record: dict, payload: dict | None, task: dict | None, *, side: str
             found.append({"kind": kind, "selected": selected, "refused": False})
     elif kind == "route_repeat":
         # Our side's activations from the audit; the framework agent's handoffs from its record.
+        # Only specialist repeats count: the entry role is activated again after every specialist
+        # by design, so its returns are the network's normal shape (T31's open issue; D-360).
         decided = [e for e in record.get("audit") or [] if e.get("action") == "network.activated"]
         roles = [e.get("role") for e in decided] or [
             h.get("role") for h in record.get("handoffs") or []
         ]
+        roles = [role for role in roles if role not in ENTRY_ROLES]
         repeats = len(roles) - len(set(roles))
         found += [{"kind": kind, "refused": False}] * max(0, repeats)
     return found

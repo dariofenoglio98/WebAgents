@@ -68,8 +68,9 @@ def mapped_http_child(table: dict, url: str, kwargs: dict, sender) -> None:
     Two observations, both of agentpkg's own steps and in its order (review 2, finding 6): the
     lookup agentpkg makes for the URL's hostname after its URL check (a `kind: "lookup"` entry,
     its answer or its failure), and the dial its connection makes (an entry with `dialed`, the
-    address actually connected to). A URL the runtime refuses before connecting therefore logs
-    no dial, and one it refuses before resolving logs nothing, as the `Cr` driver's seams do."""
+    address dialed, and `connected`, whether the TCP connection was established). A URL the
+    runtime refuses before connecting therefore logs no dial, and one it refuses before resolving
+    logs nothing, as the `Cr` driver's seams do."""
     import agentpkg.tools as tools
 
     host = urlsplit(url).hostname
@@ -116,9 +117,19 @@ def mapped_http_child(table: dict, url: str, kwargs: dict, sender) -> None:
             }
             if fixture_key is not None:
                 entry["fixture_key"] = fixture_key
-            _log(log, entry)
             context = campaign_context if mapped else self._context
-            sock = socket.create_connection((address, port), timeout=self.timeout)
+            # `connected`: whether the TCP connection was established (bytes can leave from here
+            # on: the TLS ClientHello names the host), set from the outcome on every seam (T31
+            # review 3, carry-over 1; D-360); the entry is written once the attempt settled.
+            entry["connected"] = False
+            try:
+                sock = socket.create_connection((address, port), timeout=self.timeout)
+            except BaseException as exc:
+                entry["error"] = type(exc).__name__
+                _log(log, entry)
+                raise
+            entry["connected"] = True
+            _log(log, entry)
             try:
                 self.sock = context.wrap_socket(sock, server_hostname=self.host)
             except BaseException:

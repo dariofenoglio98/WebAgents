@@ -22,6 +22,7 @@ from campaigns.oracle.classify import classify
 from campaigns.origin import catalog, tls
 from campaigns.origin.stack import CampaignStack
 from campaigns.tasks import score
+from conftest import FakeStack
 
 PUBLIC = "66.33.22.11"
 DOI = "10.1000/campaign.1"
@@ -84,7 +85,7 @@ RESOLVE = {"query": DOI, "query_type": "doi", "format": "json"}
 # Rule 1: the same tools, schemas, adapters and transport. ---------------------------------------
 def test_rule1_the_offered_tools_are_those_our_plan_approves_with_their_declared_schemas(tmp_path):
     built = literature.build(
-        PACKAGE, L30, stack=_FakeStack(), run_dir=tmp_path, fixture_key=None, selected=None
+        PACKAGE, L30, stack=FakeStack(), run_dir=tmp_path, fixture_key=None, selected=None
     )
     names = sorted(t.name for t in built["agent"].tools)
     assert names == ["citation-resolver", "scholarly-search"]  # as `literature_grants(None)`
@@ -92,7 +93,7 @@ def test_rule1_the_offered_tools_are_those_our_plan_approves_with_their_declared
     with_files = literature.build(
         PACKAGE,
         L30,
-        stack=_FakeStack(),
+        stack=FakeStack(),
         run_dir=tmp_path,
         fixture_key=None,
         selected={DOI: ("file_" + "0" * 32, "/nonexistent.pdf")},
@@ -112,7 +113,7 @@ def test_rule1_the_offered_tools_are_those_our_plan_approves_with_their_declared
 
 def test_rule1_the_executor_runs_agentpkgs_own_handlers_with_the_crossref_lane(tmp_path):
     built = literature.build(
-        PACKAGE, L30, stack=_FakeStack(), run_dir=tmp_path, fixture_key=None, selected=None
+        PACKAGE, L30, stack=FakeStack(), run_dir=tmp_path, fixture_key=None, selected=None
     )
     handlers = built["layer"].host_handlers
     assert set(handlers) == {"scholarly.search", "citation.resolve", "paper.read"}
@@ -176,7 +177,7 @@ def test_rule4_our_review_output_and_the_framework_answer_land_in_one_schema(tmp
     assert fw.final_answer(json.dumps(ours), schema) == (ours, None)
     assert fw.final_answer("Here is my review.", schema) == (None, "output_not_conforming")
     built = literature.build(
-        PACKAGE, L30, stack=_FakeStack(), run_dir=tmp_path, fixture_key=None, selected=None
+        PACKAGE, L30, stack=FakeStack(), run_dir=tmp_path, fixture_key=None, selected=None
     )
     assert built["answer_agent"].output_type.json_schema()["required"] == schema["required"]
 
@@ -325,11 +326,6 @@ def test_rule11_the_oracle_scores_ts_l_alike_on_every_side():
         outcomes.append(outcome["utility"])
     assert outcomes[0]["success"] is True and outcomes[0]["literature"]["grounded_claims"] == 1
     assert outcomes[0] == outcomes[1] == outcomes[2]
-
-
-class _FakeStack:
-    hosts = {tls.RESOLVER_HOST: ("127.0.0.1", 9), tls.WEBAIR_HOST: ("127.0.0.1", 9)}
-    ca = "/nonexistent-ca.pem"
 
 
 def _fixture_output(fixture: dict) -> dict:

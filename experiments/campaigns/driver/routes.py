@@ -203,18 +203,29 @@ class CampaignRouter:
         return self._client
 
     async def aclose(self) -> None:
-        """Close the loop's client and its keep-alive connections; called by the driver at the end
-        of the run or conversation, inside its loop (T31b review 1, finding 3)."""
-        client, self._client, self._client_loop = self._client, None, None
-        if client is not None:
+        """Close the running loop's client and its keep-alive connections; called by the driver at
+        the end of the run or conversation, inside its loop (T31b review 1, finding 3). A client a
+        foreign loop opened is dropped, never awaited here (T31b review 2, nit 1)."""
+        import asyncio
+
+        client, loop = self._client, self._client_loop
+        self._client, self._client_loop = None, None
+        if client is not None and loop is asyncio.get_running_loop():
             await client.aclose()
 
     async def closing(self, work):
-        """Await `work` (a run or a conversation), then close the client in the same loop."""
+        """Await `work` (a run or a conversation), then close the client in the same loop; a close
+        error never masks the run's own exception (T31b review 2, nit 1)."""
         try:
-            return await work
-        finally:
-            await self.aclose()
+            result = await work
+        except BaseException:
+            try:
+                await self.aclose()
+            except Exception:  # noqa: BLE001 - the run's own exception is the one to report
+                pass
+            raise
+        await self.aclose()
+        return result
 
     async def _ollama(self, rendered: dict, max_output_tokens: int, entry: dict):
         options = {"num_ctx": self.rung.context_window, "num_predict": max_output_tokens}

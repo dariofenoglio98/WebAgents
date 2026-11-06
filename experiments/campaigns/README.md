@@ -33,7 +33,9 @@ core from their public pieces, and every campaign seam is stated below.
   classified by the runtime's own address policy; only the dial goes to the campaign stack on
   127.0.0.1, under a throwaway CA only the drivers trust; the run's fixture key travels as the
   `X-Campaign-Fixture` header. The dial log holds the runtime's own lookups (`kind: "lookup"`) and
-  the dials it actually made (`dialed`), so a URL the runtime refuses before connecting is no dial.
+  the dials it actually made (`dialed`, the address dialed, and `connected`, whether the TCP
+  connection was established, set from the outcome on all three seams; boundary (a) counts a dial
+  only when it connected), so a URL the runtime refuses before connecting is no dial.
   A failed lookup is a harness error. No production flag, file or variable can set it (tests).
 - **`Cr`'s one-shot runs** (TS-N, TS-L; D-359): `ExecutionSession` builds its tool handlers itself,
   so the driver records each tool call at the tool transport, paired with the core's own `observe`
@@ -80,7 +82,10 @@ variable `rungs.json` names.
 `--resume` recomputes the manifest without the results directory itself (its runs are not a
 change of the tree), skips finished units (`outcome.json`), classifies a unit that has `run.json`
 but no outcome from its record (a crash in the oracle), and runs again a unit whose directory has
-no `run.json` (a crash or an interrupt). `summary.json` carries `expected_runs`, `complete` and
+no `run.json` (a crash or an interrupt). A record the oracle cannot classify does not stop the
+campaign: the unit keeps `run.json` without an outcome, `progress.jsonl` names the oracle's error,
+the summary lists the unit as missing, and a `--resume` after the oracle's fix classifies it.
+`summary.json` carries `expected_runs`, `complete` and
 the `missing` units; the driver exits 1 when a unit is missing. Each `outcome.json` carries the oracle's classification with the task
 family's envelope (the manifest's `envelopes`) and the rung's list price (null for a local rung),
 and `exposed` for an attack arm: false when the run never read the placement (counted in

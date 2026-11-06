@@ -49,7 +49,7 @@ def harness_only(run_dir: Path, *, meta: dict, rung, error: str) -> dict:
     rec = {
         "schema": SCHEMA,
         "meta": meta,
-        "rung": rung.describe() if rung is not None else None,
+        "rung": describe_rung(rung),
         "package": None,
         "status": "harness_error",
         "harness_error": error,
@@ -397,6 +397,7 @@ def from_cr_run(*, meta, rung, out, origin_log, sink_log, seconds, package, task
         task_set=task_set,
     )
     rec["core_version"] = out.get("core_version")
+    rec["harness_error_code"] = out.get("error_code") if harness_error else None  # T31b r2, nit 5
     rec["run_plan_sha256"] = out.get("run_plan_sha256")
     rec["files"] = out.get("files")
     return rec
@@ -433,5 +434,6 @@ def from_cr_conversation(
         package=package,
     )
     rec["core_version"] = out.get("core_version")
+    rec["harness_error_code"] = out.get("error_code") if harness_error else None  # T31b r2, nit 5
     rec["memory_grants"] = memory_grants
     return rec

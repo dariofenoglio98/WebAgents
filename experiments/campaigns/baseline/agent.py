@@ -43,10 +43,9 @@ from openai import AsyncOpenAI
 from campaigns.baseline import ports, tools
 from campaigns.baseline.policies import build as policies
 from campaigns.driver import record
-from campaigns.driver.py_driver import prepare_memory, webair_grants
+from campaigns.driver.py_driver import FIXTURE_HOSTS, prepare_memory, webair_grants
 from campaigns.driver.responder import Responder
 from campaigns.driver.routes import Rung
-from campaigns.origin import tls
 
 set_tracing_disabled(True)
 
@@ -311,7 +310,7 @@ def run_webair(
             hosts=stack.hosts,
             ca=str(stack.ca),
             fixture_key=fixture_key,
-            fixture_hosts=(tls.WEBAIR_HOST,),
+            fixture_hosts=FIXTURE_HOSTS,
         ),
         memory_handlers=memory_handlers,
         responder=responder,
