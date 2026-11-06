@@ -116,6 +116,8 @@ export class EngineHost {
   private readonly answers = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   private loaded: Loaded | null = null;
   private loading: { entry: string; n_ctx: number } | null = null;
+  /** The load command the Worker holds now (set when it is sent, cleared when it settles): the only load a death can be blamed on (T41 review 3, finding 1). */
+  private loadSent: { entry: string; n_ctx: number } | null = null;
   /** The tail of the serial chain every load and unload joins (`serial`). */
   private gate: Promise<void> = Promise.resolve();
   private readonly users = new Map<string, string>();
@@ -149,7 +151,7 @@ export class EngineHost {
       if (data.ok) waiter.resolve(data.result);
       else waiter.reject(Object.assign(new Error(data.error.message), { code: data.error.code }));
     };
-    worker.onerror = () => void this.died("engine_worker_died", true);
+    worker.onerror = () => void this.died("engine_worker_died");
     this.worker = worker;
     return worker;
   }
@@ -166,12 +168,14 @@ export class EngineHost {
 
   /**
    * The Worker died (Chrome killed it, out of memory): fail everything waiting, record the context,
-   * never restart by itself. `record` is false for an unload that never answered: the model had
-   * already been given up, so no context failed to fit. The returned promise (also `dying`) settles
-   * once the context is recorded.
+   * never restart by itself. The context recorded is the phase's, not the cause's (T41 review 3,
+   * finding 1): the model loaded now, or the load the Worker holds; during an unload (the person's,
+   * the idle one or a switch's first step) neither exists, so nothing is recorded, whether the Worker
+   * died or the unload outlived its deadline. The returned promise (also `dying`) settles once the
+   * context is recorded.
    */
-  private died(reason: string, record: boolean): Promise<void> {
-    const death = this.dieNow(reason, record);
+  private died(reason: string): Promise<void> {
+    const death = this.dieNow(reason);
     this.dying = death;
     const settle = (): void => {
       if (this.dying === death) this.dying = null;
@@ -180,9 +184,9 @@ export class EngineHost {
     return death;
   }
 
-  private async dieNow(reason: string, record: boolean): Promise<void> {
+  private async dieNow(reason: string): Promise<void> {
     // A Worker that dies while loading is the classic "does not fit" (design §3): that context is recorded too.
-    const failed = record ? (this.loaded ?? (this.loading ? { entry: this.loading.entry, n_ctx: this.loading.n_ctx } : null)) : null;
+    const failed = this.loaded ?? this.loadSent;
     const error = Object.assign(new Error("The in-browser engine stopped (its Worker died, most likely out of GPU or main memory)"), { code: "model_unavailable", detail: { reason } });
     for (const waiter of this.answers.values()) waiter.reject(error);
     this.answers.clear();
@@ -253,7 +257,9 @@ export class EngineHost {
     this.deps.onChange?.();
     try {
       if (held !== null) await this.unloadNow();
+      this.loadSent = { entry: request.entry, n_ctx: request.n_ctx };
       const result = await this.withDeadline(this.ask<EngineLoadResult>({ kind: "load", entry: request.entry, files: row.files.map((file) => file.sha256), n_ctx: request.n_ctx, think: request.think, ...(request.n_gpu_layers === undefined ? {} : { n_gpu_layers: request.n_gpu_layers }) }), this.deps.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS, "engine_load_timeout", "load");
+      this.loadSent = null;
       this.loaded = { entry: request.entry, n_ctx: result.n_ctx, think: request.think, n_gpu_layers: request.n_gpu_layers ?? null, load: result, measured: false };
       await this.deps.models.update(request.entry, (current) => (current === null ? null : { ...current, last_used: this.now().toISOString() }));
       if (runId !== null) this.users.set(runId, request.entry);
@@ -269,6 +275,7 @@ export class EngineHost {
       throw new EngineRefusal("model_unavailable", `The in-browser engine could not load ${request.entry} (${error instanceof Error ? error.message.slice(0, 200) : "error"})`, { reason: code === "model_unavailable" ? (typeof reason === "string" ? reason : "engine_worker_died") : "load_failed", entry: request.entry });
     } finally {
       this.loading = null;
+      this.loadSent = null;
     }
   }
 
@@ -283,7 +290,7 @@ export class EngineHost {
     const deadline = new Promise<never>((_, reject) => {
       timer = (this.deps.setTimer ?? setTimeout)(() => {
         timer = null;
-        void this.died(reason, what === "load");
+        void this.died(reason);
         reject(Object.assign(new Error(`the ${what} did not finish within ${Math.round(ms / 1000)} s`), { code: "model_unavailable", detail: { reason } }));
       }, ms);
     });

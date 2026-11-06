@@ -472,6 +472,29 @@ describe("EngineHost: an unload that never answers", () => {
     expect((await models.get(OTHER.id))!.failed_context).toBeNull();
     expect((await models.get(SMALL.id))!.failed_context).toBeNull();
   });
+
+  // T41 review 3, finding 1: the same window, but the Worker dies (`onerror`) during the switch's
+  // unload instead of staying silent. The entry being loaded was never sent to it: nothing is recorded.
+  it("records nothing against either entry when the Worker dies during a switch's unload", async () => {
+    const { host, workers, models } = makeHost();
+    await host.ensure(load(SMALL), null);
+    workers[0]!.silentKinds.add("unload");
+    const switching = host.ensure(load(OTHER), "R");
+    await vi.waitFor(() => expect(workers[0]!.commands("unload")).toHaveLength(1));
+    expect(workers[0]!.commands("load")).toHaveLength(1);
+    workers[0]!.die();
+    await expect(switching).resolves.toMatchObject({ entry: OTHER.id });
+    expect(workers[0]!.terminated).toBe(true);
+    expect(workers).toHaveLength(2);
+    expect(workers[1]!.commands("load")).toHaveLength(1);
+    await settle();
+    expect((await models.get(OTHER.id))!.failed_context).toBeNull();
+    expect((await models.get(SMALL.id))!.failed_context).toBeNull();
+    expect(host.status()).toMatchObject({ loaded: { entry: OTHER.id }, last_failure: null });
+    // The entry loads again at that context: no failed_before.
+    await host.unload();
+    await expect(host.ensure(load(OTHER), "R")).resolves.toMatchObject({ entry: OTHER.id });
+  });
 });
 
 describe("EngineHost: a dead Worker", () => {
