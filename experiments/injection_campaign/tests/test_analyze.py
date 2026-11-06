@@ -160,3 +160,9 @@ def test_the_tables_are_never_written_into_a_results_directory(directory):
     with pytest.raises(SystemExit):
         analyze.main([str(directory), "--json", str(directory / "tables.json")])
     assert not (directory / "tables.json").exists()
+
+
+def test_the_findings_draft_lists_errors_defects_refusals_and_a_sample(directory):
+    text = analyze.findings_draft([directory], sample=5)
+    assert "## Harness errors" in text and "## Boundaries reached on our side" in text
+    assert text.count("- [ ] ") == 5

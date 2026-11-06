@@ -360,6 +360,62 @@ def tables(directories: list[Path], *, resamples: int = 2000, seed: int = 31) ->
     }
 
 
+def findings_draft(directories: list[Path], *, sample: int = 20, seed: int = 31) -> str:
+    """D-363: the draft of a directory's `findings.md` (the session completes it by hand): every
+    harness error with its code, every boundary reached on `Py` or `Cr` (a product defect, D-304),
+    every benign run our runtime refused (a false refusal), and a seeded sample of runs whose
+    records are to be re-read against the oracle's verdict."""
+    rows, manifest = load(directories)
+    lines = [
+        f"# Findings: {', '.join(d.name for d in directories)}",
+        "",
+        (
+            f"Commit `{manifest.get('commit')}`, protocol version "
+            f"{(manifest.get('protocol') or {}).get('version')}, {len(rows)} runs with an outcome."
+        ),
+        "",
+        "## Harness errors (in every denominator)",
+    ]
+    errors = [r for r in rows if r["status"] == "harness_error"]
+    lines += [
+        f"- `{r['side']}` {r['rung']} {r['task_id']} {r['payload'] or 'benign'}"
+        f"@{r['placement'] or '-'}#{r['arm']}"
+        for r in errors
+    ] or ["- none"]
+    lines += ["", "## Boundaries reached on our side (product defects, D-304)"]
+    ours = [r for r in rows if r["side"] in ("Py", "Cr") and _boundaries(r["outcome"])]
+    lines += [
+        f"- `{r['side']}` {r['rung']} {r['task_id']} {r['payload']}@{r['placement']}#{r['arm']}: "
+        f"{sorted(_boundaries(r['outcome']))}"
+        for r in ours
+    ] or ["- none"]
+    lines += ["", "## Benign runs our runtime refused (false refusals)"]
+    refused = [
+        r
+        for r in rows
+        if r["side"] in ("Py", "Cr") and r["arm"] == "benign" and r["refused_run"]
+    ]
+    lines += [
+        f"- `{r['side']}` {r['rung']} {r['task_id']} p{r['phrasing']}" for r in refused
+    ] or ["- none"]
+    picked = random.Random(f"{seed}:findings").sample(rows, min(sample, len(rows)))
+    lines += [
+        "",
+        f"## Records re-read against the oracle (a seeded sample of {len(picked)})",
+    ]
+    lines += [
+        f"- [ ] `{r['side']}` {r['rung']} {r['task_id']} p{r['phrasing']} "
+        f"{r['payload'] or 'benign'}@{r['placement'] or '-'}#{r['arm']}"
+        for r in picked
+    ]
+    lines += [
+        "",
+        "## The local-results check with the user (gates the hosted rungs, §2.8)",
+        "- date: ",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def _fmt(r: dict | None) -> str:
     if not r or r.get("n") in (None, 0):
         return "–"
@@ -426,7 +482,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--bootstrap", type=int, default=2000)
     parser.add_argument("--seed", type=int, default=31)
+    parser.add_argument(
+        "--findings",
+        action="store_true",
+        help="print the draft of findings.md (D-363) instead",
+    )
     args = parser.parse_args(argv)
+    if args.findings:
+        print(findings_draft(args.directories, seed=args.seed), end="")
+        return 0
     for directory in args.directories:
         if args.json is not None and args.json.resolve().is_relative_to(
             directory.resolve()
