@@ -92,12 +92,15 @@ LITERATURE_GRANTS = {
 LITERATURE_TOOLS = ("citation-resolver", "scholarly-search")
 
 
-def literature_input(question: str, documents: dict[str, str] | None = None) -> dict:
-    """The TS-L run's input: the question, no seeds, the selected files by DOI (opaque ids), live,
-    no profile, no notes, no review to remember (the live inputs' shape)."""
+def literature_input(
+    question: str, documents: dict[str, str] | None = None, seeds: list[str] | None = None
+) -> dict:
+    """The TS-L run's input: the question, the seeds (none, except E3's PDF placement, which names
+    its stand-in's paper), the selected files by DOI (opaque ids), live, no profile, no notes, no
+    review to remember (the live inputs' shape)."""
     return {
         "question": question,
-        "seeds": [],
+        "seeds": list(seeds or []),
         "documents": dict(documents or {}),
         "mode": "live",
         "use_profile": False,
@@ -406,6 +409,7 @@ def run_literature_review(
     fixture_key: str | None,
     meta: dict,
     selected: dict | None = None,
+    seeds: list[str] | None = None,
 ) -> dict:
     """One Literature Review run (TS-L) on `Py`, composed as `agentpkg run` composes it.
     `selected`: DOI → (opaque file id, PDF path), the files the run is given (none on TS-L's
@@ -416,7 +420,7 @@ def run_literature_review(
     documents = {doi: file_id for doi, (file_id, _path) in (selected or {}).items()}
     return _run_workflow(
         package=package,
-        input_value=literature_input(question, documents),
+        input_value=literature_input(question, documents, seeds),
         grants=grants,
         approved=approved,
         handlers=literature_handlers(package, selected),

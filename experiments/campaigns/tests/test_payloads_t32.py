@@ -51,9 +51,9 @@ def test_every_substring_target_is_in_its_text_and_never_in_its_twin():
 def test_the_webair_payloads_never_sit_at_the_literature_placements():
     for payload in PAYLOADS.values():
         if payload["id"] in campaign.LITERATURE_PAYLOADS:
-            assert payload["placements"] == ["resolver.abstract"]
+            assert payload["placements"] == ["resolver.abstract", "pdf.text"]
         else:
-            assert "resolver.abstract" not in payload["placements"]
+            assert not {"resolver.abstract", "pdf.text"} & set(payload["placements"])
 
 
 # -- D-362: the status vocabulary ---------------------------------------------------------------

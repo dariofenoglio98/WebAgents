@@ -92,6 +92,7 @@ PLACEMENT_REACH = {
     "record": ("W1", "W2", "W3", "W4", "W5", "TS-C"),
     "travel": ("TS-N",),
     "resolver": ("TS-L",),
+    "pdf": ("TS-L",),
 }
 # TS-C prepares a quote only in its booking shapes (refine and history never do).
 QUOTE_SHAPES = ("book", "rebuy")
@@ -509,6 +510,16 @@ def protocol_version(text: str) -> int | None:
     return max(versions) if versions else None
 
 
+def documents_digest() -> dict:
+    """TS-L's stand-in sources and the writer that builds them (D-360)."""
+    from campaigns.origin import documents
+
+    return {
+        "sources_sha256": documents.sources_sha256(),
+        "writer_sha256": _sha_file(Path(documents.__file__)),
+    }
+
+
 def manifest(
     *,
     preset: str,
@@ -564,6 +575,7 @@ def manifest(
         },
         "not_built": sorted(f"{side}:{task_set}" for side, task_set in NOT_BUILT),
         "payloads": catalog.catalog_digest(),
+        "documents": documents_digest(),
         "policies": {port: policies.sha256(port) for port in ports.PORTS},
         "instructions": {port: ports.instructions_sha256(port) for port in ports.PORTS},
         "rungs": described,
@@ -733,6 +745,11 @@ def exposure(rec: dict, arm: dict | None) -> bool | None:
             c.get("tool") == "travel.profile" and c.get("outcome") == "answered"
             for c in rec.get("tool_calls") or []
         )
+    if arm["placement"] in catalog.DOCUMENT_PLACEMENTS:  # the run read the selected stand-in
+        return any(
+            c.get("tool") == "paper-reader" and c.get("outcome") == "answered"
+            for c in rec.get("tool_calls") or []
+        )
     # The redirect placement's twin is the plain answer (D-351): served, nothing inserted.
     return any(
         entry.get("inserted") or entry.get("twin_plain") for entry in rec.get("origin_log") or []
@@ -750,8 +767,17 @@ def run_unit(
     payload = payloads[arm["payload"]] if arm else None
     fixture_key = profile_insertion = None
     grant_profile = False
+    selected = seeds = None
     if arm is not None:
-        if arm["placement"] in catalog.RECORD_PLACEMENTS:
+        if arm["placement"] in catalog.DOCUMENT_PLACEMENTS:
+            from campaigns.origin import documents
+
+            text = payload["text"] if arm["arm"] == "injected" else payload["twin"]
+            # Beside the run's own directory, written before it (the drivers create theirs).
+            selected, seeds = documents.selected_for(
+                unit["task_id"], text, out / "selected" / unit["id"]
+            )
+        elif arm["placement"] in catalog.RECORD_PLACEMENTS:
             profile_insertion = payload["text"] if arm["arm"] == "injected" else payload["twin"]
             grant_profile = True
         else:
@@ -767,6 +793,12 @@ def run_unit(
         "family": payload["family"] if payload else None,
         "responder": "R-facts",
     }
+    if selected:  # the stand-in's bytes, the same on every side (rule 5)
+        meta["selected_sha256"] = {
+            doi: hashlib.sha256(Path(path).read_bytes()).hexdigest()
+            for doi, (_file_id, path) in selected.items()
+        }
+        meta["seeds"] = seeds
     run_dir = out / "runs" / unit["id"]
     if run_dir.exists() and not (run_dir / "run.json").is_file():
         # A unit that crashed (or was interrupted) before writing its record: run it again.
@@ -780,6 +812,7 @@ def run_unit(
                 stack=stack,
                 fixture_key=fixture_key,
                 meta=meta,
+                **({"selected": selected, "seeds": seeds} if selected else {}),
             )
         elif unit["task_set"] == "TS-N":
             rec = _network_runner(unit["side"])(

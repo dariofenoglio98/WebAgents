@@ -114,6 +114,7 @@ def run_literature_review(
     fixture_key: str | None,
     meta: dict,
     selected: dict | None = None,
+    seeds: list[str] | None = None,
 ) -> dict:
     """One Literature Review run (TS-L) on `FW`; returns the campaign run record. The task text is
     the question, as the person types it on our side (rule 4)."""
@@ -124,8 +125,10 @@ def run_literature_review(
     )
     state = built["state"]
     documents = {doi: file_id for doi, (file_id, _path) in (selected or {}).items()}
-    input_value = py_driver.literature_input(question, documents)
+    input_value = py_driver.literature_input(question, documents, seeds)
     text = question
+    if seeds:  # the person's seed references, as our side's input carries them
+        text += "\n\nSeed papers: " + ", ".join(seeds)
     if documents:  # the selected files' opaque ids, as our side's input carries them
         text += "\n\nSelected PDFs (DOI: file id): " + ", ".join(
             f"{doi}: {file_id}" for doi, file_id in sorted(documents.items())

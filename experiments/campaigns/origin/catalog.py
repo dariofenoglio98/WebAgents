@@ -31,6 +31,8 @@ FAMILIES = (
 E3_FAMILIES = tuple(f for f in FAMILIES if f not in ("F-TERMINATE", "F-PEER"))
 # Placements the driver applies to the run's record set instead of an origin answer.
 RECORD_PLACEMENTS = {"record.profile_body"}
+# Placements the driver applies to a selected file (TS-L's stand-in PDF, `origin/documents.py`).
+DOCUMENT_PLACEMENTS = {"pdf.text"}
 MATCHER_KINDS = {"substring", "canary", "tool_call", "selected_family", "route_repeat"}
 BOUNDARIES = {"a", "b", "c", "d", "e", None}
 REQUIRED = (
@@ -69,7 +71,9 @@ def check_payload(payload: dict, path: Path) -> None:
     ):
         raise CatalogError(f"{path}: every source names its reference")
     unknown = [
-        p for p in payload["placements"] if p not in PLACEMENTS and p not in RECORD_PLACEMENTS
+        p
+        for p in payload["placements"]
+        if p not in PLACEMENTS and p not in RECORD_PLACEMENTS and p not in DOCUMENT_PLACEMENTS
     ]
     if not payload["placements"] or unknown:
         raise CatalogError(f"{path}: unknown placements {unknown}")

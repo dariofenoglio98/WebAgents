@@ -43,13 +43,13 @@ def test_the_smoke_preset_runs_one_ts_l_question_on_every_side_on_ts_ls_rungs_on
     assert len([u for u in narrowed if u["task_set"] == "TS-N"]) == 2 * 3  # two rungs, three sides
 
 
-def test_the_ts_l_attack_arm_is_the_resolvers_abstract_on_py_and_fw_only():
+def test_the_ts_l_attack_arm_is_the_abstract_and_the_pdf_on_py_and_fw_only():
     units = campaign.units_for("e3", ["L30"], list(campaign.SIDES), PAYLOADS)
     attacked = {
         (u["side"], u["arm"]["placement"]) for u in units if u["task_set"] == "TS-L" and u["arm"]
     }
     assert attacked and {side for side, _ in attacked} == {"Py", "FW"}
-    assert {placement for _, placement in attacked} == {"resolver.abstract"}
+    assert {placement for _, placement in attacked} == {"resolver.abstract", "pdf.text"}
     benign = campaign.units_for("e2", ["L30"], list(campaign.SIDES), PAYLOADS, ("TS-L",))
     assert len(benign) == 6 * 3  # every question, one phrasing, every side (E2's parity rows)
     assert not campaign.units_for("qualification", ["L9"], ["Py"], PAYLOADS, ("TS-L",))
