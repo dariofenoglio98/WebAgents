@@ -237,6 +237,7 @@ def test_an_oracle_failure_does_not_stop_the_campaign(tmp_path, monkeypatch):
         campaign, "summarize", lambda o, u: {"cells": {}, "complete": False, "missing": ["u1"]}
     )
     monkeypatch.setattr(stack_module, "CampaignStack", Stack)
+    monkeypatch.setattr(campaign, "route_ready", lambda rung: True)
     code = campaign.main(["--preset", "smoke", "--rungs", "L9", "--sides", "Py", "--out", str(out)])
     assert code == 1 and calls == ["u1", "u2"]
     lines = [json.loads(x) for x in (out / "progress.jsonl").read_text().splitlines()]

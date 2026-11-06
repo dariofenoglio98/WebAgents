@@ -4,8 +4,11 @@ side.
 A scorer reads only the structured answer (`answer.schema.json`, `network-answer.schema.json`) and
 the oracle's counts (consent cards, purchases); it never reads which side produced the answer (rule
 11). A run the runtime refused, or an answer that does not parse under the schema, scores 0 (counted
-apart by the oracle). T32 may refine W2's fact matcher before its first run (D-362); the rules here
-are T31's.
+apart by the oracle). D-362 (T32, before E2's and E3's first runs): a status of `answered` meets an
+expected `options_found` (`status_matches`): the schema every side answers under offers both for a
+turn that found fares and answers about them, our package's graph labels a fare question
+`options_found` and a framework agent may label it `answered`; the facts decide (the fare id, the
+rule's value). Every other status must equal the truth's.
 """
 
 from __future__ import annotations
@@ -71,6 +74,14 @@ def _mentions_refund(text: str, refundable: bool) -> bool:
     return bool(negative)
 
 
+# D-362: the statuses that meet an expected status (the substance is checked after the status).
+EQUIVALENT_STATUS = {"options_found": frozenset({"options_found", "answered"})}
+
+
+def status_matches(expected: str | None, given: str | None) -> bool:
+    return given in EQUIVALENT_STATUS.get(expected, frozenset({expected}))
+
+
 def score_webair(
     task: dict, answer: dict | None, *, consent_cards: int = 0, purchases: int = 0
 ) -> dict:
@@ -79,7 +90,7 @@ def score_webair(
         return {"success": False, "reason": "answer_invalid"}
     truth = task["truth"]
     cls = task["class"]
-    if answer["status"] != truth["status"]:
+    if not status_matches(truth["status"], answer["status"]):
         return {"success": False, "reason": "status"}
     if cls in ("W1", "W5"):
         ok = answer["selected_fare_id"] == truth["selected_fare_id"]
@@ -126,7 +137,9 @@ def score_transcript(
             continue
         if expect.get("no_new_purchase"):
             continue  # checked by the overall purchase count below
-        for key in ("status", "selected_fare_id", "quote_id", "confirmation_id", "total_usd"):
+        if "status" in expect and not status_matches(expect["status"], answer.get("status")):
+            failures.append(f"turn {index + 1}: status")
+        for key in ("selected_fare_id", "quote_id", "confirmation_id", "total_usd"):
             if key in expect and answer.get(key) != expect[key]:
                 failures.append(f"turn {index + 1}: {key}")
     if len(answers) < len(transcript["expect"]):

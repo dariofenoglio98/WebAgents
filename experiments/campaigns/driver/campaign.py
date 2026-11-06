@@ -495,6 +495,20 @@ def prices_for(rung_name: str) -> dict | None:
     return {"input_per_mtok": price["input"], "output_per_mtok": price["output"]}
 
 
+def protocol_version(text: str) -> int | None:
+    """The protocol's current version: the highest in §9.2's amendment table's last column, else the
+    Status line's (registration). The Status line is never edited after registration (§9.1), so it
+    alone would say version 1 for ever (T32)."""
+    status = re.search(r"\*\*Status\.\*\* Version (\d+)", text)
+    versions = [int(status.group(1))] if status else []
+    section = text.split("### 9.2 Amendments", 1)[-1] if "### 9.2 Amendments" in text else ""
+    for line in section.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if line.startswith("| 20") and cells and re.match(r"^\d+\b", cells[-1]):
+            versions.append(int(re.match(r"^(\d+)", cells[-1]).group(1)))
+    return max(versions) if versions else None
+
+
 def manifest(
     *,
     preset: str,
@@ -522,7 +536,6 @@ def manifest(
         }
     status, diff = tree_state(out)
     protocol_text = PROTOCOL.read_text()
-    version = re.search(r"\*\*Status\.\*\* Version (\d+)", protocol_text)
     return {
         "schema": "campaign.manifest.v1",
         "commit": _git("rev-parse", "HEAD").strip(),
@@ -530,7 +543,7 @@ def manifest(
         "dirty_fingerprint": hashlib.sha256((status + diff).encode()).hexdigest(),
         "protocol": {
             "sha256": hashlib.sha256(protocol_text.encode()).hexdigest(),
-            "version": int(version.group(1)) if version else None,
+            "version": protocol_version(protocol_text),
         },
         "seed": seed,
         "preset": preset,
@@ -644,6 +657,70 @@ def promote_failed_lookup(rec: dict) -> dict:
     return rec
 
 
+# D-361: a route that did not answer is our infrastructure's failure (a harness error, every side
+# alike); a model too slow for the shared deadline is the run's own failure (utility 0, never a
+# harness error). The codes each side records for a call the route never answered:
+ROUTE_FAILURES = {
+    # `Py`'s route (`routes.CampaignRouter`): the transport's exception, or the code of an HTTP
+    # status the route refused (`model_unavailable`, its 4xx/5xx and a missing key)
+    "ConnectError",
+    "ConnectTimeout",
+    "RemoteProtocolError",
+    "ReadError",
+    "WriteError",
+    "PoolTimeout",
+    "model_unavailable",
+    # `FW` (the OpenAI client under the Agents SDK)
+    "APIConnectionError",
+    "InternalServerError",
+    "APIStatusError",
+    "RateLimitError",
+    "ServiceUnavailableError",
+}
+# Timeouts stay run failures: `Py` ReadTimeout, `FW` APITimeoutError and `deadline`, `Cr`
+# `model_call_timeout`.
+
+
+def promote_route_failure(rec: dict) -> dict:
+    """D-361: a run whose route did not answer a model call is a harness error, on every side: a
+    recorded call error or outcome in `ROUTE_FAILURES`, or (`Cr`) a call the seam saw leave with no
+    HTTP status back while the core ended the run `model_unavailable`."""
+    if rec["status"] == "harness_error":
+        return rec
+    failed = [
+        c
+        for c in rec.get("model_calls") or []
+        if c.get("error") in ROUTE_FAILURES or c.get("outcome") in ROUTE_FAILURES
+    ]
+    codes = {t.get("error_code") for t in rec.get("turns") or []}
+    if not failed and "model_unavailable" in codes:
+        failed = [c for c in rec.get("model_calls") or [] if c.get("url") and not c.get("status")]
+    if failed:
+        rec["status"] = "harness_error"
+        code = failed[0].get("error") or failed[0].get("outcome") or "no_answer"
+        rec["harness_error"] = f"route_unavailable: {code}"
+    return rec
+
+
+def route_ready(rung: Rung, *, wait_seconds: float = 1800, poll: float = 15) -> bool:
+    """Before a unit on a local rung: wait while the Ollama route does not answer (a tunnel drop,
+    a requeued server job), so an outage delays units instead of spending them (D-361). The
+    hosted rungs are not probed. False when the route stayed down for `wait_seconds`."""
+    if rung.provider != "ollama":
+        return True
+    import httpx
+
+    deadline = time.monotonic() + wait_seconds
+    while True:
+        try:
+            httpx.get(f"{rung.base_url.rstrip('/')}/api/version", timeout=10).raise_for_status()
+            return True
+        except httpx.HTTPError:
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(poll)
+
+
 def exposure(rec: dict, arm: dict | None) -> bool | None:
     """Whether an arm's text reached the run (review 1, finding 5): the origin inserted it into an
     answer the run fetched, or the run read the profile it was appended to. A run that never read
@@ -732,6 +809,7 @@ def run_unit(
             run_dir, meta=meta, rung=rung, error=f"{type(exc).__name__}: {exc}"[:500]
         )
     promote_failed_lookup(rec)
+    promote_route_failure(rec)
     record.write(run_dir, rec)
     return finish_unit(
         unit, tasks=tasks, payloads=payloads, out=out, envelopes_table=envelopes_table
@@ -831,6 +909,20 @@ def main(argv: list[str] | None = None) -> int:
         default=",".join(TASK_SETS),
         help="comma-separated task sets to keep from the preset (recorded in the manifest)",
     )
+    parser.add_argument(
+        "--server-info",
+        type=Path,
+        default=None,
+        help="the cluster server's description (cluster/ollama-server.sbatch writes it): its "
+        "version, environment and model digests go into the manifest, its job, node, port and GPU "
+        "into server.jsonl (D-363)",
+    )
+    parser.add_argument(
+        "--tasks",
+        default=None,
+        help="comma-separated task ids to keep from the preset (scratch and qualification checks; "
+        "recorded in the manifest; never for a paper directory)",
+    )
     parser.add_argument("--resume", action="store_true")
     parser.add_argument(
         "--shard",
@@ -859,6 +951,11 @@ def main(argv: list[str] | None = None) -> int:
         units = ordered(units_for(args.preset, rungs, sides, payloads, task_sets), rungs, args.seed)
     except ValueError as exc:
         parser.error(str(exc))
+    only = [t for t in (args.tasks or "").split(",") if t]
+    if only:
+        if args.preset == "paper":
+            parser.error("--tasks never narrows a paper directory")
+        units = [u for u in units if u["task_id"] in only]
     out = Path(args.out)
     wanted = manifest(
         preset=args.preset,
@@ -870,6 +967,14 @@ def main(argv: list[str] | None = None) -> int:
         out=out,
         task_sets=task_sets,
     )
+    wanted["tasks_selected"] = only or None
+    server = None
+    if args.server_info is not None:
+        server = json.loads(args.server_info.read_text())
+        # What must not change across a resume (a requeued job may move node, port and GPU slice).
+        wanted["served"] = {k: server.get(k) for k in ("ollama_version", "env", "models")}
+    else:
+        wanted["served"] = None
     path = out / "manifest.json"
     fresh = False
     if not args.resume:
@@ -897,6 +1002,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"campaign: the manifest changed ({', '.join(changed)}); refusing to resume")
             return 2
     mine = units if shard is None else units[shard[0] :: shard[1]]
+    if server is not None and not args.dry_run:
+        entry = {
+            "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "shard": args.shard,
+            **server,
+        }
+        with open(out / "server.jsonl", "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry) + "\n")
     if args.dry_run:
         print(json.dumps({"manifest": str(path), "expected_runs": len(units)}))
         return 0
@@ -915,6 +1028,11 @@ def main(argv: list[str] | None = None) -> int:
             if (run_dir / "outcome.json").is_file():
                 continue
             begun = time.monotonic()
+            if not (run_dir / "run.json").is_file() and not route_ready(
+                rung_of(unit["rung"], args.ollama_url)
+            ):
+                print(f"campaign: the route of {unit['rung']} stayed down; stopping", flush=True)
+                break
             try:
                 if (run_dir / "run.json").is_file():  # recorded, not classified: classify it
                     outcome = finish_unit(
