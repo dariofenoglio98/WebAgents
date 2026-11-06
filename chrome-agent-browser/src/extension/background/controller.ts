@@ -114,6 +114,7 @@ import { MemoryConversationStore, type ConversationStore } from "../storage/conv
 import { ConversationManager } from "./conversations.js";
 import { inputGatedReads } from "../../core/inputs.js";
 import { isTerminal, RunManager, type ExecutionHostBridge, type RunHooks } from "./runs.js";
+import { HostReplyError } from "./offscreen-host.js";
 
 export interface Limits {
   sessionTtlSeconds: number;
@@ -1834,16 +1835,25 @@ export class Controller {
   private catalogProbe: Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> | null = null;
   /** Bumped when the settings change: a probe started before then does not write the cache. */
   private catalogGeneration = 0;
-  /** The held catalog an in-browser rebuild started from (`refreshInBrowserCatalog`), until it lands. */
+  /** Each probe's start order: a probe never overwrites the cache a later-started one wrote (T41 review 2, nit 4). */
+  private catalogStarted = 0;
+  private catalogWritten = 0;
+  /** The probe in progress that asks every provider (no answers in hand), if any. */
+  private catalogFullProbe: Promise<unknown> | null = null;
+  /** The answers an in-browser rebuild or a merge started from (`rebuildCatalogFrom`), until the latest lands. */
   private inBrowserBase: { catalog: HostCatalog; probes: ProbeResult[]; at: number } | null = null;
   private inBrowserRebuild: Promise<unknown> | null = null;
+  /** The full probe an in-browser refresh waits for (`refreshInBrowserCatalog`), so one tick chains once. */
+  private inBrowserAfter: Promise<unknown> | null = null;
 
   private invalidateCatalog(): void {
     this.catalogCache = null;
     this.catalogProbe = null;
+    this.catalogFullProbe = null;
     this.catalogGeneration += 1;
     this.inBrowserBase = null;
     this.inBrowserRebuild = null;
+    this.inBrowserAfter = null;
   }
 
   /**
@@ -1855,6 +1865,7 @@ export class Controller {
     if (this.catalogCache && this.clock().getTime() - this.catalogCache.at < maxAgeMs) return this.catalogCache;
     if (this.catalogProbe && !probed) return this.catalogProbe;
     const generation = this.catalogGeneration;
+    const order = ++this.catalogStarted;
     const probe = (async () => {
       const settings = await this.deps.settings.settings();
       const connections = connectionsFor(settings, await this.deps.settings.keyPresence());
@@ -1862,16 +1873,21 @@ export class Controller {
       // The in-browser route's facts (T41): the cache, the list and the machine, read without a network request or the engine.
       const inBrowser = connections.some((connection) => connection.provider === "in-browser" && connection.enabled) ? await this.inBrowser.probeInput(settings).catch(() => null) : null;
       const result = await buildHostCatalog(connections, this.deps.http, { builtin, inBrowser, runtimeVersion: this.version, now: this.clock(), probed });
-      // Stamped when the answers land (or with its oldest source's time), and only if the settings
-      // did not change meanwhile.
-      if (this.catalogGeneration === generation) this.catalogCache = { ...result, at: stampAt ?? this.clock().getTime() };
+      // Stamped when the answers land (or with its oldest source's time), only if the settings did
+      // not change meanwhile, and only if no probe started after this one has written already.
+      if (this.catalogGeneration === generation && order > this.catalogWritten) {
+        this.catalogCache = { ...result, at: stampAt ?? this.clock().getTime() };
+        this.catalogWritten = order;
+      }
       return result;
     })();
     this.catalogProbe = probe;
+    if (!probed) this.catalogFullProbe = probe;
     try {
       return await probe;
     } finally {
       if (this.catalogProbe === probe) this.catalogProbe = null;
+      if (this.catalogFullProbe === probe) this.catalogFullProbe = null;
     }
   }
 
@@ -1889,21 +1905,37 @@ export class Controller {
    * download): only the in-browser part of the held catalog is built again, from the cache and the
    * machine facts (no network); the other providers' answers are kept with their time (T41
    * review 1, nit 9). The rebuild starts synchronously, so a check made meanwhile joins it rather
-   * than reading the old in-browser part. With no catalog held, or a full probe running, the next
-   * check builds a whole one.
+   * than reading the old in-browser part; rebuilds land in the order they started (T41 review 2,
+   * nit 4). While a full probe runs, the rebuild waits for it instead of discarding it (nit 5);
+   * with neither a catalog nor a probe, the next check builds a whole one.
    */
   private refreshInBrowserCatalog(): void {
-    // The ticks come faster than a rebuild may finish: the other providers' answers are kept in
-    // `inBrowserBase` until the rebuild lands, so a tick during one starts another from them.
-    const held = this.catalogCache ?? this.inBrowserBase;
-    if (held === null || (this.catalogProbe !== null && this.inBrowserBase === null)) {
-      this.invalidateCatalog();
+    const full = this.catalogFullProbe;
+    if (full !== null) {
+      if (this.inBrowserAfter === full) return; // already chained
+      this.inBrowserAfter = full;
+      void full
+        .catch(() => undefined)
+        .then(() => {
+          if (this.inBrowserAfter !== full) return;
+          this.inBrowserAfter = null;
+          this.refreshInBrowserCatalog();
+        });
       return;
     }
-    this.inBrowserBase = held;
-    const probed = new Map<ProviderId, ProbeResult>(held.probes.filter((item) => item.provider !== "in-browser").map((item) => [item.provider, item]));
+    // The ticks come faster than a rebuild may finish: the other providers' answers are kept in
+    // `inBrowserBase` until the latest rebuild lands, so a tick during one starts another from them.
+    const held = this.catalogCache ?? this.inBrowserBase;
+    if (held === null) return;
+    void this.rebuildCatalogFrom(held).catch(() => undefined);
+  }
+
+  /** Build the catalog again from `base`'s answers except the in-browser one, which is read afresh (no network). */
+  private rebuildCatalogFrom(base: { catalog: HostCatalog; probes: ProbeResult[]; at: number }): Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> {
+    this.inBrowserBase = base;
+    const probed = new Map<ProviderId, ProbeResult>(base.probes.filter((item) => item.provider !== "in-browser").map((item) => [item.provider, item]));
     this.catalogCache = null;
-    const rebuild = this.catalog(0, probed, held.at);
+    const rebuild = this.catalog(0, probed, base.at);
     this.inBrowserRebuild = rebuild;
     void rebuild
       .catch(() => undefined)
@@ -1912,6 +1944,7 @@ export class Controller {
         this.inBrowserRebuild = null;
         this.inBrowserBase = null;
       });
+    return rebuild;
   }
 
   /**
@@ -1919,16 +1952,18 @@ export class Controller {
    * others are not asked again. The merged catalog keeps the held catalog's time: every other
    * provider's part is that old, and a Test connection of one provider must not make an old answer
    * of another look fresh (T5a review 2). A settings change since the test started (`generation`)
-   * means the answer may describe the old endpoint, so it is not merged at all.
+   * means the answer may describe the old endpoint, so it is not merged at all. The merge becomes
+   * the base later in-browser rebuilds start from, so a download's tick does not drop it (T41
+   * review 2, nit 4).
    */
   private async mergeProbe(result: ProbeResult, generation: number): Promise<void> {
     if (this.catalogProbe) await this.catalogProbe.catch(() => undefined);
     if (generation !== this.catalogGeneration) return;
-    const held = this.catalogCache;
+    const held = this.catalogCache ?? this.inBrowserBase;
     if (held === null) return; // the next check builds a whole catalog
     const probed = new Map<ProviderId, ProbeResult>(held.probes.map((item) => [item.provider, item]));
     probed.set(result.provider, result);
-    await this.catalog(0, probed, held.at);
+    await this.rebuildCatalogFrom({ ...held, probes: [...probed.values()] });
   }
 
   /**
@@ -2032,9 +2067,9 @@ export class Controller {
     } catch (error) {
       if (error instanceof InBrowserError) throw reject(error.code, error.message, error.status);
       if (error instanceof CoreError) throw error;
-      const said = error instanceof Error ? error.message : "the engine failed";
-      const coded = /^([a-z_]+): (.*)$/su.exec(said);
-      throw reject(coded ? coded[1]! : "engine_error", coded ? coded[2]! : said, 409);
+      // The execution host's refusal keeps its code and words (T41 review 2, nit 7); anything else is the engine's failure.
+      if (error instanceof HostReplyError) throw reject(error.code, error.reason, 409);
+      throw reject("engine_error", error instanceof Error ? error.message : "the engine failed", 409);
     } finally {
       this.invalidateCatalog();
       this.inBrowser.invalidate();

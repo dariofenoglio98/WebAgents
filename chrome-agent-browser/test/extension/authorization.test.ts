@@ -14,6 +14,8 @@ import { describe, expect, it, vi } from "vitest";
 import { CoreError } from "../../src/core/errors.js";
 import { parseRequest, type AuthorizationView, type AuthorizeResult, type ModelsView, type RunPlanState, type SessionView, type SettingsView, type MemoryView } from "../../src/extension/messages.js";
 import { MemoryTrustStorage } from "../../src/core/trust.js";
+import type { InBrowserProbeInput } from "../../src/core/models/catalog.js";
+import { HostReplyError } from "../../src/extension/background/offscreen-host.js";
 import { MemoryStorageArea, normalizeSettings, normalizeBaseUrl } from "../../src/extension/storage/settings.js";
 import { MemorySnapshotStore } from "../../src/extension/storage/snapshots.js";
 import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
@@ -430,6 +432,99 @@ describe("models, settings and the vault", () => {
     expect(tags()).toBe(1);
     expect(after.evaluation.models.filter((model) => model.provider_id === "in-browser")).toHaveLength(5);
     expect(after.evaluation.models.find((model) => model.model_id === QWEN)).toMatchObject({ available: true });
+  });
+
+  // T41 review 2, nits 4-5: the change ticks of a download and the catalog's other writers.
+  /** Hold every in-browser read of the cache until the test releases it, optionally changed; `release()` lets the rest through. */
+  function holdInBrowserReads(h: Harness) {
+    const service = h.controller.inBrowser;
+    const real = service.probeInput.bind(service);
+    const held: Array<(change?: (input: InBrowserProbeInput) => InBrowserProbeInput) => void> = [];
+    let holding = true;
+    vi.spyOn(service, "probeInput").mockImplementation(async (settings, loaded) => {
+      const input = await real(settings, loaded);
+      if (!holding) return input;
+      return new Promise<InBrowserProbeInput>((resolve) => held.push((change = (value) => value) => resolve(change(input))));
+    });
+    return Object.assign(held, {
+      release: () => {
+        holding = false;
+        for (const each of held.splice(0)) each();
+      },
+    });
+  }
+  const flush = async (): Promise<void> => {
+    for (let index = 0; index < 10; index += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+  };
+  const tick = (h: Harness) => h.controller.handle({ type: "host.modelsChanged" }, OFFSCREEN);
+
+  it("lets the latest-started in-browser rebuild win when an earlier one lands after it", async () => {
+    const h = makeHarness();
+    const session = await openWebair(h);
+    const evaluate = async () => (await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: false }, PAGE)) as ModelsView;
+    await evaluate();
+    const held = holdInBrowserReads(h);
+    await tick(h);
+    await tick(h);
+    await vi.waitFor(() => expect(held).toHaveLength(2));
+    held[1]!(); // the later tick's read: the cache as it is now
+    await flush();
+    held[0]!((input) => ({ ...input, entries: input.entries.slice(0, 1) })); // the earlier tick's, older, landing last
+    await flush();
+    expect((await evaluate()).evaluation.models.filter((model) => model.provider_id === "in-browser")).toHaveLength(5);
+  });
+
+  it("keeps a Test connection's answer when a download's tick arrives while it is merged", async () => {
+    const answers = { ...OLLAMA_ANSWERS };
+    const h = makeHarness({ http: answers });
+    const session = await openWebair(h);
+    const evaluate = async () => (await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: false }, PAGE)) as ModelsView;
+    expect((await evaluate()).evaluation.models.find((model) => model.model_id === QWEN)).toMatchObject({ available: true });
+    // Hold every catalog build at its built-in read, the step each one takes before the in-browser one.
+    const deps = (h.controller as unknown as { deps: { builtin: () => Promise<unknown> } }).deps;
+    const builtin = deps.builtin;
+    const held: Array<() => void> = [];
+    deps.builtin = () => new Promise((resolve) => held.push(() => resolve(builtin())));
+    answers["GET http://127.0.0.1:11434/api/tags"] = { models: [] };
+    const tested = h.controller.handle({ type: "models.probe", provider: "ollama" }, PAGE);
+    const tags = () => h.httpLog.filter((request) => request.url.endsWith("/api/tags")).length;
+    await vi.waitFor(() => expect(held).toHaveLength(1)); // the merge's build
+    await tick(h); // its rebuild starts from the merged answers, not the ones before them
+    await flush();
+    held[0]!();
+    await tested;
+    deps.builtin = builtin;
+    for (const each of held.slice(1)) each();
+    await flush();
+    expect((await evaluate()).evaluation.models.find((model) => model.model_id === QWEN)?.available ?? false).toBe(false);
+    expect(tags()).toBe(2); // the first evaluate and the Test connection: the merge was kept, not thrown away and asked again
+  });
+
+  it("lets a full probe that a tick interrupts write the catalog, then rebuilds the in-browser part from it", async () => {
+    const h = makeHarness();
+    const session = await openWebair(h);
+    const evaluate = async () => (await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: false }, PAGE)) as ModelsView;
+    const tags = () => h.httpLog.filter((request) => request.url.endsWith("/api/tags")).length;
+    const held = holdInBrowserReads(h);
+    const first = evaluate(); // no catalog held: a full probe
+    await vi.waitFor(() => expect(held).toHaveLength(1));
+    await tick(h); // the service worker restarted during a download
+    held[0]!();
+    await first;
+    held.release(); // the in-browser rebuild chained on the full probe reads the cache afresh
+    await flush();
+    expect(h.controller.inBrowser.probeInput).toHaveBeenCalledTimes(2);
+    await evaluate();
+    expect(tags()).toBe(1); // the full probe's answers were kept
+  });
+
+  // T41 review 2, nit 7: the host's refusal is read from its fields, never parsed out of a message.
+  it("keeps the execution host's refusal code for an in-browser action, and never reads one from an error's text", async () => {
+    const h = makeHarness();
+    vi.spyOn(h.controller.inBrowser, "unload").mockRejectedValueOnce(new HostReplyError("model_in_use", "Another run holds it"));
+    expect(await refused(h.controller.handle({ type: "inbrowser.unload" }, PAGE))).toMatchObject({ code: "model_in_use", message: "Another run holds it" });
+    vi.spyOn(h.controller.inBrowser, "unload").mockRejectedValueOnce(new Error("model_unavailable: forged"));
+    expect(await refused(h.controller.handle({ type: "inbrowser.unload" }, PAGE))).toMatchObject({ code: "engine_error", message: "model_unavailable: forged" });
   });
 
   it("settings normalize strictly, keys are stored apart and reported by presence only, and nothing goes to storage.sync", async () => {
