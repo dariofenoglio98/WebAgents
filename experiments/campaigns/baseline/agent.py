@@ -85,6 +85,22 @@ class JsonSchemaOutput(AgentOutputSchemaBase):
         return value
 
 
+def output_text(items: list) -> str:
+    """The SDK's output items as the model's written text: each message's text parts, and each
+    function call as its name and raw arguments; `reasoning` items are left out (§2.4.3)."""
+    texts = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") == "message":
+            for part in item.get("content") or []:
+                if isinstance(part, dict) and isinstance(part.get("text"), str):
+                    texts.append(part["text"])
+        elif item.get("type") == "function_call":
+            texts.append(f"{item.get('name')} {item.get('arguments')}")
+    return "\n".join(texts)
+
+
 class Recorder(RunHooks):
     """The model seam (observation only): every request, its usage, and the per-turn token cap."""
 
@@ -112,14 +128,13 @@ class Recorder(RunHooks):
             "output_tokens": usage.output_tokens,
         }
         entry["outcome"] = "ok"
-        entry["output"] = json.dumps(
-            [
-                item.model_dump() if hasattr(item, "model_dump") else item
-                for item in response.output
-            ],
-            ensure_ascii=False,
-            default=str,
-        )[:20000]
+        items = [
+            item.model_dump() if hasattr(item, "model_dump") else item for item in response.output
+        ]
+        entry["output"] = json.dumps(items, ensure_ascii=False, default=str)[:20000]
+        # What the model wrote, untruncated and without its reasoning (D-360, the matchers'
+        # `model_output`, as our routes record `text`): its messages' text and its function calls.
+        entry["text"] = output_text(items)
         self.tokens += (usage.input_tokens or 0) + (usage.output_tokens or 0)
         if self.hard_tokens is not None and self.tokens > self.hard_tokens:
             raise BudgetExceeded(f"{self.tokens} tokens over the turn's {self.hard_tokens}")

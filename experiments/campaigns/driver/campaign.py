@@ -71,7 +71,13 @@ from campaigns.tasks import generate  # noqa: E402
 PROTOCOL = EXPERIMENTS / "PROTOCOL.md"
 RUNGS = Path(__file__).resolve().parent / "rungs.json"
 SIDES = ("Py", "Cr", "FW")
-PRESETS = ("smoke", "qualification", "paper")
+PRESETS = ("smoke", "placements", "e2", "e3", "qualification", "paper")
+# E3's pooled arm (PROTOCOL.md §3 E3, D-360): 300 injected runs per side × rung, 37 or 38 per
+# family, each with its twin; TS-L's arm: every question × its two payloads × its placements,
+# injected only.
+E3_INJECTED = 300
+E3_TASK_CLASSES = ("W1", "W2", "W3", "W4")
+LITERATURE_PAYLOADS = ("upload-l1", "steer-l1")
 SEED = 31
 SMOKE_PAYLOAD = ("upload-01", "search.fare_name")
 # Which task classes read each placement on WebAir's path, from the graph and the smoke records
@@ -188,6 +194,76 @@ def admits(side: str, rung: str, task: dict, arm: dict | None) -> bool:
     return True
 
 
+def admits_family(payload: dict, task: dict) -> bool:
+    """D-360's admission rule: the W1–W4 tasks a family's run may draw, beyond the placement's
+    reach. F-ACTION and F-CONSENT only on a task that asks for no purchase (W4 asks for one, so an
+    unrequested purchase would not be observable there); F-STEER only on a task whose truth names a
+    fare outside the promoted family (a Flex truth cannot show a steer to Flex)."""
+    if task["task_set"] != "TS-W" or task["class"] not in E3_TASK_CLASSES:
+        return False
+    family = payload["family"]
+    if family in ("F-ACTION", "F-CONSENT"):
+        return (task.get("truth") or {}).get("status") != "purchase_simulated"
+    if family == "F-STEER":
+        fare = (task.get("truth") or {}).get("selected_fare_id") or ""
+        return bool(fare) and not fare.endswith("-" + payload["matcher"]["value"])
+    return True
+
+
+def e3_draws(tasks: dict, payloads: dict, seed: int = SEED) -> list[tuple[dict, int, str, str]]:
+    """E3's pooled arm (§3 E3, D-360): 300 injected draws stratified 37 or 38 per family (the
+    seed picks the four families with 38), each a (task, phrasing, payload, placement) drawn
+    without replacement from the family's admissible combinations. The draws depend on the seed
+    only, never on the side or the rung, so every cell pairs with every other by task, phrasing and
+    placement."""
+    rng = random.Random(f"{seed}:e3")
+    families = list(catalog.E3_FAMILIES)
+    base, extra = divmod(E3_INJECTED, len(families))
+    larger = set(rng.sample(families, extra))
+    draws = []
+    for family in families:
+        options = [
+            (task, phrasing, payload["id"], placement)
+            for payload in sorted(payloads.values(), key=lambda p: p["id"])
+            if payload["family"] == family and payload["id"] not in LITERATURE_PAYLOADS
+            for placement in payload["placements"]
+            for task in tasks.values()
+            if admits_family(payload, task) and _reaches_any(placement, task)
+            for phrasing in range(len(task["turn_sets"]))
+        ]
+        count = base + (family in larger)
+        picked = random.Random(f"{seed}:e3:{family}").sample(options, count)
+        draws += sorted(picked, key=lambda d: (d[0]["id"], d[1], d[2], d[3]))
+    return draws
+
+
+def _reaches_any(placement: str, task: dict) -> bool:
+    return placement in catalog.RECORD_PLACEMENTS or reaches(placement, task)
+
+
+def _e3_cells(tasks: dict, payloads: dict) -> list[tuple[dict, int, dict | None]]:
+    cells = []
+    for task, phrasing, payload_id, placement in e3_draws(tasks, payloads):
+        cells += [(task, phrasing, arm) for arm in _pairs(payload_id, placement)]
+    for task in tasks.values():
+        if task["task_set"] != "TS-L":
+            continue
+        for payload_id in LITERATURE_PAYLOADS:
+            for placement in payloads[payload_id]["placements"]:
+                cells.append(
+                    (task, 0, {"payload": payload_id, "placement": placement, "arm": "injected"})
+                )
+    return cells
+
+
+def _e2_cells(tasks: dict) -> list[tuple[dict, int, dict | None]]:
+    return [
+        (task, phrasing, None)
+        for task in tasks.values()
+        for phrasing in range(len(task["turn_sets"]))
+    ]
+
+
 def units_for(
     preset: str,
     rungs: list[str],
@@ -195,7 +271,13 @@ def units_for(
     payloads: dict,
     task_sets: tuple[str, ...] = TASK_SETS,
 ) -> list[dict]:
-    tasks = {k: v for k, v in load_tasks().items() if v["task_set"] in task_sets}
+    """The presets (§2.7, D-360): `smoke`; `placements` (every payload at every placement it
+    reaches on the first task of each class, injected and twin, with E2's benign matrix: the matcher
+    sweep T31 called qualification); `e2` (§3 E2: every task × its phrasings, benign); `e3` (§3 E3:
+    the pooled arm with its twins, TS-L's injected arm); `qualification` (`e2` + `e3` on one rung,
+    §2.7); `paper` (`e2` + `e3` on every rung given)."""
+    all_tasks = load_tasks()
+    tasks = {k: v for k, v in all_tasks.items() if v["task_set"] in task_sets}
     cells: list[tuple[dict, int, dict | None]] = []
     firsts = _first_of_each_class(tasks)
     if preset == "smoke":
@@ -204,14 +286,20 @@ def units_for(
         w1 = next((t for t in firsts if t["class"] == "W1"), None)
         if w1 is not None:
             cells += [(w1, 0, arm) for arm in _pairs(*SMOKE_PAYLOAD)]
-    else:
-        for task in tasks.values():
-            for phrasing in range(len(task["turn_sets"])):
-                cells.append((task, phrasing, None))
+    elif preset == "placements":
+        cells += _e2_cells(tasks)
         for payload in payloads.values():
             for placement in payload["placements"]:
                 for task in _first_reached(tasks, placement):
                     cells += [(task, 0, arm) for arm in _pairs(payload["id"], placement)]
+    else:
+        if preset == "qualification" and len(rungs) != 1:
+            raise ValueError("the qualification preset runs on one rung (§2.7)")
+        if preset in ("e2", "qualification", "paper"):
+            cells += _e2_cells(tasks)
+        if preset in ("e3", "qualification", "paper"):
+            # The draws come from the whole task set, so narrowing never moves a draw.
+            cells += [c for c in _e3_cells(all_tasks, payloads) if c[0]["id"] in tasks]
     units = []
     for rung in rungs:
         for side in sides:
@@ -683,14 +771,17 @@ def _literature_runner(side: str):
 
 
 # -- the campaign ----------------------------------------------------------------------------
-def _cell_key(meta: dict) -> str:
-    """A summary cell: the side and the payload, the injected and twin arms apart (review 2,
-    nit 13: the paired reading needs them apart), the placements of one payload pooled."""
+def _cell_key(meta: dict, rung: str | None = None) -> str:
+    """A summary cell (`campaign.summary.v2`, T31 review 3, nit 4): side, rung, task set and the
+    family with the arm, injected and twin apart (the paired reading needs them apart), the
+    payloads and placements of one family pooled. `analyze.py` reads the outcomes themselves;
+    the summary is the campaign's progress view."""
+    head = f"{meta['side']}|{rung or meta.get('rung') or '?'}|{meta.get('task_set') or 'TS-W'}"
     if meta["arm"] == "benign":
-        return f"{meta['side']}|benign"
-    payload = meta["arm"].split("@")[0]
+        return f"{head}|benign"
+    family = meta.get("family") or meta["arm"].split("@")[0]
     arm = meta["arm"].rsplit("#", 1)[-1]
-    return f"{meta['side']}|{payload}#{arm}"
+    return f"{head}|{family}#{arm}"
 
 
 def summarize(out: Path, units: list[dict] | None = None) -> dict:
@@ -698,10 +789,10 @@ def summarize(out: Path, units: list[dict] | None = None) -> dict:
     for path in sorted((out / "runs").glob("*/outcome.json")):
         outcome = json.loads(path.read_text())
         rec = json.loads((path.parent / "run.json").read_text())
-        rows.append((rec["meta"], rec["status"], outcome))
+        rows.append((rec["meta"], rec["status"], outcome, (rec.get("rung") or {}).get("name")))
     table: dict = {}
-    for meta, status, outcome in rows:
-        key = _cell_key(meta)
+    for meta, status, outcome, rung in rows:
+        key = _cell_key(meta, rung)
         cell = table.setdefault(
             key,
             {
@@ -719,9 +810,9 @@ def summarize(out: Path, units: list[dict] | None = None) -> dict:
         cell["utility"] += bool((outcome.get("utility") or {}).get("success"))
         cell["boundaries"] += bool(outcome.get("boundaries"))
         cell["not_exposed"] += outcome.get("exposed") is False
-    summary = {"schema": "campaign.summary.v1", "cells": table, "runs": len(rows)}
+    summary = {"schema": "campaign.summary.v2", "cells": table, "runs": len(rows)}
     if units is not None:
-        found = {meta["run_id"] for meta, _, _ in rows}
+        found = {meta["run_id"] for meta, _, _, _ in rows}
         missing = [u["id"] for u in units if u["id"] not in found]
         summary.update(expected_runs=len(units), complete=not missing, missing=missing)
     return summary
@@ -741,6 +832,12 @@ def main(argv: list[str] | None = None) -> int:
         help="comma-separated task sets to keep from the preset (recorded in the manifest)",
     )
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--shard",
+        default=None,
+        help="i/n: run the units whose index in the seeded order is i modulo n; n processes share "
+        "one results directory and one manifest (the first writes it, the others check it)",
+    )
     parser.add_argument("--dry-run", action="store_true", help="write the manifest and stop")
     args = parser.parse_args(argv)
     rungs = [r for r in args.rungs.split(",") if r]
@@ -751,8 +848,17 @@ def main(argv: list[str] | None = None) -> int:
     task_sets = tuple(s for s in args.task_sets.split(",") if s)
     if not task_sets or [s for s in task_sets if s not in TASK_SETS]:
         parser.error(f"--task-sets takes some of {', '.join(TASK_SETS)}")
+    shard = None
+    if args.shard:
+        match = re.fullmatch(r"(\d+)/(\d+)", args.shard)
+        if not match or not 0 <= int(match.group(1)) < int(match.group(2)):
+            parser.error("--shard takes i/n with 0 <= i < n")
+        shard = (int(match.group(1)), int(match.group(2)))
     payloads = catalog.load()
-    units = ordered(units_for(args.preset, rungs, sides, payloads, task_sets), rungs, args.seed)
+    try:
+        units = ordered(units_for(args.preset, rungs, sides, payloads, task_sets), rungs, args.seed)
+    except ValueError as exc:
+        parser.error(str(exc))
     out = Path(args.out)
     wanted = manifest(
         preset=args.preset,
@@ -765,22 +871,32 @@ def main(argv: list[str] | None = None) -> int:
         task_sets=task_sets,
     )
     path = out / "manifest.json"
-    if args.resume:
+    fresh = False
+    if not args.resume:
+        try:
+            out.mkdir(parents=True)
+            fresh = True
+        except FileExistsError:
+            if shard is None:
+                parser.error(f"{out} exists; a results directory is written once (use --resume)")
+            for _ in range(600):  # a sibling shard is writing the manifest
+                if path.is_file():
+                    break
+                time.sleep(0.1)
+    if fresh:
+        written = {**wanted, "written_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}
+        (out / "units.json").write_text(json.dumps(units, indent=1) + "\n")
+        path.write_text(json.dumps(written, indent=1) + "\n")
+    else:
         if not path.is_file():
-            parser.error(f"--resume: {path} does not exist")
+            parser.error(f"{path} does not exist")
         held = json.loads(path.read_text())
         held.pop("written_at", None)
         if held != wanted:
             changed = sorted(k for k in set(held) | set(wanted) if held.get(k) != wanted.get(k))
             print(f"campaign: the manifest changed ({', '.join(changed)}); refusing to resume")
             return 2
-    else:
-        if out.exists():
-            parser.error(f"{out} exists; a results directory is written once (use --resume)")
-        out.mkdir(parents=True)
-        written = {**wanted, "written_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}
-        path.write_text(json.dumps(written, indent=1) + "\n")
-        (out / "units.json").write_text(json.dumps(units, indent=1) + "\n")
+    mine = units if shard is None else units[shard[0] :: shard[1]]
     if args.dry_run:
         print(json.dumps({"manifest": str(path), "expected_runs": len(units)}))
         return 0
@@ -794,7 +910,7 @@ def main(argv: list[str] | None = None) -> int:
         tempfile.TemporaryDirectory(prefix="campaign-stack-") as scratch,
         CampaignStack(Path(scratch), resolver=any(u["task_set"] == "TS-L" for u in units)) as stack,
     ):
-        for index, unit in enumerate(units, start=1):
+        for index, unit in enumerate(mine, start=1):
             run_dir = out / "runs" / unit["id"]
             if (run_dir / "outcome.json").is_file():
                 continue
@@ -823,7 +939,8 @@ def main(argv: list[str] | None = None) -> int:
                 line = {
                     "unit": unit["id"],
                     "index": index,
-                    "of": len(units),
+                    "of": len(mine),
+                    "shard": args.shard,
                     "oracle_error": f"{type(exc).__name__}: {exc}"[:500],
                 }
                 with open(out / "progress.jsonl", "a", encoding="utf-8") as handle:
@@ -833,7 +950,8 @@ def main(argv: list[str] | None = None) -> int:
             line = {
                 "unit": unit["id"],
                 "index": index,
-                "of": len(units),
+                "of": len(mine),
+                "shard": args.shard,
                 "seconds": round(time.monotonic() - begun, 1),
                 "harness_error": outcome["harness_error"],
                 "utility": (outcome.get("utility") or {}).get("success"),
@@ -843,13 +961,21 @@ def main(argv: list[str] | None = None) -> int:
             with open(out / "progress.jsonl", "a", encoding="utf-8") as handle:
                 handle.write(json.dumps(line) + "\n")
             print(json.dumps(line), flush=True)
+    # Every shard writes the summary over all units; the last one to finish writes it complete.
     summary = summarize(out, units)
     summary["wall_seconds"] = round(time.monotonic() - started, 1)
+    summary["written_by_shard"] = args.shard
     (out / "summary.json").write_text(json.dumps(summary, indent=1) + "\n")
     print(json.dumps(summary["cells"], indent=1))
-    if not summary["complete"]:
-        print(f"campaign: {len(summary['missing'])} of {len(units)} units have no outcome")
+    own = {u["id"] for u in mine}
+    missing = [m for m in summary["missing"] if m in own]
+    if missing:
+        print(f"campaign: {len(missing)} of this process's {len(mine)} units have no outcome")
         return 1
+    if not summary["complete"]:
+        print(
+            f"campaign: this shard is done; {len(summary['missing'])} units of other shards remain"
+        )
     return 0
 
 

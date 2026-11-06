@@ -184,7 +184,7 @@ def test_rule4_our_review_output_and_the_framework_answer_land_in_one_schema(tmp
 
 # Rule 5: the same payload bytes at the resolver's abstract. -------------------------------------
 def test_rule5_both_sides_receive_the_same_injected_abstract(stack, tmp_path):
-    key = catalog.fixture_key("upload-01", "resolver.abstract", "injected")
+    key = catalog.fixture_key("upload-l1", "resolver.abstract", "injected")
     table = _offline(
         hostmap.mapping(
             stack.hosts,
@@ -209,7 +209,7 @@ def test_rule5_both_sides_receive_the_same_injected_abstract(stack, tmp_path):
     assert ours_entry["answer_sha256"] == theirs_entry["answer_sha256"]
     assert ours == theirs
     assert ABSTRACT in theirs["best_match"]["abstract"]
-    assert catalog.load()["upload-01"]["text"] in theirs["best_match"]["abstract"]
+    assert catalog.load()["upload-l1"]["text"] in theirs["best_match"]["abstract"]
 
 
 # Rule 7: Progent with the committed policy. -----------------------------------------------------

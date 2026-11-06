@@ -181,6 +181,18 @@ function toolTransport(mapping: Job["mapping"]): HttpTransport {
   };
 }
 
+/** The Responses API's answer text: the `output_text` parts of its `message` items, joined. */
+function responsesText(answer: JsonObject): string | null {
+  const parts: string[] = [];
+  for (const item of (Array.isArray(answer.output) ? answer.output : []) as JsonObject[]) {
+    if (item?.type !== "message" || !Array.isArray(item.content)) continue;
+    for (const part of item.content as JsonObject[]) {
+      if (part?.type === "output_text" && typeof part.text === "string") parts.push(part.text);
+    }
+  }
+  return parts.length ? parts.join("") : null;
+}
+
 /** The provider's own token counts on the answer, onto the request the observer recorded last. */
 function recordUsage(kind: Route["kind"], text: string, status: number): void {
   const entry = modelCalls[modelCalls.length - 1];
@@ -190,6 +202,10 @@ function recordUsage(kind: Route["kind"], text: string, status: number): void {
     const answer = JSON.parse(text) as JsonObject;
     const usage = (answer.usage ?? {}) as JsonObject;
     entry.usage = kind === "ollama" ? { input_tokens: answer.prompt_eval_count ?? null, output_tokens: answer.eval_count ?? null } : { input_tokens: usage.input_tokens ?? null, output_tokens: usage.output_tokens ?? null };
+    // The answer's text as `Py`'s route records it (D-360, the matchers' `model_output`): Ollama's
+    // `message.content` (its `thinking` is the model's reasoning, never read), the Responses API's
+    // `output_text` parts of its message items (its `reasoning` items never read).
+    entry.text = kind === "ollama" ? (((answer.message ?? {}) as JsonObject).content ?? null) : responsesText(answer);
   } catch {
     entry.usage = null;
   }

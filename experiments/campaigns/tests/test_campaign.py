@@ -44,13 +44,13 @@ def test_the_smoke_preset_runs_one_ts_l_question_on_every_side_on_ts_ls_rungs_on
 
 
 def test_the_ts_l_attack_arm_is_the_resolvers_abstract_on_py_and_fw_only():
-    units = campaign.units_for("qualification", ["L30"], list(campaign.SIDES), PAYLOADS)
+    units = campaign.units_for("e3", ["L30"], list(campaign.SIDES), PAYLOADS)
     attacked = {
         (u["side"], u["arm"]["placement"]) for u in units if u["task_set"] == "TS-L" and u["arm"]
     }
     assert attacked and {side for side, _ in attacked} == {"Py", "FW"}
     assert {placement for _, placement in attacked} == {"resolver.abstract"}
-    benign = [u for u in units if u["task_set"] == "TS-L" and u["arm"] is None]
+    benign = campaign.units_for("e2", ["L30"], list(campaign.SIDES), PAYLOADS, ("TS-L",))
     assert len(benign) == 6 * 3  # every question, one phrasing, every side (E2's parity rows)
     assert not campaign.units_for("qualification", ["L9"], ["Py"], PAYLOADS, ("TS-L",))
 
@@ -64,8 +64,8 @@ def test_the_literature_envelope_is_the_graphs_bound_and_the_policys_caps():
     assert campaign.envelope_for(unit, task, table)["model_calls"] == 48  # + the answer step
 
 
-def test_qualification_reaches_a_placement_only_where_the_path_reads_it():
-    units = campaign.units_for("qualification", ["L9"], ["Py"], PAYLOADS)
+def test_the_placement_sweep_reaches_a_placement_only_where_the_path_reads_it():
+    units = campaign.units_for("placements", ["L9"], ["Py"], PAYLOADS)
     tasks = campaign.load_tasks()
     for unit in units:
         if unit["arm"]:
@@ -350,12 +350,14 @@ def test_resume_classifies_a_recorded_unit_without_an_outcome_and_never_reruns_i
 
 
 def test_the_summary_keeps_the_injected_and_twin_arms_apart():
-    meta = {"side": "Py", "arm": "upload-01@search.fare_name#twin"}
-    assert campaign._cell_key(meta) == "Py|upload-01#twin"
-    assert campaign._cell_key({**meta, "arm": "upload-01@rules.change_summary#injected"}) == (
-        "Py|upload-01#injected"
+    meta = {"side": "Py", "task_set": "TS-W", "family": "F-UPLOAD"}
+    meta["arm"] = "upload-01@search.fare_name#twin"
+    assert campaign._cell_key(meta, "L9") == "Py|L9|TS-W|F-UPLOAD#twin"
+    assert campaign._cell_key({**meta, "arm": "upload-02@rules.change_summary#injected"}, "L9") == (
+        "Py|L9|TS-W|F-UPLOAD#injected"
     )
-    assert campaign._cell_key({"side": "FW", "arm": "benign"}) == "FW|benign"
+    benign = {"side": "FW", "task_set": "TS-C", "arm": "benign"}
+    assert campaign._cell_key(benign, "L4") == "FW|L4|TS-C|benign"
 
 
 def test_the_redirect_twin_is_exposed_as_the_plain_answer():
@@ -370,3 +372,81 @@ def test_an_unknown_side_has_no_driver_in_any_family():
             runner("XX")
     assert campaign._literature_runner("FW").__module__ == "campaigns.baseline.literature"
     assert campaign._network_runner("Cr").__module__ == "campaigns.driver.cr_driver"
+
+
+# -- T32: the presets of PROTOCOL.md §3 E2 and E3 (D-360) -------------------------------------
+def test_e3_is_300_injected_runs_per_cell_stratified_37_or_38_per_family_each_with_its_twin():
+    import collections
+
+    units = campaign.units_for("e3", ["L9"], ["Py"], PAYLOADS, ("TS-W",))
+    injected = [u for u in units if u["arm"]["arm"] == "injected"]
+    twins = [u for u in units if u["arm"]["arm"] == "twin"]
+    assert len(injected) == len(twins) == 300
+    by_family = collections.Counter(PAYLOADS[u["arm"]["payload"]]["family"] for u in injected)
+    assert set(by_family) == set(catalog.E3_FAMILIES)
+    assert sorted(by_family.values()) == [37] * 4 + [38] * 4
+    strip = lambda u: (u["task_id"], u["phrasing"], u["arm"]["payload"], u["arm"]["placement"])  # noqa: E731
+    assert sorted(map(strip, injected)) == sorted(map(strip, twins))  # every run has its twin
+    assert len(set(map(strip, injected))) == 300  # drawn without replacement
+
+
+def test_e3_draws_admit_only_the_families_tasks_and_reached_placements():
+    tasks = campaign.load_tasks()
+    for task, _phrasing, payload_id, placement in campaign.e3_draws(tasks, PAYLOADS):
+        payload = PAYLOADS[payload_id]
+        assert task["class"] in ("W1", "W2", "W3", "W4")
+        assert placement in payload["placements"]
+        assert placement in catalog.RECORD_PLACEMENTS or campaign.reaches(placement, task)
+        if payload["family"] in ("F-ACTION", "F-CONSENT"):
+            assert task["class"] != "W4"
+        if payload["family"] == "F-STEER":
+            assert not task["truth"]["selected_fare_id"].endswith("-FLEX")
+        assert payload_id not in campaign.LITERATURE_PAYLOADS
+
+
+def test_e3_cells_pair_across_sides_and_rungs():
+    """The draws depend on the seed only: every side and rung runs the same 600 arms."""
+    units = campaign.units_for("e3", ["L4", "L9"], list(campaign.SIDES), PAYLOADS, ("TS-W",))
+    arms = {}
+    for u in units:
+        arms.setdefault((u["side"], u["rung"]), set()).add(
+            (u["task_id"], u["phrasing"], campaign.arm_id(u["arm"]))
+        )
+    assert len(arms) == 6 and len({frozenset(v) for v in arms.values()}) == 1
+    assert all(len(v) == 600 for v in arms.values())
+
+
+def test_e3s_literature_arm_is_every_question_by_its_payloads_and_placements_injected_only():
+    units = campaign.units_for("e3", ["L30"], list(campaign.SIDES), PAYLOADS, ("TS-L",))
+    assert {u["side"] for u in units} == {"Py", "FW"}
+    per_side = [u for u in units if u["side"] == "Py"]
+    placements = sum(len(PAYLOADS[p]["placements"]) for p in campaign.LITERATURE_PAYLOADS)
+    assert len(per_side) == 6 * placements and {u["arm"]["arm"] for u in units} == {"injected"}
+
+
+def test_e2_is_every_task_by_its_phrasings_benign_and_paper_is_e2_plus_e3():
+    e2 = campaign.units_for("e2", ["L9"], ["FW"], PAYLOADS)
+    assert len(e2) == 40 * 3 + 20 * 3 + 12 and all(u["arm"] is None for u in e2)
+    e3 = campaign.units_for("e3", ["L9"], ["FW"], PAYLOADS)
+    paper = campaign.units_for("paper", ["L9"], ["FW"], PAYLOADS)
+    assert sorted(u["id"] for u in paper) == sorted(u["id"] for u in e2 + e3)
+    qualification = campaign.units_for("qualification", ["L9"], ["FW"], PAYLOADS)
+    assert sorted(u["id"] for u in qualification) == sorted(u["id"] for u in paper)
+    with pytest.raises(ValueError, match="one rung"):
+        campaign.units_for("qualification", ["L9", "L30"], ["FW"], PAYLOADS)
+
+
+def test_shards_partition_the_units_and_share_one_manifest(tmp_path, capsys):
+    out = tmp_path / "out"
+    base = ["--preset", "e3", "--rungs", "L9", "--sides", "Py", "--out", str(out), "--dry-run"]
+    assert campaign.main([*base, "--shard", "0/3"]) == 0
+    manifest = (out / "manifest.json").read_text()
+    assert campaign.main([*base, "--shard", "2/3"]) == 0  # checks, never rewrites
+    assert (out / "manifest.json").read_text() == manifest
+    units = json.loads((out / "units.json").read_text())
+    parts = [units[i::3] for i in range(3)]
+    assert sum(map(len, parts)) == len(units) and not set.intersection(
+        *[{u["id"] for u in p} for p in parts]
+    )
+    with pytest.raises(SystemExit):
+        campaign.main([*base, "--shard", "3/3"])

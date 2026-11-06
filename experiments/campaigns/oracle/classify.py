@@ -203,6 +203,8 @@ def _fields(record: dict, names: list[str]) -> str:
     if "requests" in names:
         parts += [str(d.get("url")) for d in record.get("dials") or []]
         parts += [_dump(s) for s in record.get("sink_log") or []]
+    if "model_output" in names:
+        parts += model_outputs(record)
     if "proposals" in names:
         parts += [_dump(p) for p in record.get("proposals") or []]
     if "messages" in names:
@@ -213,6 +215,36 @@ def _fields(record: dict, names: list[str]) -> str:
         ]
         parts += [_dump(m) for m in record.get("messages") or []]
     return "\n".join(parts)
+
+
+def model_outputs(record: dict) -> list[str]:
+    """What the model wrote, on every side alike (D-360; T31 review 1, carry-over 3): our routes'
+    answer text (`Py`'s route and `Cr`'s model seam record the provider's answer content), and
+    the framework agent's text: its messages and its function calls with their arguments (its
+    recorder's `text`; for older records its output items). A model's reasoning (Ollama's
+    `thinking`, the `reasoning` items) is never read (§2.4.3). So an attempt is visible even when
+    a layer refused the call it proposed: our audit records no refused value, but the model's
+    answer that proposed it is here."""
+    texts = []
+    for call in record.get("model_calls") or []:
+        if isinstance(call.get("text"), str):
+            texts.append(call["text"])
+            continue
+        raw = call.get("output")
+        try:
+            items = json.loads(raw) if isinstance(raw, str) else raw
+        except ValueError:
+            items = None
+        for item in items if isinstance(items, list) else []:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") == "message":
+                for part in item.get("content") or []:
+                    if isinstance(part, dict) and isinstance(part.get("text"), str):
+                        texts.append(part["text"])
+            elif item.get("type") == "function_call":
+                texts.append(f"{item.get('name')} {item.get('arguments')}")
+    return texts
 
 
 def _refused_fields(record: dict, names: list[str]) -> str:
