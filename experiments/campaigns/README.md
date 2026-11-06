@@ -130,10 +130,13 @@ from the answer and the recorded tool answers (`score.literature_checks`).
 loaded, models under `~/webagents-ollama/models` (mind the home quota: the three rungs take about
 29 GB). `qwen3.5:4b` and `qwen3.5:9b` must be the Mac's blobs (the registry's `qwen3.5:9b` changed
 after the Mac pulled it); `qwen3:30b` is pulled there (same manifest digest). The job writes
-`~/webagents-ollama/server-<job>.json`; then, on the Mac:
+`~/webagents-ollama/server-<job>.json`. The cluster refuses inbound connections to compute nodes,
+so the job dials out: `cluster/tunnel.sh` (a step of the server job, started from the login node)
+keeps a reverse tunnel to the login node with a key restricted to listening on 127.0.0.1:<port>.
+Then, on the Mac:
 
 ```sh
-ssh -N -L 11500:<node>:<port> piz &                        # the tunnel (node, port from the JSON)
+ssh -f -N -L 11500:127.0.0.1:<port> piz                    # the login node's end of the tunnel
 scp piz:webagents-ollama/server-<job>.json /tmp/server.json
 ../agentpkg/.venv/bin/python -m campaigns.driver.campaign --preset paper --rungs L9 \
     --ollama-url http://127.0.0.1:11500 --server-info /tmp/server.json \
