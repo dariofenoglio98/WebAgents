@@ -450,3 +450,12 @@ def test_shards_partition_the_units_and_share_one_manifest(tmp_path, capsys):
     )
     with pytest.raises(SystemExit):
         campaign.main([*base, "--shard", "3/3"])
+
+
+def test_ts_l_is_never_sharded(tmp_path):
+    """Crossref's lane is per process (pacing.py): sharded TS-L would query it concurrently."""
+    base = ["--preset", "e2", "--rungs", "L30", "--sides", "Py", "--out", str(tmp_path / "o")]
+    with pytest.raises(SystemExit):
+        campaign.main([*base, "--shard", "0/2", "--dry-run"])
+    narrowed = [*base, "--task-sets", "TS-W", "--shard", "0/2", "--dry-run"]
+    assert campaign.main(narrowed) == 0

@@ -984,6 +984,12 @@ def main(argv: list[str] | None = None) -> int:
         units = ordered(units_for(args.preset, rungs, sides, payloads, task_sets), rungs, args.seed)
     except ValueError as exc:
         parser.error(str(exc))
+    if shard is not None and any(u["task_set"] == "TS-L" for u in units):
+        # Crossref's lane (`pacing.py`) is one per process: shards would query it concurrently.
+        parser.error(
+            "TS-L takes Crossref's single lane: run it in its own unsharded process "
+            "(--task-sets TS-L) and shard the rest (--task-sets TS-W,TS-C,TS-N)"
+        )
     only = [t for t in (args.tasks or "").split(",") if t]
     if only:
         if args.preset == "paper":

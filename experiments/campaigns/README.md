@@ -144,7 +144,9 @@ scp piz:webagents-ollama/server-<job>.json /tmp/server.json
 ```
 
 The manifest records the server's version, environment and model digests (`served`), and each
-process appends the job, node, port and GPU to `server.jsonl`.
+process appends the job, node, port and GPU to `server.jsonl`. TS-L (L30, H) is never sharded: Crossref's lane is
+one per process, so its units run in their own unsharded directory (`--task-sets TS-L`) beside the
+sharded rest (`--task-sets TS-W,TS-C,TS-N`); `analyze.py` pools the two directories of one series.
 
 ## Not built here (open, with the task that builds it)
 
