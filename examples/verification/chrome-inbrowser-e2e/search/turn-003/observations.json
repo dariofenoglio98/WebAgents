@@ -1,10 +1,10 @@
 {
-  "run_id": "run_27351a12ce0f4f2388faeb2ebdbebcdc",
+  "run_id": "run_77bb7917ab014214825a8b21a713c581",
   "recording": true,
   "observations": [
     {
-      "run_id": "run_27351a12ce0f4f2388faeb2ebdbebcdc",
-      "at": "2026-11-05T22:55:25.125Z",
+      "run_id": "run_77bb7917ab014214825a8b21a713c581",
+      "at": "2026-11-06T02:51:14.327Z",
       "kind": "model",
       "subject": "in-browser",
       "url": "in-browser:qwen3-4b-q4_k_m",

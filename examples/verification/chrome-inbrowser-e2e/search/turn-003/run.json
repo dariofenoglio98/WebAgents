@@ -1,16 +1,16 @@
 {
   "schema": "chrome-agent-browser-run-record-v0",
-  "runId": "run_27351a12ce0f4f2388faeb2ebdbebcdc",
-  "sessionId": "a4b03f83e18a47edba3ab200",
-  "runPlanId": "rp_14f0b4127c894cae99e3cbbc2975721f",
-  "runPlanSha256": "bcd265e95d80728a317a73561f39a7f7b370d9d7d8a5a40b65952b615b809df3",
-  "runInvocationSha256": "7261dc0e72e1ff2faec4bc7a1604494b4efd16046a90323245b962f3172b0a8c",
+  "runId": "run_77bb7917ab014214825a8b21a713c581",
+  "sessionId": "b6d362937d3343fcaffc9975",
+  "runPlanId": "rp_0a79b0a50af647f48102d0ddb0295b0e",
+  "runPlanSha256": "fe6b0c717b604557a4b9879b3516d6e464e458abff78147dba78da7c0cf298f1",
+  "runInvocationSha256": "187281789058a8b956ed37a5caa5cb184129d929f1e5fbc5cc17201d16360ce6",
   "inputSha256": "4fc1207bfb600be789d6534d7a54fa3d7fd2a87d8fbca249b1b048c3837aa693",
   "status": "completed",
-  "createdAt": "2026-11-05T22:55:24.790Z",
-  "startedAt": "2026-11-05T22:55:25.045Z",
-  "endedAt": "2026-11-05T22:55:36.949Z",
-  "durationMs": 11904,
+  "createdAt": "2026-11-06T02:51:13.992Z",
+  "startedAt": "2026-11-06T02:51:14.244Z",
+  "endedAt": "2026-11-06T02:51:26.179Z",
+  "durationMs": 11935,
   "package": {
     "packageId": "org.webagents.webair",
     "name": "WebAir Travel Agent",
@@ -176,7 +176,7 @@
   "audit": {
     "events": 213,
     "chainValid": true,
-    "finalHash": "801492dd827dc5f3a4518e5fc1eaa25b59e745a4c617cdac6267167028d659df",
+    "finalHash": "a38112bb01465a4b3fde3fddc2e8f7d5bba0720b03d67dc084152f4bd1a1fb2b",
     "actions": [
       {
         "action": "budget.updated",
@@ -280,12 +280,12 @@
     {
       "name": "result.json",
       "bytes": 168019,
-      "sha256": "f8793c51bd28f21e3d51f8946011db3573824c3413e645e7d6ac12688a817cf4"
+      "sha256": "cbfa416892cc66e5a1ca8909194e0bfd93cb20b42ac6c141f569a2b3832bed55"
     },
     {
       "name": "audit.json",
       "bytes": 147500,
-      "sha256": "eeeaae249337ea81f5158705422a0a0591423a0b8dcea6a3688af0a076eec196"
+      "sha256": "f52f7098005951c871baf3ff5df2a9da59eb34feb2cee81f24d614fae580277b"
     },
     {
       "name": "usage.json",
@@ -295,7 +295,7 @@
     {
       "name": "provenance.json",
       "bytes": 342,
-      "sha256": "b98d51d4e1bdca9434f84252d567a948f84fbb3044fe4f9440f3706d11a759bb"
+      "sha256": "5ddada981db7389eb9eeed9e2b7d546aa786f499a46cea33ad60aa48bd13d3d7"
     },
     {
       "name": "answer.md",
@@ -473,7 +473,7 @@
         "state": "completed",
         "model_calls": 1,
         "tool_calls": 0,
-        "duration_ms": 11687
+        "duration_ms": 11711
       },
       {
         "id": "Personal:2",
@@ -491,7 +491,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 0,
-        "duration_ms": 1
+        "duration_ms": 0
       },
       {
         "id": "Selector:4",
@@ -509,7 +509,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 0,
-        "duration_ms": 0
+        "duration_ms": 1
       },
       {
         "id": "Personal:6",
@@ -545,7 +545,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 0,
-        "duration_ms": 1
+        "duration_ms": 0
       },
       {
         "id": "Rememberer:10",
@@ -583,7 +583,7 @@
   "failure": null,
   "origin": "live",
   "conversation": {
-    "conversationId": "5c095620-91af-4567-adee-be7487679337",
+    "conversationId": "d7a3a261-9cad-4794-bdf7-7f81471ee962",
     "turn": 3
   },
   "memory": {

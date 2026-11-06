@@ -1,6 +1,6 @@
 {
   "profile": "chrome-inbrowser-e2e-v0",
-  "recordedAt": "2026-11-05T22:51:44.230Z",
+  "recordedAt": "2026-11-06T02:47:43.112Z",
   "chrome": "Chrome/156.0.8078.80",
   "extension_version": "0.6.0",
   "entry": {
@@ -19,8 +19,8 @@
       "device_memory_gb": 32,
       "hardware_concurrency": 14,
       "storage": {
-        "quota": 33842353738,
-        "usage": 1410634
+        "quota": 32488299576,
+        "usage": 1412152
       },
       "cross_origin_isolated": false,
       "cross_origin_storage": false,
@@ -61,15 +61,15 @@
       "device": true
     },
     "benchmark": {
-      "ms": 1.7,
-      "gflops": 316,
+      "ms": 1.1,
+      "gflops": 488,
       "f16": true,
-      "kernel_class": "medium",
+      "kernel_class": "fast",
       "n": 512,
       "repeats": 2,
-      "at": "2026-11-05T22:51:51.920Z"
+      "at": "2026-11-06T02:47:45.841Z"
     },
-    "probed_at": "2026-11-05T22:51:51.921Z"
+    "probed_at": "2026-11-06T02:47:45.841Z"
   },
   "recommendation": {
     "budget": {
@@ -80,20 +80,20 @@
     "context": 32768,
     "reasons": [
       "fits at a 32,768-token context: about 8.2 GB of the budget 22.3 GB, from this platform's memory; state your GPU memory in Settings → Models to change it",
-      "this GPU's benchmark class is medium"
+      "this GPU's benchmark class is fast"
     ],
     "descriptor_reason": "not downloaded (2.5 GB)"
   },
   "download": {
-    "ms": 40711,
+    "ms": 37201,
     "state": "done",
     "error": null,
     "bytes": 2497280256,
     "cached": true,
     "verified": true,
     "row": {
-      "downloaded_at": "2026-11-05T22:52:31.975Z",
-      "verified_at": "2026-11-05T22:52:31.975Z",
+      "downloaded_at": "2026-11-06T02:48:22.531Z",
+      "verified_at": "2026-11-06T02:48:22.531Z",
       "last_used": null,
       "measured": null,
       "failed_context": null,
@@ -144,7 +144,7 @@
     "row_error": {
       "code": "model_digest_mismatch",
       "message": "the bytes did not match the digest the catalog states",
-      "at": "2026-11-05T22:52:32.697Z"
+      "at": "2026-11-06T02:48:23.114Z"
     },
     "cached": false,
     "files_left": []
@@ -162,7 +162,7 @@
   },
   "load": {
     "entry": "qwen3-4b-q4_k_m",
-    "load_ms": 3775,
+    "load_ms": 3198,
     "n_ctx": 32768,
     "n_ctx_train": 40960,
     "n_layer": 36,
@@ -172,7 +172,7 @@
     "offload_log": [
       "ggml_webgpu: adapter_info: vendor_id: 0 | vendor: apple | architecture: metal-3 | device_id: 0 | name:  | device_desc: "
     ],
-    "wall_ms": 3781
+    "wall_ms": 3208
   },
   "gpu_vs_cpu": {
     "prompt": {
@@ -184,8 +184,8 @@
     },
     "gpu": {
       "n_gpu_layers": "engine default (all layers offloaded)",
-      "decode_tok_per_s": 44.020182558647626,
-      "prefill_tok_per_s": 92.46668479738918,
+      "decode_tok_per_s": 44.450662338263925,
+      "prefill_tok_per_s": 92.4920905660788,
       "completion_tokens": 96,
       "offload_log": [
         "ggml_webgpu: adapter_info: vendor_id: 0 | vendor: apple | architecture: metal-3 | device_id: 0 | name:  | device_desc: "
@@ -193,19 +193,19 @@
     },
     "cpu": {
       "n_gpu_layers": 0,
-      "decode_tok_per_s": 14.421692411411717,
-      "prefill_tok_per_s": 19.08075649587519,
+      "decode_tok_per_s": 14.771737778330637,
+      "prefill_tok_per_s": 19.348964261324834,
       "completion_tokens": 96,
-      "load_ms": 2103,
+      "load_ms": 2040,
       "offload_log": [
         "ggml_webgpu: Failed to get an adapter: WebGPU not available on this browser (requestAdapter returned null)"
       ]
     },
-    "ratio": 3.1
+    "ratio": 3
   },
   "idle_unload": {
     "idle_seconds": 6,
-    "unloaded_after_ms": 6018,
+    "unloaded_after_ms": 6041,
     "status": {
       "loaded": null,
       "loading": null,
@@ -229,7 +229,7 @@
         "intent": "search",
         "error_code": null,
         "tokens": 9642,
-        "duration_ms": 84928,
+        "duration_ms": 83837,
         "model": {
           "planned": "in-browser/qwen3-4b-q4_k_m",
           "invoked": [
@@ -252,7 +252,7 @@
         "intent": "search",
         "error_code": null,
         "tokens": 10434,
-        "duration_ms": 49660,
+        "duration_ms": 50195,
         "model": {
           "planned": "in-browser/qwen3-4b-q4_k_m",
           "invoked": [
@@ -275,7 +275,7 @@
         "intent": "done",
         "error_code": null,
         "tokens": 3745,
-        "duration_ms": 11904,
+        "duration_ms": 11935,
         "model": {
           "planned": "in-browser/qwen3-4b-q4_k_m",
           "invoked": [
@@ -307,7 +307,7 @@
       "in-browser"
     ]
   },
-  "out_dir": "examples/my-inbrowser-e2e-2026-11-05T22-51-44-230Z",
+  "out_dir": "examples/my-inbrowser-e2e-2026-11-06T02-47-43-112Z",
   "checks": {
     "the engine Worker sees WebGPU with a real adapter (not a fallback) and a device": "ok",
     "the kernel benchmark ran and gives a class": "ok",
@@ -328,5 +328,5 @@
   },
   "failures": [],
   "passed": true,
-  "completedAt": "2026-11-05T22:55:38.828Z"
+  "completedAt": "2026-11-06T02:51:28.552Z"
 }
