@@ -26,6 +26,7 @@ const EXPECTED = [
   "browser.js",
   "compute-worker.js",
   "content-script.js",
+  "engine-worker.js",
   "execution-page.js",
   "execution-worker.js",
   "execution.html",
@@ -34,12 +35,22 @@ const EXPECTED = [
   "icons/icon-32.png",
   "icons/icon-48.png",
   "manifest.json",
+  "models-worker.js",
   "pdf-worker.js",
   "service-worker.js",
   "sidepanel.html",
   "sidepanel.js",
   "styles.css",
+  "wllama.wasm",
 ];
+
+/**
+ * The in-browser engine's WebAssembly (T41, D-440, D-458): wllama 3.8.1's `esm/wasm/wllama.wasm`,
+ * the bytes the T40 spike measured (`examples/verification/chrome-inbrowser-spike-t40.json`,
+ * `engine.wasm_sha256`). The only wasm the extension ships; it is compiled under the extension's
+ * `'wasm-unsafe-eval'` CSP and nothing is fetched at run time (design §10).
+ */
+const WLLAMA_WASM_SHA256 = "551f13439366eff11e057b1b91fe46a7fdac29d56d67372d4c5f19a549dfe70c";
 
 // The central directory, then each member's bytes through its local header.
 const eocd = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
@@ -102,6 +113,13 @@ for (const name of names.filter((member) => member.endsWith(".js") || member.end
   const evaluated = /(?:^|[^\w$.])(?:eval|Function)\s*\(/u.exec(scanned);
   if (evaluated) problems.push(`${name} evaluates code from text: ${evaluated[0].trim()}`);
 }
+// No member names wllama's compat CDN (blanked at build, D-459) or any other script CDN.
+for (const name of names.filter((member) => /\.(js|html|json)$/u.test(member))) {
+  if (members.get(name).toString("utf8").includes("cdn.jsdelivr.net")) problems.push(`${name} names cdn.jsdelivr.net`);
+}
+const wasm = members.get("wllama.wasm");
+if (!wasm || createHash("sha256").update(wasm).digest("hex") !== WLLAMA_WASM_SHA256) problems.push(`wllama.wasm is not the pinned engine (SHA-256 ${WLLAMA_WASM_SHA256})`);
+if (names.some((name) => name.endsWith(".wasm") && name !== "wllama.wasm")) problems.push("a WebAssembly file other than the pinned engine is in the zip");
 const csp = String(manifest.content_security_policy?.extension_pages ?? "");
 // compute.v0 (T22, D-253): `'wasm-unsafe-eval'` lets a run compile a package's WebAssembly modules
 // and nothing else (it never permits `eval` or `new Function`); every other form of evaluation stays refused.

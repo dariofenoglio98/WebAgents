@@ -55,7 +55,7 @@ with the paper; this model names which experiment measures which property.
 | **The person** | the machine, the model binding, the keys, the grants, the records, the money | every decision the runtime asks for | the party the runtime serves; not a component |
 | **The publisher** (creator) | the signed, data-only package: manifest, graph, skills, schemas, policy, fixtures, modules | every byte of the package and the key that signs it | no |
 | **The origin** (host of the package) | the bytes over HTTPS; the HTML page that advertises them; the services the package declares on that origin | what it serves, when, to whom | no |
-| **The model provider** | the model that fills the graph's answers: a local engine (Ollama today; in-browser inference planned) or a hosted API | the weights and the answers; a hosted provider also receives what it is sent | no (as a model); no (as a recipient of data) |
+| **The model provider** | the model that fills the graph's answers: a local engine (the extension's own in-browser engine since T41, or Ollama) or a hosted API | the weights and the answers; a hosted provider also receives what it is sent | no (as a model); no (as a recipient of data) |
 | **The tool provider** | a service behind a declared endpoint; or a host adapter the runtime ships (Crossref search, a JSON-HTTP binding, a PDF reader, host resources) | what it answers | a remote service: no; a host adapter: yes (it is runtime code) |
 | **Peer agents** | the roles of a delegation network (one package today); other publishers' packages and remote agents later | what a role says to the next | no |
 | **Memory records** | the person's records a package may read by type; proposals and notes written by earlier runs | their content and provenance | no (content is data) |
@@ -75,6 +75,7 @@ that the trusted base is measured rather than assumed. Pointers name the Python 
 | **Interpreter** (Agent Workflow, with the Memory, Compute, Conversations and Delegation runners) | enforcing the graph, the views, the schemas, the budgets and the deadlines; calling out only through the mediation layer; committing a wave atomically | `agentpkg/src/agentpkg/workflow.py`, `agentpkg/src/agentpkg/runtime.py`; `chrome-agent-browser/src/core/workflow/interpreter.ts`, `chrome-agent-browser/src/core/workflow/runtime.ts` |
 | **Mediation layer** | the model router (exactly the bound model, the output schema, usage projection); the tool broker (exactly the frozen bindings, the address policy, the output contract); the memory resolver and the egress scans | `agentpkg/src/agentpkg/hostbridge/router.py`, `agentpkg/src/agentpkg/toolbridge/handler.py`, `agentpkg/src/agentpkg/memory/scan.py`; `chrome-agent-browser/src/core/models/router.ts`, `chrome-agent-browser/src/core/tools/broker.ts`, `chrome-agent-browser/src/core/memory/scan.ts` |
 | **Host adapters** | performing exactly their bound contract and nothing beside it (the Crossref adapter reads two arguments; the JSON-HTTP adapter posts to one origin and path; the PDF reader parses in a bounded child; host resources answer the plan's grant) | `agentpkg/src/agentpkg/tools.py`, `agentpkg/src/agentpkg/hostfiles/pdf.py`; `chrome-agent-browser/src/core/tools/adapters/json-http.ts`, `chrome-agent-browser/src/core/tools/adapters/crossref.ts`, `chrome-agent-browser/src/core/tools/adapters/host-resource.ts`, the extension's PDF reader `chrome-agent-browser/src/extension/execution/pdf-reader.ts` (a nested Worker, `chrome-agent-browser/src/extension/execution/pdf-worker.ts`); the reference shell's `openclaw-agent-browser/src/tool-broker.ts` |
+| **In-browser engine** (the Chrome extension, T41) | running the weights the person chose and nothing else: wllama 3.8.1's bundle and its one WebAssembly file (llama.cpp on WebGPU), bundled and hash-pinned, in a dedicated Worker of the offscreen document that only the page commands; a run reaches it through one port for completions only; the counts it reports are the run's usage. The weights are data (verified by digest, never code), so this is P-6's "a model's output is data" with the engine's parser and kernels inside the trusted base, as the PDF reader's parser is | `chrome-agent-browser/src/core/models/adapters/in-browser.ts`, `chrome-agent-browser/src/core/models/in-browser-catalog.ts`, `chrome-agent-browser/src/extension/execution/engine-worker.ts`, `chrome-agent-browser/src/extension/execution/engine-host.ts`, `chrome-agent-browser/src/extension/storage/models.ts` |
 | **Stores at rest** | the integrity of trust pins, receipts, plans, run records and memory records; the secrecy of the secret store's entries (provider keys, the memory keys) | `agentpkg/src/agentpkg/browser/trust.py`, `agentpkg/src/agentpkg/browser/control.py` (the session's snapshots, receipts and plans), `agentpkg/src/agentpkg/memory/folder.py`; `chrome-agent-browser/src/core/trust.ts`, `chrome-agent-browser/src/core/secrets.ts`, `chrome-agent-browser/src/core/memory/store.ts` |
 | **The platform beneath** | the operating-system account; the language runtime and its TLS and cryptography (Python 3.13 with `cryptography` for Ed25519; Chrome's WebCrypto, or `@noble/ed25519` where it is absent); the JSON parser and the JSON Schema validator; Chrome's `fetch`, certificate checks, CSP and extension isolation; for the OpenClaw shell, the Gateway process, its plugin runtime and the operator's configuration | not this project's code |
 
@@ -998,7 +999,8 @@ build; listed as a gap in the evidence matrix).
 **Residual.** A process running as the person while the store is unlocked reads Chrome's memory; a
 keylogger at the passphrase; a compromised extension build or checkout; a host permission is not
 an egress boundary for origins that answer with permissive CORS headers (the extension's own three
-checks are, P-8); Ollama is a native process the browser cannot confine; the extension is
+checks are, P-8); Ollama is a native process the browser cannot confine (the in-browser route
+avoids it, T41); the extension is
 reviewable, not reviewed (not on the Web Store).
 
 ## 4. What is not protected
@@ -1038,9 +1040,11 @@ Each item says what is outside the claim, why, and what bounds it anyway or what
   computed; it does not make the decision.
 - **Models run outside the browser's protection.** Ollama is a native process with full network
   access that the browser cannot confine; a hosted provider sees everything it is sent and keeps
-  what it keeps. Today the runtime bounds what reaches a model (P-13 where the run holds the store,
-  P-17) and records every call (P-11); in-browser inference (W5's route card says when a model runs
-  outside the browser) and the tiers of §5.4 are planned.
+  what it keeps. The runtime bounds what reaches a model (P-13 where the run holds the store,
+  P-17) and records every call (P-11). Since T41 the Chrome extension runs open-weight models
+  itself, in the browser (the default local route; its route card says "nothing leaves this
+  browser", and Ollama's says it "runs outside the browser's protection"); the tiers of §5.4 are
+  planned.
 - **Denial within declared budgets.** A package or a model can burn the run's own budget, stall
   until a deadline or fail every wave; the person sees a failed run and pays what the envelope
   allowed. Fail-closed is a denial, not a breach.
@@ -1105,7 +1109,9 @@ runtime distinguishes only sealed from unsealed.
 Reading is not an egress: a record granted to a run and read by a model-less role, as WebAir's
 host-resource role does, reaches nobody. When the local model is Ollama, the engine is a separate
 process on the person's machine outside the browser's protection (§4): what it logs and where it
-connects are its own; in-browser inference (planned) runs the engine with no network at all.
+connects are its own. The in-browser route (T41) runs the engine inside the extension with no
+network at all once the weights are cached: its requests have no destination, and the observer
+still records them under `in-browser:<entry>` in test mode.
 
 ### 5.3 What each recipient class sees today
 
@@ -1344,6 +1350,10 @@ consent and (planned) request, and can revoke what was remembered (P-4, P-12, P-
   phrase through Markdown emphasis and code markers, takes the spec-numbered case ids from the
   specifications' text, checks a cited DF-n or UC-n against the set of defined ids, every component
   of a dotted pointer, and the threat model's map for duplicate rows and for every property.
+- **Version 2, T41 (2026-11-05).** No property was added or removed and no id changed. The
+  in-browser route is named where the model's text said "planned": the model provider row, the
+  trusted base (the in-browser engine, §1.2), the "not protected" list (§4) and the privacy model
+  (§5.2); its per-boundary note is the threat model's "In-browser inference" (P-6, P-9, P-10, P-19).
 - **Version 1** is [threat-model.md](threat-model.md): the per-boundary notes written with each
   milestone from the format to Agent Delegation. They are kept as the implementation notes of this
   model: each section states the properties it implements, and nothing a specification cites was

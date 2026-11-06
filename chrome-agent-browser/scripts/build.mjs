@@ -5,7 +5,9 @@
  *   dist/extension/   manifest.json, service-worker.js (ES module), content-script.js (classic
  *                     script, as Manifest V3 requires), sidepanel.html + .js, browser.html + .js,
  *                     execution.html + execution-page.js + execution-worker.js (the offscreen
- *                     execution host, T5), pdf-worker.js (the paper reader's parser, T6), styles.css, icons/
+ *                     execution host, T5), pdf-worker.js (the paper reader's parser, T6), compute-worker.js
+ *                     (T22), engine-worker.js + wllama.wasm and models-worker.js (the in-browser engine
+ *                     and the model cache, T41, D-458), styles.css, icons/
  *                     LICENSE.txt and THIRD_PARTY_NOTICES.txt (T7): WebAgents' license and the
  *                     notices of every third-party package the bundles contain, read from esbuild's
  *                     metafile so the list cannot drift from what is actually bundled
@@ -51,6 +53,35 @@ function browserFieldPlugin() {
   };
 }
 
+/**
+ * wllama's bundle names two `cdn.jsdelivr.net` URLs (`WasmCompatFromCDN`: its Firefox/Safari compat
+ * build, never fetched in Chrome, design §10). They sit in a module-local object literal, which an
+ * esbuild `define` cannot reach (it replaces global identifiers only), so the two exact literals are
+ * blanked when esbuild loads that file (D-459); `check-pack` asserts no `cdn.jsdelivr.net` remains.
+ */
+const WLLAMA_COMPAT_URLS = [
+  "https://cdn.jsdelivr.net/npm/@wllama/wllama-compat@3.8.1/wasm/wllama.js",
+  "https://cdn.jsdelivr.net/npm/@wllama/wllama-compat@3.8.1/wasm/wllama.wasm",
+];
+function wllamaCompatPlugin() {
+  const file = join(project, "node_modules", "@wllama", "wllama", "esm", "index.js");
+  return {
+    name: "wllama-no-compat-cdn",
+    setup(api) {
+      api.onLoad({ filter: /[\\/]@wllama[\\/]wllama[\\/]esm[\\/]index\.js$/ }, (args) => {
+        if (args.path !== file) return null;
+        let text = readFileSync(file, "utf8");
+        for (const url of WLLAMA_COMPAT_URLS) {
+          const literal = JSON.stringify(url);
+          if (!text.includes(literal)) throw new Error(`wllama's bundle no longer names ${url}: re-read the compat build before upgrading (D-459)`);
+          text = text.split(literal).join('""');
+        }
+        return { contents: text, loader: "js" };
+      });
+    },
+  };
+}
+
 const common = {
   // Inputs (and the metafile's paths) resolve against the package, whatever the caller's working
   // directory: `node chrome-agent-browser/scripts/build.mjs` from the repository root works too.
@@ -85,6 +116,10 @@ await extensionBuild({ ...common, entryPoints: [join(source, "execution", "execu
 await extensionBuild({ ...common, entryPoints: [join(source, "execution", "pdf-worker.ts")], outfile: join(out, "pdf-worker.js") });
 // The compute call's Worker (T22, D-251): one per call, terminated on answer, deadline and cancel.
 await extensionBuild({ ...common, entryPoints: [join(source, "execution", "compute-worker.ts")], outfile: join(out, "compute-worker.js") });
+// The in-browser engine (T41, D-440, D-450): wllama in the engine Worker, its wasm beside it, and the model cache's Worker.
+await extensionBuild({ ...common, plugins: [...common.plugins, wllamaCompatPlugin()], entryPoints: [join(source, "execution", "engine-worker.ts")], outfile: join(out, "engine-worker.js") });
+await extensionBuild({ ...common, entryPoints: [join(source, "execution", "models-worker.ts")], outfile: join(out, "models-worker.js") });
+cpSync(join(project, "node_modules", "@wllama", "wllama", "esm", "wasm", "wllama.wasm"), join(out, "wllama.wasm"));
 const nodeBuild = { ...common, plugins: [], metafile: false, platform: "node", target: ["node24"] };
 await build({
   ...nodeBuild,
@@ -96,7 +131,7 @@ await build({ ...nodeBuild, entryPoints: [join(project, "src", "compute-worker-n
 
 // The extension bundles must be free of Node built-ins: a `node:` specifier that survived
 // bundling would fail at load time in Chrome, long after `npm run build` reported success.
-for (const name of ["service-worker.js", "content-script.js", "sidepanel.js", "browser.js", "execution-page.js", "execution-worker.js", "pdf-worker.js", "compute-worker.js"]) {
+for (const name of ["service-worker.js", "content-script.js", "sidepanel.js", "browser.js", "execution-page.js", "execution-worker.js", "pdf-worker.js", "compute-worker.js", "engine-worker.js", "models-worker.js"]) {
   const text = readFileSync(join(out, name), "utf8");
   const hit = /(?:from\s*|import\s*\(\s*|require\s*\(\s*)["']node:[^"']*["']/u.exec(text);
   if (hit) throw new Error(`${name} still references a Node built-in: ${hit[0]}`);

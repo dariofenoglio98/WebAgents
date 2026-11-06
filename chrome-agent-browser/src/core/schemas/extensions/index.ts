@@ -2,6 +2,8 @@
 // Do not edit: run `npm run sync-schemas` after a change to an extension schema.
 
 import agentIndexV0Schema from "./agent-index-v0.schema.json" with { type: "json" };
+import inBrowserModelV0Schema from "./in-browser-model-v0.schema.json" with { type: "json" };
+import modelCatalogV0Schema from "./model-catalog-v0.schema.json" with { type: "json" };
 import policyBundleV0Schema from "./policy-bundle-v0.schema.json" with { type: "json" };
 import profilesV0Schema from "./profiles-v0.schema.json" with { type: "json" };
 import signedDocumentV0Schema from "./signed-document-v0.schema.json" with { type: "json" };
@@ -9,6 +11,8 @@ import signedDocumentV0Schema from "./signed-document-v0.schema.json" with { typ
 /** Every noncritical-extension schema, by its file stem (`profiles-v0`, ...). */
 export const EXTENSION_SCHEMAS: Readonly<Record<string, unknown>> = Object.freeze({
   "agent-index-v0": agentIndexV0Schema,
+  "in-browser-model-v0": inBrowserModelV0Schema,
+  "model-catalog-v0": modelCatalogV0Schema,
   "policy-bundle-v0": policyBundleV0Schema,
   "profiles-v0": profilesV0Schema,
   "signed-document-v0": signedDocumentV0Schema,
@@ -17,6 +21,8 @@ export const EXTENSION_SCHEMAS: Readonly<Record<string, unknown>> = Object.freez
 /** The extension schema file names in sorted order, for the equality test. */
 export const EXTENSION_SCHEMA_FILES: readonly string[] = Object.freeze([
   "agent-index-v0.schema.json",
+  "in-browser-model-v0.schema.json",
+  "model-catalog-v0.schema.json",
   "policy-bundle-v0.schema.json",
   "profiles-v0.schema.json",
   "signed-document-v0.schema.json",

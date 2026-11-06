@@ -76,7 +76,7 @@ describe("a plan's origins", () => {
     expect(view.secrets).toBe("unlocked");
     expect(view.origins.package).toBe(SITE_ORIGIN);
     expect(view.origins.tools).toEqual({ "get-fare-rules": [TOOLS_ORIGIN], "prepare-booking": [TOOLS_ORIGIN], "search-flights": [TOOLS_ORIGIN], "simulate-purchase": [TOOLS_ORIGIN] });
-    expect(view.origins.providers).toEqual({ ollama: null, openai: "https://api.openai.com", anthropic: "https://api.anthropic.com", "chrome-builtin": null });
+    expect(view.origins.providers).toEqual({ "in-browser": null, ollama: null, openai: "https://api.openai.com", anthropic: "https://api.anthropic.com", "chrome-builtin": null });
     const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
     expect(result.run_plan?.preflight.ready).toBe(true);
     expect(result.run_plan?.origins).toEqual([

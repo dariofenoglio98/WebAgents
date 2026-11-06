@@ -5,10 +5,24 @@
  * them and reports back with `host.progress` / `host.finished`.
  */
 import type { ExecutionHostBridge, HostCancelAnswer } from "./runs.js";
-import type { HostCommand, HostStartMessage, HostStatusReply } from "../execution/protocol.js";
+import type { HostCommand, HostEngineMessage, HostModelsMessage, HostStartMessage, HostStatusReply } from "../execution/protocol.js";
 
 const DOCUMENT = "execution.html";
 const JUSTIFICATION = "Runs an authorized agent package in a dedicated Worker so that the run survives the side panel and the service worker being closed (WebAgents execution host).";
+
+/**
+ * The page's refusal with its code as a field (T41 review 1, nit 7): callers read `code` and
+ * `reason`, never parse the message. The message keeps the `code: reason` form for the logs.
+ */
+export class HostReplyError extends Error {
+  constructor(
+    readonly code: string,
+    readonly reason: string,
+  ) {
+    super(`${code}: ${reason}`);
+    this.name = "HostReplyError";
+  }
+}
 
 type Reply<T> = { ok: true; result: T } | { ok: false; error: { code: string; message: string } } | undefined;
 
@@ -41,7 +55,7 @@ export class OffscreenHostBridge implements ExecutionHostBridge {
   private async send<T>(command: HostCommand): Promise<T> {
     const reply = (await chrome.runtime.sendMessage(command)) as Reply<T>;
     if (!reply) throw new Error("the execution host did not answer");
-    if (!reply.ok) throw new Error(`${reply.error.code}: ${reply.error.message}`);
+    if (!reply.ok) throw new HostReplyError(reply.error.code, reply.error.message);
     return reply.result;
   }
 
@@ -67,6 +81,19 @@ export class OffscreenHostBridge implements ExecutionHostBridge {
   async status(): Promise<HostStatusReply | null> {
     if (!(await chrome.offscreen.hasDocument())) return null;
     return this.send<HostStatusReply>({ type: "host.status" });
+  }
+
+  /**
+   * The in-browser engine and the model cache (T41): a Settings command to the page, creating the
+   * document when needed (a download or a load outlives the side panel and this worker); a status
+   * read answers null when there is no document.
+   */
+  async engine(message: HostModelsMessage | HostEngineMessage): Promise<unknown> {
+    // A status read never creates the document (T41 review 1, nit 8): with none, nothing is loaded
+    // and nothing downloads, and the caller reads null as exactly that.
+    if (message.action === "status" && !(await chrome.offscreen.hasDocument())) return null;
+    await this.ensure();
+    return this.send<unknown>(message);
   }
 
   /** conversation.v0: the person's answer to a card, to the Worker that waits on it (the record carries it too). */

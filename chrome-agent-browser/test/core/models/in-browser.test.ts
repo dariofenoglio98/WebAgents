@@ -265,12 +265,12 @@ describe("the in-browser catalog entry", () => {
     expect(() => normalizeInBrowserEntry(entry(changes))).toThrow(message);
   });
 
-  it("estimates GPU memory from the header: weights, the f16 KV cache from the K and V widths, 15 % and 512 MiB", () => {
+  it("estimates GPU memory from the header: weights, the f16 KV cache from the K and V widths, 15 % and 512 MB", () => {
     const made = normalizeInBrowserEntry(entry());
     // 28 layers × 8192 × 8 KV heads × (128 + 128) × 2 bytes = 939,524,096 bytes of KV cache.
     const kv = 28 * 8192 * 8 * (128 + 128) * 2;
     expect(kv).toBe(939_524_096);
-    expect(gpuMemoryEstimate(made, 8192)).toBe(Math.ceil(428_970_080 * 1.15 + kv + 512 * 1024 * 1024));
+    expect(gpuMemoryEstimate(made, 8192)).toBe(Math.ceil(428_970_080 * 1.15 + kv + 512e6));
     expect(gpuMemoryEstimate(normalizeInBrowserEntry(entry({ header: null })), 8192)).toBeNull();
   });
 

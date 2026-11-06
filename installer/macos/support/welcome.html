@@ -22,7 +22,7 @@
 <body>
 <main>
   <h1>WebAgents is set up on this Mac</h1>
-  <p class="muted">The native helper is installed. If you kept the Ollama option, Ollama runs in the background and allows the extension. The installer log is <code>/Library/Logs/WebAgents/installer.log</code>.</p>
+  <p class="muted">The native helper is installed. The installer log is <code>/Library/Logs/WebAgents/installer.log</code>.</p>
 
   <section>
     <h2>1. Add the extension to Chrome</h2>
@@ -41,17 +41,18 @@
       <li>Under <strong>Unlock with the macOS keychain</strong>, press <strong>Turn on</strong> and allow Chrome to talk to the helper. The card then says <em>keychain available</em>.</li>
       <li>From now on, the Unlock sheet offers <strong>Unlock with the macOS keychain</strong>. Your passphrase keeps working, and removing the helper loses nothing.</li>
     </ol>
-    <p class="muted">The helper does three things only: it wraps and unwraps the key that opens your store, using an item in your login keychain, and it reports Ollama's state. It never receives a provider key, a record or a package.</p>
+    <p class="muted">The helper does three things only: it wraps and unwraps the key that opens your store, using an item in your login keychain, and it reports whether an Ollama you installed yourself is running. It never receives a provider key, a record or a package.</p>
   </section>
 
   <section>
-    <h2>3. Local models with Ollama</h2>
-    <p>In <strong>Settings → Models</strong>, press <strong>Test connection</strong> on Ollama, then pull a model if you have none, for example <code>ollama pull qwen3:30b</code>.</p>
+    <h2>3. A model in this browser</h2>
+    <p>In <strong>Settings → Models → In this browser</strong>, pick a model recommended for this Mac and press <strong>Download</strong>. The extension runs it itself, on your GPU, inside the browser: nothing to install and nothing leaves the browser. A model you download is a cache the browser keeps for this extension; you can delete it there, and uninstalling the extension removes it.</p>
+    <p class="muted">Ollama remains a route you may choose: it runs outside the browser's protection. Its setup (<code>OLLAMA_ORIGINS</code>) is under <em>Other local routes</em> in the getting-started guide and in Settings → Models.</p>
   </section>
 
   <section>
     <h2>Uninstall</h2>
-    <p><code>sudo "/Library/Application Support/WebAgents/uninstall.sh"</code> removes the helper, its Chrome registration, the login item, the extension's entries in <code>OLLAMA_ORIGINS</code> and the helper's keychain item. Ollama and your models stay.</p>
+    <p><code>sudo "/Library/Application Support/WebAgents/uninstall.sh"</code> removes the helper, its Chrome registration and the helper's keychain item, and what an earlier version's Ollama option left (its login item and the extension's entries in <code>OLLAMA_ORIGINS</code>). Ollama, if you installed it, stays.</p>
   </section>
 </main>
 </body>

@@ -12,6 +12,7 @@ The bundle holds exactly what the public origin runs:
     agent.pkg                              the one signed package /agent.pkg serves, verbatim
     demo/agent-index.json                  the WebAgents demo documents served beside the
     demo/policies/webagents-research.json  airline (T8, `origin/demo_documents.py`): the signed
+    demo/model-catalog.json                (and, since T41, the signed in-browser model list)
     demo/packages/literature-review-…      index, the signed example policy, and the signed
     demo/packages/travel-network-0.1.0…    Literature Review packages (0.2.9, which the index
                                            lists, and 0.2.8, 0.2.7, 0.2.6 and 0.2.5, which
@@ -46,6 +47,7 @@ REPO = DEMO.parent.parent
 # The WebAgents demo documents (T8): bundle path → repository source, all signed artifacts.
 DEMO_DOCUMENTS = {
     "demo/agent-index.json": REPO / "examples" / "agent-index.json",
+    "demo/model-catalog.json": REPO / "examples" / "model-catalog.json",
     "demo/policies/webagents-research.json": REPO
     / "examples"
     / "policies"

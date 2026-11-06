@@ -504,6 +504,62 @@ function compatibilityTone(status: string): "good" | "warn" | "bad" {
   return status === "compatible" ? "good" : status === "unverified" ? "warn" : "bad";
 }
 
+/** The picker's routes in the order design §8 shows them when each is available (D-446). */
+export const ROUTE_ORDER: readonly string[] = Object.freeze(["in-browser", "chrome-builtin", "ollama", "openai", "anthropic"]);
+const HOSTED_BY: Record<string, string> = { openai: "OpenAI", anthropic: "Anthropic" };
+
+/** A route card's line and subline (D-446, design §8), in the words the design fixes. */
+export function routeWords(model: Pick<ModelCompatibility, "provider_id" | "display_name" | "model_id">): { line: string; subline: string } {
+  const name = model.model_id.slice(model.model_id.indexOf("/") + 1);
+  switch (model.provider_id) {
+    case "in-browser":
+      return { line: `In this browser · ${model.display_name} · free`, subline: "Runs inside this extension on your GPU. No network: nothing leaves this browser." };
+    case "chrome-builtin":
+      return { line: "Chrome's built-in model (Gemini Nano) · free", subline: "Run by Chrome on this device; a small model, Chrome's own." };
+    case "ollama":
+      return { line: `Ollama on this computer · ${name} · free`, subline: "A separate application: it runs outside the browser's protection, and this browser cannot bound what it does with your data." };
+    default:
+      return { line: `Hosted by ${HOSTED_BY[model.provider_id] ?? model.provider_id} · ${name} · metered`, subline: "Your key; the request leaves this device to the provider." };
+  }
+}
+
+/** The models in route order (design §8), each route's own order kept. */
+export function inRouteOrder<T extends { provider_id: string }>(models: readonly T[]): T[] {
+  const rank = (provider: string) => (ROUTE_ORDER.includes(provider) ? ROUTE_ORDER.indexOf(provider) : ROUTE_ORDER.length);
+  return models.map((model, index) => ({ model, index })).sort((a, b) => rank(a.model.provider_id) - rank(b.model.provider_id) || a.index - b.index).map((item) => item.model);
+}
+
+/**
+ * The picker's suggestion (D-446): in-browser when a recommended entry is cached (one click picks
+ * it), else that entry's download card in Settings → Models. Nothing downloads from here.
+ */
+function inBrowserSuggestion(models: ModelsView, state: AuthorizeState, actions: AuthorizeActions): HTMLElement | null {
+  const suggestion = models.in_browser?.suggestion ?? null;
+  if (suggestion === null) return null;
+  const words = routeWords({ provider_id: "in-browser", display_name: suggestion.display_name, model_id: suggestion.host_model_id });
+  if (suggestion.cached && suggestion.available) {
+    return el(
+      "div",
+      { className: "ab-banner ab-banner-good ab-suggestion", attrs: { role: "status", "data-suggestion": suggestion.host_model_id } },
+      el("strong", { text: `Suggested: ${words.line}` }),
+      el("p", { text: words.subline }),
+      state.selectedModel === suggestion.host_model_id
+        ? null
+        : button("Use it", () => {
+            state.selectedModel = suggestion.host_model_id;
+            actions.rerender();
+          }, { variant: "primary" }),
+    );
+  }
+  return el(
+    "div",
+    { className: "ab-banner ab-banner-neutral ab-suggestion", attrs: { role: "status", "data-suggestion": suggestion.host_model_id } },
+    el("strong", { text: `Run this agent in this browser: ${suggestion.display_name} (${(suggestion.bytes_total / 1e9).toFixed(1)} GB, ${suggestion.license.name})` }),
+    el("p", { text: `${words.subline} ${suggestion.reasons[0] ?? ""}`.trim() }),
+    linkButton("Open its download card in Settings → Models", () => actions.onOpenSettings("models")),
+  );
+}
+
 function modelRow(model: ModelCompatibility, state: AuthorizeState, actions: AuthorizeActions, localOnly: boolean, policy: ModelsView["model_policy"] = null): HTMLElement {
   const notLocal = localOnly && model.properties.local !== true;
   // A cost cap admits only models whose cost this browser can bound: free (local) ones (D-102).
@@ -520,9 +576,11 @@ function modelRow(model: ModelCompatibility, state: AuthorizeState, actions: Aut
   facts.push(model.limits.context_tokens !== null ? `context ${model.limits.context_tokens.toLocaleString()} tokens` : "context not reported");
   if (model.limits.max_output_tokens !== null) facts.push(`output up to ${model.limits.max_output_tokens.toLocaleString()}`);
   facts.push(...model.properties.tags);
+  const route = routeWords(model);
   return el(
     "div",
-    { className: `ab-model-row${state.selectedModel === model.model_id ? " ab-model-selected" : ""}`, attrs: { "data-model": model.model_id } },
+    { className: `ab-model-row${state.selectedModel === model.model_id ? " ab-model-selected" : ""}`, attrs: { "data-model": model.model_id, "data-route": model.provider_id } },
+    el("p", { className: "ab-route" }, el("strong", { text: route.line }), el("span", { className: "ab-hint", text: ` ${route.subline}` })),
     el(
       "label",
       { className: "ab-model-label" },
@@ -568,7 +626,13 @@ function customizeView(input: AuthorizeInput, state: AuthorizeState, actions: Au
           { className: "ab-models", attrs: { role: "radiogroup" } },
           el("p", { className: "ab-hint", text: `${models.evaluation.counts.available ?? 0} of ${models.evaluation.counts.total ?? 0} models available · ${models.evaluation.counts.compatible ?? 0} compatible, ${models.evaluation.counts.unverified ?? 0} unverified, ${models.evaluation.counts.incompatible ?? 0} incompatible. The package names no provider; you choose.` }),
           ...models.evaluation.notes.map((note) => el("p", { className: "ab-hint" }, el("code", { text: note.code }), " ", el("span", { text: note.detail ?? "" }))),
-          ...models.evaluation.models.map((model) => modelRow(model, state, actions, models.local_models_only, models.model_policy ?? null)),
+          inBrowserSuggestion(models, state, actions),
+          // Route order (D-446); the in-browser entries not downloaded live in Settings → Models, not here.
+          ...inRouteOrder(models.evaluation.models.filter((model) => model.provider_id !== "in-browser" || model.available)).map((model) => modelRow(model, state, actions, models.local_models_only, models.model_policy ?? null)),
+          (() => {
+            const hidden = models.evaluation.models.filter((model) => model.provider_id === "in-browser" && !model.available).length;
+            return hidden > 0 ? el("p", { className: "ab-hint" }, `${hidden} more in-browser model${hidden === 1 ? "" : "s"} can be downloaded in `, linkButton("Settings → Models → In this browser", () => actions.onOpenSettings("models")), ".") : null;
+          })(),
           button("Refresh models", actions.onRefreshModels),
         )
       : el("p", { className: "ab-hint" }, "Models are listed once the catalog is read. ", linkButton("Read it now", actions.onRefreshModels)),

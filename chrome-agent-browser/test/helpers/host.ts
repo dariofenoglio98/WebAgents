@@ -153,6 +153,8 @@ export interface InProcessHostOptions {
   available?: boolean;
   /** Fail `start` without running (an offscreen document that could not be created). */
   failStart?: boolean;
+  /** Fail `start` with this error (the execution host's coded refusal, T41 review 1, nit 7). */
+  startError?: () => Error;
   /** The Worker dies after its first checkpoint: the host reports `host.finished` while the record is still in flight, and nothing settles it (finding 2). */
   workerDies?: boolean;
   /** `status()` rejects this many times before answering (the document's listener not loaded yet; nit 6). */
@@ -186,6 +188,7 @@ export class InProcessHost implements ExecutionHostBridge {
 
   async start(message: HostStartMessage): Promise<void> {
     if (this.options.failStart) throw new Error("the offscreen document could not be created");
+    if (this.options.startError) throw this.options.startError();
     this.started.push(message);
     let died = false;
     const handle = executeRun({

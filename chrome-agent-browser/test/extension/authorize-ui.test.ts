@@ -401,7 +401,7 @@ describe("Settings and Your data", () => {
     let current = settings;
     const render = () => renderSettingsPage(current, null, state, { onSave: (next) => saved.push(next), onSetKey: (provider, key) => keys.push([provider, key]), onProbe: (provider) => probes.push(provider), rerender: () => undefined });
     let root = render();
-    expect(root.textContent).toContain("Ollama (local)");
+    expect(root.textContent).toContain("Ollama on this computer");
     expect(root.textContent).toContain("no key");
     // The endpoint placeholder names the endpoint actually used when the field is empty (user feedback 2026-10-07).
     expect(root.querySelector<HTMLInputElement>('input[name="base-url-openai"]')?.placeholder).toBe("https://api.openai.com (default)");
@@ -413,6 +413,7 @@ describe("Settings and Your data", () => {
     [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Save key")!.click();
     expect(keys).toEqual([["openai", "sk-test-secret"]]);
     expect(keyInput.value).toBe(""); // cleared on save, never kept in the page
+    // The in-browser card (first, T41) has no Test connection of its own: its list is read with the view.
     [...root.querySelectorAll<HTMLButtonElement>("button")].filter((button) => button.textContent === "Test connection")[0]!.click();
     expect(probes).toEqual(["ollama"]);
     state.probes.ollama = await h.controller.probe("ollama");

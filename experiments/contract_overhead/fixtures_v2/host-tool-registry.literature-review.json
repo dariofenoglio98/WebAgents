@@ -2,7 +2,7 @@
   "schema": "agentpkg-host-tool-registry-v0",
   "host": {
     "runtime": "chrome-agent-browser",
-    "runtime_version": "0.5.0",
+    "runtime_version": "0.6.0",
     "source": "chrome-agent-browser host tool registry (D-054, D-081, D-082): one generic HTTPS JSON binding per declared remote POST tool, derived from the signed declaration after the URL gate; the host's Crossref search for scholarly.search at Crossref's works endpoint; the selected-PDF reader for paper.read; one host-resource binding per vault type; other tools unbound",
     "captured_at": "2026-11-04T00:00:00.000Z",
     "agent_id": null

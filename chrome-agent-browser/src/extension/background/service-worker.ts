@@ -11,6 +11,8 @@ import { failure, isEvent, parseContentMessage, parseRequest, success, type Even
 import { isHostCommand } from "../execution/protocol.js";
 import { Database } from "../storage/database.js";
 import { IndexedDbFileStore } from "../storage/files.js";
+import { IndexedDbModelStore } from "../storage/models.js";
+import type { EngineProbe } from "../execution/engine-protocol.js";
 import { IndexedDbMemoryStorage } from "../storage/memory.js";
 import { PermissionStorage, type PermissionsPort } from "../storage/permissions.js";
 import { IndexedDbRunStore } from "../storage/runs.js";
@@ -124,6 +126,29 @@ async function reachable(url: string): Promise<boolean> {
 /** Chrome's built-in model as this worker's Prompt API reports it (D-113); the quota is measured once per worker. */
 const builtin = builtinReader();
 
+/**
+ * This worker's own reading of the machine for the in-browser route (T41, D-443), used until the
+ * engine Worker has measured: the WebGPU adapter Chrome exposes to service workers, the memory hint
+ * and the storage estimate. Never a network request; no device is created.
+ */
+async function localProbe(): Promise<Partial<EngineProbe> | null> {
+  const nav = navigator as Navigator & { gpu?: { requestAdapter(): Promise<{ info?: Record<string, unknown>; features: Iterable<string>; limits: Record<string, number>; isFallbackAdapter?: boolean } | null> }; deviceMemory?: number };
+  const storage = await navigator.storage.estimate().then((estimate) => ({ quota: estimate.quota ?? null, usage: estimate.usage ?? null })).catch(() => null);
+  let adapter: Awaited<ReturnType<NonNullable<typeof nav.gpu>["requestAdapter"]>> = null;
+  try {
+    adapter = nav.gpu ? await nav.gpu.requestAdapter() : null;
+  } catch {
+    adapter = null;
+  }
+  const info = (adapter?.info ?? {}) as Record<string, unknown>;
+  return {
+    has_webgpu: !!nav.gpu,
+    device_memory_gb: nav.deviceMemory ?? null,
+    storage,
+    adapter: adapter === null ? null : { vendor: (info.vendor as string) ?? null, architecture: (info.architecture as string) ?? null, description: (info.description as string) ?? null, is_fallback: typeof info.isFallbackAdapter === "boolean" ? info.isFallbackAdapter : null, features: [...adapter.features].sort(), max_buffer_size: adapter.limits.maxBufferSize ?? null, max_storage_buffer_binding_size: adapter.limits.maxStorageBufferBindingSize ?? null },
+  };
+}
+
 async function badge(tabId: number, count: number): Promise<void> {
   try {
     await chrome.action.setBadgeText({ tabId, text: count > 0 ? String(count) : "" });
@@ -170,6 +195,10 @@ const controller = new Controller({
   http,
   builtin,
   reachable,
+  // The in-browser route (T41): the model cache's rows, the refreshed list and the measured machine.
+  models: new IndexedDbModelStore(database),
+  localArea: chrome.storage.local,
+  inBrowserProbe: localProbe,
   badge,
   broadcast,
   version: chrome.runtime.getManifest().version,

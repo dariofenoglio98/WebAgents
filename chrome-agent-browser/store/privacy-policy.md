@@ -35,7 +35,11 @@ against the origins its plan recorded; Chrome holds the grants):
   run plan recorded, which are shown before you run.
 - **The model provider you chose:** your prompts and the package's instructions, sent to Ollama on
   this machine, to Chrome's built-in model, or directly to OpenAI or Anthropic with your own key.
-  The provider's own privacy terms apply to what you send there.
+  The provider's own privacy terms apply to what you send there. A model the extension runs in this
+  browser receives them inside the extension and sends nothing anywhere.
+- **Hugging Face, when you download a model:** the model's files (and, when you paste a repository,
+  its public listing), fetched from `huggingface.co` without cookies or credentials. Hugging Face
+  sees the request as any download; nothing of yours is sent with it.
 - **A signed index or policy you add:** fetched from the URL you entered.
 
 There is no WebAgents server, no account, no analytics, no crash reporting, no advertising. The

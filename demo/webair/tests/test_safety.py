@@ -143,6 +143,7 @@ def test_the_origin_serves_exactly_its_routes(client):
             (path, method)
             for path in (
                 "/agent-index.json",
+                "/model-catalog.json",
                 "/policies/webagents-research.json",
                 "/packages/literature-review-0.2.9.agent.pkg",
                 "/packages/literature-review-0.2.8.agent.pkg",

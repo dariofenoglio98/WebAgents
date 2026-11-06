@@ -302,8 +302,9 @@ describe("a settled run's memory facts (M-29, M-50)", () => {
     await h.controller.handle({ type: "host.finished", runId: "run_later" }, OFFSCREEN);
     expect((await h.runs.getRun("run_later"))?.memory_commit).not.toBeNull();
     await h.controller.handle({ type: "secrets.unlock", passphrase: SEED_PASSPHRASE }, PAGE);
-    await new Promise((resolveWait) => setTimeout(resolveWait, 20));
-    expect((await h.runs.getRun("run_later"))?.memory_commit).toBeNull();
+    // The unlock applies the pending commit without waiting for it: poll rather than sleep a fixed
+    // 20 ms, which a busy full suite sometimes outran (seen in T41).
+    await vi.waitFor(async () => expect((await h.runs.getRun("run_later"))?.memory_commit).toBeNull(), { timeout: 5000, interval: 20 });
     expect((await view(h)).agents[0]).toMatchObject({ run_id: "run_later" });
     await h.controller.handle({ type: "memory.clearAgent", packageId: "org.example.memory" }, PAGE);
     expect((await view(h)).agents).toEqual([]);

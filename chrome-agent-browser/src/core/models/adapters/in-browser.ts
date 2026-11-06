@@ -20,7 +20,7 @@ import type { RenderedRequest } from "../render.js";
 import type { ProviderAdapter, ProviderCompletion } from "../router.js";
 import { constraintSchema, GGUF_GRAMMAR_RULES } from "../schema-format.js";
 import type { ModelRequestObserver } from "../transport.js";
-import type { ModelPricing } from "../usage.js";
+import type { ModelPricing, UsageReport } from "../usage.js";
 
 export const IN_BROWSER_PROVIDER = "in-browser";
 /** The scheme the observer sees for a request that never leaves the browser. */
@@ -43,10 +43,22 @@ export interface InBrowserCompletionRequest {
 export interface InBrowserCompletion {
   /** The answer's content; reasoning stays in the engine. Null when the engine returned none. */
   text: string | null;
-  /** `stop`, `length`, `abort`, or the engine's own word for an unfinished turn. */
+  /**
+   * `stop`, `length`, `abort`, or the engine's own word for an unfinished turn. Null is accepted as
+   * "unreported", as on every route: the router parses and validates the answer either way, and only
+   * `length` (truncated) and `abort` (cancelled or stopped) change what happens.
+   */
   finish_reason: string | null;
-  /** The engine's own counts; null for a count it did not report (never zero for "unknown"). */
-  usage: { prompt_tokens: number | null; completion_tokens: number | null; total_tokens: number | null };
+  /**
+   * The engine's own counts; null for a count it did not report (never zero for "unknown").
+   * `prompt_tokens` is the **whole** prompt, every token the engine read for this answer: with the
+   * prompt cache on, llama.cpp's `prompt_n` counts only the uncached part, so the port reports
+   * `prompt_n + cache_n` here (the port's duty, D-445) and the cached part again in
+   * `cached_prompt_tokens`, which the adapter reports as cache reads. A port that leaves
+   * `cache_prompt: true` and reported `prompt_n` alone would under-count a re-ask, whose prompt the
+   * cache mostly holds. `completion_tokens` includes thinking tokens (principle 7).
+   */
+  usage: { prompt_tokens: number | null; completion_tokens: number | null; total_tokens: number | null; cached_prompt_tokens?: number | null };
   /** The engine's timings, for the evidence; absent when it reports none. */
   timings?: { prompt_per_second: number | null; predicted_per_second: number | null } | null;
   /** Whether the engine applied the grammar to this answer. */
@@ -109,8 +121,27 @@ export class InBrowserAdapter implements ProviderAdapter {
     this.observer = options.observer ?? null;
   }
 
+  /**
+   * The port's own refusals keep their code: `model_request_invalid` (over `n_ctx`) and
+   * `model_unavailable` with `engine_worker_died` exist only if the shell's port throws them as
+   * AdapterErrors (design §4). Anything else is the engine failing: the model is not available to
+   * this run, and the run is never retried on another model (principle 6). A cancellation wins.
+   */
+  private engineFailure(error: unknown, signal: AbortSignal): Error {
+    if (signal.aborted) return (signal.reason as Error | undefined) ?? new CancelledError();
+    if (error instanceof AdapterError) return error;
+    return new AdapterError("model_unavailable", `The in-browser engine failed (${error instanceof Error ? error.name : "error"})`, { detail: { entry: this.model_id }, audit_facts: { stage: "engine" } });
+  }
+
   async complete(rendered: RenderedRequest, maxOutputTokens: number, signal: AbortSignal): Promise<ProviderCompletion> {
-    const status = await this.port.status();
+    let status: InBrowserEngineStatus;
+    try {
+      status = await this.port.status();
+    } catch (error) {
+      // A port whose status call fails (its channel closed, the engine Worker gone) is the engine
+      // failing like a failed completion (T40 review 2, finding a).
+      throw this.engineFailure(error, signal);
+    }
     if (status.loaded !== this.model_id) {
       throw new AdapterError("model_unavailable", status.loaded === null ? "No in-browser model is loaded" : `The in-browser engine holds ${JSON.stringify(status.loaded)}, not the model this run bound`, {
         detail: { entry: this.model_id, loaded: status.loaded },
@@ -126,13 +157,7 @@ export class InBrowserAdapter implements ProviderAdapter {
     try {
       answer = await this.port.complete(request, signal);
     } catch (error) {
-      if (signal.aborted) throw (signal.reason as Error | undefined) ?? new CancelledError();
-      // The port's own refusals keep their code: `model_request_invalid` (over `n_ctx`) and
-      // `model_unavailable` with `engine_worker_died` exist only if the shell's port throws them as
-      // AdapterErrors (design §4). Anything else is the engine failing: the model is not available
-      // to this run, and the run is never retried on another model (principle 6).
-      if (error instanceof AdapterError) throw error;
-      throw new AdapterError("model_unavailable", `The in-browser engine failed (${error instanceof Error ? error.name : "error"})`, { audit_facts: { stage: "engine" } });
+      throw this.engineFailure(error, signal);
     }
     if (answer.finish_reason === "abort") {
       if (signal.aborted) throw (signal.reason as Error | undefined) ?? new CancelledError();
@@ -143,8 +168,9 @@ export class InBrowserAdapter implements ProviderAdapter {
       text: answer.text,
       model_id: this.host_model_id,
       response_model: this.model_id,
-      stop_reason: answer.finish_reason === "length" ? "length" : answer.finish_reason === "stop" ? "stop" : answer.finish_reason,
-      usage: { input_tokens: answer.usage.prompt_tokens, output_tokens: answer.usage.completion_tokens, cache_read_tokens: null, cache_write_tokens: null, total_tokens: answer.usage.total_tokens, cost_usd: null },
+      // `length` is the router's truncation; every other word passes as the engine said it.
+      stop_reason: answer.finish_reason,
+      usage: inBrowserUsage(answer.usage),
       constrained: answer.constrained && schema !== null,
       constraint_detail:
         answer.constrained && schema !== null
@@ -152,6 +178,22 @@ export class InBrowserAdapter implements ProviderAdapter {
           : "The engine applied no grammar; the answer is parsed and validated by the router.",
     };
   }
+}
+
+/**
+ * The engine's counts as the router's usage report (D-445). `prompt_tokens` is the whole prompt;
+ * the cached part, when the port reports one, is a cache read, so `projectUsage` (input = input +
+ * cache reads) charges the whole prompt exactly once. A cached count above the prompt is not a
+ * count at all: the call is refused as `model_usage_invalid` rather than charged a negative input.
+ */
+export function inBrowserUsage(usage: InBrowserCompletion["usage"]): UsageReport {
+  const prompt = usage.prompt_tokens;
+  const cached = usage.cached_prompt_tokens ?? null;
+  if (cached !== null && (!Number.isInteger(cached) || cached < 0 || (prompt !== null && cached > prompt))) {
+    throw new AdapterError("model_usage_invalid", "The in-browser engine reported more cached prompt tokens than prompt tokens");
+  }
+  const uncached = prompt === null ? null : cached === null ? prompt : prompt - cached;
+  return { input_tokens: uncached, output_tokens: usage.completion_tokens, cache_read_tokens: cached, cache_write_tokens: null, total_tokens: usage.total_tokens, cost_usd: null };
 }
 
 /**

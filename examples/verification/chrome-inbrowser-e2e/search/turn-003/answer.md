@@ -1,0 +1,1 @@
+Nothing is booked or charged unless a purchase was simulated.

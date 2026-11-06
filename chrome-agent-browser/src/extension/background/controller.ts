@@ -24,7 +24,7 @@ import {
   profileDecisions,
   type Decided,
 } from "../../core/authorization.js";
-import { evaluateCatalog, findModel, type HostCatalog } from "../../core/compatibility.js";
+import { evaluateCatalog, evaluateModel, findModel, normalizeDescriptor, requirementSet, type HostCatalog } from "../../core/compatibility.js";
 import { classifyLinks, DEFAULT_LIMITS, discoverFromPage, mediaType, type FetchedPage } from "../../core/discovery.js";
 import { CoreError, thrownName } from "../../core/errors.js";
 import { evaluateSnapshot, evaluationLayers, publisherReport, structurallyValid, type EvaluationLayers, type PublisherReport } from "../../core/evaluation.js";
@@ -41,7 +41,7 @@ import { indexState, StaticIndexResolver, verifiedIndex, type VerifiedIndex } fr
 import { readQuery, type AgentCandidate, type ResolveNote } from "../../core/resolve/types.js";
 import { AGENT_INDEX_TYPE, MAX_DOCUMENT_BYTES, POLICY_BUNDLE_TYPE, verifySignedDocument, type DocumentContentType, type VerifiedDocument } from "../../core/signed-document.js";
 import { compareRelease } from "../../core/version.js";
-import { buildHostCatalog, DEFAULT_BASE_URLS, probeProvider, PROVIDER_IDS, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
+import { buildHostCatalog, DEFAULT_BASE_URLS, hasEndpoint, probeProvider, PROVIDER_IDS, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import { httpsOrigin, originPattern, planOrigins, patternOrigin, toolBindingsForOrigins, type OriginString, type PlanOrigin } from "../../core/origins.js";
 import { SerialQueue } from "../../core/serial.js";
 import { agentToolDigests, requestedResourceTypes } from "../../core/memory/declarations.js";
@@ -100,7 +100,11 @@ import {
 } from "../messages.js";
 import { FileRefusal, MemoryFileStore, MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_FILE_BYTES, newFile, viewOf, type FileStore } from "../storage/files.js";
 import { EVERY_SITE_PATTERN, MemoryPermissions, PermissionStorage, type GrantPurpose, type PermissionsPort } from "../storage/permissions.js";
-import { connectionsFor, endpointProblem, MemoryStorageArea, normalizeSettings, settingsProblem, type Settings, type SettingsStorage } from "../storage/settings.js";
+import { connectionsFor, endpointProblem, MemoryStorageArea, normalizeSettings, settingsProblem, type Settings, type SettingsStorage, type StorageArea } from "../storage/settings.js";
+import { MemoryModelStore, type ModelStore } from "../storage/models.js";
+import { HUGGING_FACE, CATALOG_SOURCE, InBrowserError, InBrowserService, type InBrowserView } from "./in-browser.js";
+import type { EngineProbe } from "../execution/engine-protocol.js";
+import type { PackageEvaluation } from "../../core/models/in-browser-catalog.js";
 import type { SnapshotStore, StoredSession } from "../storage/snapshots.js";
 import { MAX_INDEXES, MAX_PINNED, SubscriptionStorage, type LibraryEntry, type StoredIndex, type StoredPolicy } from "../storage/subscriptions.js";
 import type { TabStateStore } from "../storage/tab-state.js";
@@ -110,6 +114,7 @@ import { MemoryConversationStore, type ConversationStore } from "../storage/conv
 import { ConversationManager } from "./conversations.js";
 import { inputGatedReads } from "../../core/inputs.js";
 import { isTerminal, RunManager, type ExecutionHostBridge, type RunHooks } from "./runs.js";
+import { HostReplyError } from "./offscreen-host.js";
 
 export interface Limits {
   sessionTtlSeconds: number;
@@ -176,6 +181,12 @@ export interface ControllerDeps {
    * Absent: the diagnosis is `unknown`.
    */
   reachable?: (url: string) => Promise<boolean>;
+  /** The in-browser model cache's rows (IndexedDB `models`, T41); memory when absent (tests). */
+  models?: ModelStore;
+  /** `chrome.storage.local` for the refreshed model list and the measured machine (T41); memory when absent (tests). */
+  localArea?: StorageArea;
+  /** This worker's own reading of the GPU and memory (`navigator.gpu`, `deviceMemory`), until the engine Worker measured (T41). */
+  inBrowserProbe?: () => Promise<Partial<EngineProbe> | null>;
   /** Chrome's host permissions and the discovery script (T16, D-190, D-193); in tests a port over sets, granting every HTTPS origin unless told otherwise. */
   permissions?: PermissionsPort;
   /** Why each origin was granted (`chrome.storage.local`, T16); memory when absent (tests). */
@@ -319,6 +330,8 @@ export class Controller {
 
   /** Runs from the browser (T5): decides whether a run starts; the host executes. */
   readonly runs: RunManager;
+  /** The in-browser route (T41): the curated list, the person's pasted models, the machine, the budget. */
+  readonly inBrowser: InBrowserService;
   /** conversation.v0 (T24): conversations between turns (D-270). */
   readonly conversations: ConversationManager;
   private readonly conversationStore: ConversationStore;
@@ -347,6 +360,14 @@ export class Controller {
       broadcast: () => deps.broadcast({ type: "event.memory" }),
       clock: this.clock,
       version: this.version,
+    });
+    this.inBrowser = new InBrowserService({
+      models: deps.models ?? new MemoryModelStore(),
+      area: deps.localArea ?? new MemoryStorageArea(),
+      host: deps.host.engine ? (message) => deps.host.engine!(message) : null,
+      fetch: (url, init) => deps.fetch(url, init),
+      localProbe: deps.inBrowserProbe,
+      now: this.clock,
     });
     const hooks: RunHooks = {
       session: async (sessionId) => {
@@ -380,6 +401,8 @@ export class Controller {
       },
       missingOrigins: (origins) => this.missingOrigins(origins),
       secretsState: async () => (await this.deps.settings.store.status()).state,
+      // The in-browser route (T41, D-441): the page loads the bound entry before the run, or refuses.
+      inBrowserStart: async (plan) => this.inBrowser.startFor(plan.model_binding, await this.deps.settings.settings()),
     };
     this.runs = new RunManager({ runs: deps.runs, host: deps.host, settings: deps.settings, hooks, broadcast: deps.broadcast, clock: this.clock, randomId: deps.runId, runtimeVersion: this.version });
     // conversation.v0 (T24, D-270): conversations over the same runs, the same host and the same hooks.
@@ -449,6 +472,34 @@ export class Controller {
         return this.evaluateModels(request.sessionId, request.refresh);
       case "models.probe":
         return this.probe(request.provider);
+      case "inbrowser.get":
+        return this.inBrowserView(request.sessionId);
+      case "inbrowser.download":
+        await this.requireOrigin(`${HUGGING_FACE}/`);
+        return this.inBrowserAction(() => this.inBrowser.download(request.entryId));
+      case "inbrowser.cancel":
+      case "inbrowser.verify":
+      case "inbrowser.delete":
+        return this.inBrowserAction(() => this.inBrowser.command(request.type.slice("inbrowser.".length) as "cancel" | "verify" | "delete", request.entryId));
+      case "inbrowser.load":
+        return this.inBrowserAction(async () => this.inBrowser.load(request.entryId, await this.deps.settings.settings()));
+      case "inbrowser.unload":
+        return this.inBrowserAction(() => this.inBrowser.unload());
+      case "inbrowser.clearFailure":
+        return this.inBrowserAction(() => this.inBrowser.clearFailure(request.entryId));
+      case "inbrowser.prune":
+        return this.inBrowserAction(() => this.inBrowser.prune());
+      case "inbrowser.measure":
+        return this.inBrowserAction(() => this.inBrowser.measure());
+      case "inbrowser.paste":
+        await this.requireOrigin(`${HUGGING_FACE}/`);
+        return this.inBrowserAction(() => this.inBrowser.paste(request.repository));
+      case "inbrowser.addPasted":
+        await this.requireOrigin(`${HUGGING_FACE}/`);
+        return this.inBrowserAction(() => this.inBrowser.addPasted(request.repository, request.file));
+      case "inbrowser.refreshCatalog":
+        await this.requireOrigin(CATALOG_SOURCE.refresh_url);
+        return this.inBrowserAction(() => this.inBrowser.refreshCatalog());
       case "runplan.prepare":
         return this.prepareRunPlan(request.sessionId, request);
       case "runplan.get":
@@ -548,6 +599,13 @@ export class Controller {
         return this.conversations.exportBundle(request.conversationId);
       case "conversation.clear":
         return this.conversations.clear(request.conversationId);
+      case "host.modelsChanged":
+        // The model cache or the engine changed in the offscreen page (T41): re-read the catalog, tell the views.
+        if (!sender.offscreen) throw reject("not_allowed", "Only the execution host may report on the model cache", 403);
+        this.inBrowser.invalidate();
+        this.refreshInBrowserCatalog();
+        this.deps.broadcast({ type: "event.models" });
+        return { received: true };
       case "host.progress":
       case "host.finished":
         // Only the execution host reports on runs; a view cannot forge a host report.
@@ -634,9 +692,10 @@ export class Controller {
 
   /** The host's endpoint for a provider: the connection's base URL, else the provider's default; null when it has none. */
   private providerOrigin(settings: Settings, providerId: string): string | null {
-    if (providerId === "chrome-builtin" || !(PROVIDER_IDS as readonly string[]).includes(providerId)) return null;
+    // The routes that run inside this browser have no endpoint and no origin (D-446).
+    if (!hasEndpoint(providerId)) return null;
     const connection = settings.models.connections.find((item) => item.provider === providerId);
-    return connection?.base_url ?? DEFAULT_BASE_URLS[providerId as Exclude<ProviderId, "chrome-builtin">];
+    return connection?.base_url ?? DEFAULT_BASE_URLS[providerId];
   }
 
   /** The origins a prepared plan needs (D-193): a pure function of the plan, the registry's fallbacks and the provider settings. */
@@ -1776,11 +1835,25 @@ export class Controller {
   private catalogProbe: Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> | null = null;
   /** Bumped when the settings change: a probe started before then does not write the cache. */
   private catalogGeneration = 0;
+  /** Each probe's start order: a probe never overwrites the cache a later-started one wrote (T41 review 2, nit 4). */
+  private catalogStarted = 0;
+  private catalogWritten = 0;
+  /** The probe in progress that asks every provider (no answers in hand), if any. */
+  private catalogFullProbe: Promise<unknown> | null = null;
+  /** The answers an in-browser rebuild or a merge started from (`rebuildCatalogFrom`), until the latest lands. */
+  private inBrowserBase: { catalog: HostCatalog; probes: ProbeResult[]; at: number } | null = null;
+  private inBrowserRebuild: Promise<unknown> | null = null;
+  /** The full probe an in-browser refresh waits for (`refreshInBrowserCatalog`), so one tick chains once. */
+  private inBrowserAfter: Promise<unknown> | null = null;
 
   private invalidateCatalog(): void {
     this.catalogCache = null;
     this.catalogProbe = null;
+    this.catalogFullProbe = null;
     this.catalogGeneration += 1;
+    this.inBrowserBase = null;
+    this.inBrowserRebuild = null;
+    this.inBrowserAfter = null;
   }
 
   /**
@@ -1792,21 +1865,29 @@ export class Controller {
     if (this.catalogCache && this.clock().getTime() - this.catalogCache.at < maxAgeMs) return this.catalogCache;
     if (this.catalogProbe && !probed) return this.catalogProbe;
     const generation = this.catalogGeneration;
+    const order = ++this.catalogStarted;
     const probe = (async () => {
       const settings = await this.deps.settings.settings();
       const connections = connectionsFor(settings, await this.deps.settings.keyPresence());
       const builtin = connections.some((connection) => connection.provider === "chrome-builtin" && connection.enabled) ? await this.deps.builtin() : null;
-      const result = await buildHostCatalog(connections, this.deps.http, { builtin, runtimeVersion: this.version, now: this.clock(), probed });
-      // Stamped when the answers land (or with its oldest source's time), and only if the settings
-      // did not change meanwhile.
-      if (this.catalogGeneration === generation) this.catalogCache = { ...result, at: stampAt ?? this.clock().getTime() };
+      // The in-browser route's facts (T41): the cache, the list and the machine, read without a network request or the engine.
+      const inBrowser = connections.some((connection) => connection.provider === "in-browser" && connection.enabled) ? await this.inBrowser.probeInput(settings).catch(() => null) : null;
+      const result = await buildHostCatalog(connections, this.deps.http, { builtin, inBrowser, runtimeVersion: this.version, now: this.clock(), probed });
+      // Stamped when the answers land (or with its oldest source's time), only if the settings did
+      // not change meanwhile, and only if no probe started after this one has written already.
+      if (this.catalogGeneration === generation && order > this.catalogWritten) {
+        this.catalogCache = { ...result, at: stampAt ?? this.clock().getTime() };
+        this.catalogWritten = order;
+      }
       return result;
     })();
     this.catalogProbe = probe;
+    if (!probed) this.catalogFullProbe = probe;
     try {
       return await probe;
     } finally {
       if (this.catalogProbe === probe) this.catalogProbe = null;
+      if (this.catalogFullProbe === probe) this.catalogFullProbe = null;
     }
   }
 
@@ -1820,20 +1901,69 @@ export class Controller {
   }
 
   /**
+   * The model cache or the engine changed (`host.modelsChanged`, about once a second during a
+   * download): only the in-browser part of the held catalog is built again, from the cache and the
+   * machine facts (no network); the other providers' answers are kept with their time (T41
+   * review 1, nit 9). The rebuild starts synchronously, so a check made meanwhile joins it rather
+   * than reading the old in-browser part; rebuilds land in the order they started (T41 review 2,
+   * nit 4). While a full probe runs, the rebuild waits for it instead of discarding it (nit 5);
+   * with neither a catalog nor a probe, the next check builds a whole one.
+   */
+  private refreshInBrowserCatalog(): void {
+    const full = this.catalogFullProbe;
+    if (full !== null) {
+      if (this.inBrowserAfter === full) return; // already chained
+      this.inBrowserAfter = full;
+      void full
+        .catch(() => undefined)
+        .then(() => {
+          if (this.inBrowserAfter !== full) return;
+          this.inBrowserAfter = null;
+          this.refreshInBrowserCatalog();
+        });
+      return;
+    }
+    // The ticks come faster than a rebuild may finish: the other providers' answers are kept in
+    // `inBrowserBase` until the latest rebuild lands, so a tick during one starts another from them.
+    const held = this.catalogCache ?? this.inBrowserBase;
+    if (held === null) return;
+    void this.rebuildCatalogFrom(held).catch(() => undefined);
+  }
+
+  /** Build the catalog again from `base`'s answers except the in-browser one, which is read afresh (no network). */
+  private rebuildCatalogFrom(base: { catalog: HostCatalog; probes: ProbeResult[]; at: number }): Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> {
+    this.inBrowserBase = base;
+    const probed = new Map<ProviderId, ProbeResult>(base.probes.filter((item) => item.provider !== "in-browser").map((item) => [item.provider, item]));
+    this.catalogCache = null;
+    const rebuild = this.catalog(0, probed, base.at);
+    this.inBrowserRebuild = rebuild;
+    void rebuild
+      .catch(() => undefined)
+      .finally(() => {
+        if (this.inBrowserRebuild !== rebuild) return;
+        this.inBrowserRebuild = null;
+        this.inBrowserBase = null;
+      });
+    return rebuild;
+  }
+
+  /**
    * One provider's fresh answer (Test connection) replaces its part of the last catalog; the
    * others are not asked again. The merged catalog keeps the held catalog's time: every other
    * provider's part is that old, and a Test connection of one provider must not make an old answer
    * of another look fresh (T5a review 2). A settings change since the test started (`generation`)
-   * means the answer may describe the old endpoint, so it is not merged at all.
+   * means the answer may describe the old endpoint, so it is not merged at all. The merge becomes
+   * the base later in-browser rebuilds start from, so a download's tick does not drop it (T41
+   * review 2, nit 4).
    */
   private async mergeProbe(result: ProbeResult, generation: number): Promise<void> {
     if (this.catalogProbe) await this.catalogProbe.catch(() => undefined);
     if (generation !== this.catalogGeneration) return;
-    const held = this.catalogCache;
+    const held = this.catalogCache ?? this.inBrowserBase;
     if (held === null) return; // the next check builds a whole catalog
     const probed = new Map<ProviderId, ProbeResult>(held.probes.map((item) => [item.provider, item]));
     probed.set(result.provider, result);
-    await this.catalog(0, probed, held.at);
+    await this.rebuildCatalogFrom({ ...held, probes: [...probed.values()] });
   }
 
   /**
@@ -1864,7 +1994,8 @@ export class Controller {
     // The built-in model is read from the Prompt API, never over the network, and its one model row
     // comes back like any provider's (D-113), so Settings → Models can make it the default.
     const builtin = provider === "chrome-builtin" ? await this.deps.builtin() : null;
-    const result = await probeProvider({ ...connection, enabled: true }, this.deps.http, builtin);
+    const inBrowser = provider === "in-browser" ? await this.inBrowser.probeInput(settings) : null;
+    const result = await probeProvider({ ...connection, enabled: true }, this.deps.http, builtin, inBrowser);
     await this.mergeProbe(result, generation);
     return { ...result, diagnosis: provider === "ollama" && !result.ok ? await this.ollamaDiagnosis(connection.base_url ?? DEFAULT_BASE_URLS.ollama) : null };
   }
@@ -1898,7 +2029,51 @@ export class Controller {
       execution_mode_permissions_granted: required.length > 0 && required.every((id) => (live.receipt?.decisions[id] ?? DENY) !== DENY),
       captured_at: catalog.host.captured_at,
       model_policy: policy ? { label: policyLabel(policy.reference), title: policy.reference.title, local_only: policy.bundle.models.local_only, max_cost_usd_per_run: policy.bundle.models.max_cost_usd_per_run } : null,
+      in_browser: await this.inBrowserSuggestion(live.pkg, settings).catch(() => null),
     };
+  }
+
+  // -- the in-browser route (T41, D-443…D-446) -----------------------------------------------
+  /** The package's requirements as the recommendation's "not suitable" step evaluates them (D-443). */
+  private packageEvaluation(pkg: LiveSession["pkg"]): PackageEvaluation {
+    const requirements = requirementSet(pkg);
+    return (descriptor) => {
+      const evaluation = evaluateModel(requirements, normalizeDescriptor(descriptor, 0));
+      return { status: evaluation.status, violated: evaluation.checks.filter((check) => check.status === "violated") };
+    };
+  }
+
+  /** The picker's suggestion (D-446): the smallest recommended curated entry for this package, cached or with its download card. */
+  private async inBrowserSuggestion(pkg: LiveSession["pkg"], settings: Settings): Promise<ModelsView["in_browser"]> {
+    const connection = settings.models.connections.find((item) => item.provider === "in-browser");
+    if (!connection?.enabled) return null;
+    const view = await this.inBrowser.view(settings, this.packageEvaluation(pkg));
+    const suggestion = view.suggestion;
+    if (suggestion === null) return { suggestion: null, budget_words: view.machine.budget_words };
+    const item = view.entries.find((entry) => entry.entry.id === suggestion.entry)!;
+    return { suggestion: { entry: item.entry.id, host_model_id: `in-browser/${item.entry.id}`, display_name: item.entry.display_name, bytes_total: item.entry.bytes_total, cached: item.cached && item.verified, available: (item.descriptor as { available: boolean }).available, reasons: suggestion.reasons, license: item.entry.license }, budget_words: view.machine.budget_words };
+  }
+
+  async inBrowserView(sessionId: string | null): Promise<InBrowserView> {
+    const settings = await this.deps.settings.settings();
+    const evaluate = sessionId === null ? null : this.packageEvaluation((await this.session(sessionId)).pkg);
+    return this.inBrowser.view(settings, evaluate);
+  }
+
+  /** One of the person's in-browser actions; the catalog is read again afterwards, and a refusal keeps its code. */
+  private async inBrowserAction<T>(action: () => Promise<T>): Promise<T> {
+    try {
+      return await action();
+    } catch (error) {
+      if (error instanceof InBrowserError) throw reject(error.code, error.message, error.status);
+      if (error instanceof CoreError) throw error;
+      // The execution host's refusal keeps its code and words (T41 review 2, nit 7); anything else is the engine's failure.
+      if (error instanceof HostReplyError) throw reject(error.code, error.reason, 409);
+      throw reject("engine_error", error instanceof Error ? error.message : "the engine failed", 409);
+    } finally {
+      this.invalidateCatalog();
+      this.inBrowser.invalidate();
+    }
   }
 
   // -- authorization (authorization.py, D-022, D-050, D-053) ----------------------------------

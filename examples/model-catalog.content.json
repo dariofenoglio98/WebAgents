@@ -1,0 +1,249 @@
+{
+  "catalog_id": "org.webagents.in-browser-models",
+  "version": "1.1.0",
+  "title": "WebAgents curated in-browser models",
+  "issued_at": "2026-11-05T19:20:37Z",
+  "expires_at": null,
+  "entries": [
+    {
+      "schema": "agentpkg-in-browser-model-v0",
+      "id": "qwen3-0.6b-q4_0",
+      "display_name": "Qwen3 0.6B (Q4_0)",
+      "family": "qwen3",
+      "parameters": 600000000,
+      "format": "gguf",
+      "engine": "wllama",
+      "quantization": "Q4_0",
+      "files": [
+        {
+          "name": "Qwen3-0.6B-Q4_0.gguf",
+          "url": "https://huggingface.co/ggml-org/Qwen3-0.6B-GGUF/resolve/13ac06624948e4d8589cb4b6f90100837342fcb8/Qwen3-0.6B-Q4_0.gguf",
+          "bytes": 428970080,
+          "sha256": "da2572f16c06133561ce56accaa822216f2391ef4d37fba427801cd6736417d4"
+        }
+      ],
+      "weights_digest": "sha256:67a4dabae2cc428dec7cc444e1e3719393d7962ef0e82224742926115267667d",
+      "bytes_total": 428970080,
+      "context": {
+        "train": 40960,
+        "default": 32768,
+        "max": 40960
+      },
+      "capabilities": {
+        "structured_output": true,
+        "reasoning": true,
+        "tool_use": null
+      },
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0"
+      },
+      "source": {
+        "repository": "ggml-org/Qwen3-0.6B-GGUF",
+        "revision": "13ac06624948e4d8589cb4b6f90100837342fcb8",
+        "api": "https://huggingface.co/api/models/ggml-org/Qwen3-0.6B-GGUF?blobs=true"
+      },
+      "curated": true,
+      "header": {
+        "n_layer": 28,
+        "n_kv_heads": 8,
+        "key_length": 128,
+        "value_length": 128
+      },
+      "notes": "The smoke and demo tier: runs everywhere, answers simple structured tasks; too small for research agents."
+    },
+    {
+      "schema": "agentpkg-in-browser-model-v0",
+      "id": "qwen3-4b-q4_k_m",
+      "display_name": "Qwen3 4B (Q4_K_M)",
+      "family": "qwen3",
+      "parameters": 4000000000,
+      "format": "gguf",
+      "engine": "wllama",
+      "quantization": "Q4_K_M",
+      "files": [
+        {
+          "name": "Qwen3-4B-Q4_K_M.gguf",
+          "url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/bc640142c66e1fdd12af0bd68f40445458f3869b/Qwen3-4B-Q4_K_M.gguf",
+          "bytes": 2497280256,
+          "sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5"
+        }
+      ],
+      "weights_digest": "sha256:a0c7d5a1fff22410dcd10e758c9614f73caa065d6fc8cc36a1c382c7c5408f49",
+      "bytes_total": 2497280256,
+      "context": {
+        "train": 40960,
+        "default": 32768,
+        "max": 40960
+      },
+      "capabilities": {
+        "structured_output": true,
+        "reasoning": true,
+        "tool_use": null
+      },
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/blob/bc640142c66e1fdd12af0bd68f40445458f3869b/LICENSE"
+      },
+      "source": {
+        "repository": "Qwen/Qwen3-4B-GGUF",
+        "revision": "bc640142c66e1fdd12af0bd68f40445458f3869b",
+        "api": "https://huggingface.co/api/models/Qwen/Qwen3-4B-GGUF?blobs=true"
+      },
+      "curated": true,
+      "header": {
+        "n_layer": 36,
+        "n_kv_heads": 8,
+        "key_length": 128,
+        "value_length": 128
+      },
+      "notes": "The default on a 16 GB machine for WebAir-sized prompts; long prompts wait on prefill."
+    },
+    {
+      "schema": "agentpkg-in-browser-model-v0",
+      "id": "qwen3-8b-q4_k_m",
+      "display_name": "Qwen3 8B (Q4_K_M)",
+      "family": "qwen3",
+      "parameters": 8000000000,
+      "format": "gguf",
+      "engine": "wllama",
+      "quantization": "Q4_K_M",
+      "files": [
+        {
+          "name": "Qwen3-8B-Q4_K_M.gguf",
+          "url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/7c41481f57cb95916b40956ab2f0b139b296d974/Qwen3-8B-Q4_K_M.gguf",
+          "bytes": 5027783488,
+          "sha256": "d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785"
+        }
+      ],
+      "weights_digest": "sha256:1d2b08694ff24f37a919af4af52946b8b9afce11cbbcde8aa8b3b645e77470c6",
+      "bytes_total": 5027783488,
+      "context": {
+        "train": 40960,
+        "default": 32768,
+        "max": 40960
+      },
+      "capabilities": {
+        "structured_output": true,
+        "reasoning": true,
+        "tool_use": null
+      },
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/blob/7c41481f57cb95916b40956ab2f0b139b296d974/LICENSE"
+      },
+      "source": {
+        "repository": "Qwen/Qwen3-8B-GGUF",
+        "revision": "7c41481f57cb95916b40956ab2f0b139b296d974",
+        "api": "https://huggingface.co/api/models/Qwen/Qwen3-8B-GGUF?blobs=true"
+      },
+      "curated": true,
+      "header": {
+        "n_layer": 36,
+        "n_kv_heads": 8,
+        "key_length": 128,
+        "value_length": 128
+      },
+      "notes": "The 7-9B class: tight on 16 GB, comfortable from 24 GB."
+    },
+    {
+      "schema": "agentpkg-in-browser-model-v0",
+      "id": "gpt-oss-20b-mxfp4",
+      "display_name": "gpt-oss 20B (MXFP4)",
+      "family": "gpt-oss",
+      "parameters": 20000000000,
+      "format": "gguf",
+      "engine": "wllama",
+      "quantization": "MXFP4",
+      "files": [
+        {
+          "name": "gpt-oss-20b-MXFP4.gguf",
+          "url": "https://huggingface.co/ggml-org/gpt-oss-20b-GGUF/resolve/15dcfc7e7c608c6161507211ed43c5b590801b4b/gpt-oss-20b-MXFP4.gguf",
+          "bytes": 12109566624,
+          "sha256": "27cd6c432c7672cb812a92f611cf3ba7bbc35928262bb1e1253ff4ee6ae35901"
+        }
+      ],
+      "weights_digest": "sha256:03255db8f562e271f58512ebc54d66889bf0ac7a44ded04c67a0aed9aac39093",
+      "bytes_total": 12109566624,
+      "context": {
+        "train": 131072,
+        "default": 32768,
+        "max": 65536
+      },
+      "capabilities": {
+        "structured_output": true,
+        "reasoning": true,
+        "tool_use": null
+      },
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0"
+      },
+      "source": {
+        "repository": "ggml-org/gpt-oss-20b-GGUF",
+        "revision": "15dcfc7e7c608c6161507211ed43c5b590801b4b",
+        "api": "https://huggingface.co/api/models/ggml-org/gpt-oss-20b-GGUF?blobs=true"
+      },
+      "curated": true,
+      "header": {
+        "n_layer": 24,
+        "n_kv_heads": 8,
+        "key_length": 64,
+        "value_length": 64
+      },
+      "notes": "The 20B mixture-of-experts class for 32 GB machines and larger."
+    },
+    {
+      "schema": "agentpkg-in-browser-model-v0",
+      "id": "qwen3-30b-a3b-q4_k_m",
+      "display_name": "Qwen3 30B-A3B (Q4_K_M)",
+      "family": "qwen3",
+      "parameters": 30000000000,
+      "format": "gguf",
+      "engine": "wllama",
+      "quantization": "Q4_K_M",
+      "files": [
+        {
+          "name": "Qwen3-30B-A3B-Q4_K_M.gguf",
+          "url": "https://huggingface.co/Qwen/Qwen3-30B-A3B-GGUF/resolve/e4d4bafdfb96a411a163846265362aceb0b9c63a/Qwen3-30B-A3B-Q4_K_M.gguf",
+          "bytes": 18556685824,
+          "sha256": "0d003f6662faee786ed5da3e31b29c978de5ae5d275c8794c606a7f3c01aa8f5"
+        }
+      ],
+      "weights_digest": "sha256:8268e80238b03eba2258b0e5050314b428f9f96217bfa3470c095954ccc99943",
+      "bytes_total": 18556685824,
+      "context": {
+        "train": 40960,
+        "default": 32768,
+        "max": 40960
+      },
+      "capabilities": {
+        "structured_output": true,
+        "reasoning": true,
+        "tool_use": null
+      },
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-30B-A3B-GGUF/blob/e4d4bafdfb96a411a163846265362aceb0b9c63a/LICENSE"
+      },
+      "source": {
+        "repository": "Qwen/Qwen3-30B-A3B-GGUF",
+        "revision": "e4d4bafdfb96a411a163846265362aceb0b9c63a",
+        "api": "https://huggingface.co/api/models/Qwen/Qwen3-30B-A3B-GGUF?blobs=true"
+      },
+      "curated": true,
+      "header": {
+        "n_layer": 48,
+        "n_kv_heads": 4,
+        "key_length": 128,
+        "value_length": 128
+      },
+      "notes": "The family of the only local model that met Literature Review's exact-copy contract (qwen3:30b); 36 GB and larger."
+    }
+  ]
+}

@@ -56,7 +56,7 @@ const DEFAULT_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Ch
 const DEFAULT_SITE = "https://webagents-webair-production.up.railway.app/";
 const RUN_TIMEOUT_MS = 20 * 60 * 1000;
 
-const args = { chrome: process.env.CHROME_PATH || DEFAULT_CHROME, site: DEFAULT_SITE, model: null, version: "0.5.0", out: null, outDir: null, keep: false, localOrigin: false, package: null, phases: ["search", "cancel", "quote", "purchase", "denial"] };
+const args = { chrome: process.env.CHROME_PATH || DEFAULT_CHROME, site: DEFAULT_SITE, model: null, version: "0.5.0", out: null, outDir: null, keep: false, localOrigin: false, package: null, profile: null, phases: ["search", "cancel", "quote", "purchase", "denial"] };
 /** WebAir 0.8.0 (T24, conversation.v0) is talked to: one message per turn, the card before the purchase. */
 const conversational = (version) => Number(version.split(".")[1] ?? "0") >= 8;
 /** The memory phase (T19, Demo 6) needs WebAir 0.6.0 (memory.v0): it is on by default from that version. */
@@ -72,6 +72,9 @@ for (let index = 2; index < process.argv.length; index += 1) {
   else if (argument === "--keep") args.keep = true;
   else if (argument === "--local-origin") args.localOrigin = true;
   else if (argument === "--package") args.package = resolve(process.argv[(index += 1)]);
+  // T41: a Chrome profile another harness prepared (`e2e-inbrowser.mjs`: an in-browser model already
+  // downloaded and verified); it is reused as found and never removed here.
+  else if (argument === "--profile") args.profile = resolve(process.argv[(index += 1)]);
   else if (argument === "--phases") args.phases = process.argv[(index += 1)] === "all" ? [...args.phases, "memory"] : process.argv[index].split(",");
   else {
     console.error(`unknown argument ${argument}`);
@@ -82,7 +85,7 @@ for (let index = 2; index < process.argv.length; index += 1) {
 if (args.out === null) args.out = join(ROOT, "examples", "verification", `chrome-webair-${args.version.replaceAll(".", "")}${args.localOrigin ? "-local" : ""}-live.json`);
 if (memoryCapable(args.version) && !args.phases.includes("memory") && process.argv.every((argument) => argument !== "--phases")) args.phases.push("memory");
 if (!args.model || !args.model.includes("/")) {
-  console.error("--model provider/model is required (ollama/qwen3:30b, openai/<id>, anthropic/<id>)");
+  console.error("--model provider/model is required (ollama/qwen3:30b, openai/<id>, anthropic/<id>, in-browser/<entry>)");
   process.exit(2);
 }
 if (!existsSync(join(EXTENSION, "manifest.json"))) {
@@ -241,7 +244,7 @@ async function startLocalOrigin(directory) {
 }
 
 async function main() {
-  const profile = mkdtempSync(join(tmpdir(), "chrome-agent-browser-live-"));
+  const profile = args.profile ?? mkdtempSync(join(tmpdir(), "chrome-agent-browser-live-"));
   const origin = args.localOrigin ? await startLocalOrigin(mkdtempSync(join(tmpdir(), "chrome-agent-browser-origin-"))) : null;
   if (origin) {
     report.localOrigin = { package: origin.package, health: origin.health, note: "this repository's origin on 127.0.0.1 over TLS, the public hostname mapped to it (--local-origin)" };
@@ -795,7 +798,7 @@ async function main() {
     chrome.kill();
     await Promise.race([exited, sleep(10_000)]);
     origin?.child.kill();
-    if (!args.keep) rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    if (!args.keep && args.profile === null) rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
   report.passed = report.failures.length === 0;
   const text = `${JSON.stringify(report, null, 2)}\n`;

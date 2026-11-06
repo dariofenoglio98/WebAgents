@@ -187,6 +187,7 @@ has no `innerHTML`.
 | Tool calls | one request at a time, no redirect, bounded request and response bytes, the binding's own pacing. A read-only remote call that fails transiently (429, 500, 503, 504, a 502 that is not data, a connection failure, the binding's timeout) is sent again up to twice, after 1 s and 3 s or the server's `Retry-After` up to 10 s, each retry a remote call within the run's budgets; a tool with side effects is never sent twice. A `citation.resolve` call for a DOI whose resolver stays unavailable is answered by the built-in Crossref lookup when the package declares `api.crossref.org` (Literature Review 0.2.7 does). Only fast failures are recovered: a generic JSON binding's per-request deadline is the package's tool timeout, so a service that hangs for that whole time (45 s for Literature Review's resolver) leaves no time for a retry or the lookup, and the call fails as `tool_timeout` | D-054, D-066, D-081, D-152, D-153 |
 | Selected PDFs | the reference parser's limits (size, pages, text per page, text in all) | D-082 |
 | One active run | per session and per plan; a receipt must outlast the run deadline by 60 s | D-071 |
+| In-browser models (T41) | one model loaded, one completion at a time (a map step's workers wait); the context the plan froze, at most the entry's (and 65,536); refused before the run when the weights are not cached and verified, the GPU-memory estimate at that context exceeds the machine's budget, a load at that context died before, or another model is in use; unloaded after 10 idle minutes (a setting); downloads only from `huggingface.co`, each file hashed while it arrives and kept only if it matches | D-441, D-444, D-450…D-452, §15 |
 | Compute calls (compute.v0, T22) | each call in its own nested Worker, terminated when it answers, at its wall bound (`min(wall_seconds, timeout_seconds + 1)`, the CPU bound: Chrome meters no fuel) and on cancel; memory bounded by the module's declared maximum, refused before the run when that is above the host's page bound; the memory and time per compute call in Settings → Policies → Run limits | D-250, D-251, `src/core/compute/engine.ts` |
 
 ## 7. How it is verified
@@ -357,7 +358,8 @@ Meeting Agenda path are later work.
 ## 12. Installer and helper (T17)
 
 Optional, macOS only, and never needed (D-181): the extension is complete on its own. One
-installer, [`installer/macos/`](../installer/README.md), adds two things:
+installer, [`installer/macos/`](../installer/README.md), adds the helper (0.1.0 also configured
+Ollama):
 
 - **The native helper** (`native-helper/`, Swift, one universal binary). Chrome starts it for one
   request and one reply; it does three things only (D-204): wrap the store's master key under a
@@ -373,10 +375,11 @@ installer, [`installer/macos/`](../installer/README.md), adds two things:
   the passphrase form unlocks as before. A record that can never work again (the keychain item is
   gone or replaced, the key does not fit) is dropped; nothing else is, so removing the helper loses
   nothing. Turn off and Forget everything delete the record.
-- **Ollama, configured** (an optional choice, on by default): an Ollama already installed is only
-  configured; otherwise Homebrew's `ollama-app` cask, or the pinned release checked by SHA-256 and
-  signing team (D-202). The extension's own `chrome-extension://<id>` is added to `OLLAMA_ORIGINS`
-  now and at every login by a LaunchAgent, which restarts Ollama only when it rejects the origin.
+- **Ollama, configured** (0.1.0 only; removed in 0.2.0, T41, D-446, D-457): the extension runs
+  models itself in the browser (§15), so the installer no longer installs Ollama or sets
+  `OLLAMA_ORIGINS`. Its uninstaller still removes what a 0.1.0 install's Ollama choice left (the
+  LaunchAgent, the receipt, the extension's entries in `OLLAMA_ORIGINS`). The helper's read-only
+  report of Ollama's state stays, for people who run Ollama.
 
 The helper answers one extension id: the one the manifest's `key` gives every unpacked build
 (D-200; the Web Store's id joins it at U7). `npm run pack` removes `key` from the store zip.
@@ -497,3 +500,71 @@ identical refusals and audits), and `scripts/e2e-network.mjs`, which runs the si
 in headless Chrome from a fake WebAir origin in fixture mode, with `scripts/verify_network_run.py`
 recomputing its export ([`chrome-network-e2e-t26.json`](../examples/verification/chrome-network-e2e-t26.json));
 the same script checks a live run's Runs-page export.
+
+## 15. In-browser inference (T41)
+
+The default local route: the extension runs an open-weight GGUF model itself, inside the browser,
+on the machine's GPU, with no application beside it (D-310, D-311, D-440…D-459). The design and its
+measurements are [`design/in-browser-inference.md`](design/in-browser-inference.md); this section
+says where each part lives.
+
+**Placement.** The engine is wllama 3.8.1 (llama.cpp on WebGPU): `engine-worker.js` and its
+`wllama.wasm` (SHA-256 `551f1343…e70c`, asserted by `check-pack`), a dedicated Worker the offscreen
+document (`execution.html`) creates and owns through `EngineHost` (`src/extension/execution/engine-host.ts`),
+so a loaded model outlives the runs that use it. A run reaches it through a `MessagePort` the page
+transfers inside `host.start` when the plan binds `in-browser/<entry>`; the run's Worker wraps it as
+the core's `InBrowserEnginePort` (`in-browser-port.ts`) and never loads or spawns anything. Before
+the run starts, the page loads the entry at the plan's context or refuses with the reason (not
+downloaded, unverified, over the budget with both numbers, a context that died before, another model
+in use by run …); never another model (principle 6). The core sees the port only: `src/core` holds
+the adapter, the catalog format, the recommendation, the GGUF header reader and the weights digest,
+and the boundary test keeps WebGPU and the DOM out of it.
+
+**Lifetime.** One model, one completion at a time (a queue); loads and unloads pass one gate, so two
+loads never overlap. It stays loaded until Unload, an idle
+time with no run (10 minutes by default, Settings → Models), a run that needs another entry while
+none uses this one, or the extension unloading. A Worker that dies (out of memory), or a load that
+has not answered in 180 s, fails the calls it held as `model_unavailable` (`engine_worker_died`,
+`engine_load_timeout`), records "failed to run at <context>" on the entry, and is not restarted by
+itself. That context is not tried again: the recommendation then chooses a smaller one (halving, down
+to 4,096) and says why, and the entry's **Clear** in Settings lets the next load try it again. The first completion after a load records the measured
+prefill and decode speed for the recommendation; a CPU-only control load never does.
+
+**The cache.** IndexedDB `models` (database version 7) holds one row per listed entry (the entry,
+its files' state, `downloaded_at`, `last_used`, `verified_at`, the header facts read from the cached
+bytes, the measured speed); the weights are OPFS files `models/<sha256>`, written in place by the
+models Worker (`models-worker.js`) through sync access handles, so a partial file survives a crash
+and an HTTP `Range` resume never copies it. Every file is hashed while it arrives (`@noble/hashes`)
+and kept only if its SHA-256 is the entry's; a mismatch keeps no byte, a cancel leaves no file, and a
+file already in the cache is re-hashed before a download trusts it. When a newer list changes an
+entry's files, the old ones go at its next download; Settings lists models no longer in the list
+and files no model names, each deletable. The
+extension's OPFS is removed with the extension. Downloads run in the offscreen page, so they continue
+when the side panel or the full page closes.
+
+**The list.** The curated list is a signed document (`org.webagents:model-catalog-v0`, the
+`webagents-catalog` key, `examples/model-catalog.json`), shipped in the extension and refreshed only
+when the person asks (Check for a newer list), refused when older, reused for other content, expired
+or signed by another key. A pasted Hugging Face repository's file is an uncurated entry pinned to the
+repository's commit. Entry URLs must be `https://huggingface.co/…` and pass the package URL gate
+before any fetch; the digest binds the bytes wherever the redirect goes.
+
+**Recommendations.** The engine Worker's probe (the WebGPU adapter), the memory hint, the storage
+estimate, a 512×512 matmul benchmark's class, the measured speed per entry and the person's statement
+of GPU memory give each entry a bin: recommended, possible, not suitable (with a package open) or too
+large, every reason shown with the budget's basis. The picker shows the routes as *In this browser*,
+*Chrome's built-in model*, *Ollama on this computer* ("it runs outside the browser's protection")
+and *Hosted by …*, and suggests the smallest recommended curated entry, cached or with its download
+card.
+
+**Evidence.** The adapter, the catalog, the bins, the header reader, the downloader, the engine
+host's rules and the views are unit-tested (`test/core/models/in-browser*.test.ts`,
+`test/extension/{model-cache,models-manager,engine-host,in-browser-service,in-browser-ui}.test.ts`). In real Chrome,
+`scripts/e2e-inbrowser.mjs` downloads the curated Qwen3 4B through the product's downloader from a
+local origin answering for `huggingface.co`, refuses a digest mismatch and an over-budget load,
+compares the GPU's decode speed with a CPU-only control, sees the idle unload, then runs WebAir
+0.8.0's search conversation on the model; `scripts/verify_chrome_inbrowser_e2e.py` recomputes the
+report ([`chrome-inbrowser-e2e.json`](../examples/verification/chrome-inbrowser-e2e.json)). Because
+that origin answers for `huggingface.co` itself, Hugging Face's real redirect to its LFS content host
+and that host's CORS answer are exercised only by a headed download from Hugging Face (done for the
+4B on 2026-11-05).

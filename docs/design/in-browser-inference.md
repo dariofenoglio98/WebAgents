@@ -2,7 +2,9 @@
 
 *Design document, T40 (2026-11-02). Status: approved at the gate on 2026-11-02 (D-440…D-448 in
 `DECISIONS.md`); revised after review 1 the same day (the KV cache's head widths, a fourth
-recommendation bin, an unknown fit refused, every number cited by its report); the build is T41.*
+recommendation bin, an unknown fit refused, every number cited by its report); built by T41
+(2026-11-05, D-450…D-459: where the build departs from this text, D-459 says so; the curated
+`context.default` is 32,768, D-454).*
 
 A person installs the extension once. From then on, a package that needs a model can run on an
 open-weight model that the extension itself executes on the machine's GPU, inside the browser,
@@ -50,13 +52,13 @@ Versions read from the npm registry on 2026-11-02 **[V]**.
 | Version, date, licence | 3.8.1, 2026-10-02, MIT | 0.2.87, 2026-10-30, Apache-2.0 | 4.3.2, 2026-10-27, Apache-2.0 (+ onnxruntime-web 1.31.1, MIT) |
 | What it runs | **any GGUF file llama.cpp supports** (the bulk of open-weight releases on Hugging Face ship GGUF) | models compiled by MLC only: 167 prebuilt entries (`config.ts`) | ONNX exports only (`onnx-community`); about 200 architectures |
 | Structured output | `response_format.json_schema` on the OpenAI-compatible chat API, converted to a grammar **inside the engine** (llama.cpp's `oaicompat_chat_params_parse`); grammar-constrained sampling **[V, measured]** | `response_format: {type: "json_object", schema}` through XGrammar in the wasm model library **[V]** | experimental `@huggingface/transformers-structured-output` (v4.3, 2026-09-16), a logits processor; "one generated sequence at a time" **[V]** |
-| Code that ships | one wasm, 8,763,949 bytes (`esm/wasm/wllama.wasm`, SHA-256 `551f1343…`), plus a 375 KB bundle; **no eval, no `new Function`** **[measured: `engine.bundle_has_eval` false]** | the runtime (6.5 MB `lib/index.js`) and **one wasm model library per model, fetched at run time from `raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/`** (`modelLibURLPrefix`, `v0_2_87/base`) **[V]** | the runtime plus ORT's wasm (bundled or from a CDN); the WebGPU runtime rewritten in C++ **[V]** |
+| Code that ships | one wasm, 8,763,949 bytes (`esm/wasm/wllama.wasm`, SHA-256 `551f1343…`), plus the spike's bundle (`engine.bundle_bytes` 376,188); **no eval, no `new Function`** **[measured: `engine.bundle_has_eval` false]** | the runtime (6.5 MB `lib/index.js`) and **one wasm model library per model, fetched at run time from `raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/`** (`modelLibURLPrefix`, `v0_2_87/base`) **[V]** | the runtime plus ORT's wasm (bundled or from a CDN); the WebGPU runtime rewritten in C++ **[V]** |
 | WebGPU features needed | runs on the core limits; uses f16 and subgroups when present (LlamaWeb kernels) | `shader-f16` for the `q4f16` entries | WebGPU EP; threads want cross-origin isolation |
 | Speed (this machine) | **[measured]** Qwen3-0.6B Q4_0: prefill 490 tok/s, decode 89 tok/s, load 1,616 ms from a local file; Qwen3-4B Q4_K_M at a 16,384 context: prefill 131 tok/s, decode 37 tok/s, load 8,751 ms | Llama-3.1-8B q4f16: 41 tok/s on an M3 Max (arXiv 2412.15803) **[V]**; LlamaWeb: wllama decodes about 54 % faster than WebLLM, prefills at 49 % of it (arXiv 2605.20706) **[V]** | gpt-oss-20B q4f16 about 60 tok/s on a top M4 (vendor post) **[V]** |
 | Per-file limits | README: 2 GB per file ("ArrayBuffer restriction"), split with `llama-gguf-split` **[V]**; **the 2,497,280,256-byte Qwen3-4B file loads as one file** in Chrome 156 (the engine reads Blobs with async file access, so the cap in the README no longer applies here) **[measured]** | model artifacts are sharded by MLC | ONNX external data above 2 GiB |
 | Maintenance | llama.cpp synced per release; a research paper (LlamaWeb, UCSC and MSR) on its WebGPU kernels | MLC team; model list refreshed per release | Hugging Face with the ONNX Runtime team |
 | Worker model | creates its Worker from a `blob:` URL of bundled code; **runs under the extension's CSP** **[measured: blob and nested blob Workers run on `chrome-extension://`, WebGPU inside]** | `WebWorkerMLCEngine` over a Worker the caller creates | ORT spawns its own |
-| Remote-code reading (§10) | wasm bundled, weights are data: **clean**; the bundle carries two `cdn.jsdelivr.net` string constants for the Firefox/Safari compat build, never fetched in Chrome **[measured: `bundle_remote_urls`]** | **a model library wasm fetched from GitHub at run time is remote code**; bundling 5 curated libraries costs about 10–25 MB in the zip and still runs only MLC models | ORT wasm must be bundled (default is a CDN) |
+| Remote-code reading (§10) | wasm bundled, weights are data: **clean**; the spike's bundle names three URL strings (`engine.bundle_remote_urls`): `http://localhost` in a comment and two `cdn.jsdelivr.net` constants for the Firefox/Safari compat build, never fetched in Chrome **[measured]**; T41 blanks the two (D-459) | **a model library wasm fetched from GitHub at run time is remote code**; bundling 5 curated libraries costs about 10–25 MB in the zip and still runs only MLC models | ORT wasm must be bundled (default is a CDN) |
 
 **Recommendation (D-440): wllama 3.8.1 is the v1 engine, the only one.** Three facts decide it.
 (1) It is the only engine that runs *any* open-weight GGUF, which is what D-311 promised the person
@@ -464,7 +466,7 @@ model, is what the person waits for.
 | Context | headless Chrome 156.0.8078.48, the real offscreen document (`background_page` target, `execution.html`), a module Worker started in it; no Chrome flag |
 | WebGPU in that Worker | `has_webgpu` true; adapter `apple` / `metal-3`, not a fallback; features include `shader-f16`, `subgroups`, `subgroup-size-control`, `timestamp-query`; `maxBufferSize` 4,294,967,292; a device created |
 | Platform | secure context, `crossOriginIsolated` false, memory64 true, JSPI true, 14 hardware threads, storage quota 59,208,745,273 bytes |
-| Engine | wllama 3.8.1, wasm 8,763,949 bytes, bundle 375 KB over 19 inputs, no eval |
+| Engine | wllama 3.8.1, wasm 8,763,949 bytes, bundle `bundle_bytes` 376,188 over 19 inputs, no eval |
 | Model | Qwen3-0.6B Q4_0, 428,970,080 bytes, SHA-256 verified against Hugging Face's LFS digest, served by a local HTTPS origin |
 | Load | 1,616 ms (n_ctx 8,192, 28 layers); reload after unload 962 ms |
 | Constrained `interpret` | 2,917 prompt tokens, 179 completion tokens, prefill 489.6 tok/s, decode 89.5 tok/s, `finish_reason` stop, valid against `plan.schema.json`, intent/destination/date/passengers as asked |

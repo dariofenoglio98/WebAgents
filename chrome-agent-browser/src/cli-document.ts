@@ -1,9 +1,9 @@
 /**
  * `document sign | verify` (T8): the publisher-side tool for the signed documents of
- * `spec/extensions/signed-document-v0.md`, an agent index or a policy bundle.
+ * `spec/extensions/signed-document-v0.md`, an agent index, a policy bundle or a model catalog (T41).
  *
- *   node dist/cli.js document sign   --type agent-index|policy-bundle --key <private.pem> <content.json> --out <signed.json>
- *   node dist/cli.js document verify --type agent-index|policy-bundle --key <public.pem> <signed.json>
+ *   node dist/cli.js document sign   --type agent-index|policy-bundle|model-catalog --key <private.pem> <content.json> --out <signed.json>
+ *   node dist/cli.js document verify --type agent-index|policy-bundle|model-catalog --key <public.pem> <signed.json>
  *
  * `sign` reads the content as strict JSON, checks it against the content type's schema and
  * rules first (a publisher never signs a document a browser would refuse), signs it with an
@@ -22,6 +22,7 @@ import {
   CoreError,
   isJsonObject,
   parseJson,
+  MODEL_CATALOG_TYPE,
   POLICY_BUNDLE_TYPE,
   publicKeyFromPem,
   serializeSignedDocument,
@@ -32,6 +33,7 @@ import {
 import { readPolicyBundle } from "./core/policies/bundle.js";
 import { extensionSchemaFailure } from "./core/schema.js";
 import { readAgentIndex } from "./core/resolve/static-index.js";
+import { readModelCatalog } from "./core/models/in-browser-catalog.js";
 
 function print(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
@@ -43,7 +45,8 @@ function refuse(error: unknown): number {
   return 2;
 }
 
-const TYPES: Readonly<Record<string, DocumentContentType>> = Object.freeze({ "agent-index": AGENT_INDEX_TYPE, "policy-bundle": POLICY_BUNDLE_TYPE });
+const TYPES: Readonly<Record<string, DocumentContentType>> = Object.freeze({ "agent-index": AGENT_INDEX_TYPE, "policy-bundle": POLICY_BUNDLE_TYPE, "model-catalog": MODEL_CATALOG_TYPE });
+const CONTENT_SCHEMA: Readonly<Record<DocumentContentType, string>> = Object.freeze({ [AGENT_INDEX_TYPE]: "agent-index-v0", [POLICY_BUNDLE_TYPE]: "policy-bundle-v0", [MODEL_CATALOG_TYPE]: "model-catalog-v0" });
 const SIGN: ArgumentSpec = { positional: ["content"], options: { "--type": { kind: "value", required: true, choices: Object.keys(TYPES) }, "--key": { kind: "value", required: true }, "--out": { kind: "value", required: true } } };
 const VERIFY: ArgumentSpec = { positional: ["document"], options: { "--type": { kind: "value", required: true, choices: Object.keys(TYPES) }, "--key": { kind: "value", required: true } } };
 
@@ -58,6 +61,10 @@ async function describe(type: DocumentContentType, content: JsonObject): Promise
   if (type === AGENT_INDEX_TYPE) {
     const index = readAgentIndex(content);
     return { id: index.index_id, version: index.version, title: index.title, entries: index.entries.length, notes: index.notes, issued_at: index.issued_at, expires_at: index.expires_at };
+  }
+  if (type === MODEL_CATALOG_TYPE) {
+    const catalog = readModelCatalog(content);
+    return { id: catalog.catalog_id, version: catalog.version, title: catalog.title, entries: catalog.entries.map((entry) => ({ id: entry.id, bytes_total: entry.bytes_total, weights_digest: entry.weights_digest })), issued_at: catalog.issued_at, expires_at: catalog.expires_at };
   }
   const bundle = await readPolicyBundle(content);
   return {
@@ -79,7 +86,7 @@ async function sign(args: string[]): Promise<number> {
     if (existsSync(out)) throw new CoreError("output_exists", `${out} exists; signing never overwrites a document`);
     const content = parseJson(new Uint8Array(readFileSync(parsed.positional.content!)), "content");
     if (!isJsonObject(content)) throw new CoreError("document_content_invalid", "the content must be a JSON object");
-    const failure = await extensionSchemaFailure(content, type === AGENT_INDEX_TYPE ? "agent-index-v0" : "policy-bundle-v0");
+    const failure = await extensionSchemaFailure(content, CONTENT_SCHEMA[type]);
     if (failure !== null) throw new CoreError("document_content_invalid", `the content is not a valid ${type}: ${failure}`);
     await describe(type, content); // the rules beyond the schema, before anything is signed
     const privateKey = createPrivateKey(readFileSync(parsed.value("--key")!));

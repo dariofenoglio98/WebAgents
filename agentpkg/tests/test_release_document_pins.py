@@ -26,13 +26,19 @@ def _check_release():
 DOCUMENTS = {
     "agent-index.json": "examples/agent-index.json",
     "policies/webagents-research.json": "examples/policies/webagents-research.json",
+    # T41: the signed curated in-browser model list.
+    "model-catalog.json": "examples/model-catalog.json",
 }
 
 
 def test_the_shipped_pins_are_the_documents_own():
     module = _check_release()
     pins = module.document_pins((ROOT / "package-origin" / "server.py").read_text(encoding="utf-8"))
-    assert sorted(pins) == ["/agent-index.json", "/policies/webagents-research.json"]
+    assert sorted(pins) == [
+        "/agent-index.json",
+        "/model-catalog.json",
+        "/policies/webagents-research.json",
+    ]
     assert module.pin_mismatches(pins, DOCUMENTS) == {
         "pins": pins,
         "mismatched": [],
@@ -49,7 +55,8 @@ def test_a_stale_pin_or_a_missing_one_fails():
     assert module.pin_mismatches(stale, DOCUMENTS)["mismatched"] == ["/agent-index.json"]
     missing = {"/agent-index.json": pins["/agent-index.json"]}
     assert module.pin_mismatches(missing, DOCUMENTS)["mismatched"] == [
-        "/policies/webagents-research.json"
+        "/model-catalog.json",
+        "/policies/webagents-research.json",
     ]
 
 

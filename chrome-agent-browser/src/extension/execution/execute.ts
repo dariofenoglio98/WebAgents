@@ -25,6 +25,7 @@ import { sha256HexSync } from "../../core/hash.js";
 import { buildHostToolRegistry } from "../../core/hosttools.js";
 import type { JsonObject, JsonValue } from "../../core/json.js";
 import type { BuiltinModelPort } from "../../core/models/adapters/chrome-builtin.js";
+import type { InBrowserEnginePort } from "../../core/models/adapters/in-browser.js";
 import { adapterFor } from "../../core/models/providers.js";
 import { BoundModelRouter } from "../../core/models/router.js";
 import type { ModelRequestObserver } from "../../core/models/transport.js";
@@ -61,6 +62,8 @@ export interface ExecuteDeps {
   transports: { model: HttpTransport; tool: HttpTransport };
   /** The Prompt API port of this context, when it has one. */
   builtin?: BuiltinModelPort | null;
+  /** The in-browser engine's port the page transferred for this run (T41, D-450); absent for every other route. */
+  inBrowser?: InBrowserEnginePort | null;
   /** The picked files' stored copies (T6, D-083); a run reads only its attachments from it. */
   files?: Pick<FileStore, "get"> | null;
   /** The PDF parser: a killable Worker per read in the extension, in-process in tests (D-082). */
@@ -364,6 +367,7 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
         openai: { apiKey: message.credentials.openai, ...(message.settings.openaiBaseUrl ? { baseUrl: message.settings.openaiBaseUrl } : {}), ...(message.settings.openaiReasoningEffort !== undefined ? { reasoningEffort: message.settings.openaiReasoningEffort } : {}) },
         anthropic: { apiKey: message.credentials.anthropic, ...(message.settings.anthropicBaseUrl ? { baseUrl: message.settings.anthropicBaseUrl } : {}) },
         ...(deps.builtin ? { builtin: deps.builtin } : {}),
+        ...(deps.inBrowser ? { inBrowser: deps.inBrowser, inBrowserThink: message.inBrowser?.think === true } : {}),
       });
       const router = new BoundModelRouter(adapter, { requestTimeoutSeconds: run.invocation.limits.model_call_timeout_seconds });
       // The picked files this run was given (its invocation's attachments) and nothing else; their

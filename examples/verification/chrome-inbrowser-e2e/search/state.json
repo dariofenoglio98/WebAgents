@@ -1,0 +1,85 @@
+{
+  "confirmation_ref": null,
+  "history": [
+    {
+      "answer": "The search found two nonstop flights from Boston to Zurich on 9 October 2026. The first flight, WA101-20261009, departs at 6:05 PM local time from Boston and arrives at 7:40 AM local time at Zurich. It is priced at $704 per passenger. The second flight, WA105-20261009, departs at 9:40 PM local time from Boston and arrives at 11:20 AM local time at Zurich. It is priced at $749 per passenger. The selected fare is WA101-20261009-BASIC, which is Economy Basic. This fare includes no checked bag. The flight is nonstop, economy class, and the fare is under $900.",
+      "intent": "search",
+      "message": "Find me a nonstop flight from Boston to Zurich on 9 October under $900.",
+      "search": {
+        "cabin": null,
+        "date": "2026-10-09",
+        "destination": "ZRH",
+        "max_price_usd": 900,
+        "nonstop_only": true,
+        "origin": "BOS",
+        "passengers": 1
+      },
+      "status": "options_found"
+    },
+    {
+      "answer": "The search found two nonstop flights from Boston to Zurich on 9 October 2026. The selected fare is WA101-20261009-BASIC, which is Economy Basic. This fare includes no checked bag. The flight departs at 6:05 PM local time from Boston and arrives at 7:40 AM local time at Zurich. The fare is priced at $704 per passenger. The request asked for the cheapest nonstop flight under $900, and this fare meets that requirement.",
+      "intent": "search",
+      "message": "Only the cheapest one, and tell me whether it includes a checked bag.",
+      "search": {
+        "cabin": null,
+        "date": "2026-10-09",
+        "destination": "ZRH",
+        "max_price_usd": 900,
+        "nonstop_only": true,
+        "origin": "BOS",
+        "passengers": 1
+      },
+      "status": "options_found"
+    },
+    {
+      "answer": "Nothing is booked or charged unless a purchase was simulated.",
+      "intent": "done",
+      "message": "That's all, thanks.",
+      "search": null,
+      "status": "done"
+    }
+  ],
+  "known_fares": [
+    {
+      "fare_id": "WA101-20261009-BASIC",
+      "fare_family": "BASIC",
+      "fare_name": "Economy Basic",
+      "cabin": "economy",
+      "booking_class": "V",
+      "price_usd": 704,
+      "seats_left": 9,
+      "available": true,
+      "checked_bags": 0,
+      "changeable": false,
+      "refundable": false
+    },
+    {
+      "fare_id": "WA101-20261009-STANDARD",
+      "fare_family": "STANDARD",
+      "fare_name": "Economy Standard",
+      "cabin": "economy",
+      "booking_class": "M",
+      "price_usd": 858,
+      "seats_left": 24,
+      "available": true,
+      "checked_bags": 1,
+      "changeable": true,
+      "refundable": false
+    },
+    {
+      "fare_id": "WA105-20261009-BASIC",
+      "fare_family": "BASIC",
+      "fare_name": "Economy Basic",
+      "cabin": "economy",
+      "booking_class": "V",
+      "price_usd": 749,
+      "seats_left": 4,
+      "available": true,
+      "checked_bags": 0,
+      "changeable": false,
+      "refundable": false
+    }
+  ],
+  "profile_used": false,
+  "quote_ref": null
+}

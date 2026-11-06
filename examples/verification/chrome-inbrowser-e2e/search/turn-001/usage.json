@@ -1,0 +1,101 @@
+{
+  "tokens": 9642,
+  "reserved_tokens": 0,
+  "remote_calls": 3,
+  "tool_calls": {
+    "search-flights": 1,
+    "get-fare-rules": 2
+  },
+  "compute_calls": 2,
+  "peak_parallel_workers": 2,
+  "workers": {
+    "coordinator": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "Interpreter:1": {
+      "tokens": 3119,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "Personal:2": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "Searcher:3": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "search-flights": 1
+      }
+    },
+    "Selector:4": {
+      "tokens": 2482,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "Searcher:5": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "get-fare-rules": 1
+      }
+    },
+    "Searcher:6": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "get-fare-rules": 1
+      }
+    },
+    "Personal:7": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "Personal:8": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "Booker:9": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "Booker:10": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "Writer:11": {
+      "tokens": 4041,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "Rememberer:12": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "limits": {
+    "approval_threshold_tokens": null,
+    "estimated_cost_usd": null,
+    "estimated_tokens": 26000,
+    "hard_tokens": 120000,
+    "max_calls_per_tool": {
+      "get-fare-rules": 6,
+      "personal.passenger_identity": 1,
+      "prepare-booking": 1,
+      "search-flights": 1,
+      "simulate-purchase": 1,
+      "travel.profile": 1,
+      "wallet.payment_method": 1
+    },
+    "max_parallel_workers": 3,
+    "max_remote_calls": 22
+  }
+}

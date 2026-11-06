@@ -360,6 +360,7 @@ def check_packages() -> dict:
     documents = {
         "agent-index.json": "examples/agent-index.json",
         "policies/webagents-research.json": "examples/policies/webagents-research.json",
+        "model-catalog.json": "examples/model-catalog.json",
     }
     report["package_origin_documents_identical"] = all(
         (ROOT / "package-origin/documents" / name).read_bytes()

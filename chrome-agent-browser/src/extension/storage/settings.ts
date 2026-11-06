@@ -20,7 +20,7 @@ import { OPENAI_REASONING_EFFORTS, type OpenAIReasoningEffort } from "../../core
 import { DEFAULT_PRESET, isPresetId } from "../../core/authorization.js";
 import { isRecord } from "../../core/fields.js";
 import type { ModelOverride, ProviderConnection, ProviderId } from "../../core/models/catalog.js";
-import { isLoopbackBase, OLLAMA_LOOPBACK_HOSTS, PROVIDER_IDS } from "../../core/models/catalog.js";
+import { hasEndpoint, isLoopbackBase, OLLAMA_LOOPBACK_HOSTS, PROVIDER_IDS } from "../../core/models/catalog.js";
 import { DEFAULT_HOST_LIMITS, normalizeHostLimits, type HostExecutionLimits } from "../../core/execution/limits.js";
 import { validContact } from "../../core/tools/adapters/crossref.js";
 import type { PresetId } from "../../core/types.js";
@@ -53,9 +53,11 @@ export interface StoredConnection {
   base_url: string | null;
   overrides: Record<string, ModelOverride>;
   /**
-   * Ollama only (T6): send `think: true`, as the reference host's Ollama route did for the
-   * accepted local Literature Review runs. Off by default (D-062): with `format` plus thinking,
-   * Ollama can exceed a node's output cap, which halts the run.
+   * Ollama (T6) and the in-browser route (T41, D-456): let local models think. For Ollama, send
+   * `think: true`, as the reference host's Ollama route did for the accepted local Literature Review
+   * runs; in the browser, load the engine with wllama's `reasoning` (a change reloads the model).
+   * Off by default (D-062): with a grammar plus thinking, a model can exceed a node's output cap,
+   * which halts the run.
    */
   think?: boolean;
   /**
@@ -72,6 +74,8 @@ export interface Settings {
     connections: StoredConnection[];
     /** The host model id (`provider/model`) the two-click path binds; null until the person picks one. */
     default_model: string | null;
+    /** Settings → Models → In this browser (T41, D-443, D-448, D-456). */
+    in_browser: InBrowserSettings;
   };
   /**
    * Services a tool implementation reaches on the person's behalf (T6, D-081). `crossref_contact`
@@ -94,17 +98,42 @@ export interface Settings {
   security: { idle_lock_minutes: number | null };
 }
 
+export interface InBrowserSettings {
+  /** "This machine's GPU memory" in GB, stated by the person (declared, D-443); null means the platform's or the assumed budget. */
+  gpu_memory_gb: number | null;
+  /** Minutes without a run before the loaded model is unloaded (D-441). */
+  idle_unload_minutes: number;
+  /** Use the browser's Cross-Origin Storage when it has one (D-448): off; a feature detect only in v1. */
+  cross_origin_storage: boolean;
+}
+
+export const IDLE_UNLOAD_CHOICES: readonly number[] = Object.freeze([2, 5, 10, 30, 60]);
+export const DEFAULT_IN_BROWSER: InBrowserSettings = Object.freeze({ gpu_memory_gb: null, idle_unload_minutes: 10, cross_origin_storage: false });
+
+function normalizeInBrowser(raw: unknown): InBrowserSettings {
+  const value = isRecord(raw) ? raw : {};
+  const gpu = value.gpu_memory_gb;
+  return {
+    gpu_memory_gb: typeof gpu === "number" && Number.isFinite(gpu) && gpu >= 1 && gpu <= 1024 ? Math.round(gpu * 10) / 10 : null,
+    idle_unload_minutes: IDLE_UNLOAD_CHOICES.includes(value.idle_unload_minutes as number) ? (value.idle_unload_minutes as number) : DEFAULT_IN_BROWSER.idle_unload_minutes,
+    cross_origin_storage: value.cross_origin_storage === true,
+  };
+}
+
 export const DEFAULT_SETTINGS: Settings = Object.freeze({
   schema: "chrome-agent-browser-settings-v0",
   preset: DEFAULT_PRESET,
   models: {
     connections: [
+      // The default local route first (D-446): a model this extension runs itself.
+      { provider: "in-browser", enabled: true, base_url: null, overrides: {} },
       { provider: "ollama", enabled: true, base_url: null, overrides: {} },
       { provider: "openai", enabled: false, base_url: null, overrides: {} },
       { provider: "anthropic", enabled: false, base_url: null, overrides: {} },
       { provider: "chrome-builtin", enabled: true, base_url: null, overrides: {} },
     ],
     default_model: null,
+    in_browser: { ...DEFAULT_IN_BROWSER },
   },
   services: { crossref_contact: null },
   limits: { ...DEFAULT_HOST_LIMITS },
@@ -196,9 +225,9 @@ export function normalizeSettings(raw: unknown): Settings {
       connections.set(provider, {
         provider,
         enabled: item.enabled === true,
-        base_url: provider === "chrome-builtin" ? null : normalizeBaseUrl(provider, item.base_url),
+        base_url: hasEndpoint(provider) ? normalizeBaseUrl(provider, item.base_url) : null,
         overrides: normalizeOverrides(item.overrides),
-        ...(provider === "ollama" && item.think === true ? { think: true } : {}),
+        ...((provider === "ollama" || provider === "in-browser") && item.think === true ? { think: true } : {}),
         ...(provider === "openai" && (OPENAI_REASONING_EFFORTS as readonly unknown[]).includes(item.reasoning_effort) ? { reasoning_effort: item.reasoning_effort as OpenAIReasoningEffort } : {}),
       });
     }
@@ -213,7 +242,7 @@ export function normalizeSettings(raw: unknown): Settings {
   return {
     schema: "chrome-agent-browser-settings-v0",
     preset: isPresetId(raw.preset) ? raw.preset : DEFAULT_PRESET,
-    models: { connections: [...connections.values()], default_model: defaultModel },
+    models: { connections: [...connections.values()], default_model: defaultModel, in_browser: normalizeInBrowser(models.in_browser) },
     services: { crossref_contact: validContact(services.crossref_contact) },
     limits: limitsOrDefaults(raw.limits),
     developer: { record_requests: developer.record_requests === true },
@@ -311,13 +340,13 @@ export class SettingsStorage {
   async keyPresence(): Promise<Record<string, boolean>> {
     const presence: Record<string, boolean> = {};
     const names = new Set(await this.secrets.names()); // one envelope read for every provider (B-192)
-    for (const provider of PROVIDER_IDS) if (provider !== "ollama" && provider !== "chrome-builtin" && names.has(PROVIDER_KEY_ENTRY(provider))) presence[provider] = true;
+    for (const provider of PROVIDER_IDS) if (provider === "openai" || provider === "anthropic") if (names.has(PROVIDER_KEY_ENTRY(provider))) presence[provider] = true;
     return presence;
   }
 
   /** The key for one provider, for the service worker's transport and a run's start message only. */
   async key(provider: ProviderId): Promise<string | null> {
-    if (provider === "ollama" || provider === "chrome-builtin") return null;
+    if (provider !== "openai" && provider !== "anthropic") return null;
     if (!(await this.secrets.has(PROVIDER_KEY_ENTRY(provider)))) return null;
     const value = await this.secrets.getText(PROVIDER_KEY_ENTRY(provider));
     return value !== null && value.length > 0 ? value : null;

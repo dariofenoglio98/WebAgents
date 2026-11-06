@@ -1,6 +1,6 @@
 /**
  * Signed documents of the WebAgents extensions (`spec/extensions/signed-document-v0.md`): an
- * agent index (T8) and a policy bundle (T8) travel as one envelope,
+ * agent index (T8), a policy bundle (T8) and a model catalog (T41) travel as one envelope,
  *
  *   {format: "org.webagents:signed-document-v0", content_type, content, signature}
  *
@@ -23,7 +23,9 @@ import { verifyEd25519 } from "./signature.js";
 export const SIGNED_DOCUMENT_FORMAT = "org.webagents:signed-document-v0";
 export const AGENT_INDEX_TYPE = "org.webagents:agent-index-v0";
 export const POLICY_BUNDLE_TYPE = "org.webagents:policy-bundle-v0";
-export type DocumentContentType = typeof AGENT_INDEX_TYPE | typeof POLICY_BUNDLE_TYPE;
+/** The curated in-browser model list (T41, D-442, D-453), signed with the project's `webagents-catalog` key. */
+export const MODEL_CATALOG_TYPE = "org.webagents:model-catalog-v0";
+export type DocumentContentType = typeof AGENT_INDEX_TYPE | typeof POLICY_BUNDLE_TYPE | typeof MODEL_CATALOG_TYPE;
 export const DOCUMENT_DOMAIN = "WebAgents signed document v0";
 /** A document is read whole: at most this many bytes. */
 export const MAX_DOCUMENT_BYTES = 1024 * 1024;
@@ -31,11 +33,13 @@ export const MAX_DOCUMENT_BYTES = 1024 * 1024;
 const CONTENT_SCHEMAS: Readonly<Record<DocumentContentType, string>> = Object.freeze({
   [AGENT_INDEX_TYPE]: "agent-index-v0",
   [POLICY_BUNDLE_TYPE]: "policy-bundle-v0",
+  [MODEL_CATALOG_TYPE]: "model-catalog-v0",
 });
 
 const DESCRIPTIONS: Readonly<Record<DocumentContentType, string>> = Object.freeze({
   [AGENT_INDEX_TYPE]: "agent index",
   [POLICY_BUNDLE_TYPE]: "policy bundle",
+  [MODEL_CATALOG_TYPE]: "model catalog",
 });
 
 export interface SignedDocument {

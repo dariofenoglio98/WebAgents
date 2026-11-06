@@ -37,7 +37,7 @@ import type { PresetId } from "../../core/types.js";
 import type { PlanOrigin } from "../../core/origins.js";
 import type { SecretStoreState } from "../../core/secrets.js";
 import { HOST_UNLOADED } from "../execution/execute.js";
-import type { HostStartMessage, HostStatusReply } from "../execution/protocol.js";
+import type { HostEngineMessage, HostModelsMessage, HostStartMessage, HostStatusReply, InBrowserStart } from "../execution/protocol.js";
 import type { TurnStart } from "../../core/execution/runner.js";
 import type { ArtifactChunk, ArtifactContent, Event, ExportBundle, ObservationsView, RunListView, RunReadiness, RunSummary, RunView } from "../messages.js";
 import { connectionsFor, type Settings, type SettingsStorage } from "../storage/settings.js";
@@ -106,6 +106,8 @@ export interface RunHooks {
   markOnceSpent(sessionId: string): Promise<void>;
   /** A run settled (by the host, or interrupted here): the snapshot it read may be dropped if nothing else refers to it (review 1, nit 7). */
   runSettled?(archiveSha256: string): Promise<void>;
+  /** The in-browser route's start (T41, D-441): what the page loads before a run bound to `in-browser/<entry>`; null for other routes. */
+  inBrowserStart?(plan: RunPlan): Promise<InBrowserStart | null>;
   /** One picked file's view (Settings → Files, T6), or null when this browser holds no such file. */
   file?(fileId: string): Promise<FileView | null>;
   /** The subscribed policy's budget caps (T8, D-102), which lower the person's run limits; null when none. */
@@ -132,6 +134,8 @@ export interface ExecutionHostBridge {
   cancel(runId: string): Promise<HostCancelAnswer>;
   /** The runs the host is executing right now, or null when there is no host at all. */
   status(): Promise<HostStatusReply | null>;
+  /** The in-browser engine and model cache's commands (T41); absent on a host without an engine. */
+  engine?(message: HostModelsMessage | HostEngineMessage): Promise<unknown>;
   /** conversation.v0 (D-270): the person's answer to the card a turn waits on; false when no Worker holds the run. */
   decide(runId: string, step: string, accepted: boolean): Promise<boolean>;
 }
@@ -539,16 +543,24 @@ export class RunManager {
         await this.deps.host.start({ ...(await this.startMessage(runId, sessionId, plan)), turn: options.turn });
       } catch (error) {
         const now = this.clock();
-        const detail = `The execution host could not be started: ${error instanceof Error ? error.message : "error"}`;
+        const said = error instanceof Error ? error.message : "error";
+        // The in-browser route refuses before the run with the model's own reason (T41, D-441:
+        // not downloaded, over the budget, another model in use): the run fails as the model
+        // being unavailable, never as a broken host, and never on another model. The code is the
+        // error's field (the bridge's `HostReplyError`, the service's `InBrowserError`), never
+        // parsed from its text (T41 review 1, nit 7).
+        const modelRefusal = inBrowserRefusal(error);
+        const code = modelRefusal?.code ?? "execution_unavailable";
+        const detail = modelRefusal ? `The in-browser model cannot run: ${modelRefusal.reason}` : `The execution host could not be started: ${said}`;
         // Atomic, and never over a record the host may already have settled (finding 1).
-        const failed = await this.deps.runs.updateRun(runId, (current) => (isTerminal(current.record.status) ? null : { ...current, record: failRunRecord(current.record, { code: "execution_unavailable", message: detail }, now), updated_at: now.toISOString() }));
+        const failed = await this.deps.runs.updateRun(runId, (current) => (isTerminal(current.record.status) ? null : { ...current, record: failRunRecord(current.record, { code, message: detail }, now), updated_at: now.toISOString() }));
         leases.release(lease.lease_id);
         this.leases.delete(runId);
         this.deps.broadcast({ type: "event.run", runId, sessionId, status: failed?.record.status ?? "failed" });
         // The conversation first: its end rule may read the snapshot that runSettled can drop.
         if (failed) await this.onTurnSettled?.(failed).catch(() => undefined);
         await this.deps.hooks.runSettled?.(stored.invocation.archive_sha256);
-        throw reject("execution_unavailable", detail, 503);
+        throw reject(code, detail, modelRefusal ? 409 : 503);
       }
       return this.view(stored);
     } finally {
@@ -644,6 +656,7 @@ export class RunManager {
         crossrefContact: settings.services.crossref_contact,
       },
       allowedOrigins: (await this.deps.hooks.planOrigins(sessionId)).map((item) => item.origin),
+      inBrowser: (await this.deps.hooks.inBrowserStart?.(plan)) ?? null,
     };
   }
 
@@ -908,4 +921,18 @@ function declaredCustomTypes(pkg: Package): MemoryType[] | null {
   } catch {
     return null; // refused at validation already; a run of such a package never starts
   }
+}
+
+/**
+ * A start refused by the in-browser route, as `{code, reason}`: the execution host's own refusal
+ * (`model_unavailable`, `model_request_invalid`, carried by `HostReplyError`), or the service's
+ * `InBrowserError` from `startFor` (any code: the binding cannot be started, so the model is
+ * unavailable). Null for anything else (a host that could not start at all).
+ */
+export function inBrowserRefusal(error: unknown): { code: "model_unavailable" | "model_request_invalid"; reason: string } | null {
+  if (!(error instanceof Error)) return null;
+  const fields = error as Error & { code?: unknown; reason?: unknown };
+  if (error.name === "HostReplyError" && (fields.code === "model_unavailable" || fields.code === "model_request_invalid")) return { code: fields.code, reason: typeof fields.reason === "string" ? fields.reason : error.message };
+  if (error.name === "InBrowserError" && typeof fields.code === "string") return { code: "model_unavailable", reason: error.message };
+  return null;
 }

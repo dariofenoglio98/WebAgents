@@ -1,0 +1,5 @@
+{
+  "note": "The curated in-browser model list's source (T41, D-453): the project's webagents-catalog public key every list must verify under, and the address a newer list is fetched from when the person asks (Settings \u2192 Models \u2192 In this browser \u2192 Check for a newer list). model-catalog.json beside this file is examples/model-catalog.json, shipped; test/extension/in-browser-service.test.ts keeps both equal to examples/.",
+  "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEADGPQmQANNMywNLZCjyzz6B0SNJigLIkZfVs/W+jFCik=\n-----END PUBLIC KEY-----\n",
+  "refresh_url": "https://webagents-webair-production.up.railway.app/model-catalog.json"
+}
