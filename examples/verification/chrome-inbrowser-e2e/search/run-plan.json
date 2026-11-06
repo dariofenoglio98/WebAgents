@@ -1,20 +1,20 @@
 {
   "schema": "agentpkg-run-plan-v0",
   "run_plan_version": "0.1",
-  "run_plan_id": "rp_0a79b0a50af647f48102d0ddb0295b0e",
-  "created_at": "2026-11-06T02:48:55.342Z",
-  "expires_at": "2026-11-06T04:48:50.884Z",
-  "session_id": "b6d362937d3343fcaffc9975",
+  "run_plan_id": "rp_2e0a4ec323714b038e1fb6419f307fcf",
+  "created_at": "2026-11-06T03:31:15.698Z",
+  "expires_at": "2026-11-06T05:31:11.835Z",
+  "session_id": "86e90cc217f745688a9c6066",
   "control_plane": {
     "service": "chrome-agent-browser-control-plane",
     "api_version": "v0",
-    "instance_id": "4a7f9fc0bc7b4c5890ebe0dcab59b6b7"
+    "instance_id": "62e1d38f890c46b39b42d4ef3e8cd6fe"
   },
   "source": {
     "kind": "website",
     "display": "https://webagents-webair-production.up.railway.app/agent.pkg",
     "advertised_on": "https://webagents-webair-production.up.railway.app/",
-    "opened_at": "2026-11-06T02:48:50.789Z"
+    "opened_at": "2026-11-06T03:31:11.747Z"
   },
   "package": {
     "package_id": "org.webagents.webair",
@@ -49,10 +49,10 @@
     "errors": []
   },
   "authorization": {
-    "receipt_id": "e1ed4bf4-062e-403f-8089-afd9918b9b3e",
-    "receipt_sha256": "eadea2d265599a96d98dd1a75ab2d2dd93dca38ec8ee0b577877df1d39b2506a",
-    "issued_at": "2026-11-06T02:48:51.490Z",
-    "expires_at": "2026-11-06T04:48:50.884Z",
+    "receipt_id": "d12cd9f6-36e8-4bb7-800a-429cf821bd8a",
+    "receipt_sha256": "deb1e1329d29b66076199eddc8d046146a7bc2b725bcc86901b0fc93ad6f5f90",
+    "issued_at": "2026-11-06T03:31:12.439Z",
+    "expires_at": "2026-11-06T05:31:11.835Z",
     "runnable": true,
     "decisions": {
       "booking.simulate_purchase": "deny",
@@ -222,26 +222,26 @@
     }
   ],
   "tool_registry": {
-    "registry_sha256": "dda7db4f4c75913cd69344b0e4bd1d28acfb7f72263e4df380f6161de626e087",
+    "registry_sha256": "0222a9f77bfe5ceb83982280ca00add042a77b25498d1f86d6c15afbfb3eab7a",
     "binding_count": 7,
     "available_binding_count": 7,
     "host": {
       "runtime": "chrome-agent-browser",
       "runtime_version": "0.6.0",
       "source": "chrome-agent-browser host tool registry (D-054, D-081, D-082): one generic HTTPS JSON binding per declared remote POST tool, derived from the signed declaration after the URL gate; the host's Crossref search for scholarly.search at Crossref's works endpoint; the selected-PDF reader for paper.read; one host-resource binding per vault type; other tools unbound",
-      "captured_at": "2026-11-06T02:48:55.335Z",
+      "captured_at": "2026-11-06T03:31:15.692Z",
       "agent_id": null
     }
   },
   "resource_grants": [],
   "resource_registry": {
-    "registry_sha256": "ed839fa4675b878e69bbc77f7a3d300d668af6e85912fe263b14640ee81b7118",
+    "registry_sha256": "957689bec4e20f4b838fe8dcef438a766d295c9b3ed1d6ac0774229aec4df5eb",
     "type_count": 3,
     "resource_count": 6
   },
   "model_binding": {
     "strategy": "single_model",
-    "selected_at": "2026-11-06T02:48:55.342Z",
+    "selected_at": "2026-11-06T03:31:15.698Z",
     "host_model_id": "in-browser/qwen3-4b-q4_k_m",
     "provider_id": "in-browser",
     "model_id": "qwen3-4b-q4_k_m",
@@ -408,14 +408,14 @@
       }
     },
     "catalog": {
-      "catalog_sha256": "a1120f80206abaf0793ff883fef8b6371f83b88c2bf83ab3701e3ef2d95ca830",
+      "catalog_sha256": "c0bdfcbfaf824aecfc6da69e0b8dc4a2b30d2d3618d9c56e1659462ab3f4baf5",
       "model_count": 10,
       "available_model_count": 5,
       "host": {
         "runtime": "chrome-agent-browser",
         "runtime_version": "0.6.0",
         "source": "chrome-agent-browser model catalog: the in-browser model cache and catalog, Ollama /api/tags + /api/show, OpenAI /v1/models, Anthropic /v1/models, Chrome LanguageModel.availability(); no model was called",
-        "captured_at": "2026-11-06T02:48:55.280Z",
+        "captured_at": "2026-11-06T03:31:15.615Z",
         "agent_id": null
       }
     }
@@ -532,5 +532,5 @@
     "compatibility_status": "compatible",
     "blocking_reasons": []
   },
-  "run_plan_sha256": "fe6b0c717b604557a4b9879b3516d6e464e458abff78147dba78da7c0cf298f1"
+  "run_plan_sha256": "5ee8cd9d1fcd05b4bb8706adadeb3f1802237e13ed34fe63f341438a209bfabd"
 }

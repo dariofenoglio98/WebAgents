@@ -1,12 +1,12 @@
 {
   "profile": "chrome-webair-080-live-v0",
-  "recordedAt": "2026-11-06T02:48:48.167Z",
+  "recordedAt": "2026-11-06T03:31:08.736Z",
   "packageVersion": "0.8.0",
   "site": "https://webagents-webair-production.up.railway.app/",
   "model": "in-browser/qwen3-4b-q4_k_m",
   "extension": "chrome-agent-browser/dist/extension",
   "chrome": "Chrome/156.0.8078.80",
-  "outputDirectory": "examples/my-inbrowser-e2e-2026-11-06T02-47-43-112Z/webair",
+  "outputDirectory": "examples/my-inbrowser-e2e-2026-11-06T03-29-33-846Z/webair",
   "steps": {
     "setup": {
       "probe": {
@@ -38,7 +38,7 @@
       "the public origin advertises the package": "ok"
     },
     "inspect": {
-      "sessionId": "b6d362937d3343fcaffc9975",
+      "sessionId": "86e90cc217f745688a9c6066",
       "name": "WebAir Travel Agent",
       "version": "0.8.0",
       "digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
@@ -54,9 +54,9 @@
     },
     "searchAuthorization": {
       "banner": "Ready to run",
-      "receiptId": "e1ed4bf4-062e-403f-8089-afd9918b9b3e",
-      "runPlanId": "rp_0a79b0a50af647f48102d0ddb0295b0e",
-      "runPlanSha256": "fe6b0c717b604557a4b9879b3516d6e464e458abff78147dba78da7c0cf298f1",
+      "receiptId": "d12cd9f6-36e8-4bb7-800a-429cf821bd8a",
+      "runPlanId": "rp_2e0a4ec323714b038e1fb6419f307fcf",
+      "runPlanSha256": "5ee8cd9d1fcd05b4bb8706adadeb3f1802237e13ed34fe63f341438a209bfabd",
       "ready": true,
       "decisions": {
         "booking.simulate_purchase": "deny",
@@ -79,7 +79,7 @@
     },
     "reconnect": {
       "stateAfterReload": "running",
-      "conversationId": "d7a3a261-9cad-4794-bdf7-7f81471ee962",
+      "conversationId": "d41457b0-08fb-426c-a9e7-36dec4f12a27",
       "the reloaded page shows the conversation": "ok"
     }
   },
@@ -105,22 +105,22 @@
   "extensionId": "kjegegjdnpdcjhgamhjdphgemegefapb",
   "conversations": {
     "search": {
-      "directory": "examples/my-inbrowser-e2e-2026-11-06T02-47-43-112Z/webair/search",
+      "directory": "examples/my-inbrowser-e2e-2026-11-06T03-29-33-846Z/webair/search",
       "files": [
         {
           "name": "conversation.json",
           "bytes": 52021,
-          "sha256": "ac3769abf6847aa094525e9f62f8b40292b5d2387f6e43a17f8be24478e3bacc"
+          "sha256": "80810b8d7de1057de5cd8b58c3cda3a9f41e4c44d2d9f19907a38fd4b7be27f1"
         },
         {
           "name": "run-plan.json",
           "bytes": 17456,
-          "sha256": "7915048c9827995713a3e5c3a2b7ae02eb96e39b7d3118d6050475f5e4eec775"
+          "sha256": "ab66b37c60de958533770a3ddc15d4a574bf3a5e53922a7c1109fc165dac01ab"
         },
         {
           "name": "transcript.json",
           "bytes": 26204,
-          "sha256": "93439c9f5fba81e357db31a27bd7d6ed5de893278e0b66cdf1f07d35a1366c24"
+          "sha256": "c164bb4fd1b3981b9af879a2ba8805a0c550d1b083a239ae09348ae5ec5cbb77"
         },
         {
           "name": "state.json",
@@ -129,8 +129,8 @@
         },
         {
           "name": "audit.json",
-          "bytes": 551374,
-          "sha256": "c65bf539b271f6363848f328b57aa34015940a397b7e2772b6f07ab4ad1433b9"
+          "bytes": 551378,
+          "sha256": "0a3812c3c21e914c4043762c9ba1893c9e06c2142d3fe147928a14cff042889f"
         },
         {
           "name": "usage.json",
@@ -140,17 +140,17 @@
         {
           "name": "provenance.json",
           "bytes": 420,
-          "sha256": "86231131207bf85b92dd5f16e02e6ae0b9ebd0cfbd70c6c422d69842cdf1f22a"
+          "sha256": "725c51eef6daafe98a5b91e3ed90340904c57055c467d91777a76b856037e8a8"
         },
         {
           "name": "turn-001/run.json",
-          "bytes": 15477,
-          "sha256": "60340f5cb7c1fd13c3ee3ed6ecd4675350a7094e2200eda13b86cf7963a611b4"
+          "bytes": 15476,
+          "sha256": "367f7f3d9ed9ff73a9b990fa6b9e2b93a7970170df961173feddd07a5f963fc9"
         },
         {
           "name": "turn-001/run-plan.json",
           "bytes": 17456,
-          "sha256": "7915048c9827995713a3e5c3a2b7ae02eb96e39b7d3118d6050475f5e4eec775"
+          "sha256": "ab66b37c60de958533770a3ddc15d4a574bf3a5e53922a7c1109fc165dac01ab"
         },
         {
           "name": "turn-001/input.json",
@@ -164,8 +164,8 @@
         },
         {
           "name": "turn-001/audit.json",
-          "bytes": 197953,
-          "sha256": "68ed179054e577639c595f14d3eca7ab9e615494ebe8798b5eee6dd01014cb24"
+          "bytes": 197954,
+          "sha256": "d52f9aca80055a6b36eab598ed49d59b3e4a5671b1b22064898acd6ca07e0f62"
         },
         {
           "name": "turn-001/booking.json",
@@ -185,12 +185,12 @@
         {
           "name": "turn-001/provenance.json",
           "bytes": 342,
-          "sha256": "eaff5194d74c115cda40c174ce7108b6ce3e089cc9486e833dc4eb87dea454a8"
+          "sha256": "dcc3c4175f92b3724d27d2c95d1fb3814484477efd09678c59a00ef56e9ab2b5"
         },
         {
           "name": "turn-001/result.json",
-          "bytes": 247788,
-          "sha256": "fd8bf2213e63494ead85f43ab9eca30b59c5112fbfbbe8a92a147c9a594ae37f"
+          "bytes": 247789,
+          "sha256": "025e232e121e143b22e0d10836a54cdb17ac2440706cfbac60d4f46db584bf82"
         },
         {
           "name": "turn-001/search.json",
@@ -204,13 +204,13 @@
         },
         {
           "name": "turn-002/run.json",
-          "bytes": 15569,
-          "sha256": "308600f8137d3b625f61e3e2c5103aea3ef3872a5c841f8b552432ce9d62b86b"
+          "bytes": 15570,
+          "sha256": "ae810d5633a75695f8b574a96de7ce5b37336269920edc78336ab386cb2ac944"
         },
         {
           "name": "turn-002/run-plan.json",
           "bytes": 17456,
-          "sha256": "7915048c9827995713a3e5c3a2b7ae02eb96e39b7d3118d6050475f5e4eec775"
+          "sha256": "ab66b37c60de958533770a3ddc15d4a574bf3a5e53922a7c1109fc165dac01ab"
         },
         {
           "name": "turn-002/input.json",
@@ -224,8 +224,8 @@
         },
         {
           "name": "turn-002/audit.json",
-          "bytes": 198849,
-          "sha256": "88107ebe8ebc884955f6b995bd880e0f0fafc4034427844b2bad35c9318f8258"
+          "bytes": 198852,
+          "sha256": "45a64e20846c361b729dd4cbe0b959bbd9f55ba6b6b6eb88e325b027191fcd5f"
         },
         {
           "name": "turn-002/booking.json",
@@ -245,12 +245,12 @@
         {
           "name": "turn-002/provenance.json",
           "bytes": 342,
-          "sha256": "13ea574e0daf7c88d645eff130844bce621ce4e2e86c8818d598251cc822510e"
+          "sha256": "15142fb7522a340f26ec3cb9e62c3801ef129e85938300aee2ab59d7e931c5e7"
         },
         {
           "name": "turn-002/result.json",
-          "bytes": 250154,
-          "sha256": "d39d4e5ba55ef49e26cf2b1ae7f438df6bec859a0e2952ceeeb890d4798da504"
+          "bytes": 250157,
+          "sha256": "878688c922950dc85cc79b6f644bd3f5a960170b0df41fbd4e924d537f28ffe2"
         },
         {
           "name": "turn-002/search.json",
@@ -265,12 +265,12 @@
         {
           "name": "turn-003/run.json",
           "bytes": 14217,
-          "sha256": "3da63b4b54d42414abe4588437470f200ee761e4f2641d4ccaf9276ad8317047"
+          "sha256": "4ffe52bda11b4955fd5c5c290d222f46dffeb07d0a93517a884cb9d2c20b62aa"
         },
         {
           "name": "turn-003/run-plan.json",
           "bytes": 17456,
-          "sha256": "7915048c9827995713a3e5c3a2b7ae02eb96e39b7d3118d6050475f5e4eec775"
+          "sha256": "ab66b37c60de958533770a3ddc15d4a574bf3a5e53922a7c1109fc165dac01ab"
         },
         {
           "name": "turn-003/input.json",
@@ -285,7 +285,7 @@
         {
           "name": "turn-003/audit.json",
           "bytes": 147500,
-          "sha256": "f52f7098005951c871baf3ff5df2a9da59eb34feb2cee81f24d614fae580277b"
+          "sha256": "941c509b16f8745d964da6e89c0ce73285824c71f33f8a1e531f8864ffe1872f"
         },
         {
           "name": "turn-003/booking.json",
@@ -305,12 +305,12 @@
         {
           "name": "turn-003/provenance.json",
           "bytes": 342,
-          "sha256": "5ddada981db7389eb9eeed9e2b7d546aa786f499a46cea33ad60aa48bd13d3d7"
+          "sha256": "0c4b5bfaeab98349befc29f4c046b494884c0eb8010f081e7278fcc17ec99413"
         },
         {
           "name": "turn-003/result.json",
           "bytes": 168019,
-          "sha256": "cbfa416892cc66e5a1ca8909194e0bfd93cb20b42ac6c141f569a2b3832bed55"
+          "sha256": "86581d41c99bba97d67a7c1f095fc0fffe4f44482da636708c2a42b4c81e2bcd"
         },
         {
           "name": "turn-003/search.json",
@@ -324,11 +324,11 @@
         }
       ],
       "conversation": {
-        "conversationId": "d7a3a261-9cad-4794-bdf7-7f81471ee962",
+        "conversationId": "d41457b0-08fb-426c-a9e7-36dec4f12a27",
         "status": "ended",
         "ended": {
           "reason": "package",
-          "at": "2026-11-06T02:51:26.252000+00:00",
+          "at": "2026-11-06T03:33:46.330000+00:00",
           "turns_not_run": 0
         },
         "outcome": "completed",
@@ -441,7 +441,7 @@
           "turn": 1,
           "status": "completed",
           "error_code": null,
-          "run_id": "run_c0ea6dcac6a34bb1b275c8fbe88cca2a",
+          "run_id": "run_326ea627c26245a0b1452aa4bd7e03c3",
           "decisions": [],
           "reply_status": "options_found",
           "intent": "search",
@@ -469,14 +469,14 @@
             "events": 281,
             "chainValid": true
           },
-          "durationMs": 83837,
+          "durationMs": 83526,
           "failure": null
         },
         {
           "turn": 2,
           "status": "completed",
           "error_code": null,
-          "run_id": "run_0605b43cfb2d48db89d13c6223e49b27",
+          "run_id": "run_9e60952995a248e5b7795a0d8f3a3fa1",
           "decisions": [],
           "reply_status": "options_found",
           "intent": "search",
@@ -504,14 +504,14 @@
             "events": 282,
             "chainValid": true
           },
-          "durationMs": 50195,
+          "durationMs": 50188,
           "failure": null
         },
         {
           "turn": 3,
           "status": "completed",
           "error_code": null,
-          "run_id": "run_77bb7917ab014214825a8b21a713c581",
+          "run_id": "run_b5714241605b43e0b11b335ca6bd2873",
           "decisions": [],
           "reply_status": "done",
           "intent": "done",
@@ -539,7 +539,7 @@
             "events": 213,
             "chainValid": true
           },
-          "durationMs": 11935,
+          "durationMs": 11949,
           "failure": null
         }
       ]

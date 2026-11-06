@@ -1,10 +1,10 @@
 {
-  "run_id": "run_c0ea6dcac6a34bb1b275c8fbe88cca2a",
+  "run_id": "run_326ea627c26245a0b1452aa4bd7e03c3",
   "recording": true,
   "observations": [
     {
-      "run_id": "run_c0ea6dcac6a34bb1b275c8fbe88cca2a",
-      "at": "2026-11-06T02:48:58.898Z",
+      "run_id": "run_326ea627c26245a0b1452aa4bd7e03c3",
+      "at": "2026-11-06T03:31:19.029Z",
       "kind": "model",
       "subject": "in-browser",
       "url": "in-browser:qwen3-4b-q4_k_m",
@@ -14,8 +14,8 @@
       "id": 1
     },
     {
-      "run_id": "run_c0ea6dcac6a34bb1b275c8fbe88cca2a",
-      "at": "2026-11-06T02:49:24.495Z",
+      "run_id": "run_326ea627c26245a0b1452aa4bd7e03c3",
+      "at": "2026-11-06T03:31:44.643Z",
       "kind": "tool",
       "subject": "search-flights",
       "url": "https://webagents-webair-production.up.railway.app/api/v1/search_flights",
@@ -25,8 +25,8 @@
       "id": 2
     },
     {
-      "run_id": "run_c0ea6dcac6a34bb1b275c8fbe88cca2a",
-      "at": "2026-11-06T02:49:24.516Z",
+      "run_id": "run_326ea627c26245a0b1452aa4bd7e03c3",
+      "at": "2026-11-06T03:31:44.656Z",
       "kind": "model",
       "subject": "in-browser",
       "url": "in-browser:qwen3-4b-q4_k_m",
@@ -36,8 +36,8 @@
       "id": 3
     },
     {
-      "run_id": "run_c0ea6dcac6a34bb1b275c8fbe88cca2a",
-      "at": "2026-11-06T02:49:43.132Z",
+      "run_id": "run_326ea627c26245a0b1452aa4bd7e03c3",
+      "at": "2026-11-06T03:32:03.259Z",
       "kind": "tool",
       "subject": "get-fare-rules",
       "url": "https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules",
@@ -47,8 +47,8 @@
       "id": 4
     },
     {
-      "run_id": "run_c0ea6dcac6a34bb1b275c8fbe88cca2a",
-      "at": "2026-11-06T02:49:43.132Z",
+      "run_id": "run_326ea627c26245a0b1452aa4bd7e03c3",
+      "at": "2026-11-06T03:32:03.259Z",
       "kind": "tool",
       "subject": "get-fare-rules",
       "url": "https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules",
@@ -58,8 +58,8 @@
       "id": 5
     },
     {
-      "run_id": "run_c0ea6dcac6a34bb1b275c8fbe88cca2a",
-      "at": "2026-11-06T02:49:43.244Z",
+      "run_id": "run_326ea627c26245a0b1452aa4bd7e03c3",
+      "at": "2026-11-06T03:32:03.381Z",
       "kind": "model",
       "subject": "in-browser",
       "url": "in-browser:qwen3-4b-q4_k_m",

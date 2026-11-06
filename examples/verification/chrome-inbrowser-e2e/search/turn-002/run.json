@@ -1,16 +1,16 @@
 {
   "schema": "chrome-agent-browser-run-record-v0",
-  "runId": "run_0605b43cfb2d48db89d13c6223e49b27",
-  "sessionId": "b6d362937d3343fcaffc9975",
-  "runPlanId": "rp_0a79b0a50af647f48102d0ddb0295b0e",
-  "runPlanSha256": "fe6b0c717b604557a4b9879b3516d6e464e458abff78147dba78da7c0cf298f1",
-  "runInvocationSha256": "b427ac92da34bba443fd50891f8f32d9bbfc7322ff7dc71cd783c41ffc74b307",
+  "runId": "run_9e60952995a248e5b7795a0d8f3a3fa1",
+  "sessionId": "86e90cc217f745688a9c6066",
+  "runPlanId": "rp_2e0a4ec323714b038e1fb6419f307fcf",
+  "runPlanSha256": "5ee8cd9d1fcd05b4bb8706adadeb3f1802237e13ed34fe63f341438a209bfabd",
+  "runInvocationSha256": "4a22d87b988374c220ef4bb9cf49e25d8c05c3fb9dfad54b5184562792fda3c8",
   "inputSha256": "33e040e6cb8a9e93d2b7248153aa7036a24cf5d4f3d78b5ecc12fc7b2baf88bc",
   "status": "completed",
-  "createdAt": "2026-11-06T02:50:23.366Z",
-  "startedAt": "2026-11-06T02:50:23.644Z",
-  "endedAt": "2026-11-06T02:51:13.839Z",
-  "durationMs": 50195,
+  "createdAt": "2026-11-06T03:32:43.202Z",
+  "startedAt": "2026-11-06T03:32:43.446Z",
+  "endedAt": "2026-11-06T03:33:33.634Z",
+  "durationMs": 50188,
   "package": {
     "packageId": "org.webagents.webair",
     "name": "WebAir Travel Agent",
@@ -186,7 +186,7 @@
   "audit": {
     "events": 282,
     "chainValid": true,
-    "finalHash": "981337a76333e8c912e360d006595d80c3ea2deada1a72bc64c0cfe648b917e8",
+    "finalHash": "f1ea3a039f64ca102217e63ebdf9e6e50ca0c2ee30c270902679f4fa2504af80",
     "actions": [
       {
         "action": "budget.updated",
@@ -327,13 +327,13 @@
   "artifacts": [
     {
       "name": "result.json",
-      "bytes": 250154,
-      "sha256": "d39d4e5ba55ef49e26cf2b1ae7f438df6bec859a0e2952ceeeb890d4798da504"
+      "bytes": 250157,
+      "sha256": "878688c922950dc85cc79b6f644bd3f5a960170b0df41fbd4e924d537f28ffe2"
     },
     {
       "name": "audit.json",
-      "bytes": 198849,
-      "sha256": "88107ebe8ebc884955f6b995bd880e0f0fafc4034427844b2bad35c9318f8258"
+      "bytes": 198852,
+      "sha256": "45a64e20846c361b729dd4cbe0b959bbd9f55ba6b6b6eb88e325b027191fcd5f"
     },
     {
       "name": "usage.json",
@@ -343,7 +343,7 @@
     {
       "name": "provenance.json",
       "bytes": 342,
-      "sha256": "13ea574e0daf7c88d645eff130844bce621ce4e2e86c8818d598251cc822510e"
+      "sha256": "15142fb7522a340f26ec3cb9e62c3801ef129e85938300aee2ab59d7e931c5e7"
     },
     {
       "name": "answer.md",
@@ -521,7 +521,7 @@
         "state": "completed",
         "model_calls": 1,
         "tool_calls": 0,
-        "duration_ms": 15410
+        "duration_ms": 15458
       },
       {
         "id": "Personal:2",
@@ -530,7 +530,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 0,
-        "duration_ms": 0
+        "duration_ms": 1
       },
       {
         "id": "Searcher:3",
@@ -539,7 +539,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 1,
-        "duration_ms": 7
+        "duration_ms": 12
       },
       {
         "id": "Selector:4",
@@ -548,7 +548,7 @@
         "state": "completed",
         "model_calls": 1,
         "tool_calls": 0,
-        "duration_ms": 9849
+        "duration_ms": 9747
       },
       {
         "id": "Searcher:5",
@@ -557,7 +557,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 1,
-        "duration_ms": 14
+        "duration_ms": 22
       },
       {
         "id": "Searcher:6",
@@ -566,7 +566,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 1,
-        "duration_ms": 15
+        "duration_ms": 21
       },
       {
         "id": "Personal:7",
@@ -584,7 +584,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 0,
-        "duration_ms": 0
+        "duration_ms": 1
       },
       {
         "id": "Booker:9",
@@ -593,7 +593,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 0,
-        "duration_ms": 1
+        "duration_ms": 0
       },
       {
         "id": "Booker:10",
@@ -602,7 +602,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 0,
-        "duration_ms": 0
+        "duration_ms": 1
       },
       {
         "id": "Writer:11",
@@ -611,7 +611,7 @@
         "state": "completed",
         "model_calls": 1,
         "tool_calls": 0,
-        "duration_ms": 24659
+        "duration_ms": 24681
       },
       {
         "id": "Rememberer:12",
@@ -649,7 +649,7 @@
   "failure": null,
   "origin": "live",
   "conversation": {
-    "conversationId": "d7a3a261-9cad-4794-bdf7-7f81471ee962",
+    "conversationId": "d41457b0-08fb-426c-a9e7-36dec4f12a27",
     "turn": 2
   },
   "memory": {

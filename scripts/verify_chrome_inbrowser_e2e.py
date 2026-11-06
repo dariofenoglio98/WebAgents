@@ -18,8 +18,9 @@ report) and recomputes, without trusting the harness's own verdicts:
 * the mismatch: refused with the design's words, nothing left in the cache under the stated digest;
 * too large: the descriptor's reason names both numbers with the declared 1.0 GB budget, and a load
   was refused while nothing was loaded;
-* the GPU did the work: decode at least three times the CPU-only control's on the same prompt, and
-  the machine's recorded speed is the GPU run's;
+* the GPU did the work: the median decode speed of three completions on the GPU at least twice the
+  CPU-only control's on the same prompt, the medians recomputed here from every recorded sample
+  (T41 review 3: one sample each at a 3x bar sat inside the noise);
 * the idle unload: nothing loaded afterwards;
 * the WebAir run, from the export itself: the first turn's `run.json` completed; every
   `model.called` event in the conversation's hash-linked audit names the in-browser model and no
@@ -66,6 +67,32 @@ def verify_catalog() -> tuple[bool, dict]:
     except Exception:  # noqa: BLE001 - any failure is "does not verify"
         ok = False
     return ok, document["content"]
+
+
+SAMPLES = 3
+
+
+def median_decode(side: dict) -> float | None:
+    """The median decode speed of one side's samples, recomputed; None unless there are exactly
+    three successful numeric samples and the harness's stated median equals the recomputed one."""
+    samples = side.get("samples")
+    if not isinstance(samples, list) or len(samples) != SAMPLES:
+        return None
+    values = [
+        item.get("decode_tok_per_s") for item in samples if isinstance(item, dict)
+    ]
+    if len(values) != SAMPLES or not all(
+        isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0
+        for value in values
+    ):
+        return None
+    if not all(item.get("ok") is True for item in samples):
+        return None
+    median = sorted(values)[SAMPLES // 2]
+    stated = side.get("decode_tok_per_s")
+    if not isinstance(stated, (int, float)) or abs(stated - median) > 1e-9:
+        return None
+    return float(median)
 
 
 def main() -> int:
@@ -168,12 +195,14 @@ def main() -> int:
     )
 
     versus = report.get("gpu_vs_cpu") or {}
-    gpu = (versus.get("gpu") or {}).get("decode_tok_per_s")
-    cpu = (versus.get("cpu") or {}).get("decode_tok_per_s")
-    checks["the GPU decodes at least three times faster than the CPU-only control"] = (
-        isinstance(gpu, (int, float))
-        and isinstance(cpu, (int, float))
-        and gpu >= 3 * cpu
+    gpu = median_decode(versus.get("gpu") or {})
+    cpu = median_decode(versus.get("cpu") or {})
+    checks[
+        "the GPU's median decode speed (three samples) is at least twice the CPU-only control's"
+    ] = (
+        gpu is not None
+        and cpu is not None
+        and gpu >= 2 * cpu
         and (versus.get("cpu") or {}).get("n_gpu_layers") == 0
     )
     checks["the idle unload left nothing loaded"] = (

@@ -1,16 +1,16 @@
 {
   "schema": "chrome-agent-browser-run-record-v0",
-  "runId": "run_c0ea6dcac6a34bb1b275c8fbe88cca2a",
-  "sessionId": "b6d362937d3343fcaffc9975",
-  "runPlanId": "rp_0a79b0a50af647f48102d0ddb0295b0e",
-  "runPlanSha256": "fe6b0c717b604557a4b9879b3516d6e464e458abff78147dba78da7c0cf298f1",
-  "runInvocationSha256": "f156adc5bfafc973d5bcf713db183e0170662bb74bdba2eee0e4f9160960a08d",
+  "runId": "run_326ea627c26245a0b1452aa4bd7e03c3",
+  "sessionId": "86e90cc217f745688a9c6066",
+  "runPlanId": "rp_2e0a4ec323714b038e1fb6419f307fcf",
+  "runPlanSha256": "5ee8cd9d1fcd05b4bb8706adadeb3f1802237e13ed34fe63f341438a209bfabd",
+  "runInvocationSha256": "58ca20eb0f8005da7ccc18110479efe77141595973faf3077c9d2601ca2ed853",
   "inputSha256": "8342af51000b529f659bda0d93c8d4b832dfa8c06a000e493979b374f753d370",
   "status": "completed",
-  "createdAt": "2026-11-06T02:48:55.968Z",
-  "startedAt": "2026-11-06T02:48:58.817Z",
-  "endedAt": "2026-11-06T02:50:22.654Z",
-  "durationMs": 83837,
+  "createdAt": "2026-11-06T03:31:16.378Z",
+  "startedAt": "2026-11-06T03:31:18.949Z",
+  "endedAt": "2026-11-06T03:32:42.475Z",
+  "durationMs": 83526,
   "package": {
     "packageId": "org.webagents.webair",
     "name": "WebAir Travel Agent",
@@ -186,7 +186,7 @@
   "audit": {
     "events": 281,
     "chainValid": true,
-    "finalHash": "9d1f0c6bd6f6c3ccc2ca1deda4616196fbbdcb3daedd493d2289300176f9d66b",
+    "finalHash": "66ca74a41ce5c8a75bf38c1fba76e5956efdf71f9b90b223036042c02d176917",
     "actions": [
       {
         "action": "budget.updated",
@@ -323,13 +323,13 @@
   "artifacts": [
     {
       "name": "result.json",
-      "bytes": 247788,
-      "sha256": "fd8bf2213e63494ead85f43ab9eca30b59c5112fbfbbe8a92a147c9a594ae37f"
+      "bytes": 247789,
+      "sha256": "025e232e121e143b22e0d10836a54cdb17ac2440706cfbac60d4f46db584bf82"
     },
     {
       "name": "audit.json",
-      "bytes": 197953,
-      "sha256": "68ed179054e577639c595f14d3eca7ab9e615494ebe8798b5eee6dd01014cb24"
+      "bytes": 197954,
+      "sha256": "d52f9aca80055a6b36eab598ed49d59b3e4a5671b1b22064898acd6ca07e0f62"
     },
     {
       "name": "usage.json",
@@ -339,7 +339,7 @@
     {
       "name": "provenance.json",
       "bytes": 342,
-      "sha256": "eaff5194d74c115cda40c174ce7108b6ce3e089cc9486e833dc4eb87dea454a8"
+      "sha256": "dcc3c4175f92b3724d27d2c95d1fb3814484477efd09678c59a00ef56e9ab2b5"
     },
     {
       "name": "answer.md",
@@ -517,7 +517,7 @@
         "state": "completed",
         "model_calls": 1,
         "tool_calls": 0,
-        "duration_ms": 25578
+        "duration_ms": 25596
       },
       {
         "id": "Personal:2",
@@ -526,7 +526,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 0,
-        "duration_ms": 1
+        "duration_ms": 0
       },
       {
         "id": "Searcher:3",
@@ -535,7 +535,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 1,
-        "duration_ms": 18
+        "duration_ms": 8
       },
       {
         "id": "Selector:4",
@@ -544,7 +544,7 @@
         "state": "completed",
         "model_calls": 1,
         "tool_calls": 0,
-        "duration_ms": 18588
+        "duration_ms": 18574
       },
       {
         "id": "Searcher:5",
@@ -553,7 +553,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 1,
-        "duration_ms": 17
+        "duration_ms": 23
       },
       {
         "id": "Searcher:6",
@@ -562,7 +562,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 1,
-        "duration_ms": 16
+        "duration_ms": 23
       },
       {
         "id": "Personal:7",
@@ -598,7 +598,7 @@
         "state": "completed",
         "model_calls": 0,
         "tool_calls": 0,
-        "duration_ms": 1
+        "duration_ms": 0
       },
       {
         "id": "Writer:11",
@@ -607,7 +607,7 @@
         "state": "completed",
         "model_calls": 1,
         "tool_calls": 0,
-        "duration_ms": 39364
+        "duration_ms": 39052
       },
       {
         "id": "Rememberer:12",
@@ -645,7 +645,7 @@
   "failure": null,
   "origin": "live",
   "conversation": {
-    "conversationId": "d7a3a261-9cad-4794-bdf7-7f81471ee962",
+    "conversationId": "d41457b0-08fb-426c-a9e7-36dec4f12a27",
     "turn": 1
   },
   "memory": {
