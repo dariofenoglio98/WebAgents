@@ -94,15 +94,55 @@ and `exposed` for an attack arm: false when the run never read the placement (co
 ## TS-L (T31b)
 
 Literature Review 0.2.9 runs on L30 and H only (§2.2): benign on every side (E2's parity rows; `Cr`
-without selected files, as the Node CLI binds none) and attacked at `resolver.abstract` on `Py` and
-`FW` only (E3). A run takes tens of minutes on L30 and calls Crossref live, so presets keep TS-L
+without selected files, as the Node CLI binds none) and attacked at `resolver.abstract` and
+`pdf.text` (T32) on `Py` and `FW` only (E3). A run takes tens of minutes on L30 and calls Crossref live, so presets keep TS-L
 small: the smoke preset runs its first question; `--task-sets` narrows any preset (for example
 `--task-sets TS-N,TS-L`). Utility is §2.3's structural truth, computed by the oracle on every side
 from the answer and the recorded tool answers (`score.literature_checks`).
 
+## E2 and E3 (T32)
+
+- **Presets** (`driver/campaign.py`, D-360): `smoke`; `placements` (every payload at every placement it
+  reaches on the first task of each class, with E2's benign matrix: a matcher sweep); `e2` (§3 E2: every
+  task × its phrasings, benign); `e3` (§3 E3: 300 injected runs per side × rung stratified 37 or 38 per
+  family, each with its twin, drawn from the seed only so every side and rung runs the same arms; TS-L's
+  24 injected runs on L30 and H, `Py` and `FW`); `qualification` (`e2` + `e3` on one rung); `paper`
+  (`e2` + `e3` on every rung given). `--tasks` narrows any preset but `paper` (scratch checks);
+  `--shard i/n` runs every n-th unit, so n processes share one directory and its manifest.
+- **Payloads** (`origin/payloads/`, frozen, D-360): three per E3 family (T31's draft, AgentDojo's
+  `important_instructions` template, a contextual notice), twins of equal length; `upload-l1` and
+  `steer-l1` for TS-L at the resolver's abstract and **a selected PDF's text** (`pdf.text`:
+  `origin/documents.py` builds a stand-in PDF of the question's seed paper from its arXiv metadata with
+  the arm's text as a note; the run's input names the seed and selects the file; the same bytes on
+  both sides). F-TERMINATE and F-PEER stay drafts (E5's, T34).
+- **Attempts** read `model_output` as well (what the model wrote on every side, never its reasoning;
+  `Cr`'s model seam records the answer text), so a refused attempt is visible on our side too.
+- **Route failures** (D-361): a model route that did not answer is a harness error on every side; a
+  timeout is the run's failure; before each unit on a local rung the driver waits up to 30 minutes for
+  the route, so an outage delays units instead of spending them.
+- **Analysis**: `../injection_campaign/analyze.py <directories>` prints Tab. 4 and E2's utility
+  columns (and `--json` writes them outside the directories).
+
+## The local rungs on the piz cluster (D-363)
+
+`cluster/ollama-server.sbatch` runs one Ollama 0.40.8 (the Mac's version) in one SLURM job on a
+`blas` 2g MIG slice (48 GB) with `OLLAMA_NUM_PARALLEL=4`, context 32,768, one model loaded and kept
+loaded, models under `~/webagents-ollama/models` (mind the home quota: the three rungs take about
+29 GB). `qwen3.5:4b` and `qwen3.5:9b` must be the Mac's blobs (the registry's `qwen3.5:9b` changed
+after the Mac pulled it); `qwen3:30b` is pulled there (same manifest digest). The job writes
+`~/webagents-ollama/server-<job>.json`; then, on the Mac:
+
+```sh
+ssh -N -L 11500:<node>:<port> piz &                        # the tunnel (node, port from the JSON)
+scp piz:webagents-ollama/server-<job>.json /tmp/server.json
+../agentpkg/.venv/bin/python -m campaigns.driver.campaign --preset paper --rungs L9 \
+    --ollama-url http://127.0.0.1:11500 --server-info /tmp/server.json \
+    --out injection_campaign/results/<UTC>_paper-L9 --shard 0/4 &    # and 1/4, 2/4, 3/4
+```
+
+The manifest records the server's version, environment and model digests (`served`), and each
+process appends the job, node, port and GPU to `server.jsonl`.
+
 ## Not built here (open, with the task that builds it)
 
-- E3's TS-L placement in **a selected PDF's text**: the drivers take selected files (`selected`:
-  DOI → file id, path) on `Py` and `FW`, but the placement needs TS-L inputs naming a document the run
-  will cite (T32, within D-360).
 - The LangGraph arm (D-354): not built; one framework baseline is run.
