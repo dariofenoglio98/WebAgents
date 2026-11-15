@@ -21,7 +21,9 @@
 
 set -euo pipefail
 STATE=/home/fenogd/webagents-ollama
-PORT=$((20000 + SLURM_JOB_ID % 10000))
+# A continuation job reuses its campaign's port (the rung's route, recorded in the manifest, must not
+# change across a --resume): sbatch --export=ALL,WEBAGENTS_PORT=<port> ollama-server.sbatch
+PORT=${WEBAGENTS_PORT:-$((20000 + SLURM_JOB_ID % 10000))}
 export OLLAMA_MODELS=/models
 export OLLAMA_HOST=0.0.0.0:${PORT}
 # §2.2: one model loaded at a time; the rung's context (32,768) as the server default (`FW` reaches
