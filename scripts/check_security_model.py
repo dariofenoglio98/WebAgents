@@ -19,8 +19,11 @@ Reads `docs/security-and-privacy-model.md` and checks, offline and without impor
   ranges or "and") is an id its specification's text holds; every rule id (M-n, C-n, V-n, R-n)
   occurs in its specification; every CB-n is one of CB-1…CB-11 (the consent-bypass list is in a
   private survey, so the bound is a constant here, as is E1…E10);
-* every experiment id is one of E1…E10 or EA;
-* every `P-n`, `DF-n` and `UC-n` cited from the specifications, `docs/threat-model.md`,
+* every experiment id is one of E1…E10, EA or EL: a numbered id anywhere in the model, a lettered
+  one where an experiment is named (a property's Experiment field, and an id list that follows
+  "experiment", "experiments" or "ids"), so a misspelt lettered id fails and prose such as "EU"
+  is never read as one;
+* every `P-n`, `DF-n`, `UC-n` and `LK-n` cited from the specifications, `docs/threat-model.md`,
   `docs/README.md`, `README.md` and the model itself is in the set of ids the model defines (a
   removed id in the middle of a range is not citable);
 * the front map of `docs/threat-model.md` ("The properties these notes implement") agrees with the
@@ -121,10 +124,21 @@ RULE_SPEC = {
 }
 CB_ID = re.compile(r"\bCB-(\d+)\b")
 EXPERIMENT = re.compile(r"\bE(\d{1,2})\b")
+# The lettered experiments: EA (the external attack suite) and EL (linkable agents, registered by
+# the protocol's amendment of 2026-11-15, T64). A lettered id is read only where an experiment is
+# named: a property's Experiment field, and an id list after "experiment(s)" or "ids" ("experiment
+# EL", "The ids E1…E10, EA and EL").
+LETTERED_EXPERIMENTS = {"EA", "EL"}
+LETTERED_EXPERIMENT = re.compile(r"\bE([A-Z])\b")
+EXPERIMENT_LIST = re.compile(
+    r"\b(?:experiments?|ids)\s+((?:E(?:\d{1,2}|[A-Z])\b(?:\s*(?:,|…|and)\s*)?)+)"
+)
 PROPERTY_HEADING = re.compile(r"^### (P-(\d+))\b")
 DF_HEADING = re.compile(r"^#### DF-(\d+)\b", re.MULTILINE)
 UC_HEADING = re.compile(r"^- \*\*UC-(\d+)\b", re.MULTILINE)
-CITATION = re.compile(r"\b(P|DF|UC)-(\d+)\b")
+# Agent Links (planned, §6.1; T64, D-680): the same bullet form as UC-n.
+LK_HEADING = re.compile(r"^- \*\*LK-(\d+)\b", re.MULTILINE)
+CITATION = re.compile(r"\b(P|DF|UC|LK)-(\d+)\b")
 REPORT_DIR = re.compile(r"conformance/results/([0-9A-Za-z-]+)/")
 SECTION_HEADING = re.compile(r"^#{2,3} (.+?)\s*$")
 PROPERTIES_LINE = re.compile(r"^\*Properties:(.*)\*\s*$")
@@ -309,11 +323,17 @@ def check_case_ids(text: str, props: list[dict], report: dict) -> None:
     }
 
 
-def check_experiments(text: str, report: dict) -> None:
-    bad = sorted({f"E{n}" for n in EXPERIMENT.findall(text) if not 1 <= int(n) <= 10})
+def check_experiments(text: str, props: list[dict], report: dict) -> None:
+    bad = {f"E{n}" for n in EXPERIMENT.findall(text) if not 1 <= int(n) <= 10}
+    named = [match.group(1) for match in EXPERIMENT_LIST.finditer(text)]
+    named += [p["fields"].get("Experiment", "") for p in props]
+    lettered = [
+        f"E{letter}" for chunk in named for letter in LETTERED_EXPERIMENT.findall(chunk)
+    ]
+    bad |= set(lettered) - LETTERED_EXPERIMENTS
     report["experiments"] = {
-        "cited": len(EXPERIMENT.findall(text)) + text.count(" EA"),
-        "unknown": bad,
+        "cited": len(EXPERIMENT.findall(text)) + len(lettered),
+        "unknown": sorted(bad),
         "passed": not bad,
     }
 
@@ -348,18 +368,19 @@ def check_properties(props: list[dict], report: dict) -> list[str]:
 
 
 def defined_ids(text: str, props: list[dict]) -> dict[str, set[int]]:
-    """The sets of P-n, DF-n and UC-n the model defines."""
+    """The sets of P-n, DF-n, UC-n and LK-n the model defines."""
     return {
         "P": {p["number"] for p in props},
         "DF": {int(n) for n in DF_HEADING.findall(text)},
         "UC": {int(n) for n in UC_HEADING.findall(text)},
+        "LK": {int(n) for n in LK_HEADING.findall(text)},
     }
 
 
 def check_citations(
     model: Path, text: str, props: list[dict], documents: list[Path], report: dict
 ) -> None:
-    """Every P-n, DF-n, UC-n cited from the model, the specs, the threat model and the READMEs."""
+    """Every P-n, DF-n, UC-n, LK-n cited from the model, the specs, the threat model and the READMEs."""
     defined = defined_ids(text, props)
     unknown = []
     cited = 0
@@ -563,7 +584,7 @@ def run_checks(
     none_experiment = check_properties(props, report)
     check_pointers(text, report)
     check_case_ids(text, props, report)
-    check_experiments(text, report)
+    check_experiments(text, props, report)
     docs = cited_documents() if documents is None else documents
     check_citations(model, text, props, docs, report)
     check_threat_model_map(threat_model, {p["id"] for p in props}, report)

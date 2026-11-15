@@ -39,11 +39,12 @@ Run Invocation (plan + input) → Run Record (status, usage, artifacts, hash-lin
 `personal.read` and `memory.read` request a host-owned resource by *type*; `once` is spent by the
 first run. Fixture mode replays the package's own exact-input answers with no network and no model.
 
-**Experiments.** The ids E1…E10 and EA name the mechanism paper's evaluation (E1 the enforcement
-catalog with ablations on both runtimes; E2 a framework agent as the baseline; E3 the injection
-campaign; E4 the memory leakage channel table; E5 the delegation bound; E6 the consent-bypass
-catalog; E7 overhead; E8 the conformance report; E9 agent-native against the human web; E10 the
-compromised model; EA an external attack suite ported as packages). Their protocol is published
+**Experiments.** The ids E1…E10, EA and EL name the mechanism paper's evaluation (E1 the
+enforcement catalog with ablations on both runtimes; E2 a framework agent as the baseline; E3 the
+injection campaign; E4 the memory leakage channel table; E5 the delegation bound; E6 the
+consent-bypass catalog; E7 overhead; E8 the conformance report; E9 agent-native against the human
+web; E10 the compromised model; EA an external attack suite ported as packages; EL linkable
+agents, composition across publishers, which the planned §6.1 cites). Their protocol is published
 with the paper; this model names which experiment measures which property.
 
 ## 1. Setting and trusted computing base
@@ -1272,6 +1273,110 @@ destination from the person's machine beyond a bundled list). *Evidence planned:
 family (an undeclared destination; an import; the cap; an unattended run; an amendment replay) and
 enforcement cases for the catalog.
 
+### 6.1 Agent Links (planned; binds T65, T66 and T67; D-680…D-682)
+
+A package may name another publisher's package and ask it for help, as a page links to a page.
+The commitments below are the design of T64 (2026-11-15), stated now so that the specification
+(`spec/link-v0.md`), the two runtimes and the conformance family `link/*` are built against them and
+the protocol's experiment EL cites them. They claim nothing about today's code; T65 turns each into
+an implemented statement with its pointers and cases.
+
+- **LK-1 A link is pinned and verified before the run.** A package names another publisher's
+  package as a dependency by package id, version, digest and HTTPS locator; the browser fetches it
+  under the package-URL policy, verifies it as it verifies any package (P-1), refuses a digest or
+  signer mismatch, and pins it in the caller's Run Plan; the bytes an inner run executes are the
+  bytes that were verified (P-1, P-5). *Bounds:* A-PKG or A-ORIG substituting the linked package; a
+  caller naming a package it did not pin. *Residual:* P-1's and P-2's.
+- **LK-2 One card per new publisher; a valid signature is not a trusted publisher across links.**
+  Each linked package has its own receipt and its own inner Run Plan; its publisher's key is
+  evaluated against the person's own trust store and shown as a separate fact ("signature valid,
+  publisher unknown" as if the package were opened directly); the person decides per publisher
+  before the run, in one review that lists every linked publisher, and may deny one: a denied link
+  is unbound, as a denied optional tool is, and a role whose only step is a denied link leaves the
+  route enum. A denial lasts for the run: a publisher the person denied, at the review or on a join
+  card (LK-6), is not offered again in that run, and a join whose candidate that key signed is
+  refused without a card and recorded. *Bounds:* a caller vouching for a linked publisher (a link
+  grants nothing: P-2, P-18); a denied publisher asked for again through a join. *Residual:* consent
+  fatigue (DF-8's budget; remembered decisions, DF-6, later).
+- **LK-3 A linked package gains no authority from its caller.** An inner run holds the intersection
+  of the linked package's own declaration and the person's grants on its card; nothing of the
+  caller's receipt, tools, resources, memory or state reaches it beyond the link's input instance,
+  validated against the linked package's own input schema; the caller receives only the result,
+  validated against the linked package's own output schema (P-4, P-17). *Bounds:* A-PKG as a caller
+  laundering authority or data through a link; A-PEER as a linked package reading beyond the link.
+  *Residual:* what the caller's program puts into the input instance, within its declared view (Agent
+  Data Flow's labels, DF-2 and DF-3, will carry the recipients).
+- **LK-4 The worst case is composed across links before consent.** A link step's cost is the linked
+  package's own worst case, computed from its declaration (model calls, tool calls per tool, compute
+  calls, remote calls, tokens, seconds); it enters the caller's bound as a role's or a node's cost,
+  and the person's "at most" names every linked package; the inner worst case is reserved before the
+  link runs and settled with the inner run's reported usage; the caller's counters hold every inner
+  call, so the run's totals and the composed bound are enforced across publishers (P-7, P-9). A
+  slot (LK-6) enters the bound at its declared ceiling, which names every figure the "at most"
+  names (model calls, tool calls in total over a joined package's own tools, compute calls, remote
+  calls, tokens, seconds; a figure left out is zero), so the "at most" shown before consent already
+  holds every join and a join never raises it; a candidate whose own worst case does not fit the
+  ceiling, or what the run has left, is refused without a card.
+  *Bounds:* a linked package spending outside the caller's envelope; A-MODEL looping through links;
+  a joined package widening a bound the person already accepted.
+  *Residual:* P-7's relaxation is loose on some shapes; P-9's dishonest provider.
+- **LK-5 Depth is bounded and cycles are refused.** The first version admits one level: a linked
+  package, named by a dependency or joined through a slot, that declares dependencies of its own
+  or whose program holds a `link` step of either form, a slot's included, is refused, at
+  preparation for a dependency and before any card for a join candidate; an inner run can
+  therefore start no further run, neither a third package's nor its caller's, so a cycle cannot
+  exist. The composition rule is stated for any depth and a later version may raise the limit
+  under the same rule. *Bounds:* unbounded recursion across publishers, planned or found at run
+  time. *Residual:* none at depth one.
+- **LK-6 A link made during a run is a request decided on facts the runtime computed.** A declared
+  slot may be bound while the run is under way: the runtime locates a candidate by discovery
+  (P-18), fetches and verifies it, and shows a card with the publisher's key and trust state, the
+  package's declared tools, endpoints, records by type and model needs, the slot's declared view
+  (what the caller may send it, in words), the caller's reason marked as the agent's words, the
+  candidate's own worst case inside the slot's ceiling (LK-4: the "at most" the person accepted
+  does not change) and what the run has left; the default is no; nothing of the candidate reaches
+  the caller's model before the decision; an accepted join prepares an inner plan hash-linked to
+  the caller's plan, which is never rewritten; a refused join is data to the caller's program,
+  which may fall back, and a recorded event (P-5, P-11, UC-2, UC-4). The address a slot looks at
+  is never a model's: its `locate` reads only a URL the person supplied in the run's input or the
+  URL fields of a tool's validated result, and a slot that would read a model's output or a
+  message is refused at validation; the discovery and package fetches carry no body, cookie or
+  referrer and each is recorded, so no text a model wrote leaves in them before the decision. The
+  request the caller's model then builds for an accepted package sees only the slot's view and
+  that package's description. *Bounds:* A-ORIG or A-ISS steering a run toward a hostile package,
+  which is judged by its own key on the card; A-MODEL joining silently, or sending data out in the
+  address of a page to look at. *Residual:* social engineering through the stated reason; the
+  person's reading of the card; a search service that ranks a hostile page first sees the query it
+  was sent and chooses which page is looked at (P-18's: the fetch grants nothing).
+- **LK-7 No person, no join; the caps.** An unattended run refuses every join and every raise and
+  records the refusal; a slot's joins and a run's joins are capped, and the rest are refused without
+  a card and summarised at the end; a signed policy may forbid joins (P-10, P-11, UC-3, UC-6).
+  *Bounds:* fatigue as a channel; background joins. *Residual:* the caps are constants of the version.
+- **LK-8 The person may raise their own limit, never the publisher's.** When a reservation fails on
+  the person's run limit and a person is present, the runtime may ask once per run to raise that
+  limit by a stated amount, with the usage so far, the reservation that failed and what it is for
+  computed by the runtime and the agent's reason shown as its words; the package's declared ceilings
+  are never raised, so the "at most" shown before consent still holds for the publisher's program;
+  the decision is appended to the audit, naming the run and the plan's hash as a join's decision
+  names its inner plan, and the plan is not rewritten; a refusal, or no person, is the refusal of
+  today (P-5, P-9). *Bounds:* A-MODEL or A-PKG raising a budget by asking again (one
+  raise per run, bounded in size); a raise past the publisher's ceiling. *Residual:* the person's
+  decision.
+
+**Evidence planned.** The conformance family `link/*` on both runtimes (a digest and a signer
+mismatch; a conversational or a nested target; a bound over budget; an incompatible model; a result
+outside the schema; an input outside the view; a grant not inherited; a denied link excluded from
+the enum; a linked package that holds a slot; a slot that reads a model's output for its address;
+an unattended join; a declined join; the join cap; a join candidate over the slot's ceiling; a
+join candidate that holds a link step; a join candidate of a publisher denied in the run; a
+replayed inner plan; a raise accepted, denied and unattended; the package's cap never raised; a
+second raise refused), the enforcement
+catalog's next series, and the protocol's experiment EL (composition across publishers: the composed
+bound's exceedance, an inner run without a decision, a cross-publisher canary, an inner run's
+dispatch outside its own plan, against a service link). **What links do not bound:** the quality of
+a linked package's answer; what a recipient the inner plan names receives; a person who accepts a
+publisher's card has accepted it.
+
 ## 7. Mapping to Privacy by Design and Trustworthy AI; the vocabulary
 
 ### 7.1 Langheinrich's principles for privacy-aware ubiquitous systems (UbiComp 2001)
@@ -1354,6 +1459,19 @@ consent and (planned) request, and can revoke what was remembered (P-4, P-12, P-
   in-browser route is named where the model's text said "planned": the model provider row, the
   trusted base (the in-browser engine, §1.2), the "not protected" list (§4) and the privacy model
   (§5.2); its per-boundary note is the threat model's "In-browser inference" (P-6, P-9, P-10, P-19).
+- **Version 2, Agent Links planned (2026-11-15, T64; D-680…D-682).** §6.1 added: the planned
+  commitments LK-1…LK-8 for a package that links another publisher's package (pinned and verified
+  before the run; one card per new publisher; no authority from the caller; the worst case composed
+  across links; depth bounded and cycles refused; a run-time join as a request on computed facts; no
+  person, no join; the person may raise their own limit, never the publisher's), cited by the
+  protocol's experiment EL (version 3). No property changed; no id reused; the checker reads LK-n
+  as it reads UC-n.
+  Corrected after T64's review 1 the same day, before the protocol's tag: a slot enters the bound
+  at a ceiling that names every figure (LK-4); a linked package with a link step of either form is
+  refused (LK-5); a publisher denied in a run is not offered again in it (LK-2); a slot's address
+  is never a model's and the join card states the candidate's worst case inside the ceiling
+  (LK-6); a raise names its run and plan (LK-8); §0 names EL, and the checker reads the lettered
+  experiment ids EA and EL where an experiment is named.
 - **Version 1** is [threat-model.md](threat-model.md): the per-boundary notes written with each
   milestone from the format to Agent Delegation. They are kept as the implementation notes of this
   model: each section states the properties it implements, and nothing a specification cites was

@@ -51,7 +51,7 @@ def _problems(checker, tmp_path: Path, text: str) -> list[str]:
 
 def _section_of(text: str, experiment: str) -> tuple[int, int]:
     start = text.index(f"### {experiment} · ")
-    later = re.compile(r"^### (E\d+|EA) · |^## ", re.MULTILINE)
+    later = re.compile(r"^### (E\d+|E[A-Z]) · |^## ", re.MULTILINE)
     match = later.search(text, start + 1)
     return start, match.start() if match else len(text)
 
@@ -59,7 +59,7 @@ def _section_of(text: str, experiment: str) -> tuple[int, int]:
 def test_committed_protocol_passes(checker):
     report = checker.check(PROTOCOL, MODEL)
     assert report["passed"], report["problems"]
-    assert report["experiments"] == 11
+    assert report["experiments"] == 12  # E1…E10, EA and EL (registered by T64, version 3)
     assert re.fullmatch(r"[0-9a-f]{64}", report["sha256"])
 
 
@@ -203,7 +203,7 @@ def test_builders_come_from_the_scope_table(checker, protocol_text):
     builders = checker._builders(protocol_text)
     assert builders["E5"] == {"T34"}
     assert builders["E2"] == {"T31", "T32"}
-    assert builders["EL"] == {"T64"}
+    assert builders["EL"] == {"T64", "T65", "T66", "T67"}
 
 
 def test_built_by_must_name_a_task(checker, tmp_path, protocol_text):
@@ -228,18 +228,43 @@ def test_registration_section_required(checker, tmp_path, protocol_text):
     assert any("registration section" in p for p in problems)
 
 
-def test_planned_experiment_needs_question_and_status(checker, tmp_path, protocol_text):
-    start = protocol_text.index("### EL · ")
-    mutated = protocol_text[:start] + protocol_text[start:].replace("**Status.**", "**State.**", 1)
+@pytest.fixture()
+def planned(checker, monkeypatch, protocol_text):
+    """EL as it was before T64's amendment: a planned section with Question and Status only, on a
+    checker whose lists are set back (EL planned), so the planned mechanism stays tested."""
+    monkeypatch.setattr(checker, "EXPERIMENTS", [e for e in checker.EXPERIMENTS if e != "EL"])
+    monkeypatch.setattr(checker, "PLANNED_EXPERIMENTS", ["EL"])
+    start, end = _section_of(protocol_text, "EL")
+    heading_end = protocol_text.index("\n", start) + 1
+    body = "**Question.** Planned.\n**Status.** Planned; registered by amendment.\n\n"
+    return protocol_text[:heading_end] + body + protocol_text[end:]
+
+
+def test_planned_copy_passes_the_planned_checks(checker, tmp_path, planned):
+    problems = _problems(checker, tmp_path, planned)
+    assert not any("EL" in p for p in problems), problems
+
+
+def test_planned_experiment_needs_question_and_status(checker, tmp_path, planned):
+    start = planned.index("### EL · ")
+    mutated = planned[:start] + planned[start:].replace("**Status.**", "**State.**", 1)
     problems = _problems(checker, tmp_path, mutated)
     assert any("EL (planned): field 'Status' is missing" in p for p in problems)
 
 
-def test_missing_planned_section_fails(checker, tmp_path, protocol_text):
-    start = protocol_text.index("### EL · ")
-    end = protocol_text.index("## 4. ")
-    problems = _problems(checker, tmp_path, protocol_text[:start] + protocol_text[end:])
+def test_missing_planned_section_fails(checker, tmp_path, planned):
+    start = planned.index("### EL · ")
+    end = planned.index("## 4. ")
+    problems = _problems(checker, tmp_path, planned[:start] + planned[end:])
     assert any("experiment section EL (planned) is missing" in p for p in problems), problems
+
+
+def test_registered_el_needs_every_field(checker, tmp_path, protocol_text):
+    start, end = _section_of(protocol_text, "EL")
+    body = protocol_text[start:end].replace("**Budget.**", "**Spend.**", 1)
+    assert body != protocol_text[start:end]
+    problems = _problems(checker, tmp_path, protocol_text[:start] + body + protocol_text[end:])
+    assert any("EL: field 'Budget' is missing" in p for p in problems), problems
 
 
 def test_duplicated_field_fails(checker, tmp_path, protocol_text):
@@ -251,10 +276,10 @@ def test_duplicated_field_fails(checker, tmp_path, protocol_text):
     assert any("E7: field 'Budget' appears more than once" in p for p in problems), problems
 
 
-def test_duplicated_planned_field_fails(checker, tmp_path, protocol_text):
-    start = protocol_text.index("### EL · ")
-    status = protocol_text.index("**Status.**", start)
-    mutated = protocol_text[:status] + "**Status.** registered.\n" + protocol_text[status:]
+def test_duplicated_planned_field_fails(checker, tmp_path, planned):
+    start = planned.index("### EL · ")
+    status = planned.index("**Status.**", start)
+    mutated = planned[:status] + "**Status.** registered.\n" + planned[status:]
     problems = _problems(checker, tmp_path, mutated)
     assert any("EL (planned): field 'Status' appears more than once" in p for p in problems)
 
@@ -284,17 +309,17 @@ def test_lettered_word_in_prose_is_not_an_experiment(checker, tmp_path, protocol
     assert report["passed"], report["problems"]
 
 
-def test_duplicate_planned_section_is_reported_as_duplicate(checker, tmp_path, protocol_text):
-    start = protocol_text.index("### EL · ")
-    end = protocol_text.index("## 4. ")
-    mutated = protocol_text[:end] + protocol_text[start:end] + protocol_text[end:]
+def test_duplicate_planned_section_is_reported_as_duplicate(checker, tmp_path, planned):
+    start = planned.index("### EL · ")
+    end = planned.index("## 4. ")
+    mutated = planned[:end] + planned[start:end] + planned[end:]
     problems = _problems(checker, tmp_path, mutated)
     assert any("EL appears more than once" in p for p in problems)
     assert not any("EL (planned): field" in p for p in problems)
 
 
-@pytest.mark.parametrize("task", ["T30", "T39", "T64"])
-def test_build_map_requires_t30_t39_and_t64(checker, tmp_path, protocol_text, task):
+@pytest.mark.parametrize("task", ["T30", "T39", "T64", "T65", "T66", "T67"])
+def test_build_map_requires_every_registered_task(checker, tmp_path, protocol_text, task):
     lines = protocol_text.splitlines(keepends=True)
     index = next(i for i, line in enumerate(lines) if line.startswith(f"| {task} "))
     del lines[index]
