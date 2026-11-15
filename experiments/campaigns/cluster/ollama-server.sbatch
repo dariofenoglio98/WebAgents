@@ -22,7 +22,11 @@
 set -euo pipefail
 STATE=/home/fenogd/webagents-ollama
 # A continuation job reuses its campaign's port (the rung's route, recorded in the manifest, must not
-# change across a --resume): sbatch --export=ALL,WEBAGENTS_PORT=<port> ollama-server.sbatch
+# change across a --resume): `echo <port> > ~/webagents-ollama/port-<job name>` before submitting with the
+# same --job-name (or sbatch --export=ALL,WEBAGENTS_PORT=<port>, which fails on adula: the node cannot
+# fetch the user's environment).
+PORT_FILE=/home/fenogd/webagents-ollama/port-${SLURM_JOB_NAME}
+if [ -z "${WEBAGENTS_PORT:-}" ] && [ -f "${PORT_FILE}" ]; then WEBAGENTS_PORT=$(cat "${PORT_FILE}"); fi
 PORT=${WEBAGENTS_PORT:-$((20000 + SLURM_JOB_ID % 10000))}
 export OLLAMA_MODELS=/models
 export OLLAMA_HOST=0.0.0.0:${PORT}
