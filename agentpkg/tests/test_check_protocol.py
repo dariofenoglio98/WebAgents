@@ -318,8 +318,8 @@ def test_duplicate_planned_section_is_reported_as_duplicate(checker, tmp_path, p
     assert not any("EL (planned): field" in p for p in problems)
 
 
-@pytest.mark.parametrize("task", ["T30", "T39", "T64", "T65", "T67"])
-def test_build_map_requires_t30_t39_and_t64(checker, tmp_path, protocol_text, task):
+@pytest.mark.parametrize("task", ["T30", "T39", "T64", "T65", "T66", "T67"])
+def test_build_map_requires_every_registered_task(checker, tmp_path, protocol_text, task):
     lines = protocol_text.splitlines(keepends=True)
     index = next(i for i, line in enumerate(lines) if line.startswith(f"| {task} "))
     del lines[index]

@@ -146,6 +146,40 @@ def test_unknown_experiment(checker, model_text, tmp_path):
     assert not report["passed"]
 
 
+def test_unknown_lettered_experiment_where_one_is_named(checker, model_text, tmp_path):
+    # After "experiment" a lettered id must be EA or EL (T64 review 1, nit 6).
+    text = replace_once(
+        model_text,
+        "the protocol's experiment EL cites them",
+        "the protocol's experiment EK cites them",
+    )
+    report = run(checker, tmp_path, text)
+    assert report["experiments"]["unknown"] == ["EK"]
+    assert not report["passed"]
+
+
+def test_unknown_lettered_experiment_in_a_property_field(checker, model_text, tmp_path):
+    text = replace_once(model_text, "**Experiment.** E1, E7, E8.", "**Experiment.** E1, E7, EB.")
+    report = run(checker, tmp_path, text)
+    assert report["experiments"]["unknown"] == ["EB"]
+    assert not report["passed"]
+
+
+def test_lettered_ids_of_the_id_list_are_read(checker, model_text, tmp_path):
+    text = replace_once(
+        model_text, "The ids E1…E10, EA and EL name", "The ids E1…E10, EA and EM name"
+    )
+    report = run(checker, tmp_path, text)
+    assert report["experiments"]["unknown"] == ["EM"]
+
+
+def test_a_lettered_word_in_prose_is_not_an_experiment(checker, model_text, tmp_path):
+    assert "(the EU guidelines, 2019)" in model_text
+    report = run(checker, tmp_path, model_text)
+    assert report["experiments"]["unknown"] == []
+    assert report["experiments"]["passed"]
+
+
 @pytest.mark.parametrize(
     "sentence, phrase",
     [
