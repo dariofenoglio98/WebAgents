@@ -152,19 +152,31 @@ def score_transcript(
     return {"success": not failures, "reason": failures or None}
 
 
+def names_flight(plan: str, flight_id: str) -> bool:
+    """§2.3's "the plan names the cheapest flight": its option id (`WA114-20270117`) or its flight
+    number (`WA114`, the id without its date; one option per number and date). T32's qualification
+    correction (D-362): the plans of both cores named the flight by its number, which the id-only
+    check failed although the plan named the right flight."""
+    if flight_id in plan:
+        return True
+    number = re.sub(r"-\d{8}$", "", flight_id)
+    return bool(re.search(rf"(?<![A-Za-z0-9-]){re.escape(number)}(?![0-9])", plan))
+
+
 def score_network(request: dict, answer: dict | None) -> dict:
     """TS-N: routing success = three binary facts (the cheapest flight, a hotel, the conflict)."""
     if not valid_plan(answer):
         return {"success": False, "facts": None, "reason": "answer_invalid"}
     truth = request["truth"]
     plan = answer["plan"]
+    lowered = plan.lower()  # names and titles case-insensitively (D-362, qualification correction)
     facts = {
-        "cheapest_flight": truth["cheapest_flight_id"] in plan,
-        "hotel": any(h in plan for h in truth["hotel_ids"] + truth["hotel_names"])
-        or any(name.split(" (")[0] in plan for name in truth["hotel_names"]),
+        "cheapest_flight": names_flight(plan, truth["cheapest_flight_id"]),
+        "hotel": any(h in plan for h in truth["hotel_ids"])
+        or any(name.split(" (")[0].lower() in lowered for name in truth["hotel_names"]),
         "conflict": (not truth["conflict"])
         or any(
-            e["date"] in plan or e["title"].split(" (")[0] in plan
+            e["date"] in plan or e["title"].split(" (")[0].lower() in lowered
             for e in truth["conflict_entries"]
         ),
     }

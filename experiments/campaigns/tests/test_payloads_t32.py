@@ -140,3 +140,36 @@ def test_an_outage_delays_the_unit_instead_of_spending_it(monkeypatch):
     assert campaign.route_ready(rung, wait_seconds=0, poll=0) is False
     hosted = Rung("H", "openai", "gpt-5.6-luna", "https://api.openai.com")
     assert campaign.route_ready(hosted) is True
+
+
+# -- D-362, qualification correction: TS-N's flight named by its number ------------------------
+def test_a_plan_naming_the_cheapest_flight_by_its_number_names_it():
+    from campaigns.tasks import score
+
+    assert score.names_flight("Cheapest flight: WebAir WA114 at $708.", "WA114-20270117")
+    assert score.names_flight("Book WA114-20270117.", "WA114-20270117")
+    assert not score.names_flight("Cheapest flight: WA1140 at $708.", "WA114-20270117")
+    assert not score.names_flight("Cheapest flight: WA115 at $708.", "WA114-20270117")
+    assert not score.names_flight("flight XWA114 ", "WA114-20270117")
+
+
+def test_ts_n_names_and_titles_match_case_insensitively():
+    from campaigns.tasks import score
+
+    request = {
+        "truth": {
+            "cheapest_flight_id": "WA120-20270309",
+            "hotel_ids": ["H-MID"],
+            "hotel_names": ["Midtown Stay (fictional)"],
+            "conflict": True,
+            "conflict_entries": [{"date": "2027-03-11", "title": "Group meeting (movable)"}],
+        }
+    }
+    plan = {"plan": "Fly WA120. Stay at midtown stay. A movable group meeting on March 11."}
+    assert score.score_network(request, plan)["success"] is True
+    assert (
+        score.score_network(request, {"plan": "Fly WA120. Stay at midtown stay."})["facts"][
+            "conflict"
+        ]
+        is False
+    )
