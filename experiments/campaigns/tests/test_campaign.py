@@ -127,6 +127,25 @@ def test_the_tree_state_ignores_only_the_results_directory(tmp_path):
         shutil.rmtree(inside, ignore_errors=True)
 
 
+def test_campaigns_side_by_side_never_see_each_others_directories():
+    """T32: one campaign per rung runs at once in one results directory; the first shard of each
+    wrote its manifest clean, the later shards saw the sibling directories as a dirty tree."""
+    results = campaign.EXPERIMENTS / "injection_campaign" / "results"
+    tag = uuid.uuid4().hex[:8]
+    mine, sibling = results / f"probe-{tag}-L9", results / f"probe-{tag}-L30"
+    code = campaign.EXPERIMENTS / f"campaign-state-probe-{tag}"
+    try:
+        for path in (mine, sibling, code):
+            path.mkdir()
+            (path / "x.json").write_text("{}")
+        status = campaign.tree_state(mine)[0]
+        assert mine.name not in status and sibling.name not in status
+        assert code.name in status  # anything outside the results tree is still a change
+    finally:
+        for path in (mine, sibling, code):
+            shutil.rmtree(path, ignore_errors=True)
+
+
 SMOKE = campaign.EXPERIMENTS / "injection_campaign" / "results" / "2026-11-04T19-25-14Z_smoke"
 READS = {"search": "search-flights", "rules": "get-fare-rules", "quote": "prepare-booking"}
 

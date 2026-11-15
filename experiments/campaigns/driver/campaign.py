@@ -395,8 +395,11 @@ def _versions(sides: list[str]) -> dict:
 
 
 def tree_state(out: Path | None = None) -> tuple[str, str]:
-    """`git status` and `git diff HEAD` of the working tree, without the campaign's own results
-    directory: a resume must not see its own runs as a changed tree (review 1, finding 2)."""
+    """`git status` and `git diff HEAD` of the working tree, without the campaigns' results: a
+    resume must not see its own runs as a changed tree (review 1, finding 2), and campaigns running
+    side by side (one per rung, T32) must not see each other's directories. Excluded: the
+    campaign's own directory and, when it sits in a `results/` directory, every sibling there
+    (outputs, never code)."""
     pathspec: list[str] = []
     if out is not None:
         try:
@@ -404,7 +407,8 @@ def tree_state(out: Path | None = None) -> tuple[str, str]:
         except ValueError:
             inside = None
         if inside is not None and inside.parts:
-            pathspec = ["--", ".", f":(exclude){inside.as_posix()}"]
+            excluded = inside.parent if inside.parent.name == "results" else inside
+            pathspec = ["--", ".", f":(exclude){excluded.as_posix()}"]
     return _git("status", "--porcelain", *pathspec), _git("diff", "HEAD", *pathspec)
 
 
