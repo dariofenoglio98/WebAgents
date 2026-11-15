@@ -103,6 +103,13 @@ TASK_SETS = ("TS-W", "TS-C", "TS-N", "TS-L")
 # TS-L's rungs (§2.2: "the Literature Review arm: L30 and H only") and the sides of its attack arm
 # (§3 E3: "on `Py` and `FW` only"; the Chrome core runs Literature Review in E2's benign rows).
 LITERATURE_RUNGS = ("L30", "H")
+# §2.2: "the drivers pass num_ctx per package need". Literature Review's verification step
+# reserves its input (up to ~17,400 tokens) plus a 16,000-token output cap, more than the WebAir
+# rungs' 32,768 (the first L30 paper directory refused it, `model.refused`/`context_window`); its
+# local runs use 65,536 on every side (`Py`/`Cr` pass it per request; `FW` reaches Ollama's /v1,
+# so its server is started at that default: `cluster/ollama-server.sbatch` with `env-<job name>`).
+# T32, D-363.
+CONTEXT_BY_TASK_SET = {"TS-L": 65536}
 LITERATURE_ATTACK_SIDES = ("Py", "FW")
 
 
@@ -354,6 +361,17 @@ def rung_of(name: str, ollama_url: str) -> Rung:
     )
 
 
+def rung_for_unit(unit: dict, ollama_url: str) -> Rung:
+    """The unit's rung with the context its package needs on a local route (§2.2)."""
+    import dataclasses
+
+    rung = rung_of(unit["rung"], ollama_url)
+    context = CONTEXT_BY_TASK_SET.get(unit["task_set"])
+    if context and rung.provider == "ollama":
+        rung = dataclasses.replace(rung, context_window=context)
+    return rung
+
+
 def _sha_file(path: Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
@@ -570,6 +588,7 @@ def manifest(
         "task_sets_selected": list(task_sets),
         "literature": {
             "rungs": list(LITERATURE_RUNGS),
+            "local_context_window": CONTEXT_BY_TASK_SET["TS-L"],
             "attack_sides": list(LITERATURE_ATTACK_SIDES),
             "crossref_lane": {
                 "max_concurrent": 1,
@@ -786,7 +805,7 @@ def run_unit(
             grant_profile = True
         else:
             fixture_key = catalog.fixture_key(arm["payload"], arm["placement"], arm["arm"])
-    rung = rung_of(unit["rung"], ollama_url)
+    rung = rung_for_unit(unit, ollama_url)
     meta = {
         "run_id": unit["id"],
         "side": unit["side"],

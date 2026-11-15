@@ -478,3 +478,14 @@ def test_ts_l_is_never_sharded(tmp_path):
         campaign.main([*base, "--shard", "0/2", "--dry-run"])
     narrowed = [*base, "--task-sets", "TS-W", "--shard", "0/2", "--dry-run"]
     assert campaign.main(narrowed) == 0
+
+
+def test_literature_review_units_get_the_context_their_package_needs_on_local_rungs():
+    """§2.2 (num_ctx per package need): TS-L on L30 at 65,536; WebAir at the rung's 32,768; a hosted
+    rung keeps its own route."""
+    url = "http://127.0.0.1:11434"
+    tsl = campaign.rung_for_unit({"rung": "L30", "task_set": "TS-L"}, url)
+    webair = campaign.rung_for_unit({"rung": "L30", "task_set": "TS-W"}, url)
+    hosted = campaign.rung_for_unit({"rung": "H", "task_set": "TS-L"}, url)
+    assert tsl.context_window == 65536 and webair.context_window == 32768
+    assert hosted.context_window == campaign.rung_of("H", url).context_window

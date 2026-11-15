@@ -33,8 +33,13 @@ export OLLAMA_HOST=0.0.0.0:${PORT}
 # §2.2: one model loaded at a time; the rung's context (32,768) as the server default (`FW` reaches
 # Ollama through /v1, which takes no num_ctx); kept loaded; four slots (recorded in every manifest's
 # `served` block through server-<jobid>.json; concurrent decoding can change a temperature-0 answer).
+# A job may override the context and the slots with `~/webagents-ollama/env-<job name>` (shell lines,
+# e.g. OLLAMA_CONTEXT_LENGTH=65536 and OLLAMA_NUM_PARALLEL=1 for Literature Review, whose `FW` side
+# reaches /v1 and so gets the server's default context; T32, D-363).
+ENV_FILE=/home/fenogd/webagents-ollama/env-${SLURM_JOB_NAME}
+if [ -f "${ENV_FILE}" ]; then set -a; . "${ENV_FILE}"; set +a; fi
 export OLLAMA_MAX_LOADED_MODELS=1
-export OLLAMA_CONTEXT_LENGTH=32768
+export OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH:-32768}
 export OLLAMA_KEEP_ALIVE=-1
 export OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-4}
 
