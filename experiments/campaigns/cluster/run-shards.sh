@@ -23,9 +23,15 @@ SAFE=$HOME/webagents-campaign/results/$NAME
 mkdir -p "$SAFE" "$ROOT/logs"  # logs outside the repository: untracked files there would make the tree dirty
 pids=()
 for i in $(seq 0 $((SHARDS - 1))); do
+  # One shard runs unsharded (TS-L must: Crossref's lane is one per process), resuming if it ran before.
+  if [ "$SHARDS" = 1 ]; then
+    part=(); [ -f "$OUT/manifest.json" ] && part=(--resume)
+  else
+    part=(--shard "$i/$SHARDS")
+  fi
   ../agentpkg/.venv/bin/python -m campaigns.driver.campaign "$@" \
     --ollama-url "http://127.0.0.1:${PORT}" --server-info "$SERVER" --out "$OUT" \
-    --shard "$i/$SHARDS" > "$ROOT/logs/${NAME}-shard-$i.log" 2>&1 &
+    "${part[@]}" > "$ROOT/logs/${NAME}-shard-$i.log" 2>&1 &
   pids+=($!)
   sleep 3  # the first shard writes the manifest
 done
