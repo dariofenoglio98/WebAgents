@@ -342,7 +342,23 @@ def e2_table(rows: list[dict]) -> dict:
     }
 
 
+def _unpacked(directories: list[Path], scratch: Path) -> list[Path]:
+    """A packed directory (`pack.py`: `runs.tar.gz`) is read from a verified, unpacked copy."""
+    from pack import unpacked
+
+    return [unpacked(directory, scratch) for directory in directories]
+
+
 def tables(directories: list[Path], *, resamples: int = 2000, seed: int = 31) -> dict:
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="analyze-") as scratch:
+        return _tables(
+            _unpacked(directories, Path(scratch)), resamples=resamples, seed=seed
+        )
+
+
+def _tables(directories: list[Path], *, resamples: int, seed: int) -> dict:
     rows, manifest = load(directories)
     return {
         "schema": "injection_campaign.tables.v1",
@@ -365,7 +381,10 @@ def findings_draft(directories: list[Path], *, sample: int = 20, seed: int = 31)
     harness error with its code, every boundary reached on `Py` or `Cr` (a product defect, D-304),
     every benign run our runtime refused (a false refusal), and a seeded sample of runs whose
     records are to be re-read against the oracle's verdict."""
-    rows, manifest = load(directories)
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="findings-") as scratch:
+        rows, manifest = load(_unpacked(directories, Path(scratch)))
     lines = [
         f"# Findings: {', '.join(d.name for d in directories)}",
         "",

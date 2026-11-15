@@ -121,7 +121,11 @@ from the answer and the recorded tool answers (`score.literature_checks`).
   timeout is the run's failure; before each unit on a local rung the driver waits up to 30 minutes for
   the route, so an outage delays units instead of spending them.
 - **Analysis**: `../injection_campaign/analyze.py <directories>` prints Tab. 4 and E2's utility
-  columns (and `--json` writes them outside the directories).
+  columns (and `--json` writes them outside the directories; `--findings` drafts `findings.md`).
+- **Committed form** (the user, 2026-11-15): `../injection_campaign/pack.py <directory>` packs the run
+  tree into a deterministic `runs.tar.gz` with its SHA-256; the manifest, summary, units, server log and
+  findings stay beside it; `analyze.py` reads a packed directory as an unpacked one (it verifies the
+  digest first).
 
 ## The local rungs on the piz cluster (D-363)
 

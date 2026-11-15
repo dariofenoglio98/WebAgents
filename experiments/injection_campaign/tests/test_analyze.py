@@ -166,3 +166,35 @@ def test_the_findings_draft_lists_errors_defects_refusals_and_a_sample(directory
     text = analyze.findings_draft([directory], sample=5)
     assert "## Harness errors" in text and "## Boundaries reached on our side" in text
     assert text.count("- [ ] ") == 5
+
+
+def test_a_packed_directory_is_deterministic_and_reads_as_the_unpacked_one(
+    directory, tmp_path
+):
+    import shutil
+
+    import pack
+
+    unpacked_tables = analyze.tables([directory], resamples=200)
+    first = pack.pack(directory)
+    assert pack.pack(directory) == first  # the same bytes twice
+    packed = tmp_path / "packed" / directory.name
+    shutil.copytree(directory, packed)
+    shutil.rmtree(packed / "runs")
+    packed_tables = analyze.tables([packed], resamples=200)
+    assert packed_tables["tab4_e3"] == unpacked_tables["tab4_e3"]
+    assert packed_tables["tab4_e2_utility"] == unpacked_tables["tab4_e2_utility"]
+
+
+def test_a_packed_directory_whose_archive_changed_is_refused(directory, tmp_path):
+    import shutil
+
+    import pack
+
+    pack.pack(directory)
+    packed = tmp_path / "p" / directory.name
+    shutil.copytree(directory, packed)
+    shutil.rmtree(packed / "runs")
+    (packed / "runs.tar.gz").write_bytes(b"\x1f\x8b" + b"0" * 64)
+    with pytest.raises(SystemExit, match="SHA-256"):
+        analyze.tables([packed])
