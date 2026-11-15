@@ -20,7 +20,7 @@ Reads `docs/security-and-privacy-model.md` and checks, offline and without impor
   occurs in its specification; every CB-n is one of CB-1…CB-11 (the consent-bypass list is in a
   private survey, so the bound is a constant here, as is E1…E10);
 * every experiment id is one of E1…E10 or EA;
-* every `P-n`, `DF-n` and `UC-n` cited from the specifications, `docs/threat-model.md`,
+* every `P-n`, `DF-n`, `UC-n` and `LK-n` cited from the specifications, `docs/threat-model.md`,
   `docs/README.md`, `README.md` and the model itself is in the set of ids the model defines (a
   removed id in the middle of a range is not citable);
 * the front map of `docs/threat-model.md` ("The properties these notes implement") agrees with the
@@ -124,7 +124,9 @@ EXPERIMENT = re.compile(r"\bE(\d{1,2})\b")
 PROPERTY_HEADING = re.compile(r"^### (P-(\d+))\b")
 DF_HEADING = re.compile(r"^#### DF-(\d+)\b", re.MULTILINE)
 UC_HEADING = re.compile(r"^- \*\*UC-(\d+)\b", re.MULTILINE)
-CITATION = re.compile(r"\b(P|DF|UC)-(\d+)\b")
+# Agent Links (planned, §6.1; T64, D-680): the same bullet form as UC-n.
+LK_HEADING = re.compile(r"^- \*\*LK-(\d+)\b", re.MULTILINE)
+CITATION = re.compile(r"\b(P|DF|UC|LK)-(\d+)\b")
 REPORT_DIR = re.compile(r"conformance/results/([0-9A-Za-z-]+)/")
 SECTION_HEADING = re.compile(r"^#{2,3} (.+?)\s*$")
 PROPERTIES_LINE = re.compile(r"^\*Properties:(.*)\*\s*$")
@@ -348,18 +350,19 @@ def check_properties(props: list[dict], report: dict) -> list[str]:
 
 
 def defined_ids(text: str, props: list[dict]) -> dict[str, set[int]]:
-    """The sets of P-n, DF-n and UC-n the model defines."""
+    """The sets of P-n, DF-n, UC-n and LK-n the model defines."""
     return {
         "P": {p["number"] for p in props},
         "DF": {int(n) for n in DF_HEADING.findall(text)},
         "UC": {int(n) for n in UC_HEADING.findall(text)},
+        "LK": {int(n) for n in LK_HEADING.findall(text)},
     }
 
 
 def check_citations(
     model: Path, text: str, props: list[dict], documents: list[Path], report: dict
 ) -> None:
-    """Every P-n, DF-n, UC-n cited from the model, the specs, the threat model and the READMEs."""
+    """Every P-n, DF-n, UC-n, LK-n cited from the model, the specs, the threat model and the READMEs."""
     defined = defined_ids(text, props)
     unknown = []
     cited = 0

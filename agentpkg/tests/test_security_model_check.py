@@ -48,7 +48,7 @@ def test_committed_model_passes(checker):
     }
     assert report["properties"]["count"] == 19
     assert report["case_ids"]["report"].startswith("conformance/results/")
-    assert report["citations"]["defined"] == {"P": 19, "DF": 10, "UC": 7}
+    assert report["citations"]["defined"] == {"P": 19, "DF": 10, "UC": 7, "LK": 8}
     assert report["threat_model_map"]["mismatches"] == []
 
 
