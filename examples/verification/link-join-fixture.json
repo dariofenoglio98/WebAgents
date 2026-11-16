@@ -1,0 +1,476 @@
+{
+ "what": "The travel planner 0.2.0's fixture walk with a link made during the run: FindHotel searches, the slot looks at the page found, the named hotel's package is fetched, verified and joined through its card (T65 part 2 acceptance; spec/link-v0.md sections 6 and 11), then the same walk with nobody there to ask; both records verified by scripts/verify_link_run.py. The planner 0.2.0 is run from its unsigned source (examples/link/travel-planner-0.2.0/) until its go/no-go.",
+ "date": "2026-11-16",
+ "agentpkg_version": "0.8.0",
+ "archives": {
+  "dist/webair-flights-0.1.0.agent.pkg": "4cc62fbbb02e6f01f59212de6880fdfc139355332a2c013004fc82230124502a",
+  "dist/staymere-hotels-0.1.0.agent.pkg": "d80a3052d7c1cda24b0695a77951d8edc663063e2a2c012e52fdcb72ed175b53",
+  "dist/hotel-salitubam-0.1.0.agent.pkg": "d695af9328367432e9e25cb04ccea69f45205f9cc4524731d6bc63b16d34dbc7"
+ },
+ "join": {
+  "command": [
+   "agentpkg",
+   "run",
+   "examples/link/travel-planner-0.2.0",
+   "--mode",
+   "fixture",
+   "--grants",
+   "examples/link/travel-planner-0.2.0-grants.json",
+   "--link",
+   "webair-flights=dist/webair-flights-0.1.0.agent.pkg",
+   "--link-grants",
+   "webair-flights=examples/link/webair-flights-grants.json",
+   "--link",
+   "hotel-aggregator=dist/staymere-hotels-0.1.0.agent.pkg",
+   "--link-grants",
+   "hotel-aggregator=examples/link/staymere-hotels-grants.json",
+   "--approve-tool",
+   "check-calendar",
+   "--approve-tool",
+   "webair-flights:search-flights",
+   "--approve-tool",
+   "hotel-aggregator:search-hotels",
+   "--approve-tool",
+   "web.search",
+   "--join-fixture",
+   "examples/link/join-fixture.json",
+   "--out",
+   "examples/my-planner-join"
+  ],
+  "verify_command": [
+   "python",
+   "scripts/verify_link_run.py",
+   "examples/my-planner-join",
+   "--package",
+   "examples/link/travel-planner-0.2.0"
+  ],
+  "run": {
+   "status": "completed",
+   "passed": true,
+   "usage": {
+    "tokens": 10748,
+    "remote_calls": 5,
+    "tool_calls": {
+     "webair-flights:search-flights": 1,
+     "hotel-aggregator:search-hotels": 1,
+     "web.search": 1,
+     "named-hotel:check-availability": 1,
+     "check-calendar": 1
+    },
+    "compute_calls": 0,
+    "links": {
+     "webair-flights": {
+      "runs": 1,
+      "tokens": 352,
+      "remote_calls": 1,
+      "model_calls": 1,
+      "tool_calls": {
+       "search-flights": 1
+      },
+      "compute_calls": 0
+     },
+     "hotel-aggregator": {
+      "runs": 1,
+      "tokens": 356,
+      "remote_calls": 1,
+      "model_calls": 1,
+      "tool_calls": {
+       "search-hotels": 1
+      },
+      "compute_calls": 0
+     },
+     "named-hotel": {
+      "runs": 1,
+      "tokens": 433,
+      "remote_calls": 1,
+      "model_calls": 1,
+      "tool_calls": {
+       "check-availability": 1
+      },
+      "compute_calls": 0
+     }
+    }
+   }
+  },
+  "slot_step": "plan-trip/FindHotel/ask",
+  "order_at_the_slot_step": [
+   "link.requested",
+   "link.decided",
+   "model.called",
+   "link.started",
+   "link.completed"
+  ],
+  "link_events": [
+   {
+    "action": "link.started",
+    "node_id": "plan-trip/Flights/search",
+    "dependency": "webair-flights",
+    "inner_run_id": "e3877e58-097a-4036-98fd-8042ccbc434f",
+    "inner_plan_hash": "9dc2b469220d74f420a0adfa0558ba80a34ce73170d6f3e4bda2255b5cd30762",
+    "sequence": 36
+   },
+   {
+    "action": "link.completed",
+    "node_id": "plan-trip/Flights/search",
+    "dependency": "webair-flights",
+    "inner_run_id": "e3877e58-097a-4036-98fd-8042ccbc434f",
+    "sequence": 37
+   },
+   {
+    "action": "link.started",
+    "node_id": "plan-trip/Hotels/search",
+    "dependency": "hotel-aggregator",
+    "inner_run_id": "beabd110-46e5-4c1b-adc6-8ce838a734c2",
+    "inner_plan_hash": "c7be0de184a74d56385fe9cd2deb775a2f2ecb353c19311d58dba3e25aef0344",
+    "sequence": 73
+   },
+   {
+    "action": "link.completed",
+    "node_id": "plan-trip/Hotels/search",
+    "dependency": "hotel-aggregator",
+    "inner_run_id": "beabd110-46e5-4c1b-adc6-8ce838a734c2",
+    "sequence": 74
+   },
+   {
+    "action": "link.requested",
+    "node_id": "plan-trip/FindHotel/ask",
+    "slot": "named-hotel",
+    "sequence": 118,
+    "fetches": [
+     {
+      "url": "https://webagents-hotel-salitubam-production.up.railway.app/",
+      "kind": "discovery",
+      "status": "ok"
+     },
+     {
+      "url": "https://webagents-hotel-salitubam-production.up.railway.app/agent.pkg",
+      "kind": "package",
+      "status": "ok"
+     }
+    ],
+    "candidate": {
+     "package_id": "org.webagents.hotel-salitubam",
+     "version": "0.1.0",
+     "digest": "bb69fb7acc020cd239d030895d0d7e9e7b7ad47d4ab7feba31ead038a836ce37",
+     "signer": "sha256:8ee8ec08acf1e665b0d831acc42516efc83e6eceb099c9351df0ec7ecc5445ec"
+    }
+   },
+   {
+    "action": "link.decided",
+    "node_id": "plan-trip/FindHotel/ask",
+    "slot": "named-hotel",
+    "accepted": true,
+    "decided_by": "person",
+    "reason": null,
+    "provenance": "fixture",
+    "inner_plan_hash": "a0a11e00fb2efd368ac9495d4fc144c88233ac8704c7f23761690ac1385baac3",
+    "sequence": 119,
+    "worst_case": {
+     "model_calls": 1,
+     "tool_calls": {
+      "check-availability": 1
+     },
+     "compute_calls": 0,
+     "remote_calls": 3,
+     "tokens": 6000,
+     "seconds": 280
+    }
+   },
+   {
+    "action": "link.started",
+    "node_id": "plan-trip/FindHotel/ask",
+    "slot": "named-hotel",
+    "inner_run_id": "84849db5-84ee-4aeb-9cd3-272127592694",
+    "inner_plan_hash": "a0a11e00fb2efd368ac9495d4fc144c88233ac8704c7f23761690ac1385baac3",
+    "sequence": 127
+   },
+   {
+    "action": "link.completed",
+    "node_id": "plan-trip/FindHotel/ask",
+    "slot": "named-hotel",
+    "inner_run_id": "84849db5-84ee-4aeb-9cd3-272127592694",
+    "sequence": 128
+   }
+  ],
+  "join_record": [
+   {
+    "node_id": "plan-trip/FindHotel/ask",
+    "slot": "named-hotel",
+    "joined": true,
+    "accepted": true,
+    "decided_by": "person",
+    "reason": null,
+    "provenance": "fixture",
+    "package": {
+     "package_id": "org.webagents.hotel-salitubam",
+     "version": "0.1.0",
+     "digest": "bb69fb7acc020cd239d030895d0d7e9e7b7ad47d4ab7feba31ead038a836ce37",
+     "signer": "sha256:8ee8ec08acf1e665b0d831acc42516efc83e6eceb099c9351df0ec7ecc5445ec",
+     "trust": "unknown",
+     "plan_hash": "a0a11e00fb2efd368ac9495d4fc144c88233ac8704c7f23761690ac1385baac3"
+    },
+    "parent": {
+     "plan_hash": "1977e3cd93ca44f7eb43a0332bfa3c322d6fff6c5109e52f429b984dfa069662",
+     "run_id": "9fad2456-18d9-444c-be3e-8e84f617bcb6",
+     "slot": "named-hotel"
+    }
+   }
+  ],
+  "caller_plan_hash": "1977e3cd93ca44f7eb43a0332bfa3c322d6fff6c5109e52f429b984dfa069662",
+  "plan": "Boston to Reykjavik, 9 to 14 March 2027: WebAir WA205 nonstop at 20:30 ($287); Hotel Salitubam, standard double SAL-STD-20270309-5N for five nights ($910), from the hotel's own agent; one movable meeting on 11 March. Nothing is booked.",
+  "verification": {
+   "schema": "webagents-verify-link-run-v0",
+   "run": "examples/my-planner-join",
+   "status": "completed",
+   "package": {
+    "package_id": "org.webagents.travel-planner",
+    "digest": "34b7e01c74811a65c6a7452280a883216b8316363d7800bbfdef085b5e06ba11"
+   },
+   "links": [
+    {
+     "dependency": "hotel-aggregator",
+     "package_id": "org.webagents.staymere-hotels",
+     "signer": "sha256:b5d38cb824c79b318ae65dda8e65e3fe156299007cc09717eb345b34436c5199",
+     "trust": "unknown",
+     "decision": "accepted",
+     "runs": 1
+    },
+    {
+     "dependency": "webair-flights",
+     "package_id": "org.webagents.webair-flights",
+     "signer": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+     "trust": "unknown",
+     "decision": "accepted",
+     "runs": 1
+    }
+   ],
+   "joins": [
+    {
+     "slot": "named-hotel",
+     "joined": true,
+     "reason": null,
+     "decided_by": "person",
+     "package_id": "org.webagents.hotel-salitubam"
+    }
+   ],
+   "at_most": {
+    "model_calls": 14,
+    "compute_calls": 0,
+    "remote_calls": 33,
+    "tokens": 122000,
+    "tool_calls": {
+     "check-calendar": 1,
+     "hotel-aggregator:search-hotels": 1,
+     "named-hotel:*": 1,
+     "web.search": 1,
+     "webair-flights:search-flights": 1
+    },
+    "max_hops": 8,
+    "activations": {
+     "FrontMan": 5,
+     "Flights": 1,
+     "Hotels": 1,
+     "Calendar": 1,
+     "FindHotel": 1
+    }
+   },
+   "observed": {
+    "model_calls": 14,
+    "compute_calls": 0,
+    "remote_calls": 5,
+    "tokens": 10748,
+    "tool_calls": {
+     "check-calendar": 1,
+     "hotel-aggregator:search-hotels": 1,
+     "named-hotel:check-availability": 1,
+     "web.search": 1,
+     "webair-flights:search-flights": 1
+    },
+    "activations": {
+     "FrontMan": 5,
+     "Flights": 1,
+     "Hotels": 1,
+     "FindHotel": 1,
+     "Calendar": 1
+    },
+    "hops": 8
+   },
+   "tightness": {
+    "model_calls": 1.0,
+    "remote_calls": 6.6,
+    "tokens": 11.351
+   },
+   "inner_dispatches": {
+    "e3877e58-097a-4036-98fd-8042ccbc434f": {
+     "dependency": "webair-flights",
+     "model_requests": 1,
+     "tool_arguments": 1
+    },
+    "beabd110-46e5-4c1b-adc6-8ce838a734c2": {
+     "dependency": "hotel-aggregator",
+     "model_requests": 1,
+     "tool_arguments": 1
+    },
+    "84849db5-84ee-4aeb-9cd3-272127592694": {
+     "dependency": "named-hotel",
+     "model_requests": 1,
+     "tool_arguments": 1
+    }
+   },
+   "checks": 76,
+   "passed": true
+  }
+ },
+ "unattended": {
+  "command": [
+   "agentpkg",
+   "run",
+   "examples/link/travel-planner-0.2.0",
+   "--mode",
+   "fixture",
+   "--grants",
+   "examples/link/travel-planner-0.2.0-grants.json",
+   "--link",
+   "webair-flights=dist/webair-flights-0.1.0.agent.pkg",
+   "--link-grants",
+   "webair-flights=examples/link/webair-flights-grants.json",
+   "--link",
+   "hotel-aggregator=dist/staymere-hotels-0.1.0.agent.pkg",
+   "--link-grants",
+   "hotel-aggregator=examples/link/staymere-hotels-grants.json",
+   "--approve-tool",
+   "check-calendar",
+   "--approve-tool",
+   "webair-flights:search-flights",
+   "--approve-tool",
+   "hotel-aggregator:search-hotels",
+   "--approve-tool",
+   "web.search",
+   "--out",
+   "examples/my-planner-unattended"
+  ],
+  "verify_command": [
+   "python",
+   "scripts/verify_link_run.py",
+   "examples/my-planner-unattended",
+   "--package",
+   "examples/link/travel-planner-0.2.0"
+  ],
+  "run": {
+   "status": "completed",
+   "passed": true
+  },
+  "link_events": [
+   {
+    "action": "link.decided",
+    "node_id": "plan-trip/FindHotel/ask",
+    "slot": "named-hotel",
+    "accepted": false,
+    "decided_by": "runtime",
+    "reason": "unattended",
+    "provenance": null,
+    "inner_plan_hash": null,
+    "sequence": 118,
+    "worst_case": null
+   }
+  ],
+  "plan": "Boston to Reykjavik, 9 to 14 March 2027: WebAir WA205 nonstop at 20:30 ($287); Hotel Salitubam could not be asked, and the aggregator does not list it: Harbour Guesthouse for five nights ($850) is the cheapest it lists; one movable meeting on 11 March. Nothing is booked.",
+  "verification": {
+   "schema": "webagents-verify-link-run-v0",
+   "run": "examples/my-planner-unattended",
+   "status": "completed",
+   "package": {
+    "package_id": "org.webagents.travel-planner",
+    "digest": "34b7e01c74811a65c6a7452280a883216b8316363d7800bbfdef085b5e06ba11"
+   },
+   "links": [
+    {
+     "dependency": "hotel-aggregator",
+     "package_id": "org.webagents.staymere-hotels",
+     "signer": "sha256:b5d38cb824c79b318ae65dda8e65e3fe156299007cc09717eb345b34436c5199",
+     "trust": "unknown",
+     "decision": "accepted",
+     "runs": 1
+    },
+    {
+     "dependency": "webair-flights",
+     "package_id": "org.webagents.webair-flights",
+     "signer": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+     "trust": "unknown",
+     "decision": "accepted",
+     "runs": 1
+    }
+   ],
+   "joins": [
+    {
+     "slot": "named-hotel",
+     "joined": false,
+     "reason": "unattended",
+     "decided_by": "runtime",
+     "package_id": null
+    }
+   ],
+   "at_most": {
+    "model_calls": 14,
+    "compute_calls": 0,
+    "remote_calls": 33,
+    "tokens": 122000,
+    "tool_calls": {
+     "check-calendar": 1,
+     "hotel-aggregator:search-hotels": 1,
+     "named-hotel:*": 1,
+     "web.search": 1,
+     "webair-flights:search-flights": 1
+    },
+    "max_hops": 8,
+    "activations": {
+     "FrontMan": 5,
+     "Flights": 1,
+     "Hotels": 1,
+     "Calendar": 1,
+     "FindHotel": 1
+    }
+   },
+   "observed": {
+    "model_calls": 12,
+    "compute_calls": 0,
+    "remote_calls": 4,
+    "tokens": 9409,
+    "tool_calls": {
+     "check-calendar": 1,
+     "hotel-aggregator:search-hotels": 1,
+     "web.search": 1,
+     "webair-flights:search-flights": 1
+    },
+    "activations": {
+     "FrontMan": 5,
+     "Flights": 1,
+     "Hotels": 1,
+     "FindHotel": 1,
+     "Calendar": 1
+    },
+    "hops": 8
+   },
+   "tightness": {
+    "model_calls": 1.167,
+    "remote_calls": 8.25,
+    "tokens": 12.966
+   },
+   "inner_dispatches": {
+    "d5e9729b-c5c4-4763-9290-947419ba4e36": {
+     "dependency": "webair-flights",
+     "model_requests": 1,
+     "tool_arguments": 1
+    },
+    "82e9ffc4-9386-4dc8-aacf-911b422e30ee": {
+     "dependency": "hotel-aggregator",
+     "model_requests": 1,
+     "tool_arguments": 1
+    }
+   },
+   "checks": 60,
+   "passed": true
+  }
+ },
+ "passed": true
+}
