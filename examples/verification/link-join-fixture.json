@@ -105,7 +105,7 @@
     "action": "link.started",
     "node_id": "plan-trip/Flights/search",
     "dependency": "webair-flights",
-    "inner_run_id": "e3877e58-097a-4036-98fd-8042ccbc434f",
+    "inner_run_id": "d928d209-8b2e-4600-8575-09ee6172bb9e",
     "inner_plan_hash": "9dc2b469220d74f420a0adfa0558ba80a34ce73170d6f3e4bda2255b5cd30762",
     "sequence": 36
    },
@@ -113,14 +113,14 @@
     "action": "link.completed",
     "node_id": "plan-trip/Flights/search",
     "dependency": "webair-flights",
-    "inner_run_id": "e3877e58-097a-4036-98fd-8042ccbc434f",
+    "inner_run_id": "d928d209-8b2e-4600-8575-09ee6172bb9e",
     "sequence": 37
    },
    {
     "action": "link.started",
     "node_id": "plan-trip/Hotels/search",
     "dependency": "hotel-aggregator",
-    "inner_run_id": "beabd110-46e5-4c1b-adc6-8ce838a734c2",
+    "inner_run_id": "abedf375-974d-4fd5-a8fd-c6cf85f96956",
     "inner_plan_hash": "c7be0de184a74d56385fe9cd2deb775a2f2ecb353c19311d58dba3e25aef0344",
     "sequence": 73
    },
@@ -128,7 +128,7 @@
     "action": "link.completed",
     "node_id": "plan-trip/Hotels/search",
     "dependency": "hotel-aggregator",
-    "inner_run_id": "beabd110-46e5-4c1b-adc6-8ce838a734c2",
+    "inner_run_id": "abedf375-974d-4fd5-a8fd-c6cf85f96956",
     "sequence": 74
    },
    {
@@ -163,7 +163,7 @@
     "decided_by": "person",
     "reason": null,
     "provenance": "fixture",
-    "inner_plan_hash": "a0a11e00fb2efd368ac9495d4fc144c88233ac8704c7f23761690ac1385baac3",
+    "inner_plan_hash": "52bcb0e11cb3d5c7a73b8c6c8fb5e0e94632d764224e3e43a81ae24fd219371a",
     "sequence": 119,
     "worst_case": {
      "model_calls": 1,
@@ -180,15 +180,15 @@
     "action": "link.started",
     "node_id": "plan-trip/FindHotel/ask",
     "slot": "named-hotel",
-    "inner_run_id": "84849db5-84ee-4aeb-9cd3-272127592694",
-    "inner_plan_hash": "a0a11e00fb2efd368ac9495d4fc144c88233ac8704c7f23761690ac1385baac3",
+    "inner_run_id": "eb4cf5e3-3c1d-466d-b8ab-5e4c8744d159",
+    "inner_plan_hash": "52bcb0e11cb3d5c7a73b8c6c8fb5e0e94632d764224e3e43a81ae24fd219371a",
     "sequence": 127
    },
    {
     "action": "link.completed",
     "node_id": "plan-trip/FindHotel/ask",
     "slot": "named-hotel",
-    "inner_run_id": "84849db5-84ee-4aeb-9cd3-272127592694",
+    "inner_run_id": "eb4cf5e3-3c1d-466d-b8ab-5e4c8744d159",
     "sequence": 128
    }
   ],
@@ -207,11 +207,11 @@
      "digest": "bb69fb7acc020cd239d030895d0d7e9e7b7ad47d4ab7feba31ead038a836ce37",
      "signer": "sha256:8ee8ec08acf1e665b0d831acc42516efc83e6eceb099c9351df0ec7ecc5445ec",
      "trust": "unknown",
-     "plan_hash": "a0a11e00fb2efd368ac9495d4fc144c88233ac8704c7f23761690ac1385baac3"
+     "plan_hash": "52bcb0e11cb3d5c7a73b8c6c8fb5e0e94632d764224e3e43a81ae24fd219371a"
     },
     "parent": {
      "plan_hash": "1977e3cd93ca44f7eb43a0332bfa3c322d6fff6c5109e52f429b984dfa069662",
-     "run_id": "9fad2456-18d9-444c-be3e-8e84f617bcb6",
+     "run_id": "bc827ad5-100d-4ab0-90f7-7628e3bbd798",
      "slot": "named-hotel"
     }
    }
@@ -301,23 +301,23 @@
     "tokens": 11.351
    },
    "inner_dispatches": {
-    "e3877e58-097a-4036-98fd-8042ccbc434f": {
+    "d928d209-8b2e-4600-8575-09ee6172bb9e": {
      "dependency": "webair-flights",
      "model_requests": 1,
      "tool_arguments": 1
     },
-    "beabd110-46e5-4c1b-adc6-8ce838a734c2": {
+    "abedf375-974d-4fd5-a8fd-c6cf85f96956": {
      "dependency": "hotel-aggregator",
      "model_requests": 1,
      "tool_arguments": 1
     },
-    "84849db5-84ee-4aeb-9cd3-272127592694": {
+    "eb4cf5e3-3c1d-466d-b8ab-5e4c8744d159": {
      "dependency": "named-hotel",
      "model_requests": 1,
      "tool_arguments": 1
     }
    },
-   "checks": 76,
+   "checks": 77,
    "passed": true
   }
  },
@@ -457,18 +457,18 @@
     "tokens": 12.966
    },
    "inner_dispatches": {
-    "d5e9729b-c5c4-4763-9290-947419ba4e36": {
+    "042b70a0-870e-4a93-90d3-d4c96c8c3eab": {
      "dependency": "webair-flights",
      "model_requests": 1,
      "tool_arguments": 1
     },
-    "82e9ffc4-9386-4dc8-aacf-911b422e30ee": {
+    "b33caab7-6769-42d3-9832-0b081ab4be9e": {
      "dependency": "hotel-aggregator",
      "model_requests": 1,
      "tool_arguments": 1
     }
    },
-   "checks": 60,
+   "checks": 61,
    "passed": true
   }
  },
