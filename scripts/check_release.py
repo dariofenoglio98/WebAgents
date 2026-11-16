@@ -148,6 +148,52 @@ CURRENT_PACKAGES = {
         "fingerprint": "sha256:27c903afe0b78ae7e27736bfbddafd6f8b6a58b3c26f0bce9507f70aeff762ef",
         "tools": ["check-calendar", "search-flights", "search-hotels"],
     },
+    # Agent Links (link.v0, T65, D-695): the travel planner and the three packages it can ask,
+    # each signed with its own publisher's key.
+    "travel-planner-0.1.0": {
+        "stem": "travel-planner",
+        "alias": False,
+        "package_id": "org.webagents.travel-planner",
+        "version": "0.1.0",
+        "digest": "e1870af31121b3083172bbcfcea2e1ff00c5c5acc61d1fe6b8c0ba6507553d5e",
+        "archive_sha256": "950b8075ee9e759c0c5bf29daf3043597fca5d982d377d83470de3c2944e520a",
+        "key": "examples/keys/travel-planner-publisher.pub.pem",
+        "fingerprint": "sha256:e41f5d09f76431b4f7055d8b211a60a8ee26eeb9384ea7c1b705f3daafa49f08",
+        "tools": ["check-calendar"],
+    },
+    "webair-flights-0.1.0": {
+        "stem": "webair-flights",
+        "alias": False,
+        "package_id": "org.webagents.webair-flights",
+        "version": "0.1.0",
+        "digest": "0b360b6ba0692115a7d2e23a021db80816c0050fe1104ba4ecd618c8cc1d7c73",
+        "archive_sha256": "4cc62fbbb02e6f01f59212de6880fdfc139355332a2c013004fc82230124502a",
+        "key": "examples/keys/webair-publisher.pub.pem",
+        "fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+        "tools": ["search-flights"],
+    },
+    "staymere-hotels-0.1.0": {
+        "stem": "staymere-hotels",
+        "alias": False,
+        "package_id": "org.webagents.staymere-hotels",
+        "version": "0.1.0",
+        "digest": "5cb9ec65b9c36cb3392e1461e9f3fe4528b651df1833a7c9195ada09579a4005",
+        "archive_sha256": "d80a3052d7c1cda24b0695a77951d8edc663063e2a2c012e52fdcb72ed175b53",
+        "key": "examples/keys/staymere-publisher.pub.pem",
+        "fingerprint": "sha256:b5d38cb824c79b318ae65dda8e65e3fe156299007cc09717eb345b34436c5199",
+        "tools": ["search-hotels"],
+    },
+    "hotel-salitubam-0.1.0": {
+        "stem": "hotel-salitubam",
+        "alias": False,
+        "package_id": "org.webagents.hotel-salitubam",
+        "version": "0.1.0",
+        "digest": "bb69fb7acc020cd239d030895d0d7e9e7b7ad47d4ab7feba31ead038a836ce37",
+        "archive_sha256": "d695af9328367432e9e25cb04ccea69f45205f9cc4524731d6bc63b16d34dbc7",
+        "key": "examples/keys/hotel-salitubam-publisher.pub.pem",
+        "fingerprint": "sha256:8ee8ec08acf1e665b0d831acc42516efc83e6eceb099c9351df0ec7ecc5445ec",
+        "tools": ["check-availability"],
+    },
     "webair-0.8.0": {
         "stem": "webair",
         "alias": False,
@@ -351,6 +397,12 @@ def check_packages() -> dict:
     report["package_origin_travel_network_copy_identical"] = (
         travel.read_bytes() == (DIST / "travel-network-0.1.0.agent.pkg").read_bytes()
     )
+    # T65: WebAir Flights, which index 1.7.0 names and the travel planner's manifest pins, served
+    # at its indexed path too.
+    flights = ROOT / "package-origin/packages/webair-flights-0.1.0.agent.pkg"
+    report["package_origin_webair_flights_copy_identical"] = (
+        flights.read_bytes() == (DIST / "webair-flights-0.1.0.agent.pkg").read_bytes()
+    )
     previous = ROOT / "package-origin/packages/literature-review-0.2.6.agent.pkg"
     report["package_origin_0_2_6_copy_identical"] = (
         previous.read_bytes()
@@ -538,6 +590,7 @@ def main() -> int:
         and packages["package_origin_current_copy_identical"]
         and packages["package_origin_0_2_6_copy_identical"]
         and packages["package_origin_travel_network_copy_identical"]
+        and packages["package_origin_webair_flights_copy_identical"]
         and packages["package_origin_documents_identical"]
         and packages["package_origin_document_pins"]["passed"]
         and all(

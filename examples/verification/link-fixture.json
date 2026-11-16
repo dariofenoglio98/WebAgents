@@ -1,0 +1,200 @@
+{
+  "what": "The travel planner's fixture walk through both links, on the shipped archives (T65 acceptance; spec/link-v0.md section 11), and its record verified by scripts/verify_link_run.py.",
+  "date": "2026-11-15",
+  "agentpkg_version": "0.8.0",
+  "command": [
+    "agentpkg",
+    "run",
+    "dist/travel-planner-0.1.0.agent.pkg",
+    "--mode",
+    "fixture",
+    "--grants",
+    "examples/link/travel-planner-grants.json",
+    "--link",
+    "webair-flights=dist/webair-flights-0.1.0.agent.pkg",
+    "--link-grants",
+    "webair-flights=examples/link/webair-flights-grants.json",
+    "--link",
+    "hotel-aggregator=dist/staymere-hotels-0.1.0.agent.pkg",
+    "--link-grants",
+    "hotel-aggregator=examples/link/staymere-hotels-grants.json",
+    "--approve-tool",
+    "check-calendar",
+    "--approve-tool",
+    "webair-flights:search-flights",
+    "--approve-tool",
+    "hotel-aggregator:search-hotels",
+    "--trust-key",
+    "examples/keys/travel-planner-publisher.pub.pem",
+    "--trust-key",
+    "examples/keys/webair-publisher.pub.pem",
+    "--trust-key",
+    "examples/keys/staymere-publisher.pub.pem",
+    "--out",
+    "examples/my-planner"
+  ],
+  "verify_command": [
+    "python",
+    "scripts/verify_link_run.py",
+    "examples/my-planner"
+  ],
+  "archives": {
+    "dist/travel-planner-0.1.0.agent.pkg": "950b8075ee9e759c0c5bf29daf3043597fca5d982d377d83470de3c2944e520a",
+    "dist/webair-flights-0.1.0.agent.pkg": "4cc62fbbb02e6f01f59212de6880fdfc139355332a2c013004fc82230124502a",
+    "dist/staymere-hotels-0.1.0.agent.pkg": "d80a3052d7c1cda24b0695a77951d8edc663063e2a2c012e52fdcb72ed175b53"
+  },
+  "run": {
+    "status": "completed",
+    "passed": true,
+    "usage": {
+      "tokens": 6226,
+      "remote_calls": 3,
+      "tool_calls": {
+        "webair-flights:search-flights": 1,
+        "hotel-aggregator:search-hotels": 1,
+        "check-calendar": 1
+      },
+      "links": {
+        "webair-flights": {
+          "runs": 1,
+          "tokens": 352,
+          "remote_calls": 1,
+          "model_calls": 1,
+          "tool_calls": {
+            "search-flights": 1
+          },
+          "compute_calls": 0
+        },
+        "hotel-aggregator": {
+          "runs": 1,
+          "tokens": 356,
+          "remote_calls": 1,
+          "model_calls": 1,
+          "tool_calls": {
+            "search-hotels": 1
+          },
+          "compute_calls": 0
+        }
+      }
+    }
+  },
+  "link_events": [
+    {
+      "action": "link.started",
+      "node_id": "plan-trip/Flights/search",
+      "dependency": "webair-flights",
+      "inner_run_id": "a7f50cfc-b9dd-4fd2-a2f4-c676d0b07b85"
+    },
+    {
+      "action": "link.completed",
+      "node_id": "plan-trip/Flights/search",
+      "dependency": "webair-flights",
+      "inner_run_id": "a7f50cfc-b9dd-4fd2-a2f4-c676d0b07b85"
+    },
+    {
+      "action": "link.started",
+      "node_id": "plan-trip/Hotels/search",
+      "dependency": "hotel-aggregator",
+      "inner_run_id": "3d7e509d-e37c-4883-a01d-600919081f7f"
+    },
+    {
+      "action": "link.completed",
+      "node_id": "plan-trip/Hotels/search",
+      "dependency": "hotel-aggregator",
+      "inner_run_id": "3d7e509d-e37c-4883-a01d-600919081f7f"
+    }
+  ],
+  "inner_records": [
+    "link-3d7e509d-e37c-4883-a01d-600919081f7f.audit.json",
+    "link-3d7e509d-e37c-4883-a01d-600919081f7f.provenance.json",
+    "link-3d7e509d-e37c-4883-a01d-600919081f7f.result.json",
+    "link-3d7e509d-e37c-4883-a01d-600919081f7f.usage.json",
+    "link-a7f50cfc-b9dd-4fd2-a2f4-c676d0b07b85.audit.json",
+    "link-a7f50cfc-b9dd-4fd2-a2f4-c676d0b07b85.provenance.json",
+    "link-a7f50cfc-b9dd-4fd2-a2f4-c676d0b07b85.result.json",
+    "link-a7f50cfc-b9dd-4fd2-a2f4-c676d0b07b85.usage.json"
+  ],
+  "verification": {
+    "schema": "webagents-verify-link-run-v0",
+    "run": "examples/my-planner",
+    "status": "completed",
+    "package": {
+      "package_id": "org.webagents.travel-planner",
+      "digest": "e1870af31121b3083172bbcfcea2e1ff00c5c5acc61d1fe6b8c0ba6507553d5e"
+    },
+    "links": [
+      {
+        "dependency": "hotel-aggregator",
+        "package_id": "org.webagents.staymere-hotels",
+        "signer": "sha256:b5d38cb824c79b318ae65dda8e65e3fe156299007cc09717eb345b34436c5199",
+        "trust": "trusted",
+        "decision": "accepted",
+        "runs": 1
+      },
+      {
+        "dependency": "webair-flights",
+        "package_id": "org.webagents.webair-flights",
+        "signer": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+        "trust": "trusted",
+        "decision": "accepted",
+        "runs": 1
+      }
+    ],
+    "at_most": {
+      "model_calls": 10,
+      "compute_calls": 0,
+      "remote_calls": 23,
+      "tokens": 92000,
+      "tool_calls": {
+        "check-calendar": 1,
+        "hotel-aggregator:search-hotels": 1,
+        "webair-flights:search-flights": 1
+      },
+      "max_hops": 6,
+      "activations": {
+        "Calendar": 1,
+        "Flights": 1,
+        "FrontMan": 4,
+        "Hotels": 1
+      }
+    },
+    "observed": {
+      "model_calls": 10,
+      "compute_calls": 0,
+      "remote_calls": 3,
+      "tokens": 6226,
+      "tool_calls": {
+        "check-calendar": 1,
+        "hotel-aggregator:search-hotels": 1,
+        "webair-flights:search-flights": 1
+      },
+      "activations": {
+        "FrontMan": 4,
+        "Flights": 1,
+        "Hotels": 1,
+        "Calendar": 1
+      },
+      "hops": 6
+    },
+    "tightness": {
+      "model_calls": 1.0,
+      "remote_calls": 7.667,
+      "tokens": 14.777
+    },
+    "inner_dispatches": {
+      "a7f50cfc-b9dd-4fd2-a2f4-c676d0b07b85": {
+        "dependency": "webair-flights",
+        "model_requests": 1,
+        "tool_arguments": 1
+      },
+      "3d7e509d-e37c-4883-a01d-600919081f7f": {
+        "dependency": "hotel-aggregator",
+        "model_requests": 1,
+        "tool_arguments": 1
+      }
+    },
+    "checks": 54,
+    "passed": true
+  },
+  "passed": true
+}

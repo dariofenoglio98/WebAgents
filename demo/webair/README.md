@@ -620,12 +620,15 @@ cmp /tmp/public.agent.pkg dist/webair-0.8.0.agent.pkg && \
 **WebAgents demo documents (T8).** The Chrome Agent Browser's search and policy subscription need
 a public home for the signed demo index, the signed example research policy and the Literature
 Review package the index lists. They do not belong to the airline; they are served here because this
-is the demo deployment that exists. `origin/demo_documents.py` reads exactly eight files from the
+is the demo deployment that exists. `origin/demo_documents.py` reads exactly ten files from the
 directory named by `--demo-documents` (`$WEBAIR_DEMO_DOCUMENTS`) once at startup and serves each at
 one fixed path: `/agent-index.json`, `/policies/webagents-research.json`,
 `/packages/literature-review-0.2.9.agent.pkg` (the package indexes 1.4.0 and 1.5.0 list, T22, T24), and 0.2.8, 0.2.7,
 0.2.6 and 0.2.5 at their paths (the ones indexes 1.3.0, 1.2.0, 1.1.0 and 1.0.0 listed, kept so their URLs
-still resolve), and `/packages/travel-network-0.1.0.agent.pkg` (the travel network index 1.6.0 adds, T26).
+still resolve), `/model-catalog.json` (the curated in-browser model list, T41), `/packages/travel-network-0.1.0.agent.pkg` (the travel
+network index 1.6.0 adds, T26) and `/packages/webair-flights-0.1.0.agent.pkg` (WebAir Flights, which index 1.7.0
+names and the travel planner pins at this path, T65; the planner and the two other packages it can ask are served
+by their own fictional origins).
 The bundle carries them under `demo/`, byte for byte from `examples/` and `dist/`; without
 the option the paths answer 404. Index 1.6.0 names WebAir 0.8.0 and the travel network, whose tools call
 this origin's `/api/v1/travel/` services, so all of it is deployed in one bundle with

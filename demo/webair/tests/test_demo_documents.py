@@ -1,6 +1,6 @@
 """The WebAgents demo documents beside the airline (T8, `origin/demo_documents.py`).
 
-Configured with a directory, the origin serves exactly nine files read once at startup, each
+Configured with a directory, the origin serves exactly ten files read once at startup, each
 at one fixed path with its media type and SHA-256; without one those paths answer 404; a missing
 file or a link refuses to start; nothing else in the directory is reachable.
 """
@@ -41,6 +41,9 @@ SOURCES = {
     "packages/travel-network-0.1.0.agent.pkg": REPO_ROOT
     / "dist"
     / "travel-network-0.1.0.agent.pkg",
+    "packages/webair-flights-0.1.0.agent.pkg": REPO_ROOT
+    / "dist"
+    / "webair-flights-0.1.0.agent.pkg",
 }
 
 
@@ -54,7 +57,7 @@ def directory(tmp_path):
     return tmp_path / "demo"
 
 
-def test_serves_exactly_the_nine_documents_with_their_media_types(directory):
+def test_serves_exactly_the_ten_documents_with_their_media_types(directory):
     client = TestClient(create_app(None, directory))
     for path, (name, media_type, _limit) in DOCUMENTS.items():
         data = SOURCES[name].read_bytes()
@@ -67,7 +70,8 @@ def test_serves_exactly_the_nine_documents_with_their_media_types(directory):
     for package in ("0.2.9", "0.2.8", "0.2.7", "0.2.6", "0.2.5"):
         assert DOCUMENTS[f"/packages/literature-review-{package}.agent.pkg"][1] == MEDIA_TYPE
     assert DOCUMENTS["/packages/travel-network-0.1.0.agent.pkg"][1] == MEDIA_TYPE
-    assert len(DOCUMENTS) == 9
+    assert DOCUMENTS["/packages/webair-flights-0.1.0.agent.pkg"][1] == MEDIA_TYPE
+    assert len(DOCUMENTS) == 10
     for path in (
         "/secret.txt",
         "/policies/",
