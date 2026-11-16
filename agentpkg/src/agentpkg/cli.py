@@ -175,12 +175,22 @@ def parser():
             "(private JSONL protocol; stdout carries frames only)"
         ),
     )
-    commands.add_parser(
+    runner = commands.add_parser(
         "execution-run",
         help=(
             "Run one workflow.v0 package execution session on stdio. Spawned by a trusted "
             "host with the immutable package archive on fd 3 and the run's artifact "
             "directory on fd 4; stdout carries protocol frames only"
+        ),
+    )
+    runner.add_argument(
+        "--link-fd",
+        action="append",
+        default=[],
+        metavar="ID=FD",
+        help=(
+            "The inherited descriptor of one accepted linked package's archive, by "
+            "dependency id (link.v0), repeatable"
         ),
     )
     commands.add_parser(
@@ -475,7 +485,8 @@ def _dispatch(args):
         # directory arrive as inherited descriptors, so no path is named here.
         from .execution import serve as serve_execution
 
-        return _Exit(asyncio.run(serve_execution()))
+        link_fds = {name: int(value) for name, value in _pairs(args.link_fd, "--link-fd").items()}
+        return _Exit(asyncio.run(serve_execution(link_fds=link_fds)))
     if command == "host-pdf-read":
         # A trusted host capability, not a package operation: bytes arrive on
         # stdin from the broker that holds the person's selection, and the

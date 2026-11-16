@@ -85,10 +85,30 @@ class LinkBinding:
             "dependency": self.link.dependency,
             **self.link.facts(),
             "decision": self.decision,
-            "worst_case": worst_case_figures(self.link.worst_case),
+            "worst_case": (
+                worst_case_figures(self.link.worst_case) if self.link.worst_case else None
+            ),
             "plan": copy.deepcopy(self.plan),
             "plan_hash": self.plan_hash,
         }
+
+
+@dataclass(frozen=True)
+class DeniedLink:
+    """A link the person denied, as an execution host knows it from the caller's plan alone:
+    no archive reaches a runner for it, so there is no package and no worst case."""
+
+    dependency: str
+    entry: dict
+    worst_case: None = None
+
+    @property
+    def signer(self) -> str:
+        return self.entry["signer"]
+
+    def facts(self) -> dict:
+        keys = ("package_id", "version", "digest", "archive_sha256", "signer", "trust")
+        return {key: self.entry.get(key) for key in keys}
 
 
 class InnerRun:
@@ -272,6 +292,7 @@ def check_once(caller: Package, bindings: dict) -> None:
 __all__ = [
     "ACCEPTED",
     "DENIED",
+    "DeniedLink",
     "InnerRun",
     "LINK_PLAN_SCHEMA",
     "LinkBinding",

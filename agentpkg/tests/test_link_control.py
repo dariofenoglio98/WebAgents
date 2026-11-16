@@ -29,7 +29,9 @@ CATALOG = {
                 "structured_output": {"value": True, "basis": "declared"},
             },
             "limits": {"context_tokens": 200000},
-            "properties": {"local": False, "tags": []},
+            # Local: the probe's packages allow no remote call, and a remote route costs two per
+            # model call (the count and the completion).
+            "properties": {"local": True, "tags": []},
         }
         for name in ("alpha", "beta")
     ],

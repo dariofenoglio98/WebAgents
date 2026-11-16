@@ -51,6 +51,7 @@ from .errors import (
     ALREADY_STARTED,
     ARTIFACTS_FAILED,
     INPUT_INVALID,
+    LINK_PLAN_MISMATCH,
     NOT_BOUND,
     TOOL_NOT_BOUND,
     TOOL_NOT_DECLARED,
@@ -120,6 +121,8 @@ def normalize_execution_plan(raw) -> dict:
             "model_binding",
             "tool_bindings",
             "resource_grants",
+            "links",
+            "parent",
         },
         {"run_plan_id", "run_plan_sha256", "package", "publisher", "execution"},
     )
@@ -235,7 +238,61 @@ def normalize_execution_plan(raw) -> dict:
         "model_binding": (normalize_binding(record["model_binding"]) if mode == "model" else None),
         "tool_bindings": bindings,
         "resource_grants": normalize_resource_grants(record.get("resource_grants")),
+        # link.v0 L-14, L-15: a caller's plan records its links; an inner plan names its caller.
+        "links": _normalize_links(record.get("links")),
+        "parent": _normalize_parent(record.get("parent")),
     }
+
+
+LINK_DECISIONS = ("accepted", "denied")
+MAX_LINKS = 8
+
+
+def _normalize_links(raw) -> dict | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, dict) or len(raw) > MAX_LINKS:
+        raise invalid(f"run_plan.links is a map of at most {MAX_LINKS} dependencies")
+    links = {}
+    for name, value in raw.items():
+        field = f"run_plan.links.{_text(name, 'run_plan.links key', limit=128)}"
+        entry = _fields(
+            value,
+            field,
+            {
+                "package_id",
+                "version",
+                "digest",
+                "archive_sha256",
+                "signer",
+                "trust",
+                "decision",
+                "plan_hash",
+            },
+            {"package_id", "version", "digest", "archive_sha256", "signer", "decision"},
+        )
+        if entry["decision"] not in LINK_DECISIONS:
+            raise invalid(f"{field}.decision is accepted or denied")
+        links[name] = {
+            **{
+                key: _text(entry[key], f"{field}.{key}", limit=200)
+                for key in ("package_id", "version", "digest", "archive_sha256", "signer")
+            },
+            "trust": _text(entry.get("trust"), f"{field}.trust", limit=64, allow_none=True),
+            "decision": entry["decision"],
+            "plan_hash": _text(
+                entry.get("plan_hash"), f"{field}.plan_hash", limit=128, allow_none=True
+            ),
+        }
+    return links
+
+
+def _normalize_parent(raw) -> dict | None:
+    if raw is None:
+        return None
+    keys = {"package_digest", "dependency"}
+    parent = _fields(raw, "run_plan.parent", keys, keys)
+    return {key: _text(parent[key], f"run_plan.parent.{key}", limit=128) for key in sorted(keys)}
 
 
 def normalize_authorization(raw) -> dict:
@@ -283,10 +340,14 @@ def normalize_authorization(raw) -> dict:
 class ExecutionSession:
     """One run, from bound plan to written artifacts, and then nothing more."""
 
-    def __init__(self, peer: BridgePeer, *, package_fd: int, artifacts_fd: int):
+    def __init__(self, peer: BridgePeer, *, package_fd: int, artifacts_fd: int, link_fds=None):
         self._peer = peer
         self._package_fd = package_fd
         self._artifacts_fd = artifacts_fd
+        # link.v0: one inherited descriptor per accepted linked package, by dependency id; like
+        # the caller's, an archive the runner verifies itself and can name no path for.
+        self._link_fds = dict(link_fds or {})
+        self._links = None
         self.ended = asyncio.Event()
         # Bound in execution.begin.
         self.plan: dict | None = None
@@ -329,7 +390,16 @@ class ExecutionSession:
         record = _fields(
             params,
             "execution.begin",
-            {"run_id", "run_plan", "authorization", "limits", "input", "host", "attachments"},
+            {
+                "run_id",
+                "run_plan",
+                "authorization",
+                "limits",
+                "input",
+                "host",
+                "attachments",
+                "links",
+            },
             {"run_id", "run_plan", "authorization", "input"},
         )
         if self.plan is not None:
@@ -424,6 +494,12 @@ class ExecutionSession:
             )
             model = check_model(package, router)
 
+        # 4b. The links (link.v0 §3, §5): each accepted linked package re-verified from its own
+        #     archive against its own inner plan, which must be the one this plan names and
+        #     prepared for this caller; its own grants, approvals and handlers, never this
+        #     package's.
+        links = self._bind_links(plan, record.get("links"), package, limits, router)
+
         # 5. The task. Checked against the package's own input schema before a
         #    single instruction is rendered, so bad input costs nothing.
         invocation = build_invocation(
@@ -465,6 +541,7 @@ class ExecutionSession:
         self._input = record["input"]
         self._evidence = evidence
         self._handlers = handlers
+        self._links = links
         self._approved_tools = [binding["tool_id"] for binding in plan["tool_bindings"]]
         self._tools = tools
         self._host = {
@@ -508,6 +585,122 @@ class ExecutionSession:
                 ),
             },
         }
+
+    def _bind_links(self, plan, supplied, package, limits, router):
+        """The run's `LinkHost` from the caller's plan and the inner plans (D-692). Nothing of a
+        linked package is taken on trust from the caller's plan: its archive is read and
+        verified here, and the plan only says which inner plan the person agreed to."""
+        from ..links.analysis import package_worst_case
+        from ..links.host import (
+            ACCEPTED,
+            DENIED,
+            DeniedLink,
+            LinkBinding,
+            LinkHost,
+            check_once,
+        )
+        from ..links.resolve import LinkRefusal, ResolvedLink, check_record
+
+        records = {r.get("id"): r for r in package.manifest["dependencies"]}
+        planned = plan.get("links") or {}
+        if not records:
+            if planned or supplied:
+                raise invalid("The run plan names links this package does not declare.")
+            return None
+        if set(planned) != set(records):
+            raise invalid(
+                "The run plan does not record a decision for every dependency of this package.",
+                dependencies=sorted(set(records) ^ set(planned))[:8],
+            )
+        if supplied is not None and not isinstance(supplied, dict):
+            raise invalid("links is a map of dependency ids to inner plans")
+        supplied = supplied or {}
+        bindings = {}
+        for name, entry in sorted(planned.items()):
+            if entry["decision"] != "accepted":
+                bindings[name] = LinkBinding(DeniedLink(name, entry), DENIED)
+                continue
+            inner = _fields(
+                supplied.get(name),
+                f"links.{name}",
+                {"run_plan", "authorization"},
+                {"run_plan", "authorization"},
+            )
+            if name not in self._link_fds:
+                raise invalid(f"No archive was handed to the runner for linked package {name!r}.")
+            inner_plan = normalize_execution_plan(inner["run_plan"])
+            authorization = normalize_authorization(inner["authorization"])
+            expected_parent = {"dependency": name, "package_digest": package.digest}
+            if (
+                inner_plan["run_plan_sha256"] != entry["plan_hash"]
+                or inner_plan["parent"] != expected_parent
+                or inner_plan["package"]["digest"] != entry["digest"]
+                or inner_plan["package"]["archive_sha256"] != entry["archive_sha256"]
+                or inner_plan["publisher"]["signer_fingerprint"] != entry["signer"]
+            ):
+                raise ExecutionError(
+                    LINK_PLAN_MISMATCH,
+                    f"The inner plan handed over for {name!r} is not the one this run plan "
+                    "names, or it was prepared for another caller.",
+                    detail={"dependency": name},
+                )
+            linked, evidence = verify_execution_artifact(
+                read_execution_artifact(self._link_fds[name]),
+                {
+                    "archive_sha256": inner_plan["package"]["archive_sha256"],
+                    "digest": inner_plan["package"]["digest"],
+                    "package_id": inner_plan["package"]["package_id"],
+                    "version": inner_plan["package"]["version"],
+                    "signer_fingerprint": inner_plan["publisher"]["signer_fingerprint"],
+                },
+            )
+            try:
+                check_record(records[name], linked, entry["signer"])
+            except LinkRefusal as refusal:
+                raise ExecutionError(
+                    refusal.code, str(refusal).split(": ", 1)[-1], detail={"dependency": name}
+                ) from refusal
+            check_capabilities(
+                linked,
+                limits,
+                tool_bindings=inner_plan["tool_bindings"],
+                denied_tools=inner_plan["execution"]["denied_tool_ids"],
+            )
+            grants = normalize_grants(linked, authorization["decisions"])
+            check_tools(
+                linked, inner_plan["tool_bindings"], grants, authorization["tool_approvals"]
+            )
+            check_resource_grants(linked, inner_plan["resource_grants"], grants)
+            if router is not None and linked.manifest["model_requirements"]["tasks"]:
+                check_model(linked, router)
+            bindings[name] = LinkBinding(
+                ResolvedLink(
+                    dependency=name,
+                    record=dict(records[name]),
+                    package=linked,
+                    archive_sha256=evidence["archive_sha256"],
+                    signer=entry["signer"],
+                    trust=entry["trust"] or "unknown",
+                    worst_case=package_worst_case(linked.graph, linked.policy),
+                ),
+                ACCEPTED,
+                grants=grants,
+                approved_tools=tuple(b["tool_id"] for b in inner_plan["tool_bindings"]),
+                handlers=tool_handlers(
+                    self._peer,
+                    inner_plan["tool_bindings"],
+                    resource_grants=inner_plan["resource_grants"],
+                ),
+                limits=limits.runtime_limits(),
+                plan=inner_plan,
+                plan_hash=inner_plan["run_plan_sha256"],
+            )
+        try:
+            host = LinkHost(package, bindings)
+        except LinkRefusal as refusal:
+            raise ExecutionError(refusal.code, str(refusal).split(": ", 1)[-1]) from refusal
+        check_once(package, host.bindings)
+        return host
 
     # -- run -----------------------------------------------------------------
     async def _run(self, params: dict) -> dict:
@@ -564,6 +757,7 @@ class ExecutionSession:
                     # The deadline the watchdog below enforces, so that what the run computes
                     # from it (network.v0's "at most" in seconds) is this host's figure.
                     deadline_seconds=deadline,
+                    links=self._links,
                 )
             except AgentPkgError as exc:
                 raise ExecutionError(
@@ -765,9 +959,14 @@ class ExecutionSession:
 
 
 async def serve(
-    *, package_fd: int = protocol.PACKAGE_FD, artifacts_fd: int = protocol.ARTIFACTS_FD
+    *,
+    package_fd: int = protocol.PACKAGE_FD,
+    artifacts_fd: int = protocol.ARTIFACTS_FD,
+    link_fds: dict | None = None,
 ) -> int:
-    """Run one execution session on this process's stdio until EOF or end."""
+    """Run one execution session on this process's stdio until EOF or end. `link_fds` names
+    the inherited descriptor of each accepted linked package's archive by dependency id
+    (link.v0)."""
     reader, writer = await stdio_streams()
     session: ExecutionSession | None = None
 
@@ -783,7 +982,9 @@ async def serve(
         prefix="x",
         version=protocol.EXECUTION_PROTOCOL_VERSION,
     )
-    session = ExecutionSession(peer, package_fd=package_fd, artifacts_fd=artifacts_fd)
+    session = ExecutionSession(
+        peer, package_fd=package_fd, artifacts_fd=artifacts_fd, link_fds=link_fds
+    )
     serving = asyncio.create_task(peer.serve())
     ended = asyncio.create_task(session.ended.wait())
     try:

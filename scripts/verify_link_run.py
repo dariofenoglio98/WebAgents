@@ -206,10 +206,19 @@ def verify(
         if accepted:
             plan = link["plan"] or {}
             parent = plan.get("parent", {})
+            # A host without a control plane writes a link plan, whose hash is recomputed here;
+            # the execution session records the inner Run Plan's bounded facts, which carry
+            # the plan's own hash.
+            own_hash = (
+                plan_hash(plan)
+                if plan.get("schema") == "agentpkg-link-plan-v0"
+                else plan.get("run_plan_sha256")
+            )
             checks.add(
                 f"{label}: its inner plan is hash-bound to this caller",
-                link["plan_hash"] == plan_hash(plan)
+                link["plan_hash"] == own_hash
                 and parent.get("package_digest") == caller.digest
+                and parent.get("dependency") == name
                 and plan.get("package", {}).get("digest") == archive.digest,
             )
 
@@ -318,7 +327,10 @@ def verify(
                     for tool, count in tools.items()
                 ),
             )
-            approved = set(((link or {}).get("plan") or {}).get("tool_approvals", []))
+            inner_plan = (link or {}).get("plan") or {}
+            approved = set(inner_plan.get("tool_approvals", [])) | {
+                binding["tool_id"] for binding in inner_plan.get("tool_bindings") or []
+            }
             allowed = set(package_.policy["network"]["allowed_domains"])
             checks.add(
                 f"{label}: its dispatches are its own plan's approved tools on its declared hosts",

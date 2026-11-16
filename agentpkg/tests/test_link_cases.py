@@ -71,8 +71,11 @@ def events(report, action):
 def test_the_list_names_every_variant_once():
     ids = [case["id"] for case in CASE_LIST["cases"]]
     assert len(ids) == len(set(ids))
-    assert {case["variant"] for case in CASE_LIST["cases"]} <= set(VARIANTS)
+    assert {case["variant"] for case in CASE_LIST["cases"] if case["variant"]} <= set(VARIANTS)
     assert CASE_LIST["family"] == "link"
+    assert {case["stage"] for case in CASE_LIST["cases"]} <= set(CASE_LIST["stages"])
+    # The host stage is the execution session's (`test_link_execution.py`).
+    assert [c["id"] for c in CASE_LIST["cases"] if c["stage"] == "host"] == ["inner-plan-replay"]
 
 
 @pytest.mark.parametrize(

@@ -7,6 +7,7 @@
     "validation": "the caller's package is refused when it is validated; the message starts with the code",
     "prepare": "the caller's links are refused when they are resolved, decided or composed, before the run; the message starts with the code",
     "grants": "the grant check of the execution host refuses the linked package's grants",
+    "host": "the execution host refuses the plan it was handed, before anything runs",
     "run": "the run fails with the code at the node named, or the control completes"
   },
   "cases": [
@@ -349,6 +350,13 @@
           "index"
         ]
       }
+    },
+    {
+      "id": "inner-plan-replay",
+      "title": "An inner plan that is not the one the caller's plan names, or that was prepared for another caller",
+      "stage": "host",
+      "code": "link_plan_parent_mismatch",
+      "variant": null
     }
   ]
 }

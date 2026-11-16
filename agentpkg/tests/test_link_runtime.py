@@ -432,4 +432,4 @@ def test_the_conformance_driver_writes_a_case_a_cli_runs(tmp_path, capsys):
     cases = subprocess.run(
         [sys.executable, str(driver), "--cases"], capture_output=True, text=True, check=True
     )
-    assert len(json.loads(cases.stdout)) == 33
+    assert len(json.loads(cases.stdout)) == 34

@@ -2,17 +2,15 @@
 
 Resolution is preparation: the bytes are read, verified and described; nothing of a linked
 package runs here, and nothing here imports the interpreter. The bytes come from the record's
-locator under the package-URL policy (`browser/fetch.py`, unchanged) or from an archive the
-person supplied, accepted only by its digest. Refusals are `LinkRefusal`s whose text starts with
-the specification's code.
+locator under the package-URL policy (`links/fetch.py`, over `browser/fetch.py` unchanged) or
+from an archive the person supplied, accepted only by its digest. This module imports nothing
+of the control plane, so an execution host re-checks a linked archive with the same code.
+Refusals are `LinkRefusal`s whose text starts with the specification's code.
 """
 
 from __future__ import annotations
 
-import os
-import tempfile
 from dataclasses import dataclass
-from pathlib import Path
 
 from ..errors import AgentPkgError
 from ..package import Package, load_package_bytes, sha256
@@ -53,24 +51,42 @@ class ResolvedLink:
         }
 
 
+def publisher_signature(package: Package) -> tuple[str, str | None, str]:
+    """A package's signature as (`valid` | `invalid` | `absent`, the signer's fingerprint, the
+    reason): self-consistency only, never trust. The same check the control plane's evaluation
+    makes, written here so that an execution host can make it without the control plane."""
+    from ..errors import SignatureError
+    from ..signing import check_signature, embedded_public_key, fingerprint
+
+    if package.signature is None:
+        return "absent", None, "no_signature_member"
+    try:
+        key = embedded_public_key(package.signature)
+    except SignatureError as exc:
+        return "invalid", None, str(exc)
+    signer = fingerprint(key)
+    try:
+        check_signature(package, key)
+    except SignatureError as exc:
+        return "invalid", signer, str(exc)
+    return "valid", signer, "self_consistent_ed25519_signature"
+
+
 def verify_linked(data: bytes, label: str) -> tuple[Package, str, str]:
     """L-10: the bytes verified as any package's (container, integrity, schemas), with a valid
     signature, which a link always requires. Returns the package, the archive's SHA-256 and the
     signer's fingerprint."""
-    from ..browser.evaluation import signature_report
-
     try:
         package = load_package_bytes(data)
     except AgentPkgError as exc:
         raise LinkRefusal("link_package_invalid", f"{label}: {exc}") from exc
-    report = signature_report(package)
-    if report["signature_status"] != "valid":
+    status, signer, reason = publisher_signature(package)
+    if status != "valid":
         raise LinkRefusal(
             "link_signature_invalid",
-            f"{label}: a linked package carries a valid publisher signature "
-            f"({report['signature_status']}: {report['signature_reason']})",
+            f"{label}: a linked package carries a valid publisher signature ({status}: {reason})",
         )
-    return package, sha256(data), report["signer_fingerprint"]
+    return package, sha256(data), signer
 
 
 def nested_reason(package: Package) -> str | None:
@@ -121,32 +137,12 @@ def check_record(record: dict, package: Package, signer: str) -> None:
     check_profile(package, label)
 
 
-def fetch_dependency(record: dict, *, limits=None, transport=None) -> bytes:
-    """The bytes at a record's locator, under the package-URL policy unchanged (HTTPS, a public
-    address, a pinned connection, no redirect, a byte cap)."""
-    from ..browser.fetch import FetchLimits, download_to_file
-
-    handle, staging = tempfile.mkstemp(prefix="agentpkg-link-", suffix=".part")
-    os.close(handle)
-    os.unlink(staging)
-    try:
-        download_to_file(
-            record["locator"], Path(staging), limits=limits or FetchLimits(), transport=transport
-        )
-        return Path(staging).read_bytes()
-    except AgentPkgError as exc:
-        raise LinkRefusal("link_fetch_failed", f"dependency {record['id']!r}: {exc}") from exc
-    finally:
-        if os.path.exists(staging):
-            os.unlink(staging)
-
-
 def resolve_links(caller: Package, sources: dict, *, trust, fetch=None) -> dict:
     """Every dependency of the caller resolved (L-10…L-12), in declaration order: `sources`
     holds the archives the person supplied by dependency id; a dependency without one is
-    fetched by `fetch(record)` (`fetch_dependency` by default). `trust(signer, package)` is the
-    person's own evaluation of a publisher key, as if the package were opened directly; the
-    caller's trust plays no part. Returns `{id: ResolvedLink}`."""
+    fetched by `fetch(record)` (`links.fetch.fetch_dependency` by default). `trust(signer,
+    package)` is the person's own evaluation of a publisher key, as if the package were opened
+    directly; the caller's trust plays no part. Returns `{id: ResolvedLink}`."""
     unknown = sorted(set(sources) - {r.get("id") for r in caller.manifest["dependencies"]})
     if unknown:
         raise LinkRefusal(
@@ -157,7 +153,9 @@ def resolve_links(caller: Package, sources: dict, *, trust, fetch=None) -> dict:
     for record in caller.manifest["dependencies"]:
         data = sources.get(record["id"])
         if data is None:
-            data = (fetch or fetch_dependency)(record)
+            if fetch is None:
+                from .fetch import fetch_dependency as fetch
+            data = fetch(record)
         package, archive_sha256, signer = verify_linked(data, f"dependency {record['id']!r}")
         check_record(record, package, signer)
         resolved[record["id"]] = ResolvedLink(
@@ -221,8 +219,8 @@ __all__ = [
     "check_model",
     "check_profile",
     "check_record",
-    "fetch_dependency",
     "nested_reason",
+    "publisher_signature",
     "resolve_links",
     "verify_linked",
 ]

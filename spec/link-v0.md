@@ -153,6 +153,10 @@ own trust store exactly as if the package had been opened directly, and reported
 fact per publisher ("signature valid, publisher unknown"). The caller's trust state never extends
 to a linked publisher, and the caller's declared `signer` is a check, not a pin.
 
+A host whose policy requires a trusted publisher (the control plane's default; the CLI in live
+mode) accepts a link only once its key is pinned (`link_publisher_untrusted`; in the control
+plane, the linked package's own authorization is not runnable).
+
 L-13. **One review, one card per publisher.** The review before the run lists the caller and
 every linked package, grouped by publisher key, each with its trust state, its requirements (its
 permissions, tools with their endpoints, records by type, model needs) and its worst case
@@ -170,8 +174,11 @@ caller's digest and the dependency's id, and is hash-bound over it.
 L-15. **The caller's plan** records `links: {<id>: {package_id, version, digest,
 archive_sha256, signer, trust, decision, plan_hash}}` (`plan_hash` null for a denied link) and is
 hash-bound over it. Re-verification before a run covers every inner plan (its package, receipt,
-publisher and bindings, as the caller's), and an inner plan whose `parent` is not this caller's
-plan, or for a join not this run, is refused (`link_plan_parent_mismatch`).
+publisher and bindings, as the caller's): a caller's plan is stale when an inner plan it names
+was cleared, changed or is itself stale. An inner plan whose `parent` is not this caller, or for
+a join not this run, is refused (`link_plan_parent_mismatch`) by re-verification and again by
+the execution host, which is handed each accepted link's inner plan and archive, verifies the
+archive itself, and takes from the caller's plan only which inner plan the person agreed to.
 
 L-16. **A denied link** is unbound, as a denied optional capability is: the plan states it; the
 composed bound leaves it out (L-22); a role whose program holds a denied `link` step cannot
@@ -383,7 +390,9 @@ are in its own chain, under its own run id.
 | Where | Codes |
 |---|---|
 | validation (the caller's package) | `link_minimum_version`, `link_dependency_unknown`, `link_dependency_duplicate`, `link_dependency_unused`, `link_locator_scheme`, `link_nested` (a dependency naming the caller), `link_caps`, `link_slot_scope`, `link_slot_duplicate`, `link_locate_source`, `link_request_task_unknown`, `link_slot_outcome_schema`, `link_bound_exceeds_budget` (a slot's ceiling); a link's input beyond a role's view: `network_state_read_outside_view` |
-| preparation (resolution, the composed check) | `link_fetch_failed`, `link_package_invalid`, `link_signature_invalid`, `link_identity_mismatch`, `link_digest_mismatch`, `link_signer_mismatch`, `link_target_conversational`, `link_nested`, `link_model_incompatible`, `link_bound_exceeds_budget`, `link_undecided`, `link_plan_parent_mismatch` |
+| preparation (resolution, the composed check) | `link_fetch_failed`, `link_package_invalid`, `link_signature_invalid`, `link_identity_mismatch`, `link_digest_mismatch`, `link_signer_mismatch`, `link_target_conversational`, `link_nested`, `link_model_incompatible`, `link_publisher_untrusted` (a host that requires a trusted publisher), `link_bound_exceeds_budget`, `link_unresolved`, `link_undecided` |
+| re-verification of a caller's plan (stale reasons) | `link_plan_cleared`, `link_plan_changed`, `link_plan_stale`, `link_plan_parent_mismatch` |
+| the execution host | `link_plan_parent_mismatch` (the inner plan handed over is not the one the caller's plan names, or names another caller), `execution_plan_invalid` (a plan without its links, an accepted link without its inner plan or archive), the artifact codes for a linked archive, L-11's codes again on the verified bytes |
 | grants | `execution_grant_unsupported` (a `once` grant the composition would consume more than once) |
 | at a `link` step | `schema_validation` (`link_input`, `link_result`), `budget_exhausted` (`link.refused`), `permission_denied` (`link.denied`), `link_error` (the inner run failed; `link.failed` names its code), `timeout` |
 | a slot's outcome (data, not a failure) | `unattended`, `policy`, `join_cap`, `not_found`, `verification`, `conversational`, `nested`, `publisher_denied`, `model_incompatible`, `over_ceiling`, `budget`, `declined`, `failed` |
@@ -396,7 +405,8 @@ Each row is a case of [`cases.json`](../examples/link/cases/cases.json) (`id`), 
 probe `agentpkg/tests/link_probe.py` and asserted by `agentpkg/tests/test_link_cases.py`. Stages:
 `validation` (refused when the caller's package is validated); `prepare` (refused when its links
 are resolved or its composed bound is checked, before the run starts); `grants` (the grant
-check); `run` (the run fails with the code at the node named, or the control completes).
+check); `host` (the execution host refuses the plan it was handed); `run` (the run fails with
+the code at the node named, or the control completes).
 
 | N | `cases.json` id | Stage | Code (reason) |
 |---|---|---|---|
@@ -433,7 +443,7 @@ check); `run` (the run fails with the code at the node named, or the control com
 | N-31 | `denied-link-excluded` | run | control: completed; the denied role absent from the enum; no inner run of that key |
 | N-32 | `planned-walk` | run | control: completed; both links; the composed model and tool calls attained |
 | N-33 | `link-in-map` | run | control: completed; one inner run per item within `max_items` |
-| N-34 | `join-replay` | prepare | `link_plan_parent_mismatch` (an inner plan under another parent) |
+| N-34 | `inner-plan-replay` | host | `link_plan_parent_mismatch` (an inner plan under another parent, with another hash, or of another package) |
 | N-35 | `unattended-join` | run | control: completed; `joined: false`, `unattended`; no fetch |
 | N-36 | `join-declined` | run | control: completed; `declined`; no inner run and no request-building call |
 | N-37 | `join-cap` | run | control: completed; the request past the cap is `join_cap`, no card |
@@ -495,6 +505,15 @@ The tool answers in the four fixtures are the demo origin's own
 declaration (§2.3, L-21); packages that use links declare `runtime.minimum_version: "0.8.0"`.
 The Chrome core's port is T66. The OpenClaw plugin stays frozen (D-029) and its execution host
 refuses 0.8.0 packages by version. The paper line is untouched.
+
+**The reference's two hosts.** The developer CLI and a driver that plays the person bind
+decisions directly (`links/operator.py`) and write a link plan per accepted link. The control
+plane opens each dependency as a package session of its own (`resolve_links`), so a linked
+package is authorized and planned through the ordinary path, and the execution session builds
+the same link host from the caller's plan and the inner plans. There a linked package whose
+model needs the route does not meet is refused by its own plan's preparation, and a linked
+package must declare a model permission to be planned at all, used or not (the control plane
+plans model-backed runs only).
 
 **Deliberate limits of v0.** Depth one (a linked package links nothing; the composition rule is
 stated for any depth); no conversational target; no remote linked agent (a link is a program
