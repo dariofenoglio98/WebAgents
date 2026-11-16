@@ -749,6 +749,37 @@ declared.
   0.5.0, T26): the same bound and refusals (the conformance suite's network family), "at most" on the
   agent page, the route decisions on the run page ([Chrome guide §14](chrome-agent-browser.md#14-delegation-networks-t26)).
 
+## 14e. Links: another publisher's package as an inner run (link.v0)
+
+agentpkg 0.8.0 implements the planned link of [link.v0](../spec/link-v0.md) in the same
+interpreter: a `link` step names a dependency of the signed manifest, and the mediator runs
+that package's own program as an inner run. Nothing about it is package-specific (D-009): the
+runtime knows a dependency from its record, a linked package from its verified bytes, and a
+decision from the host.
+
+- **Before the run** a host resolves every dependency (`links/resolve.py`: the bytes, a valid
+  signature, the record's identity, digest and signer, a one-shot target, depth one) and binds
+  the person's decision on each linked publisher: accepted, with that package's own grants and
+  tool approvals, or denied (`links/host.py:LinkHost`). A dependency without a decision, and a
+  composition whose worst case the caller's own budget cannot hold, refuse before anything runs.
+  The developer CLI is such a host: `agentpkg run <caller> --link <id>=<archive> --link-grants
+  <id>=<grants.json> --approve-tool <id>:<tool>` or `--deny-link <id>`; `agentpkg inspect
+  <caller> --link …` prints the composed envelope.
+- **At the step** (`Runtime.call_link`): a denied link is refused (`link.denied`); the input is
+  validated against the linked package's input schema; the linked worst case is reserved in
+  tokens and remote calls against what the run has left and held; `link.started` names the
+  inner run; the inner run is a `Workflow` over the linked package built from its binding alone,
+  with the caller's model route and the reservation as its limits; afterwards the caller's
+  counters take its usage and `link.completed` or `link.failed` is recorded. A failed inner run
+  fails the step `link_error`.
+- **The record.** `links.json` lists each link with its publisher, the decision and the inner
+  plan, and the inner runs made; each inner run's own `result`, `audit`, `usage` and `provenance`
+  are written beside the caller's as `link-<inner run id>.*.json`.
+  `scripts/verify_link_run.py <run directory>` recomputes the composed bound from the
+  declarations and checks the record against it.
+- **Fixture mode.** An inner run replays the linked package's own fixture, so the example
+  planner's walk runs through both links offline.
+
 ## 15. Why Meeting Agenda was the first package
 
 It declares `tools: []`. When this runner was written it had no generic

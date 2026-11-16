@@ -106,21 +106,23 @@ CASE_ID = re.compile(r"`([a-z][a-z0-9.-]*)/([a-z0-9][a-z0-9_.-]*)`")
 # Tokens a Conformance field may name that are neither a case id nor a path.
 NON_CASE_TOKENS = {"npm run check-pack", "once"}
 SPEC_CASE = re.compile(
-    r"\b(memory|compute|conversation|network)\s+(N-?\d+(?:\s*(?:,|;|…|and)\s*N-?\d+)*)"
+    r"\b(memory|compute|conversation|network|link)\s+(N-?\d+(?:\s*(?:,|;|…|and)\s*N-?\d+)*)"
 )
 SPEC_CASE_SPEC = {
     "memory": "spec/memory-v0.md",
     "compute": "spec/compute-v0.md",
     "conversation": "spec/conversation-v0.md",
     "network": "spec/network-v0.md",
+    "link": "spec/link-v0.md",
 }
 SPEC_CASE_NUMBER = re.compile(r"\bN-?(\d+)\b")
-RULE_ID = re.compile(r"\b([MCVR])-(\d+)\b")
+RULE_ID = re.compile(r"\b([MCVRL])-(\d+)\b")
 RULE_SPEC = {
     "M": "spec/memory-v0.md",
     "C": "spec/compute-v0.md",
     "V": "spec/conversation-v0.md",
     "R": "spec/network-v0.md",
+    "L": "spec/link-v0.md",
 }
 CB_ID = re.compile(r"\bCB-(\d+)\b")
 EXPERIMENT = re.compile(r"\bE(\d{1,2})\b")
@@ -207,7 +209,7 @@ def known_case_ids(report_path: Path | None) -> tuple[set[str], set[str]]:
         for case in report.get("cases", []):
             if isinstance(case, dict) and isinstance(case.get("id"), str):
                 ids.add(case["id"])
-    for family in ("compute", "network", "conversation"):
+    for family in ("compute", "network", "conversation", "link"):
         cases = ROOT / "examples" / family / "cases" / "cases.json"
         if cases.exists():
             document = json.loads(read(cases))
