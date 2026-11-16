@@ -224,7 +224,7 @@ def validate_workflow(manifest, graph, policy, tools, files):
                 operation(step, role, step_env, label + "/" + step["id"], nid)
                 step_env["steps"][step["id"]] = schema(step["output_schema"], label)
             expression(node["yield"], step_env, label + "/yield", role, nid)
-        if kind in {"llm", "tool", "map"} and role == coordinator:
+        if kind in {"llm", "tool", "map", "link"} and role == coordinator:
             raise ValidationError(f"{label}: effectful nodes require a non-coordinator worker")
 
     for nid, node in nodes.items():
@@ -332,6 +332,21 @@ def validate_workflow(manifest, graph, policy, tools, files):
         expression=expression,
         operation=operation,
         nodes=nodes,
+    )
+    # link.v0 (agentpkg 0.8.0): the dependency records, every `link` step against them, the
+    # slots and their ceilings against the package's budget; a package without a dependency or
+    # a link step passes. What needs a linked package's own declaration waits for preparation.
+    from .links.declarations import check_link_declarations
+
+    check_link_declarations(
+        manifest,
+        graph,
+        policy,
+        files,
+        documents=documents,
+        schema=schema,
+        expression=expression,
+        at_schema=_at_schema,
     )
     # conversation.v0: the conversation object, the consent steps, the gate before every tool
     # that links a consented permission, and the fixture transcript; a graph without a

@@ -1,0 +1,18 @@
+[
+  {
+    "op": "add",
+    "path": "/properties/dependencies/items/properties/id",
+    "value": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/properties/dependencies/items/properties/signer",
+    "value": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+]

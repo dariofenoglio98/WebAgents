@@ -62,15 +62,71 @@ def route_calls(graph):
             yield f"{node_id}/{role_id}/route", role["route"]
 
 
-def activation_costs(graph, role_id: str) -> dict:
+#: The figures a link adds to the operation that holds it (link.v0 L-19); seconds are not one of
+#: them: a link runs inside its step's and its role's time.
+LINK_COMPONENTS = ("model_calls", "compute_calls", "remote_calls", "tokens")
+
+
+def link_cost(step, links=None) -> dict | None:
+    """What one run of a `link` step can cost at most (link.v0 L-19, L-21), or None when it
+    costs nothing here. A slot costs its declared ceiling plus the request-building call, its
+    tool calls in total under `<slot>:*`. A planned link costs its linked package's own worst
+    case, which only a resolved composition knows: `links` maps each dependency id to that
+    worst case, or to None for a link the person denied; with no map (the declaration alone) a
+    planned link is not counted yet. The linked tools are qualified `<dependency>:<tool>`."""
+    if "slot" in step:
+        ceiling = step["budget"]
+        total = ceiling.get("tool_calls", 0)
+        return {
+            "model_calls": ceiling.get("model_calls", 0) + 1,
+            "tool_calls": {f"{step['slot']}:*": total} if total else {},
+            "compute_calls": ceiling.get("compute_calls", 0),
+            "remote_calls": ceiling.get("remote_calls", 0),
+            "tokens": ceiling.get("tokens", 0),
+        }
+    linked = (links or {}).get(step["dependency"])
+    if linked is None:
+        return None
+    return {
+        "model_calls": linked["model_calls"],
+        "tool_calls": {
+            f"{step['dependency']}:{tool}": count for tool, count in linked["tool_calls"].items()
+        },
+        "compute_calls": linked["compute_calls"],
+        "remote_calls": linked["remote_calls"],
+        "tokens": linked["tokens"],
+    }
+
+
+def denied_roles(network, links) -> set:
+    """The roles whose program holds a link the person denied (link.v0 L-16): such a role cannot
+    complete, so no walk activates it."""
+    if not links:
+        return set()
+    return {
+        role_id
+        for role_id, role in network["roles"].items()
+        if any(
+            step["type"] == "link"
+            and "dependency" in step
+            and step["dependency"] in links
+            and links[step["dependency"]] is None
+            for step in role["steps"]
+        )
+    }
+
+
+def activation_costs(graph, role_id: str, links=None) -> dict:
     """What one activation of a role can cost at most (R-19): each step runs at most once (a
     conditional one counts as taken), a chosen route is one model call, and the worker's
-    budgets bound its tokens and remote calls per instance."""
+    budgets bound its tokens and remote calls per instance. A `link` step adds its link's cost
+    beside them (link.v0 L-19); `links` is `link_cost`'s, and False leaves every link out (the
+    role's own program)."""
     network = network_of(graph)
     role = network["roles"][role_id]
     worker = next(w for w in graph["workers"] if w["id"] == role_id)
     steps = role["steps"]
-    return {
+    costs = {
         "model_calls": sum(1 for s in steps if s["type"] == "llm")
         + (1 if "task" in role["route"] else 0),
         "tool_calls": dict(Counter(s["tool"] for s in steps if s["type"] == "tool")),
@@ -79,6 +135,17 @@ def activation_costs(graph, role_id: str) -> dict:
         "tokens": worker["budget"]["tokens"],
         "seconds": role["timeout_seconds"],
     }
+    if links is False:
+        return costs
+    for step in steps:
+        cost = link_cost(step, links) if step["type"] == "link" else None
+        if cost is None:
+            continue
+        for name in LINK_COMPONENTS:
+            costs[name] += cost[name]
+        for tool, count in cost["tool_calls"].items():
+            costs["tool_calls"][tool] = costs["tool_calls"].get(tool, 0) + count
+    return costs
 
 
 def activation_bound(network, role_id: str) -> int:
@@ -124,17 +191,20 @@ def _summed(costs_by_role: dict, counts: dict):
     return sum(counts[role] * cost for role, cost in costs_by_role.items())
 
 
-def worst_case(graph, policy, *, budget=None, node_timeout=None) -> dict:
+def worst_case(graph, policy, *, budget=None, node_timeout=None, links=None) -> dict:
     """The "at most" of a network (R-21, R-22): per component, the relaxation's maximum capped by
     the run's own limit for that component (`budget`: the effective run budget, the declared one
     by default). `relaxation` keeps the uncapped figures (validation compares them with the
-    package's own budget, R-22); `activations` is each role's bound."""
+    package's own budget, R-22); `activations` is each role's bound. `links` composes the links
+    in (link.v0 L-19…L-22; `link_cost`'s argument): a role that holds a denied link is never
+    activated, so its bound is zero."""
     network = network_of(graph)
     roles = list(network["roles"])
     entry = network["entry"]
-    bounds = {role: activation_bound(network, role) for role in roles}
+    denied = denied_roles(network, links)
+    bounds = {role: 0 if role in denied else activation_bound(network, role) for role in roles}
     total = min(network["max_hops"] + 1, sum(bounds.values()))
-    costs = {role: activation_costs(graph, role) for role in roles}
+    costs = {role: activation_costs(graph, role, links) for role in roles}
     caps = dict(budget or policy["budget"])
     deadline = graph["deadline_seconds"]
     nodes = network_nodes(graph)
@@ -182,15 +252,20 @@ def worst_case(graph, policy, *, budget=None, node_timeout=None) -> dict:
     }
 
 
-def route_targets(network, role_id: str, uses: Counter, activations: Counter, hop: int) -> list:
+def route_targets(
+    network, role_id: str, uses: Counter, activations: Counter, hop: int, denied=()
+) -> list:
     """What a role may still hand off to at this point of the walk, in edge order: each declared
     target with its description and how many more times the edge can be taken (zero when the
-    edge, the target's activations or the hops are exhausted). Pure, so a fixture can be built
-    from it."""
+    edge, the target's activations or the hops are exhausted). A role in `denied` (it holds a
+    link the person denied, link.v0 L-16) is not a target at all. Pure, so a fixture can be
+    built from it."""
     role = network["roles"][role_id]
     hops_left = network["max_hops"] - hop
     targets = []
     for edge in role["edges"]:
+        if edge["to"] in denied:
+            continue
         target = network["roles"][edge["to"]]
         left = edge["max_uses"] - uses[(role_id, edge["to"])]
         if "max_activations" in target:
@@ -205,11 +280,13 @@ def route_targets(network, role_id: str, uses: Counter, activations: Counter, ho
     return targets
 
 
-def route_data(network, role_id: str, input_value, uses: Counter, activations: Counter, hop: int):
+def route_data(
+    network, role_id: str, input_value, uses: Counter, activations: Counter, hop: int, denied=()
+):
     """The data of a route request (R-13): the role's constructed input and the availability."""
     return {
         "input": input_value,
-        "targets": route_targets(network, role_id, uses, activations, hop),
+        "targets": route_targets(network, role_id, uses, activations, hop, denied),
         "hops_left": network["max_hops"] - hop,
         "may_end": network["roles"][role_id]["may_end"],
     }
@@ -276,13 +353,16 @@ def walk_costs(graph, walk) -> dict:
 
 __all__ = [
     "COMPONENTS",
+    "LINK_COMPONENTS",
     "DEFAULT_EFFORT",
     "DONE",
     "EffortExceeded",
     "activation_bound",
     "activation_costs",
     "allocate",
+    "denied_roles",
     "enumerate_walks",
+    "link_cost",
     "network_nodes",
     "network_of",
     "role_steps",

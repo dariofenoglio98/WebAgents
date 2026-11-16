@@ -50,6 +50,10 @@ def _constructors(role) -> list[tuple[str, dict, tuple]]:
             found.append((label + "/when/left", step["when"]["left"], ROLE_SOURCES))
             found.append((label + "/when/right", step["when"]["right"], ROLE_SOURCES))
             found.append((label + "/otherwise", step["otherwise"], ROLE_SOURCES))
+        if "reason" in step:
+            # link.v0 L-6: a slot's stated reason is constructed like its input. Its `locate`
+            # has its own two sources and is checked with the slot (L-7).
+            found.append((label + "/reason", step["reason"], ROLE_SOURCES))
         for key, sources in (("assertions", ROLE_SOURCES), ("checks", CHECK_SOURCES)):
             for index, rule in enumerate(step.get(key, [])):
                 for field in ("left", "right", "rows", "targets", "equals"):
@@ -290,8 +294,9 @@ def check_network_declarations(
         "network.result",
     )
     # The bound against the package's own budgets (R-22): what the page says the network can
-    # spend at most must be what the package lets it spend.
-    bound = worst_case(graph, policy)
+    # spend at most must be what the package lets it spend. The network's own program here; its
+    # links are composed in and checked by link.v0 (L-20, L-21), under their own code.
+    bound = worst_case(graph, policy, links=False)
     budget = policy["budget"]
     if bound["relaxation"]["tokens"] > budget["hard_tokens"]:
         raise _refuse(
