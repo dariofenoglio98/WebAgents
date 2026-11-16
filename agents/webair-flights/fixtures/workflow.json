@@ -1,0 +1,61 @@
+{
+  "profile": "workflow.fixture.v0",
+  "input": {
+    "origin": "BOS",
+    "destination": "KEF",
+    "date": "2027-03-09",
+    "travellers": 1
+  },
+  "models": {
+    "propose": [
+      {
+        "input": {
+          "request": {
+            "origin": "BOS",
+            "destination": "KEF",
+            "date": "2027-03-09",
+            "travellers": 1
+          },
+          "found": {
+            "options": [
+              {
+                "id": "WA205-20270309",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T20:30",
+                "stops": 0,
+                "price_usd": 287
+              }
+            ]
+          }
+        },
+        "output": {
+          "recommended": "WA205-20270309",
+          "reason": "The only flight on that date: nonstop at 20:30 for $287."
+        }
+      }
+    ]
+  },
+  "tools": {
+    "search-flights": [
+      {
+        "input": {
+          "origin": "BOS",
+          "destination": "KEF",
+          "date": "2027-03-09",
+          "travellers": 1
+        },
+        "output": {
+          "options": [
+            {
+              "id": "WA205-20270309",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T20:30",
+              "stops": 0,
+              "price_usd": 287
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

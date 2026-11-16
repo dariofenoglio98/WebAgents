@@ -380,11 +380,16 @@ def check_capabilities(
     }
 
 
-def check_network(package, limits: HostExecutionLimits) -> dict | None:
+def check_network(package, limits: HostExecutionLimits, link_costs=None) -> dict | None:
     """network.v0 (R-24): the network's worst case under this host's effective budget, recorded
     with the run so that "at most" is on the record before the first activation; the runtime
-    reserves it again when the node starts (R-17). A package without a network returns None."""
-    from ..delegation.analysis import activation_bound, network_nodes, worst_case
+    reserves it again when the node starts (R-17). A package without a network returns None.
+
+    `link_costs` is the run's `LinkHost.worst_cases` (link.v0 L-19, L-22): each dependency's
+    worst case, None for a link the person denied. With it the record is the composed bound,
+    the same figures the runtime states at `network.started`; a package with links is recorded
+    again once its links are bound."""
+    from ..delegation.analysis import activation_bound, denied_roles, network_nodes, worst_case
 
     graph = package.graph
     if graph.get("network") is None:
@@ -396,9 +401,11 @@ def check_network(package, limits: HostExecutionLimits) -> dict | None:
         package.policy,
         budget=effective,
         node_timeout=min(node["timeout_seconds"], effective_deadline_seconds(package, limits)),
+        links=link_costs,
     )
     network = graph["network"]
     workers = {w["id"]: w for w in graph["workers"]}
+    denied = denied_roles(network, link_costs)
     return {
         "node": node["id"],
         "entry": network["entry"],
@@ -409,7 +416,8 @@ def check_network(package, limits: HostExecutionLimits) -> dict | None:
             role_id: {
                 "tokens": workers[role_id]["budget"]["tokens"],
                 "remote_calls": workers[role_id]["budget"]["remote_calls"],
-                "activation_bound": activation_bound(network, role_id),
+                # A role that holds a denied link is never activated (L-16).
+                "activation_bound": 0 if role_id in denied else activation_bound(network, role_id),
             }
             for role_id in network["roles"]
         },
@@ -692,7 +700,9 @@ def _consumption_counts(package) -> dict[str, int]:
 
         for role_id in network["roles"]:
             activations = activation_bound(network, role_id)
-            costs = activation_costs(graph, role_id)
+            # The role's own program: a link's inner run consumes its own package's grants
+            # (link.v0 L-28 counts those on its card).
+            costs = activation_costs(graph, role_id, False)
             counts["memory"] += activations
             counts["model"] += activations * costs["model_calls"]
             for tool_id, per_activation in costs["tool_calls"].items():

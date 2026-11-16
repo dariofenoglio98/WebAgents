@@ -429,6 +429,16 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   ([`chrome-conversation-e2e-t24.json`](examples/verification/chrome-conversation-e2e-t24.json)).
   WebAir 0.8.0 is a conversational travel agent: search, refine, quote, "buy it" with the card
   before the simulated purchase, goodbye ([`agents/webair/`](agents/webair/README.md)).
+- **Agent Links** ([`spec/link-v0.md`](spec/link-v0.md), agentpkg 0.8.0): a package may name
+  another publisher's signed package as a dependency, pinned by digest and publisher key, and ask
+  it for help in a `link` step, as a page links to a page. The person's runtime fetches and
+  verifies the linked package before anything is agreed, shows each linked publisher with its own
+  requirements, and lets the person deny one; an accepted linked program runs here, on the
+  person's model, from its own grants, and holds nothing of the package that asked; its worst
+  case is composed into the caller's, so "at most" is stated across publishers before the run.
+  The example is a travel planner that asks WebAir Flights and a hotel aggregator
+  ([`agents/travel-planner/`](agents/travel-planner/README.md)). The Python reference runs
+  planned links; the Chrome port and a link found during a run are next.
 - **Bounded delegation** ([`spec/network-v0.md`](spec/network-v0.md), agentpkg 0.7.0): a package
   may declare a network of roles with the edges a role may hand off along, each with a use cap, a
   hop cap and a per-role budget; at a role's route the model chooses the next role among the

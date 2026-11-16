@@ -34,6 +34,9 @@ INPUT_INVALID = "execution_input_invalid"
 # Consent
 PERMISSION_DENIED = "execution_permission_denied"
 GRANT_UNSUPPORTED = "execution_grant_unsupported"
+# link.v0 L-15: an inner plan that is not the one the caller's plan names, or that was prepared
+# for another caller.
+LINK_PLAN_MISMATCH = "link_plan_parent_mismatch"
 
 # The bound model cannot satisfy what the package declares
 MODEL_INCOMPATIBLE = "execution_model_incompatible"
@@ -88,6 +91,7 @@ __all__ = [
     "EXPORT_PATH_RESERVED",
     "GRANT_UNSUPPORTED",
     "INPUT_INVALID",
+    "LINK_PLAN_MISMATCH",
     "MODEL_INCOMPATIBLE",
     "NOT_BOUND",
     "OUTPUT_CAP_TOO_LARGE",

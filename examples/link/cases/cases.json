@@ -1,0 +1,427 @@
+{
+  "schema": "webagents-enforcement-cases-v0",
+  "family": "link",
+  "title": "link.v0 enforcement cases (spec/link-v0.md section 10)",
+  "probe": "agentpkg/tests/link_probe.py",
+  "stages": {
+    "validation": "the caller's package is refused when it is validated; the message starts with the code",
+    "prepare": "the caller's links are refused when they are resolved, decided or composed, before the run; the message starts with the code",
+    "grants": "the grant check of the execution host refuses the linked package's grants",
+    "host": "the execution host refuses the plan it was handed, before anything runs",
+    "run": "the run fails with the code at the node named, or the control completes"
+  },
+  "cases": [
+    {
+      "id": "minimum-version",
+      "title": "A link step in a package that declares an older runtime",
+      "stage": "validation",
+      "code": "link_minimum_version",
+      "variant": "minimum-version"
+    },
+    {
+      "id": "dependency-unknown",
+      "title": "A link step names a dependency the manifest does not declare",
+      "stage": "validation",
+      "code": "link_dependency_unknown",
+      "variant": "dependency-unknown"
+    },
+    {
+      "id": "dependency-duplicate",
+      "title": "Two dependency records under one id",
+      "stage": "validation",
+      "code": "link_dependency_duplicate",
+      "variant": "dependency-duplicate"
+    },
+    {
+      "id": "dependency-unused",
+      "title": "A dependency no link step names",
+      "stage": "validation",
+      "code": "link_dependency_unused",
+      "variant": "dependency-unused"
+    },
+    {
+      "id": "locator-scheme",
+      "title": "A dependency whose locator is not HTTPS",
+      "stage": "validation",
+      "code": "link_locator_scheme",
+      "variant": "locator-scheme"
+    },
+    {
+      "id": "cycle",
+      "title": "A dependency that names the caller's own package",
+      "stage": "validation",
+      "code": "link_nested",
+      "variant": "cycle"
+    },
+    {
+      "id": "input-outside-view",
+      "title": "A link's input reads the shared state beyond its role's view",
+      "stage": "validation",
+      "code": "network_state_read_outside_view",
+      "variant": "input-outside-view"
+    },
+    {
+      "id": "slot-in-map",
+      "title": "A slot as a step of a map",
+      "stage": "validation",
+      "code": "link_slot_scope",
+      "variant": "slot-in-map"
+    },
+    {
+      "id": "slot-at-top-level",
+      "title": "A slot as a top-level node",
+      "stage": "validation",
+      "code": "link_slot_scope",
+      "variant": "slot-at-top-level"
+    },
+    {
+      "id": "locate-source",
+      "title": "A slot whose locate reads a model step's output",
+      "stage": "validation",
+      "code": "link_locate_source",
+      "variant": "locate-source"
+    },
+    {
+      "id": "locate-message",
+      "title": "A slot whose locate reads the message",
+      "stage": "validation",
+      "code": "link_locate_source",
+      "variant": "locate-message"
+    },
+    {
+      "id": "slot-caps",
+      "title": "A slot whose locate names four references",
+      "stage": "validation",
+      "code": "link_caps",
+      "variant": "slot-caps"
+    },
+    {
+      "id": "slot-bound-exceeds-budget",
+      "title": "A slot whose ceiling the package's own budget cannot hold",
+      "stage": "validation",
+      "code": "link_bound_exceeds_budget",
+      "variant": "slot-bound-exceeds-budget"
+    },
+    {
+      "id": "digest-mismatch",
+      "title": "The archive's package digest is not the pinned one",
+      "stage": "prepare",
+      "code": "link_digest_mismatch",
+      "variant": "digest-mismatch"
+    },
+    {
+      "id": "signer-mismatch",
+      "title": "The archive is signed by another key than the record expects",
+      "stage": "prepare",
+      "code": "link_signer_mismatch",
+      "variant": "signer-mismatch"
+    },
+    {
+      "id": "identity-mismatch",
+      "title": "The archive is another version than the record names",
+      "stage": "prepare",
+      "code": "link_identity_mismatch",
+      "variant": "identity-mismatch"
+    },
+    {
+      "id": "signature-absent",
+      "title": "A linked package without a publisher signature",
+      "stage": "prepare",
+      "code": "link_signature_invalid",
+      "variant": "signature-absent"
+    },
+    {
+      "id": "target-conversational",
+      "title": "A linked package that declares a conversation",
+      "stage": "prepare",
+      "code": "link_target_conversational",
+      "variant": "target-conversational"
+    },
+    {
+      "id": "nested",
+      "title": "A linked package that declares a dependency of its own",
+      "stage": "prepare",
+      "code": "link_nested",
+      "variant": "nested"
+    },
+    {
+      "id": "nested-slot",
+      "title": "A linked package whose graph holds a slot",
+      "stage": "prepare",
+      "code": "link_nested",
+      "variant": "nested-slot"
+    },
+    {
+      "id": "bound-exceeds-budget",
+      "title": "The composed worst case is above the caller's own budget",
+      "stage": "prepare",
+      "code": "link_bound_exceeds_budget",
+      "variant": "bound-exceeds-budget"
+    },
+    {
+      "id": "model-incompatible",
+      "title": "A linked package whose model needs the caller's route does not meet",
+      "stage": "prepare",
+      "code": "link_model_incompatible",
+      "variant": "model-incompatible"
+    },
+    {
+      "id": "undecided",
+      "title": "A dependency without a decision",
+      "stage": "prepare",
+      "code": "link_undecided",
+      "variant": "undecided"
+    },
+    {
+      "id": "once-across-link",
+      "title": "A once grant on a linked package's card that the composition consumes twice",
+      "stage": "grants",
+      "code": "execution_grant_unsupported",
+      "variant": "once-across-link"
+    },
+    {
+      "id": "input-schema",
+      "title": "A link input outside the linked package's input schema",
+      "stage": "run",
+      "code": "schema_validation",
+      "variant": "input-schema",
+      "expect": {
+        "node": "delegate",
+        "step": "delegate/Lookup/lookup",
+        "failed_check": "link_input",
+        "started": [],
+        "refused": 0
+      }
+    },
+    {
+      "id": "result-schema",
+      "title": "A result the linked package accepts and the caller's step schema does not",
+      "stage": "run",
+      "code": "schema_validation",
+      "variant": "result-schema",
+      "expect": {
+        "node": "delegate",
+        "step": "delegate/Lookup/lookup",
+        "failed_check": "link_result",
+        "started": [
+          "index"
+        ],
+        "completed": [
+          "index"
+        ]
+      }
+    },
+    {
+      "id": "grant-not-inherited",
+      "title": "The caller holds a model grant; the linked package's card denies its own",
+      "stage": "run",
+      "code": "link_error",
+      "variant": "grant-not-inherited",
+      "expect": {
+        "node": "delegate",
+        "step": "delegate/Writer/draft",
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index"
+        ],
+        "failed": {
+          "scribe": "permission_denied"
+        }
+      }
+    },
+    {
+      "id": "reservation-refused",
+      "title": "The run has less left than a linked package's worst case",
+      "stage": "run",
+      "code": "budget_exhausted",
+      "variant": "reservation-refused",
+      "expect": {
+        "node": "delegate",
+        "step": "delegate/Writer/draft",
+        "started": [
+          "index"
+        ],
+        "completed": [
+          "index"
+        ],
+        "refused": 1,
+        "reason": "tokens"
+      }
+    },
+    {
+      "id": "inner-over-budget",
+      "title": "An inner run that passes its own package's cap",
+      "stage": "run",
+      "code": "link_error",
+      "variant": "inner-over-budget",
+      "expect": {
+        "node": "delegate",
+        "step": "delegate/Writer/draft",
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index"
+        ],
+        "failed": {
+          "scribe": "budget_exhausted"
+        }
+      }
+    },
+    {
+      "id": "denied-link-node",
+      "title": "A top-level link node on a link the person denied",
+      "stage": "run",
+      "code": "permission_denied",
+      "variant": "denied-link-node",
+      "expect": {
+        "node": "aside",
+        "started": [],
+        "denied": 1
+      }
+    },
+    {
+      "id": "denied-link-excluded",
+      "title": "A denied link's role leaves the route's targets; the run completes without it",
+      "stage": "run",
+      "code": "completed",
+      "variant": "denied-link-excluded",
+      "expect": {
+        "started": [
+          "scribe"
+        ],
+        "completed": [
+          "scribe"
+        ],
+        "activations": {
+          "Desk": 2,
+          "Writer": 1
+        },
+        "absent_target": "Lookup"
+      }
+    },
+    {
+      "id": "planned-walk",
+      "title": "The full tour through both links attains the composed bound",
+      "stage": "run",
+      "code": "completed",
+      "variant": "planned-walk",
+      "expect": {
+        "started": [
+          "index",
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "index",
+          "scribe"
+        ],
+        "activations": {
+          "Desk": 4,
+          "Lookup": 2,
+          "Writer": 1
+        },
+        "attains": [
+          "model_calls",
+          "tool_calls"
+        ]
+      }
+    },
+    {
+      "id": "link-in-map",
+      "title": "A link step of a map runs once per item",
+      "stage": "run",
+      "code": "completed",
+      "variant": "link-in-map",
+      "expect": {
+        "started": [
+          "index",
+          "index",
+          "index"
+        ],
+        "completed": [
+          "index",
+          "index",
+          "index"
+        ]
+      }
+    },
+    {
+      "id": "inner-plan-replay",
+      "title": "An inner plan that is not the one the caller's plan names, or that was prepared for another caller",
+      "stage": "host",
+      "code": "link_plan_parent_mismatch",
+      "variant": null
+    },
+    {
+      "id": "linked-compute",
+      "title": "A linked package's compute calls are counted in the caller's usage",
+      "stage": "run",
+      "code": "completed",
+      "variant": "linked-compute",
+      "expect": {
+        "started": [
+          "index",
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "index",
+          "scribe"
+        ],
+        "usage": {
+          "compute_calls": 2
+        },
+        "link_usage": {
+          "index": {
+            "compute_calls": 2,
+            "model_calls": 0
+          },
+          "scribe": {
+            "compute_calls": 0,
+            "model_calls": 1
+          }
+        },
+        "attains": [
+          "model_calls",
+          "tool_calls",
+          "compute_calls"
+        ]
+      }
+    },
+    {
+      "id": "approval-threshold",
+      "title": "A linked package's worst case crosses the caller's approval threshold",
+      "stage": "run",
+      "code": "budget_exhausted",
+      "variant": "approval-threshold",
+      "expect": {
+        "node": "delegate",
+        "step": "delegate/Writer/draft",
+        "started": [
+          "index",
+          "index"
+        ],
+        "completed": [
+          "index",
+          "index"
+        ],
+        "refused": 1,
+        "reason": "approval_threshold"
+      }
+    },
+    {
+      "id": "inner-plan-alone",
+      "title": "An inner plan handed to the execution host as a caller's plan",
+      "stage": "host",
+      "code": "link_plan_parent_mismatch",
+      "variant": null
+    }
+  ]
+}

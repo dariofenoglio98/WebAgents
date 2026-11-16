@@ -543,7 +543,9 @@ def test_future_workers_are_inspectable_but_not_executable(source, kind, locator
         Runtime(package)
 
 
-def test_pinned_dependency_is_inspectable_but_not_loaded(source):
+def test_pinned_dependency_is_inspectable_and_never_run_unresolved(source):
+    # link.v0 (agentpkg 0.8.0) gives dependencies their meaning: a host resolves and decides
+    # each one before the run; a mediator handed a package with none resolved refuses it.
     from agentpkg.runtime import PolicyError, Runtime
 
     path = source / "MANIFEST.agent"
@@ -557,5 +559,5 @@ def test_pinned_dependency_is_inspectable_but_not_loaded(source):
         }
     ]
     path.write_text(json.dumps(value))
-    with pytest.raises(PolicyError, match="Dependency"):
+    with pytest.raises(PolicyError, match="^link_unresolved: "):
         Runtime(load_package(source))

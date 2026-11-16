@@ -5,11 +5,12 @@
 
 Prints JSON with `"passed"` and exits 1 on failure. Nothing here changes a file. The checks:
 
-* every experiment section (`### E1` … `### E10`, `### EA`) exists exactly once and carries every
+* every experiment section (`### E1` … `### E10`, `### EA`, `### EL`) exists exactly once and carries every
   required field (`**Question.**` … `**Defects.**`, the list in `REQUIRED_FIELDS`), each exactly once at the
-  start of a line, in that order; a planned experiment (`### EL`) exists exactly once and needs only
-  `**Question.**` and `**Status.**` (each exactly once) until an amendment registers it;
-* every `P-n`, `DF-n` and `UC-n` cited is defined by the security and privacy model
+  start of a line, in that order; a planned experiment (`PLANNED_EXPERIMENTS`, empty since EL was registered
+  by amendment on 2026-11-15, T64) would exist exactly once and need only `**Question.**` and `**Status.**`
+  (each exactly once) until an amendment registers it;
+* every `P-n`, `DF-n`, `UC-n` and `LK-n` cited is defined by the security and privacy model
   (`docs/security-and-privacy-model.md`, read by `check_security_model.py`'s own `properties` and
   `defined_ids`); a range such as `P-12…P-17` or `P-12–P-17` (both endpoints prefixed) cites every id
   between its endpoints; every `CB-n`
@@ -17,7 +18,7 @@ Prints JSON with `"passed"` and exits 1 on failure. Nothing here changes a file.
   checked where experiments are named (the scope table's first column, the build map's Task and Builds
   cells and the section headings), so prose such as "EU" is never read as an experiment;
 * the scope table (§1) has a *Built by* column and a row naming at least one builder for every experiment;
-* the build map (§7) names, in its rows' first cells, every task T30…T39 and T64 (a row whose first cell
+* the build map (§7) names, in its rows' first cells, every task T30…T39 and T64…T67 (a row whose first cell
   names no task is reported, not skipped), and names every experiment in a row of one of its builders;
   every experiment's `**Built by.**` field names only known tasks, at least one of them a builder from §1;
 * the registration section (§9.1) and the amendments table (§9.2) exist;
@@ -39,18 +40,27 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_security_model import FORBIDDEN, collapsed, properties, read
+from check_security_model import EXPERIMENTS as MODEL_EXPERIMENTS
+from check_security_model import (
+    FORBIDDEN,
+    LETTERED_EXPERIMENT,
+    collapsed,
+    properties,
+    read,
+)
 from check_security_model import defined_ids as model_defined_ids
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROTOCOL = ROOT / "experiments" / "PROTOCOL.md"
 DEFAULT_MODEL = ROOT / "docs" / "security-and-privacy-model.md"
 
-EXPERIMENTS = [f"E{n}" for n in range(1, 11)] + ["EA"]
+# The registered experiments: the model checker's list, one list for both checkers.
+EXPERIMENTS = list(MODEL_EXPERIMENTS)
 # Planned experiments: a section may exist with `Question` and `Status` only; registered by amendment.
-PLANNED_EXPERIMENTS = ["EL"]
+# EL was planned from version 1 and registered by T64's amendment (version 3, 2026-11-15, D-689).
+PLANNED_EXPERIMENTS: list[str] = []
 PLANNED_FIELDS = ["Question", "Status"]
-TASKS = [f"T{n}" for n in range(30, 40)] + ["T64"]
+TASKS = [f"T{n}" for n in range(30, 40)] + ["T64", "T65", "T66", "T67"]
 REQUIRED_FIELDS = [
     "Question",
     "Properties",
@@ -79,12 +89,14 @@ FIELD_MARKER_RE = re.compile(
     + r")\.\*\*",
     re.MULTILINE,
 )
-CITATION_RE = re.compile(r"\b(P|DF|UC|CB)-(\d+)\b")
+CITATION_RE = re.compile(r"\b(P|DF|UC|LK|CB)-(\d+)\b")
 # A range such as `P-12…P-17`, `CB-1...CB-11` or `P-1–P-3` cites every id between its endpoints. The
 # second endpoint must repeat the prefix, so that "P-4… 300 runs" is a citation of P-4 and a number.
-CITATION_RANGE_RE = re.compile(r"\b(P|DF|UC|CB)-(\d+)\s*(?:…|\.\.\.|–)\s*\1-(\d+)\b")
+CITATION_RANGE_RE = re.compile(r"\b(P|DF|UC|LK|CB)-(\d+)\s*(?:…|\.\.\.|–)\s*\1-(\d+)\b")
 NUMBERED_EXPERIMENT_RE = re.compile(r"\bE(\d+)\b")
-LETTERED_EXPERIMENT_RE = re.compile(r"\bE([A-Z])\b")
+LETTERED_EXPERIMENT_RE = (
+    LETTERED_EXPERIMENT  # one lettered-id pattern, the model checker's
+)
 TASK_RE = re.compile(r"\bT(\d+)\b")
 
 
@@ -112,7 +124,7 @@ def _headings(text: str, start: int):
 
 
 def defined_ids(model_text: str) -> dict[str, set[str]]:
-    """The P-n, DF-n and UC-n the model defines, by `check_security_model.py`'s own reading of its
+    """The P-n, DF-n, UC-n and LK-n the model defines, by `check_security_model.py`'s own reading of its
     headings (so the two checks cannot drift), and the consent-bypass items CB-1…CB-11."""
     numbers = model_defined_ids(model_text, properties(model_text))
     known = {kind: {f"{kind}-{n}" for n in ids} for kind, ids in numbers.items()}
@@ -121,8 +133,14 @@ def defined_ids(model_text: str) -> dict[str, set[str]]:
 
 
 def cited_ids(text: str) -> dict[str, set[str]]:
-    """Every P/DF/UC/CB id the text cites, a range counting every id between its endpoints."""
-    cited: dict[str, set[str]] = {"P": set(), "DF": set(), "UC": set(), "CB": set()}
+    """Every P/DF/UC/LK/CB id the text cites, a range counting every id between its endpoints."""
+    cited: dict[str, set[str]] = {
+        "P": set(),
+        "DF": set(),
+        "UC": set(),
+        "LK": set(),
+        "CB": set(),
+    }
     for kind, number in CITATION_RE.findall(text):
         cited[kind].add(f"{kind}-{number}")
     for kind, first, last in CITATION_RANGE_RE.findall(text):

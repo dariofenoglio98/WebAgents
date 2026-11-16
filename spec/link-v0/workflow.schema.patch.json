@@ -1,0 +1,638 @@
+[
+  {
+    "op": "add",
+    "path": "/$defs/step/properties/type/enum/-",
+    "value": "link"
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/properties/dependency",
+    "value": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/properties/slot",
+    "value": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/properties/locate",
+    "value": {
+      "$ref": "#/$defs/value"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/properties/request",
+    "value": {
+      "type": "object",
+      "properties": {
+        "task": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        }
+      },
+      "required": [
+        "task",
+        "max_output_tokens"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/properties/reason",
+    "value": {
+      "$ref": "#/$defs/value"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/properties/max_joins",
+    "value": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/properties/budget",
+    "value": {
+      "type": "object",
+      "properties": {
+        "model_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "tool_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "compute_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "remote_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/allOf/-",
+    "value": {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "link"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "task"
+              ]
+            },
+            {
+              "required": [
+                "max_output_tokens"
+              ]
+            },
+            {
+              "required": [
+                "tool"
+              ]
+            },
+            {
+              "required": [
+                "item_schema"
+              ]
+            },
+            {
+              "required": [
+                "max_items"
+              ]
+            },
+            {
+              "required": [
+                "max_parallel"
+              ]
+            },
+            {
+              "required": [
+                "steps"
+              ]
+            },
+            {
+              "required": [
+                "yield"
+              ]
+            },
+            {
+              "required": [
+                "select"
+              ]
+            },
+            {
+              "required": [
+                "unique_by"
+              ]
+            },
+            {
+              "required": [
+                "limit"
+              ]
+            },
+            {
+              "required": [
+                "assertions"
+              ]
+            },
+            {
+              "required": [
+                "checks"
+              ]
+            },
+            {
+              "required": [
+                "module"
+              ]
+            },
+            {
+              "required": [
+                "function"
+              ]
+            },
+            {
+              "required": [
+                "input_schema"
+              ]
+            },
+            {
+              "required": [
+                "limits"
+              ]
+            }
+          ]
+        },
+        "oneOf": [
+          {
+            "required": [
+              "dependency"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "slot"
+                  ]
+                },
+                {
+                  "required": [
+                    "locate"
+                  ]
+                },
+                {
+                  "required": [
+                    "request"
+                  ]
+                },
+                {
+                  "required": [
+                    "reason"
+                  ]
+                },
+                {
+                  "required": [
+                    "max_joins"
+                  ]
+                },
+                {
+                  "required": [
+                    "budget"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "required": [
+              "slot",
+              "locate",
+              "request",
+              "max_joins",
+              "budget"
+            ],
+            "not": {
+              "required": [
+                "dependency"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/allOf/-",
+    "value": {
+      "if": {
+        "anyOf": [
+          {
+            "required": [
+              "dependency"
+            ]
+          },
+          {
+            "required": [
+              "slot"
+            ]
+          },
+          {
+            "required": [
+              "locate"
+            ]
+          },
+          {
+            "required": [
+              "request"
+            ]
+          },
+          {
+            "required": [
+              "reason"
+            ]
+          },
+          {
+            "required": [
+              "max_joins"
+            ]
+          },
+          {
+            "required": [
+              "budget"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "link"
+          }
+        }
+      }
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/type/enum/-",
+    "value": "link"
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/dependency",
+    "value": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/slot",
+    "value": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/locate",
+    "value": {
+      "$ref": "#/$defs/value"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/request",
+    "value": {
+      "type": "object",
+      "properties": {
+        "task": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        }
+      },
+      "required": [
+        "task",
+        "max_output_tokens"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/reason",
+    "value": {
+      "$ref": "#/$defs/value"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/max_joins",
+    "value": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/budget",
+    "value": {
+      "type": "object",
+      "properties": {
+        "model_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "tool_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "compute_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "remote_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/allOf/-",
+    "value": {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "link"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "task"
+              ]
+            },
+            {
+              "required": [
+                "max_output_tokens"
+              ]
+            },
+            {
+              "required": [
+                "tool"
+              ]
+            },
+            {
+              "required": [
+                "item_schema"
+              ]
+            },
+            {
+              "required": [
+                "max_items"
+              ]
+            },
+            {
+              "required": [
+                "max_parallel"
+              ]
+            },
+            {
+              "required": [
+                "steps"
+              ]
+            },
+            {
+              "required": [
+                "yield"
+              ]
+            },
+            {
+              "required": [
+                "select"
+              ]
+            },
+            {
+              "required": [
+                "unique_by"
+              ]
+            },
+            {
+              "required": [
+                "limit"
+              ]
+            },
+            {
+              "required": [
+                "assertions"
+              ]
+            },
+            {
+              "required": [
+                "checks"
+              ]
+            },
+            {
+              "required": [
+                "module"
+              ]
+            },
+            {
+              "required": [
+                "function"
+              ]
+            },
+            {
+              "required": [
+                "input_schema"
+              ]
+            },
+            {
+              "required": [
+                "limits"
+              ]
+            },
+            {
+              "required": [
+                "permissions"
+              ]
+            },
+            {
+              "required": [
+                "text"
+              ]
+            }
+          ]
+        },
+        "oneOf": [
+          {
+            "required": [
+              "dependency"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "slot"
+                  ]
+                },
+                {
+                  "required": [
+                    "locate"
+                  ]
+                },
+                {
+                  "required": [
+                    "request"
+                  ]
+                },
+                {
+                  "required": [
+                    "reason"
+                  ]
+                },
+                {
+                  "required": [
+                    "max_joins"
+                  ]
+                },
+                {
+                  "required": [
+                    "budget"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "required": [
+              "slot",
+              "locate",
+              "request",
+              "max_joins",
+              "budget"
+            ],
+            "not": {
+              "required": [
+                "dependency"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/allOf/-",
+    "value": {
+      "if": {
+        "anyOf": [
+          {
+            "required": [
+              "dependency"
+            ]
+          },
+          {
+            "required": [
+              "slot"
+            ]
+          },
+          {
+            "required": [
+              "locate"
+            ]
+          },
+          {
+            "required": [
+              "request"
+            ]
+          },
+          {
+            "required": [
+              "reason"
+            ]
+          },
+          {
+            "required": [
+              "max_joins"
+            ]
+          },
+          {
+            "required": [
+              "budget"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "link"
+          }
+        }
+      }
+    }
+  }
+]

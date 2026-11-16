@@ -472,6 +472,39 @@ spends that receipt: every plan under it is then stale
 (`authorization_once_spent`) until the person authorizes again. A one-time
 purchase authority therefore cannot be replayed by pressing Run twice.
 
+### 7a. Linked packages (link.v0)
+
+A package that declares dependencies asks other publishers' packages for help
+([`spec/link-v0.md`](../spec/link-v0.md)). The control plane treats each linked package as what
+it is, a package: `resolve_links` fetches it from its locator under the same URL policy as
+`open-url` (or reads an archive the operator supplied to the Python API, accepted only by the
+pinned digest), snapshots it, evaluates it and opens it as **a session of its own**, then checks
+it against the caller's record (identity, digest, declared signer, a one-shot workflow.v0
+target, depth one). A refusal leaves no session behind. The linked session's publisher report
+is the person's own trust store's answer about that key; the caller's trust says nothing
+about it.
+
+The review (`GET …/links`) lists every linked package with its session, its publisher, its own
+worst case and where its decision stands, grouped by publisher key, with the composed envelope.
+The person decides per linked publisher through the ordinary path: `authorize` on the linked
+session issues **its own receipt**, and `run-plan` on it prepares **its own inner Run Plan**,
+which carries `parent: {package_digest, dependency}` and is hash-bound over it. `links/decide`
+denies a publisher's key instead; every dependency that key signed is then denied, and
+withdrawing the denial through any one of them withdraws it for all of them.
+
+The caller's `run-plan` is refused until every link is resolved and decided (`link_unresolved`,
+`link_undecided`: an accepted link has a ready inner plan on the same model) and the composed
+worst case fits the caller's own budget (`link_bound_exceeds_budget`). The plan then records
+`links: {<id>: {package_id, version, digest, archive_sha256, signer, trust, decision,
+plan_hash}}`, states the composed envelope, and is hash-bound over both. Its preflight
+re-verifies every inner plan: cleared, changed, itself stale, or prepared for another caller.
+A linked session dies with its caller's. Nothing here runs anything: the execution session is
+handed each accepted link's inner plan and its own lease, and verifies each archive itself.
+A linked session's `execution-lease` is issued only beside its caller's: while the caller holds
+a live lease on a plan that names this inner plan as accepted (`link_lease_without_caller`
+otherwise), so the caller is leased first. An inner plan is authority only inside its caller's
+run, and the execution session refuses one handed over as a caller's plan.
+
 ### Host-owned resources
 
 A package can request a *type* of resource the person's host holds — a
@@ -575,6 +608,9 @@ Loopback HTTP, JSON in and out, versioned under `/v0`. Everything except
 | POST | `/v0/packages/{id}/run-plan` | `{"package_digest", "receipt_id", "model_id", "catalog", "tool_registry", "resource_registry", "probe_tool_id", "execution_mode", …}` → plan + preflight. |
 | GET | `/v0/packages/{id}/run-plan` | The prepared plan plus a recomputed preflight, or 404. |
 | DELETE | `/v0/packages/{id}/run-plan` | Discard the prepared run plan. |
+| GET | `/v0/packages/{id}/links` | The review of this package's links (link.v0, §7a): each linked package with its session, publisher, worst case and decision. |
+| POST | `/v0/packages/{id}/links/resolve` | `{"package_digest"}` → fetch every dependency from its locator under the package-URL policy, open each as a session of its own, check it against its record; the review. No local archive is named over this API. |
+| POST | `/v0/packages/{id}/links/decide` | `{"package_digest", "dependency", "decision": "denied" \| "undecided"}` → deny one linked publisher's key, or withdraw the denial. Accepting is the linked session's own `authorize`. |
 | POST | `/v0/packages/{id}/execution-lease` | `{"package_digest", "run_plan_id", "run_plan_sha256"}` → one **private, one-time copy** of this session's immutable snapshot, issued only while the plan is ready. The response carries a local path and therefore never leaves the authenticated host caller. |
 | DELETE | `/v0/packages/{id}/execution-lease/{lease_id}` | Delete that copy. Idempotent. |
 | DELETE | `/v0/packages/{id}` | Close the session and delete its snapshot. |
@@ -598,7 +634,12 @@ include `unauthorized`, `not_found`, `method_not_allowed`, `invalid_request`,
 `model_unknown`, `receipt_mismatch`, `run_plan_refused`, `run_plan_absent`,
 `unsupported_execution_mode`, `unsupported_binding_strategy`,
 `resource_registry_missing`, `resource_not_requested`, `resource_selection_denied`,
-`resource_unknown`, `resource_selection_required`.
+`resource_unknown`, `resource_selection_required`, and for links `link_fetch_failed`,
+`link_package_invalid`, `link_signature_invalid`, `link_identity_mismatch`,
+`link_digest_mismatch`, `link_signer_mismatch`, `link_target_conversational`, `link_nested`,
+`link_dependency_unknown`, `link_lease_without_caller`; a caller's `run_plan_refused` may carry `link_unresolved`,
+`link_undecided` or `link_bound_exceeds_budget` among its blocking reasons, and a stale plan
+`link_plan_cleared`, `link_plan_changed`, `link_plan_stale` or `link_plan_parent_mismatch`.
 
 Unknown request fields are **refused**, never ignored, so a future field cannot
 silently change security behavior against an older service.

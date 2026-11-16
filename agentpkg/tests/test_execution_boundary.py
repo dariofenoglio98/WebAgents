@@ -41,6 +41,10 @@ ALLOWED = {
     "errors",
     "hostbridge",
     "interfaces",
+    # link.v0: the run's link host is built from the plan's links and the inner plans; a
+    # linked archive is verified by `links.resolve`, which imports no control plane and no
+    # transport (asserted below), and an inner run is an ordinary run of the interpreter.
+    "links",
     "package",
     "runtime",
     "signing",
@@ -368,3 +372,13 @@ def test_the_runner_never_spawns_a_process_of_its_own():
         source = module.read_text()
         for banned in ("subprocess", "os.fork", "os.exec", "os.spawn", "multiprocessing"):
             assert banned not in source, f"{module.name} contains {banned}"
+
+
+def test_what_the_runner_imports_of_links_reaches_no_control_plane_and_no_transport():
+    """The execution host verifies linked archives and fetches nothing: the link modules it
+    imports name neither the control plane nor a transport, at any depth of a function."""
+    links = SRC / "agentpkg/links"
+    for name in ("resolve.py", "host.py", "analysis.py", "declarations.py", "errors.py"):
+        imported = _imported(ast.parse((links / name).read_text(), filename=name))
+        assert not imported & {"browser", "network", "netaddr", "tools", "models", "cli"}, name
+    assert "browser" in _imported(ast.parse((links / "fetch.py").read_text()))

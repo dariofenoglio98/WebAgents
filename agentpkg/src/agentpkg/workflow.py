@@ -7,6 +7,7 @@ import copy
 
 from .compute.errors import ComputeError
 from .errors import AgentPkgError, ValidationError
+from .links.errors import LinkError
 from .runtime import BudgetError, PolicyError, Runtime, digest
 from .validation import schema_validator, validate_instance, validate_payload
 from .workflow_values import evaluate, select, tokens
@@ -36,6 +37,8 @@ def failure_code(exc):
         return "permission_denied"
     if isinstance(exc, ComputeError):
         return "compute_error"
+    if isinstance(exc, LinkError):
+        return "link_error"
     return "worker_error"
 
 
@@ -89,6 +92,7 @@ class Workflow:
         memory=None,
         turn=None,
         deadline_seconds=None,
+        links=None,
     ):
         # Recheck the exact payload, not mutable manifest/graph aliases supplied by callers.
         from .package import integrity_statement
@@ -132,6 +136,7 @@ class Workflow:
             observer=observer,
             memory=memory,
             turn=turn,
+            links=links,
         )
         self._used = False
         self._task = None
@@ -263,6 +268,18 @@ class Workflow:
                 raise
             except ConsentError as exc:
                 raise WorkflowError("worker_error", node["id"]) from exc
+        elif kind == "link":
+            # link.v0: another publisher's package, run as an inner run from its own plan
+            # (§5). The mediator validates the input against the linked package's schema,
+            # reserves, starts, settles and records; a failed inner run is `link_error`, and
+            # the result is checked against this step's own schema below (L-5, L-27).
+            if "slot" in node:
+                raise PolicyError(
+                    "link_join_unavailable: this runtime validates a slot and cannot run one yet"
+                )
+            result = await ctx.link(
+                node, value, min(node["timeout_seconds"], self.deadline_seconds)
+            )
         elif kind == "network":
             # network.v0: the graph's delegation network, run by the coordinator's one node:
             # activations as worker instances, the model's route decisions checked against the
@@ -332,7 +349,10 @@ class Workflow:
                 self.package.files, node["output_schema"], result, f"node {node['id']} output"
             )
         except ValidationError as exc:
-            exc.failed_check = {"check": "output_schema", "schema": node["output_schema"]}
+            exc.failed_check = {
+                "check": "link_result" if kind == "link" else "output_schema",
+                "schema": node["output_schema"],
+            }
             raise
         return result
 
@@ -691,6 +711,16 @@ class Workflow:
             **({"consents": copy.deepcopy(self.runtime.consent_decisions)} if turn else {}),
             "audit": self.runtime.audit,
             "usage": self.runtime.usage,
+            # link.v0 L-30: the run's links (publisher, decision, inner plan, the inner runs
+            # made) and each inner run's own report, which a host writes beside this one.
+            **(
+                {
+                    "links": self.runtime.links.record(),
+                    "inner_runs": dict(self.runtime.links.reports),
+                }
+                if self.runtime.links is not None
+                else {}
+            ),
             "provenance": {
                 "profile": "workflow.v0",
                 "interpreter": "agentpkg.workflow.Workflow",

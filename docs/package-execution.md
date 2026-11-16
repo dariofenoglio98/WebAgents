@@ -658,7 +658,8 @@ function and schemas, and a call by its bytes in and out.
   effective limits, the permission), `compute.completed` (output hash and bytes, memory pages,
   `engine: {id, elapsed_ms, fuel_consumed}`) or `compute.failed` (the reason and its facts), each
   naming the node or map step that made the call, on the coordinator as on a worker. The run's
-  `usage` carries `compute_calls` exactly when the graph declares modules.
+  `usage` carries `compute_calls` exactly when the graph declares modules or the run holds links
+  (§14e: a linked package's compute calls are counted in it).
 - **Fixture mode runs modules for real** (C-50): the fixture document has no compute key; the
   same bytes give the same output in every mode and on every conforming engine (C-47).
 
@@ -748,6 +749,47 @@ declared.
   per activation (`role_budgets`, agentpkg 0.7.1). The Chrome Agent Browser runs networks too (core
   0.5.0, T26): the same bound and refusals (the conformance suite's network family), "at most" on the
   agent page, the route decisions on the run page ([Chrome guide §14](chrome-agent-browser.md#14-delegation-networks-t26)).
+
+## 14e. Links: another publisher's package as an inner run (link.v0)
+
+agentpkg 0.8.0 implements the planned link of [link.v0](../spec/link-v0.md) in the same
+interpreter: a `link` step names a dependency of the signed manifest, and the mediator runs
+that package's own program as an inner run. Nothing about it is package-specific (D-009): the
+runtime knows a dependency from its record, a linked package from its verified bytes, and a
+decision from the host.
+
+- **Before the run** a host resolves every dependency (`links/resolve.py`: the bytes, a valid
+  signature, the record's identity, digest and signer, a one-shot target, depth one) and binds
+  the person's decision on each linked publisher: accepted, with that package's own grants and
+  tool approvals, or denied (`links/host.py:LinkHost`). A dependency without a decision, and a
+  composition whose worst case the caller's own budget cannot hold, refuse before anything runs.
+  The developer CLI is such a host: `agentpkg run <caller> --link <id>=<archive> --link-grants
+  <id>=<grants.json> --approve-tool <id>:<tool>` or `--deny-link <id>`; `agentpkg inspect
+  <caller> --link …` prints the composed envelope, and refuses when only some dependencies are
+  supplied. A dependency given no `--link` is fetched from its locator under the package-URL
+  policy. `--trust-key` is repeatable: the first key pins the caller's publisher and only that
+  one verifies the caller; every key given is in the set a linked publisher is trusted by.
+- **At the step** (`Runtime.call_link`): a denied link is refused (`link.denied`); the input is
+  validated against the linked package's input schema; the linked worst case is reserved in
+  tokens and remote calls against what the run has left, and against the caller's
+  `approval_threshold_tokens` as a model call is (`link.refused` otherwise), and held;
+  `link.started` names the inner run; the inner run is a `Workflow` over the linked package
+  built from its binding alone, with the caller's model route and the reservation as its
+  limits; afterwards the caller's counters take its usage (tokens, remote calls, compute calls,
+  tool calls qualified `<dependency>:<tool>`; `usage.links` states each link's figures, its
+  model calls there only) and `link.completed` or `link.failed` is recorded. A failed inner run
+  fails the step `link_error`; one that could not be built charges nothing.
+- **The execution host** is handed the caller's plan with each accepted link's inner plan and
+  archive. It refuses an inner plan begun as a caller's plan, applies to each inner plan the
+  authorization checks it applies to the caller's, and records the network's "at most" with the
+  links' costs: the figures `network.started` states.
+- **The record.** `links.json` lists each link with its publisher, the decision and the inner
+  plan, and the inner runs made; each inner run's own `result`, `audit`, `usage` and `provenance`
+  are written beside the caller's as `link-<inner run id>.*.json`.
+  `scripts/verify_link_run.py <run directory>` recomputes the composed bound from the
+  declarations and checks the record against it.
+- **Fixture mode.** An inner run replays the linked package's own fixture, so the example
+  planner's walk runs through both links offline.
 
 ## 15. Why Meeting Agenda was the first package
 

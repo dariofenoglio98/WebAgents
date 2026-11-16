@@ -19,8 +19,11 @@ Reads `docs/security-and-privacy-model.md` and checks, offline and without impor
   ranges or "and") is an id its specification's text holds; every rule id (M-n, C-n, V-n, R-n)
   occurs in its specification; every CB-n is one of CB-1…CB-11 (the consent-bypass list is in a
   private survey, so the bound is a constant here, as is E1…E10);
-* every experiment id is one of E1…E10 or EA;
-* every `P-n`, `DF-n` and `UC-n` cited from the specifications, `docs/threat-model.md`,
+* every experiment id is one of E1…E10, EA or EL: a numbered id anywhere in the model, a lettered
+  one where an experiment is named (a property's Experiment field, and an id list that follows
+  "experiment", "experiments" or "ids"), so a misspelt lettered id fails and prose such as "EU"
+  is never read as one;
+* every `P-n`, `DF-n`, `UC-n` and `LK-n` cited from the specifications, `docs/threat-model.md`,
   `docs/README.md`, `README.md` and the model itself is in the set of ids the model defines (a
   removed id in the middle of a range is not citable);
 * the front map of `docs/threat-model.md` ("The properties these notes implement") agrees with the
@@ -103,28 +106,49 @@ CASE_ID = re.compile(r"`([a-z][a-z0-9.-]*)/([a-z0-9][a-z0-9_.-]*)`")
 # Tokens a Conformance field may name that are neither a case id nor a path.
 NON_CASE_TOKENS = {"npm run check-pack", "once"}
 SPEC_CASE = re.compile(
-    r"\b(memory|compute|conversation|network)\s+(N-?\d+(?:\s*(?:,|;|…|and)\s*N-?\d+)*)"
+    r"\b(memory|compute|conversation|network|link)\s+(N-?\d+(?:\s*(?:,|;|…|and)\s*N-?\d+)*)"
 )
 SPEC_CASE_SPEC = {
     "memory": "spec/memory-v0.md",
     "compute": "spec/compute-v0.md",
     "conversation": "spec/conversation-v0.md",
     "network": "spec/network-v0.md",
+    "link": "spec/link-v0.md",
 }
 SPEC_CASE_NUMBER = re.compile(r"\bN-?(\d+)\b")
-RULE_ID = re.compile(r"\b([MCVR])-(\d+)\b")
+RULE_ID = re.compile(r"\b([MCVRL])-(\d+)\b")
 RULE_SPEC = {
     "M": "spec/memory-v0.md",
     "C": "spec/compute-v0.md",
     "V": "spec/conversation-v0.md",
     "R": "spec/network-v0.md",
+    "L": "spec/link-v0.md",
 }
 CB_ID = re.compile(r"\bCB-(\d+)\b")
 EXPERIMENT = re.compile(r"\bE(\d{1,2})\b")
+# The experiments the protocol registers: E1…E10 and the lettered EA (the external attack suite) and
+# EL (linkable agents, registered by the protocol's amendment of 2026-11-15, T64). One list, which
+# `scripts/check_protocol.py` imports, as it imports `defined_ids`.
+NUMBERED_EXPERIMENTS = [f"E{n}" for n in range(1, 11)]
+LETTERED_EXPERIMENTS = ["EA", "EL"]
+EXPERIMENTS = NUMBERED_EXPERIMENTS + LETTERED_EXPERIMENTS
+LETTERED_EXPERIMENT = re.compile(r"\bE([A-Z])\b")
+# A lettered id is read only where an experiment is named, because "EU" or "EK" in prose is a
+# word: in an id list after "experiment(s)" or "ids", in any case ("experiment EL", "Experiment
+# EL", "The ids E1…E10, EA and EL", "experiments E7, E8, and EL", "experiments E1–E10 or EL"), and
+# in the id list that opens a property's Experiment field, its parenthetical notes skipped.
+_EXPERIMENT_ID = r"E(?:\d{1,2}|[A-Z])\b"
+_ID_SEPARATOR = r"(?:\s*(?:,\s*(?:and|or)\b|,|;|…|–|\band\b|\bor\b)\s*)"
+_ID_LIST = "((?:" + _EXPERIMENT_ID + _ID_SEPARATOR + "?)+)"
+EXPERIMENT_LIST = re.compile(r"\b(?i:experiments?|ids)\s+" + _ID_LIST)
+EXPERIMENT_FIELD = re.compile(r"\*\*Experiment\.\*\*\s*" + _ID_LIST)
+PARENTHETICAL = re.compile(r"\([^()]*\)")
 PROPERTY_HEADING = re.compile(r"^### (P-(\d+))\b")
 DF_HEADING = re.compile(r"^#### DF-(\d+)\b", re.MULTILINE)
 UC_HEADING = re.compile(r"^- \*\*UC-(\d+)\b", re.MULTILINE)
-CITATION = re.compile(r"\b(P|DF|UC)-(\d+)\b")
+# Agent Links (planned, §6.1; T64, D-680): the same bullet form as UC-n.
+LK_HEADING = re.compile(r"^- \*\*LK-(\d+)\b", re.MULTILINE)
+CITATION = re.compile(r"\b(P|DF|UC|LK)-(\d+)\b")
 REPORT_DIR = re.compile(r"conformance/results/([0-9A-Za-z-]+)/")
 SECTION_HEADING = re.compile(r"^#{2,3} (.+?)\s*$")
 PROPERTIES_LINE = re.compile(r"^\*Properties:(.*)\*\s*$")
@@ -185,7 +209,7 @@ def known_case_ids(report_path: Path | None) -> tuple[set[str], set[str]]:
         for case in report.get("cases", []):
             if isinstance(case, dict) and isinstance(case.get("id"), str):
                 ids.add(case["id"])
-    for family in ("compute", "network", "conversation"):
+    for family in ("compute", "network", "conversation", "link"):
         cases = ROOT / "examples" / family / "cases" / "cases.json"
         if cases.exists():
             document = json.loads(read(cases))
@@ -309,11 +333,39 @@ def check_case_ids(text: str, props: list[dict], report: dict) -> None:
     }
 
 
+def masked_parentheticals(text: str) -> str:
+    """The text with every parenthetical note blanked, positions kept, so that an id list can be
+    read across its notes ("E1 (the first catalog is cited), E8")."""
+    while True:
+        masked = PARENTHETICAL.sub(lambda match: " " * len(match.group()), text)
+        if masked == text:
+            return masked
+        text = masked
+
+
+def lettered_experiments(text: str) -> dict[int, str]:
+    """Every lettered experiment id named in the text, by its position: the ids of the id lists
+    and of the list that opens a property's Experiment field. A position is counted once, whichever
+    of the two forms reads it."""
+    found: dict[int, str] = {}
+    for pattern, body in (
+        (EXPERIMENT_LIST, text),
+        (EXPERIMENT_FIELD, masked_parentheticals(text)),
+    ):
+        for match in pattern.finditer(body):
+            for letter in LETTERED_EXPERIMENT.finditer(match.group(1)):
+                found[match.start(1) + letter.start()] = letter.group()
+    return found
+
+
 def check_experiments(text: str, report: dict) -> None:
-    bad = sorted({f"E{n}" for n in EXPERIMENT.findall(text) if not 1 <= int(n) <= 10})
+    numbered = EXPERIMENT.findall(text)
+    lettered = lettered_experiments(text)
+    bad = {f"E{n}" for n in numbered if f"E{n}" not in NUMBERED_EXPERIMENTS}
+    bad |= set(lettered.values()) - set(LETTERED_EXPERIMENTS)
     report["experiments"] = {
-        "cited": len(EXPERIMENT.findall(text)) + text.count(" EA"),
-        "unknown": bad,
+        "cited": len(numbered) + len(lettered),
+        "unknown": sorted(bad),
         "passed": not bad,
     }
 
@@ -347,19 +399,44 @@ def check_properties(props: list[dict], report: dict) -> list[str]:
     return none_experiment
 
 
+SERIES_HEADINGS = {"DF": DF_HEADING, "UC": UC_HEADING, "LK": LK_HEADING}
+
+
+def check_id_series(text: str, report: dict) -> None:
+    """DF-n, UC-n and LK-n run from 1 without a gap or a duplicate, as P-n does: a deleted or a
+    repeated bullet is a defect of the model, not only a changed count."""
+    gaps, duplicates, counts = [], [], {}
+    for kind, heading in SERIES_HEADINGS.items():
+        numbers = [int(n) for n in heading.findall(text)]
+        counts[kind] = len(numbers)
+        gaps += [
+            f"{kind}-{n}"
+            for n in range(1, max(numbers, default=0) + 1)
+            if n not in numbers
+        ]
+        duplicates += sorted({f"{kind}-{n}" for n in numbers if numbers.count(n) > 1})
+    report["id_series"] = {
+        "count": counts,
+        "gaps": gaps,
+        "duplicates": duplicates,
+        "passed": not gaps and not duplicates,
+    }
+
+
 def defined_ids(text: str, props: list[dict]) -> dict[str, set[int]]:
-    """The sets of P-n, DF-n and UC-n the model defines."""
+    """The sets of P-n, DF-n, UC-n and LK-n the model defines."""
     return {
         "P": {p["number"] for p in props},
         "DF": {int(n) for n in DF_HEADING.findall(text)},
         "UC": {int(n) for n in UC_HEADING.findall(text)},
+        "LK": {int(n) for n in LK_HEADING.findall(text)},
     }
 
 
 def check_citations(
     model: Path, text: str, props: list[dict], documents: list[Path], report: dict
 ) -> None:
-    """Every P-n, DF-n, UC-n cited from the model, the specs, the threat model and the READMEs."""
+    """Every P-n, DF-n, UC-n, LK-n cited from the model, the specs, the threat model and the READMEs."""
     defined = defined_ids(text, props)
     unknown = []
     cited = 0
@@ -564,6 +641,7 @@ def run_checks(
     check_pointers(text, report)
     check_case_ids(text, props, report)
     check_experiments(text, report)
+    check_id_series(text, report)
     docs = cited_documents() if documents is None else documents
     check_citations(model, text, props, docs, report)
     check_threat_model_map(threat_model, {p["id"] for p in props}, report)

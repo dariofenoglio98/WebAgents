@@ -1,0 +1,96 @@
+{
+  "profile": "workflow.fixture.v0",
+  "input": {
+    "check_in": "2027-03-09",
+    "check_out": "2027-03-14",
+    "travellers": 1
+  },
+  "models": {
+    "propose": [
+      {
+        "input": {
+          "request": {
+            "check_in": "2027-03-09",
+            "check_out": "2027-03-14",
+            "travellers": 1
+          },
+          "found": {
+            "hotel": {
+              "id": "SALITUBAM",
+              "name": "Hotel Salitubam (fictional)",
+              "city": "KEF"
+            },
+            "offers": [
+              {
+                "id": "SAL-STD-20270309-5N",
+                "room": "Standard double",
+                "rooms": 1,
+                "nights": 5,
+                "price_usd": 910
+              },
+              {
+                "id": "SAL-FAM-20270309-5N",
+                "room": "Family room",
+                "rooms": 1,
+                "nights": 5,
+                "price_usd": 1230
+              },
+              {
+                "id": "SAL-HRB-20270309-5N",
+                "room": "Harbour suite",
+                "rooms": 1,
+                "nights": 5,
+                "price_usd": 1590
+              }
+            ]
+          }
+        },
+        "output": {
+          "recommended": "SAL-STD-20270309-5N",
+          "reason": "One traveller fits the standard double, the cheapest room: $910 for five nights."
+        }
+      }
+    ]
+  },
+  "tools": {
+    "check-availability": [
+      {
+        "input": {
+          "check_in": "2027-03-09",
+          "check_out": "2027-03-14",
+          "travellers": 1
+        },
+        "output": {
+          "hotel": {
+            "id": "SALITUBAM",
+            "name": "Hotel Salitubam (fictional)",
+            "city": "KEF"
+          },
+          "offers": [
+            {
+              "id": "SAL-STD-20270309-5N",
+              "room": "Standard double",
+              "rooms": 1,
+              "nights": 5,
+              "price_usd": 910
+            },
+            {
+              "id": "SAL-FAM-20270309-5N",
+              "room": "Family room",
+              "rooms": 1,
+              "nights": 5,
+              "price_usd": 1230
+            },
+            {
+              "id": "SAL-HRB-20270309-5N",
+              "room": "Harbour suite",
+              "rooms": 1,
+              "nights": 5,
+              "price_usd": 1590
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -327,7 +327,8 @@ engine) reports the memory size its engine could still read: none in Chrome, who
 is gone (`memory_pages: null`, D-250).
 
 The run's `usage` gains `compute_calls` exactly when the graph declares modules, so every earlier
-package's usage is unchanged. When two runtimes' audits are compared (the conformance suite, D-063),
+package's usage is unchanged (a run that holds links carries it too, with its linked packages'
+compute calls in it: [link.v0](link-v0.md) L-26). When two runtimes' audits are compared (the conformance suite, D-063),
 `engine` and `limits.fuel` are dropped and `memory_pages` is compared: it is a property of the
 module's growth, which the format makes deterministic; after `fuel_exhausted` or `deadline` it is
 the engine's and is not compared, and the two reasons compare as one (a bound was reached), since

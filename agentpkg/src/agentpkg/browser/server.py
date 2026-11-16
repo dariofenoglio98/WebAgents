@@ -136,6 +136,15 @@ class BrowserAPI:
             if method == "DELETE":
                 return 200, self.control.clear_run_plan(session_id)
             return self._only(method, "GET", lambda: (200, self.control.run_plan(session_id)))
+        # link.v0 (§3): the review of a package's links, their resolution from their locators,
+        # and the denial of one linked publisher. Accepting a linked package is its own
+        # session's `authorize`; a local archive is never named over this API.
+        if rest == ["links"]:
+            return self._only(method, "GET", lambda: (200, self.control.links(session_id)))
+        if rest == ["links", "resolve"]:
+            return self._only(method, "POST", lambda: self._resolve_links(session_id, body))
+        if rest == ["links", "decide"]:
+            return self._only(method, "POST", lambda: self._decide_link(session_id, body))
         if rest == ["execution-lease"]:
             return self._only(method, "POST", lambda: self._issue_lease(session_id, body))
         if len(rest) == 2 and rest[0] == "execution-lease":
@@ -145,6 +154,20 @@ class BrowserAPI:
                 lambda: (200, self.control.release_execution_lease(session_id, rest[1])),
             )
         raise ControlPlaneError("not_found", "Unknown package route", status=404)
+
+    def _resolve_links(self, session_id, body):
+        payload = _object(body, {"package_digest"}, {"package_digest"})
+        return 200, self.control.resolve_links(session_id, package_digest=payload["package_digest"])
+
+    def _decide_link(self, session_id, body):
+        fields = {"package_digest", "dependency", "decision"}
+        payload = _object(body, fields, fields)
+        return 200, self.control.decide_link(
+            session_id,
+            package_digest=payload["package_digest"],
+            dependency=payload["dependency"],
+            decision=payload["decision"],
+        )
 
     def _issue_lease(self, session_id, body):
         """Issue one private copy of an immutable snapshot to a trusted runner.

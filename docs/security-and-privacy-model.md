@@ -1,4 +1,4 @@
-# The Agent-Native Web: security and privacy model, version 2
+# The Agent-Native Web: security and privacy model, version 3
 
 **Status.** Version 2, approved at gate 2 (2026-11-02) and corrected after review 1 (2026-11-02;
 §8). Normative for the Python reference (`agentpkg` 0.7.1) and the Chrome core (0.5.0) at `main`
@@ -7,7 +7,9 @@ plugin 0.1.0 is the frozen reference shell, and where its path differs from the 
 says so (P-8, P-13). §5.4 and §6 are **planned** and bind the tasks named there; they claim
 nothing about today's code. The per-boundary implementation notes that this model replaces as the
 primary statement are kept in [threat-model.md](threat-model.md); every claim there now cites a
-property of §3.
+property of §3. **Version 3** (2026-11-15, T65) turns §6.1's
+commitments for planned links (LK-1…LK-5) into implemented statements for the Python reference
+(`agentpkg` 0.8.0), with pointers and cases, and extends P-4, P-5, P-7, P-9 and P-17 by one sentence each; the Chrome core's pointers are T66's.
 
 ## 0. How to read this document
 
@@ -39,11 +41,12 @@ Run Invocation (plan + input) → Run Record (status, usage, artifacts, hash-lin
 `personal.read` and `memory.read` request a host-owned resource by *type*; `once` is spent by the
 first run. Fixture mode replays the package's own exact-input answers with no network and no model.
 
-**Experiments.** The ids E1…E10 and EA name the mechanism paper's evaluation (E1 the enforcement
-catalog with ablations on both runtimes; E2 a framework agent as the baseline; E3 the injection
-campaign; E4 the memory leakage channel table; E5 the delegation bound; E6 the consent-bypass
-catalog; E7 overhead; E8 the conformance report; E9 agent-native against the human web; E10 the
-compromised model; EA an external attack suite ported as packages). Their protocol is published
+**Experiments.** The ids E1…E10, EA and EL name the mechanism paper's evaluation (E1 the
+enforcement catalog with ablations on both runtimes; E2 a framework agent as the baseline; E3 the
+injection campaign; E4 the memory leakage channel table; E5 the delegation bound; E6 the
+consent-bypass catalog; E7 overhead; E8 the conformance report; E9 agent-native against the human
+web; E10 the compromised model; EA an external attack suite ported as packages; EL linkable
+agents, composition across publishers, which the planned §6.1 cites). Their protocol is published
 with the paper; this model names which experiment measures which property.
 
 ## 1. Setting and trusted computing base
@@ -90,6 +93,7 @@ who finds an unstated widening will doubt the rest.
 | **Agent Compute** (`compute.v0`) | the WebAssembly engine (wasmtime on the reference; V8 in Chrome and Node) | a module is bounded through the format and the engine's own limits, not an OS sandbox: **a bug in the engine is a bug in the host** |
 | **Agent Conversations** (`conversation.v0`) | the consent host: the surface that shows a card and returns the person's answer (an extension page; in tests, a transcript) | the decision is the host's record of the person's answer; a host that answers for the person is the person |
 | **Agent Delegation** (`network.v0`) | the worst-case analysis and the transition check | the "at most" shown before a run is a theorem about the declaration computed by this code; the runner recomputes it from the verified bytes, so the plan cannot understate it, but both computations are trusted code |
+| **Agent Links** (`link.v0`) | the link resolver, the composition and the inner run's construction | a linked package is fetched and verified by this code, its worst case is composed into the caller's by this code, and its inner run is built by this code from its own binding: an inner run handed anything of the caller's would hold authority the person did not grant, and a composition that understated a link would understate the "at most" |
 
 ### 1.4 The shells
 
@@ -319,7 +323,7 @@ that needs it. Nothing a skill says, a model emits, a tool returns or a record c
 a grant. The Chrome core's presets, profiles and policies pre-decide or select within the
 declaration and the preset's ceiling (a policy can lift an optional permission the preset left
 denied up to that ceiling, and approve a tool by default), never beyond the declaration, and the
-provenance of every decision is recorded; the reference has none of the three.
+provenance of every decision is recorded; the reference has none of the three. Across a link (§6.1, LK-3) the rule holds per package: a linked package's inner run holds its own declaration within the person's grants on its own card, and nothing that was granted to its caller.
 
 **Adversary.** A-PKG; A-MODEL; injected content (A-ORIG, A-TOOL, A-MEM, A-PEER); A-ISS.
 
@@ -346,7 +350,7 @@ refused),
 `control-plane/partial_approvals_without_profile`, `compute/permission-denied`,
 `compute/permission-missing`, `memory/n3-read-denied`, and `once` consumed at its first use
 within a run: `once-overused`, `network/once-memory`, `network/once-model` (compute N-12, N-19;
-memory N3).
+memory N3). Across a link: `link/grant-not-inherited`, `link/once-across-link` (link N-24, N-27).
 
 **Experiment.** E1 (the authorization family of the first catalog is cited; the second catalog's
 four families), E3 (an injection cannot widen a grant), E6 (CB-2, CB-6), E10 (a compromised model
@@ -373,7 +377,7 @@ availability or identity, receipt expiry) refuses as stale and is replaced, neve
 reference, the component that shows and authorizes cannot import the interpreter (a static scan
 and a fresh-interpreter check enforce it), and in the extension the separation is by execution
 context (the service worker authorizes, the offscreen document's Worker runs), not by an import
-rule: the service worker imports a digest helper from the interpreter module.
+rule: the service worker imports a digest helper from the interpreter module. Across a link (§6.1, LK-1, LK-2) each linked package has its own receipt and its own inner Run Plan, which names the caller it was prepared for; the caller's plan records each inner plan's hash, re-verification covers every one, and the execution host is handed each accepted link's inner plan and archive and verifies both itself.
 
 **Adversary.** A-PKG, A-ORIG or A-ISS changing the world between consent and start: a re-signed
 package, a withdrawn pin, a swapped binding or record, a replayed plan; a stale page authorizing
@@ -398,7 +402,7 @@ receipt spent at the first lease),
 
 **Conformance.** `control-plane/stale_trust_revoked`, `control-plane/stale_tool_changed`,
 `control-plane/once_replayed` (the receipt spent by the first lease; `once` within a run is P-4's),
-`network/execution-layer-envelope` (network N-28, N-29).
+`network/execution-layer-envelope` (network N-28, N-29). Across a link: `link/inner-plan-replay` and `link/inner-plan-alone` (link N-34, N-54), and the control plane's re-verification in `agentpkg/tests/test_link_control.py`.
 
 **Experiment.** E1 (the plan-binding family of the first catalog is cited; the envelope-reservation
 profile of the second), E6 (CB-4, CB-5), E7 (preparation and re-verification cost).
@@ -454,7 +458,7 @@ admissible walk (model calls, compute calls, remote calls, tokens, seconds) is c
 declaration, shown before the run as "at most", checked at validation against the package's budget
 (tokens and remote calls) and admitted before the first activation against what the run has left,
 with nothing held (P-9). A refused route is a visible failure, after the Chrome core's bounded
-re-asks (R-28), never a silent extra call.
+re-asks (R-28), never a silent extra call. A `link` step (§6.1) is a declared operation of that graph: the package it runs is fixed by the digest in the signed manifest, and its own worst case is inside the bound stated before the run (LK-4).
 
 **Adversary.** A-MODEL or A-PEER looping, fanning out or routing outside the edges (termination
 poisoning, inter-role injection); A-PKG declaring a bound its own budget cannot hold.
@@ -475,7 +479,7 @@ poisoning, inter-role injection); A-PKG declaring a bound its own budget cannot 
 `network/edge-undeclared`, `network/end-not-allowed`, `network/bound-exceeds-budget`,
 `network/reservation-refused`, `network/fixed-route-exhausted`,
 `network/execution-layer-envelope`, `travel-network/fixture` (network N-25…N-27, N-31…N-33, N-37,
-N-39).
+N-39). With links: `link/bound-exceeds-budget`, `link/denied-link-excluded`, `link/planned-walk` (link N-21, N-31, N-32).
 
 **Experiment.** E5 (the bound holds on every run; tightness as envelope over observed and greedy
 over exact; LoopTrap and AiTM variants; a framework's handoffs as the baseline), E1 (family N),
@@ -550,7 +554,7 @@ output; unknown usage consumes the reservation; a reported overrun is recorded a
 dispatch; absent or invalid usage fails rather than counting as zero. A conversation reserves a
 whole turn against the conversation's budget; a network is admitted before its first activation only
 if what the run has left covers its worst case, with nothing held; a compute call is bounded in
-memory, wall time and, on the reference, instructions.
+memory, wall time and, on the reference, instructions. A link's worst case is admitted against what the run has left and, unlike a network's, held until its inner run settles; the caller's counters then take the inner run's usage (§6.1, LK-4). The reservation meets the caller's token approval threshold as a model call's does (`link/approval-threshold`, link N-53).
 
 **Adversary.** A-PKG or A-MODEL driving a run past its bounds; A-PROV misreporting usage; a
 module that never returns.
@@ -577,7 +581,7 @@ module that never returns.
 `conversation/tool-cap-across-turns`, `network/budget-overrun-in-role`,
 `network/reservation-refused`, `network/route-cap-too-large`, `memory/n7-two-agent-writes`,
 `compute/memory-over-host-cap`, `compute/fuel-exhausted`, `compute/deadline` (conversation
-N-27…N-29, N-35; network N-30, N-36, N-37; memory N7; compute N-17, N-20, N-21).
+N-27…N-29, N-35; network N-30, N-36, N-37; memory N7; compute N-17, N-20, N-21). Across a link: `link/reservation-refused`, `link/inner-over-budget` (link N-28, N-29).
 
 **Experiment.** E1 (the resource family of the first catalog is cited; the parametric templates
 of the second), E5 (observed over bound), E7.
@@ -880,7 +884,7 @@ and may write declared keys (`state_write`). Views are checked statically (no cr
 projection; no read of a key that `initial` does not set) and at run time (an activation receives
 a copy of its view; a patch outside `state_write` or outside the state schema is refused before
 the role routes). A role's tools and permissions are its worker's; messages between roles are data
-under a declared schema.
+under a declared schema. A linked package (§6.1, LK-3) is confined further than a role: its inner run is built from its own binding and receives one input instance, validated against its own input schema.
 
 **Adversary.** A-PEER, or A-MODEL steered by a peer's message or injected content, reading another
 role's data, writing another's keys or calling a tool it was not given.
@@ -899,7 +903,7 @@ role's data, writing another's keys or calling a tool it was not given.
 **Conformance.** `network/read-outside-view`, `network/write-outside-view`,
 `network/read-uninitialized`, `network/patch-outside-schema`,
 `network/patch-outside-schema-chosen`, `network/source-outside` (network N-20…N-22, N-38, N-43,
-N-44). No case yet makes a role call a tool its worker was not given (B-264).
+N-44). No case yet makes a role call a tool its worker was not given (B-264). Across a link: `link/input-outside-view`, `link/input-schema`, `link/result-schema` (link N-7, N-25, N-26).
 
 **Experiment.** E5 (inter-role injection and message tampering), E4 (the delegation-hop channel),
 E1 (family N; the transition-check profile).
@@ -1272,6 +1276,155 @@ destination from the person's machine beyond a bundled list). *Evidence planned:
 family (an undeclared destination; an import; the cap; an unattended run; an amendment replay) and
 enforcement cases for the catalog.
 
+### 6.1 Agent Links (planned links implemented in the Python reference; the join and the raise planned; binds T66 and T67; D-680…D-682, D-690…D-699)
+
+A package may name another publisher's package and ask it for help, as a page links to a page.
+The commitments below are the design of T64 (2026-11-15); [`spec/link-v0.md`](../spec/link-v0.md)
+states them as rules (L-1…L-45), and the protocol's experiment EL cites them. **LK-1…LK-5, the
+planned link, are implemented in the Python reference** (`agentpkg` 0.8.0, T65): each carries its
+pointers and its cases of the family `link/*` (the reference's cases; the cross-runtime report takes
+them with the Chrome core's port, T66). **LK-6…LK-8, a link made during a run, its caps and the
+raise, are specified** (the specification's §6 and §7) **and planned**: the reference validates a
+slot's declaration and runs none, so they claim nothing about today's runs.
+
+- **LK-1 A link is pinned and verified before the run.** A package names another publisher's
+  package as a dependency by package id, version, digest and HTTPS locator; the browser fetches it
+  under the package-URL policy, verifies it as it verifies any package (P-1), refuses a digest or
+  signer mismatch, and pins it in the caller's Run Plan; the bytes an inner run executes are the
+  bytes that were verified (P-1, P-5). *Bounds:* A-PKG or A-ORIG substituting the linked package; a
+  caller naming a package it did not pin. *Residual:* P-1's and P-2's. *Python reference:*
+  `agentpkg/src/agentpkg/links/resolve.py:resolve_links` (`verify_linked`, `check_record`), the
+  fetch through `agentpkg/src/agentpkg/browser/fetch.py:download_to_file`, unchanged. In the control plane each dependency is a package session of its own, `agentpkg/src/agentpkg/browser/links.py:resolve`; the execution host verifies each linked archive again, `agentpkg/src/agentpkg/execution/session.py:ExecutionSession._bind_links`. *Conformance:*
+  `link/digest-mismatch`, `link/signer-mismatch`, `link/identity-mismatch`, `link/signature-absent`
+  (link N-14…N-17). *Experiment:* EL.
+- **LK-2 One card per new publisher; a valid signature is not a trusted publisher across links.**
+  Each linked package has its own receipt and its own inner Run Plan; its publisher's key is
+  evaluated against the person's own trust store and shown as a separate fact ("signature valid,
+  publisher unknown" as if the package were opened directly); the person decides per publisher
+  before the run, in one review that lists every linked publisher, and may deny one: a denied link
+  is unbound, as a denied optional tool is, and a role whose only step is a denied link leaves the
+  route enum. A denial lasts for the run: a publisher the person denied, at the review or on a join
+  card (LK-6), is not offered again in that run, and a join whose candidate that key signed is
+  refused without a card and recorded. *Bounds:* a caller vouching for a linked publisher (a link
+  grants nothing: P-2, P-18); a denied publisher asked for again through a join. *Residual:* consent
+  fatigue (DF-8's budget; remembered decisions, DF-6, later). *Python reference:* a binding per dependency
+  with the person's decision and a denial of the publisher's key,
+  `agentpkg/src/agentpkg/links/host.py:LinkHost`; the trust evaluation per linked publisher and
+  the refusal of an undecided one, `agentpkg/src/agentpkg/links/operator.py:operator_links`; a
+  denied link's role out of every route, `agentpkg/src/agentpkg/delegation/analysis.py:denied_roles`
+  and `agentpkg/src/agentpkg/delegation/runner.py:run_network`. In the control plane: the review, the denial and the caller's plan, `agentpkg/src/agentpkg/browser/links.py:review` (`plan_links`, `staleness`), with a receipt and an inner Run Plan per linked package through the ordinary `ControlPlane.authorize` and `ControlPlane.prepare_run_plan` of `agentpkg/src/agentpkg/browser/control.py`. *Conformance:* `link/undecided`,
+  `link/denied-link-node`, `link/denied-link-excluded` (link N-23, N-30, N-31). An inner plan that is not the caller's: `link/inner-plan-replay` (link N-34). An inner plan with no caller, handed over as a caller's plan, so that a link's card would run its package outside any composition: `link/inner-plan-alone` (link N-54), refused by `agentpkg/src/agentpkg/execution/session.py:ExecutionSession`, and by the control plane's lease, which hands a linked package's bytes out only beside its caller's (`agentpkg/src/agentpkg/browser/control.py:ControlPlane.issue_execution_lease`). *Experiment:* EL.
+- **LK-3 A linked package gains no authority from its caller.** An inner run holds the intersection
+  of the linked package's own declaration and the person's grants on its card; nothing of the
+  caller's receipt, tools, resources, memory or state reaches it beyond the link's input instance,
+  validated against the linked package's own input schema; the caller receives only the result,
+  validated against the linked package's own output schema (P-4, P-17). *Bounds:* A-PKG as a caller
+  laundering authority or data through a link; A-PEER as a linked package reading beyond the link.
+  *Residual:* what the caller's program puts into the input instance, within its declared view (Agent
+  Data Flow's labels, DF-2 and DF-3, will carry the recipients). *Python reference:* an inner run is built from its binding
+  alone, `agentpkg/src/agentpkg/links/host.py:InnerRun`; the input instance and the result,
+  `agentpkg/src/agentpkg/runtime.py:Runtime.call_link`; `agentpkg/tests/test_link_runtime.py`.
+  *Conformance:* `link/grant-not-inherited`, `link/input-outside-view`, `link/input-schema`,
+  `link/result-schema` (link N-7, N-25…N-27). *Experiment:* EL.
+- **LK-4 The worst case is composed across links before consent.** A link step's cost is the linked
+  package's own worst case, computed from its declaration (model calls, tool calls per tool, compute
+  calls, remote calls, tokens, seconds); it enters the caller's bound as a role's or a node's cost,
+  and the person's "at most" names every linked package; the inner worst case is reserved before the
+  link runs and settled with the inner run's reported usage; the caller's counters hold every inner
+  call, so the run's totals and the composed bound are enforced across publishers (P-7, P-9). A
+  slot (LK-6) enters the bound at its declared ceiling, which names every figure the "at most"
+  names (model calls, tool calls in total over a joined package's own tools, compute calls, remote
+  calls, tokens, seconds; a figure left out is zero), so the "at most" shown before consent already
+  holds every join and a join never raises it; a candidate whose own worst case does not fit the
+  ceiling, or what the run has left, is refused without a card.
+  *Bounds:* a linked package spending outside the caller's envelope; A-MODEL looping through links;
+  a joined package widening a bound the person already accepted.
+  *Residual:* P-7's relaxation is loose on some shapes; P-9's dishonest provider. *Python reference:*
+  `agentpkg/src/agentpkg/links/analysis.py:package_worst_case`,
+  `agentpkg/src/agentpkg/delegation/analysis.py:link_cost`,
+  `agentpkg/src/agentpkg/links/resolve.py:check_composition`, the reservation and the settlement in
+  `agentpkg/src/agentpkg/runtime.py:Runtime.call_link`; a run's record is checked against the
+  bound recomputed from the declarations by `scripts/verify_link_run.py`. *Conformance:*
+  `link/bound-exceeds-budget`, `link/reservation-refused`, `link/inner-over-budget`,
+  `link/planned-walk`, `link/link-in-map`, and for a slot's ceiling
+  `link/slot-bound-exceeds-budget` (link N-13, N-21, N-28, N-29, N-32, N-33); a linked package's
+  compute calls counted in the caller's usage, `link/linked-compute` (link N-52); a link's
+  reservation against the caller's approval threshold, `link/approval-threshold` (link N-53).
+  On the execution host, the bound recorded before the run is the composed one, the figures the
+  runtime states when the network starts
+  (`agentpkg/src/agentpkg/execution/policy.py:check_network`). *Experiment:* EL.
+- **LK-5 Depth is bounded and cycles are refused.** The first version admits one level: a linked
+  package, named by a dependency or joined through a slot, that declares dependencies of its own
+  or whose program holds a `link` step of either form, a slot's included, is refused, at
+  preparation for a dependency and before any card for a join candidate; an inner run can
+  therefore start no further run, neither a third package's nor its caller's, so a cycle cannot
+  exist. The composition rule is stated for any depth and a later version may raise the limit
+  under the same rule. *Bounds:* unbounded recursion across publishers, planned or found at run
+  time. *Residual:* none at depth one. *Python reference:*
+  `agentpkg/src/agentpkg/links/resolve.py:check_profile`, and for a dependency that names its own
+  caller `agentpkg/src/agentpkg/links/declarations.py:check_link_declarations`. *Conformance:*
+  `link/cycle`, `link/target-conversational`, `link/nested`, `link/nested-slot` (link N-6,
+  N-18…N-20). *Experiment:* EL.
+- **LK-6 A link made during a run is a request decided on facts the runtime computed.** A declared
+  slot may be bound while the run is under way: the runtime locates a candidate by discovery
+  (P-18), fetches and verifies it, and shows a card with the publisher's key and trust state, the
+  package's declared tools, endpoints, records by type and model needs, the slot's declared view
+  (what the caller may send it, in words), the caller's reason marked as the agent's words, the
+  candidate's own worst case inside the slot's ceiling (LK-4: the "at most" the person accepted
+  does not change) and what the run has left; the default is no; nothing of the candidate reaches
+  the caller's model before the decision; an accepted join prepares an inner plan hash-linked to
+  the caller's plan, which is never rewritten; a refused join is data to the caller's program,
+  which may fall back, and a recorded event (P-5, P-11, UC-2, UC-4). The address a slot looks at
+  is never a model's: its `locate` reads only a URL the person supplied in the run's input or the
+  URL fields of a tool's validated result, and a slot that would read a model's output or a
+  message is refused at validation; the discovery and package fetches carry no body, cookie or
+  referrer and each is recorded, so the runtime never fetches a URL a model wrote, before the decision or after it. The
+  request the caller's model then builds for an accepted package sees only the slot's view and
+  that package's description. *Bounds:* A-ORIG or A-ISS steering a run toward a hostile package,
+  which is judged by its own key on the card; A-MODEL joining silently, or sending data out in the
+  address of a page to look at. *Residual:* social engineering through the stated reason; the
+  person's reading of the card; a search service that ranks a hostile page first sees the query it
+  was sent and chooses which page is looked at (P-18's: the fetch grants nothing). A tool whose validated result carries a
+  URL may echo its own arguments into it (a search query), so text a model put in that tool's
+  arguments can reach the host the slot looks at: no wider than the approved tool call, whose
+  host already received the arguments. *Implemented so far:* the declaration's checks,
+  `agentpkg/src/agentpkg/links/declarations.py:check_link_declarations` (`link/slot-in-map`,
+  `link/slot-at-top-level`, `link/locate-source`, `link/locate-message`, `link/slot-caps`; link
+  N-8…N-12); the reference runs no slot.
+- **LK-7 No person, no join; the caps.** An unattended run refuses every join and every raise and
+  records the refusal; a slot's joins and a run's joins are capped, and the rest are refused without
+  a card and summarised at the end; a signed policy may forbid joins (P-10, P-11, UC-3, UC-6).
+  *Bounds:* fatigue as a channel; background joins. *Residual:* the caps are constants of the version.
+- **LK-8 The person may raise their own limit, never the publisher's.** When a reservation fails on
+  the person's run limit and a person is present, the runtime may ask once per run to raise that
+  limit by a stated amount, with the usage so far, the reservation that failed and what it is for
+  computed by the runtime and the agent's reason shown as its words; the package's declared ceilings
+  are never raised, so the "at most" shown before consent still holds for the publisher's program;
+  the decision is appended to the audit, naming the run and the plan's hash as a join's decision
+  names its inner plan, and the plan is not rewritten; a refusal, or no person, is the refusal of
+  today (P-5, P-9). *Bounds:* A-MODEL or A-PKG raising a budget by asking again (one
+  raise per run, bounded in size); a raise past the publisher's ceiling. *Residual:* the person's
+  decision.
+
+**Evidence.** The reference's cases for the planned link are `link/*` N-1…N-34 and N-52…N-54
+(`examples/link/cases/cases.json`; `agentpkg/tests/test_link_cases.py`, and
+`agentpkg/tests/test_link_execution.py` for the two cases of the execution host), and the planner's fixture
+walk through both links attains the composed model and tool calls
+(`agentpkg/tests/test_link_packages.py`). **Evidence planned:** the conformance family `link/*`
+on both runtimes (a digest and a signer
+mismatch; a conversational or a nested target; a bound over budget; an incompatible model; a result
+outside the schema; an input outside the view; a grant not inherited; a denied link excluded from
+the enum; a linked package that holds a slot; a slot that reads a model's output for its address;
+an unattended join; a declined join; the join cap; a join candidate over the slot's ceiling; a
+join candidate that holds a link step; a join candidate of a publisher denied in the run; a
+replayed inner plan; a raise accepted, denied and unattended; the package's cap never raised; a
+second raise refused), the enforcement
+catalog's next series, and the protocol's experiment EL (composition across publishers: the composed
+bound's exceedance, an inner run without a decision, a cross-publisher canary, an inner run's
+dispatch outside its own plan, against a service link). **What links do not bound:** the quality of
+a linked package's answer; what a recipient the inner plan names receives; a person who accepts a
+publisher's card has accepted it.
+
 ## 7. Mapping to Privacy by Design and Trustworthy AI; the vocabulary
 
 ### 7.1 Langheinrich's principles for privacy-aware ubiquitous systems (UbiComp 2001)
@@ -1354,6 +1507,31 @@ consent and (planned) request, and can revoke what was remembered (P-4, P-12, P-
   in-browser route is named where the model's text said "planned": the model provider row, the
   trusted base (the in-browser engine, §1.2), the "not protected" list (§4) and the privacy model
   (§5.2); its per-boundary note is the threat model's "In-browser inference" (P-6, P-9, P-10, P-19).
+- **Version 2, Agent Links planned (2026-11-15, T64; D-680…D-682).** §6.1 added: the planned
+  commitments LK-1…LK-8 for a package that links another publisher's package (pinned and verified
+  before the run; one card per new publisher; no authority from the caller; the worst case composed
+  across links; depth bounded and cycles refused; a run-time join as a request on computed facts; no
+  person, no join; the person may raise their own limit, never the publisher's), cited by the
+  protocol's experiment EL (version 3). No property changed; no id reused; the checker reads LK-n
+  as it reads UC-n.
+  Corrected after T64's review 1 the same day, before the protocol's tag: a slot enters the bound
+  at a ceiling that names every figure (LK-4); a linked package with a link step of either form is
+  refused (LK-5); a publisher denied in a run is not offered again in it (LK-2); a slot's address
+  is never a model's and the join card states the candidate's worst case inside the ceiling
+  (LK-6); a raise names its run and plan (LK-8); §0 names EL, and the checker reads the lettered
+  experiment ids EA and EL where an experiment is named.
+- **Version 3 (2026-11-15, T65; D-690…D-699).** §6.1's commitments for the planned link
+  (LK-1…LK-5) became implemented statements for the Python reference (`agentpkg` 0.8.0), each
+  with its pointers and its cases of the family `link/*`; LK-6…LK-8 stay planned, with the
+  declaration's checks named under LK-6. P-4, P-5, P-7, P-9 and P-17 gained one sentence each for a link, with their cases. §1.3 states what Agent Links add to the trusted base. LK-6 says the
+  runtime never fetches a URL a model wrote, and names the residual of a tool that echoes its
+  arguments into a URL. No property id changed. The checking script reads `link/*` case ids, the
+  specification's N numbers and its rule ids L-n, checks DF-n, UC-n and LK-n for gaps and
+  duplicates, and reads an experiment id list in every sentence form. After the first review of
+  the reference (same version, before its merge): an inner plan is authority only inside its
+  caller's run (LK-2's pointers, `link/inner-plan-alone`); the settlement counts a linked
+  package's compute calls in the caller's usage and a link's reservation meets the caller's
+  approval threshold (LK-4's and P-9's cases, `link/linked-compute`, `link/approval-threshold`).
 - **Version 1** is [threat-model.md](threat-model.md): the per-boundary notes written with each
   milestone from the format to Agent Delegation. They are kept as the implementation notes of this
   model: each section states the properties it implements, and nothing a specification cites was

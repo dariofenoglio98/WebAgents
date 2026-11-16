@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "room": {
+            "type": "string"
+          },
+          "rooms": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "nights": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "price_usd": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "room",
+          "rooms",
+          "nights",
+          "price_usd"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 32
+    },
+    "recommended": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 500
+    }
+  },
+  "required": [
+    "options",
+    "recommended",
+    "reason"
+  ],
+  "additionalProperties": false
+}
