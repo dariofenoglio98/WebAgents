@@ -63,6 +63,7 @@ from .policy import (
     HostExecutionLimits,
     check_capabilities,
     check_model,
+    check_network,
     check_resource_grants,
     check_tools,
     effective_budget,
@@ -406,6 +407,17 @@ class ExecutionSession:
             raise ExecutionError(ALREADY_STARTED, "This execution session is already bound")
         run_id = _text(record["run_id"], "run_id", limit=128)
         plan = normalize_execution_plan(record["run_plan"])
+        if plan["parent"] is not None:
+            # link.v0 L-15: an inner plan is authority for an inner run of its caller's run and
+            # for nothing else. Begun on its own, the linked package would run outside the
+            # caller's composition, reservation and audit, on grants the person gave on a
+            # link's card.
+            raise ExecutionError(
+                LINK_PLAN_MISMATCH,
+                "This is a linked package's inner plan: it runs only inside its caller's run, "
+                "handed over with the caller's plan.",
+                detail={"dependency": plan["parent"]["dependency"]},
+            )
         authorization = normalize_authorization(record["authorization"])
         limits = HostExecutionLimits.normalize(record.get("limits"))
         host = _fields(
@@ -499,6 +511,11 @@ class ExecutionSession:
         #     prepared for this caller; its own grants, approvals and handlers, never this
         #     package's.
         links = self._bind_links(plan, record.get("links"), package, limits, router)
+        if links is not None and capabilities.get("network") is not None:
+            # R-24 with L-19: the "at most" on the record is the composed one, the figures the
+            # runtime states again at `network.started`: the links' worst cases inside their
+            # roles' activations, a denied link's role never activated.
+            capabilities["network"] = check_network(package, limits, links.worst_cases)
 
         # 5. The task. Checked against the package's own input schema before a
         #    single instruction is rendered, so bad input costs nothing.

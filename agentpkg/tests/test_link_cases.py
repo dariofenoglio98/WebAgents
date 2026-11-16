@@ -75,7 +75,10 @@ def test_the_list_names_every_variant_once():
     assert CASE_LIST["family"] == "link"
     assert {case["stage"] for case in CASE_LIST["cases"]} <= set(CASE_LIST["stages"])
     # The host stage is the execution session's (`test_link_execution.py`).
-    assert [c["id"] for c in CASE_LIST["cases"] if c["stage"] == "host"] == ["inner-plan-replay"]
+    assert [c["id"] for c in CASE_LIST["cases"] if c["stage"] == "host"] == [
+        "inner-plan-replay",
+        "inner-plan-alone",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -173,3 +176,11 @@ def test_run_cases(case, tmp_path, keys):
         assert own_models + inner_models == bound["model_calls"]
         assert usage["tool_calls"] == bound["tool_calls"]
         assert usage["tokens"] <= bound["tokens"]
+        if "compute_calls" in expect["attains"]:
+            assert usage["compute_calls"] == bound["compute_calls"]
+    # L-26: the caller's own usage holds every inner call; a link's model calls are per link.
+    for figure, value in expect.get("usage", {}).items():
+        assert report["usage"][figure] == value, figure
+    for name, figures in expect.get("link_usage", {}).items():
+        for figure, value in figures.items():
+            assert report["usage"]["links"][name][figure] == value, (name, figure)

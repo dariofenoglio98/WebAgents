@@ -896,6 +896,54 @@ def _link_in_map(s):
     )
 
 
+def _linked_compute(s):
+    """`index` passes its answer through one WebAssembly module (compute.v0's `echo` case
+    module), so each of its inner runs makes one compute call; the caller declares no module.
+    The caller's usage holds those calls (L-26)."""
+    import hashlib
+
+    s.walk = list(FULL_TOUR)
+    index = s.linked["index"]
+    module = (ROOT / "examples" / "compute" / "cases" / "modules" / "echo.wasm").read_bytes()
+    index["modules/echo.wasm"] = module
+    graph = index["graph.json"]
+    graph["modules"] = [
+        {"id": "echo", "path": "modules/echo.wasm", "sha256": hashlib.sha256(module).hexdigest()}
+    ]
+    lookup, output = graph["nodes"]
+    echo = {
+        "id": "echo",
+        "type": "compute",
+        "worker": "Coordinator",  # it reads `result`, which Finder's view does not hold
+        "depends_on": ["lookup"],
+        "input": state("/result"),
+        "input_schema": "schemas/answer.schema.json",
+        "output_schema": "schemas/answer.schema.json",
+        "timeout_seconds": 20,
+        "writes": {"/result": {"from": "result", "path": ""}},
+        "module": "echo",
+        "function": "run",
+    }
+    graph["nodes"] = [lookup, echo, {**output, "depends_on": ["echo"]}]
+    index["policy/policy.json"]["permissions"].append(
+        {
+            "id": "compute.modules",
+            "kind": "compute",
+            "description": "Run the package's own WebAssembly module, which can only compute.",
+            "required": True,
+            "resources": ["echo"],
+        }
+    )
+    s.decisions["index"]["grants"]["compute.modules"] = "session"
+
+
+def _approval_threshold(s):
+    """The caller declares an approval threshold its own calls stay under and `scribe`'s worst
+    case (1,500 tokens) crosses: the link's reservation meets it as a model call's does."""
+    s.walk = list(FULL_TOUR)
+    s.caller["policy/policy.json"]["budget"]["approval_threshold_tokens"] = 2000
+
+
 VARIANTS = {
     "minimum-version": _minimum_version,
     "dependency-unknown": _dependency_unknown,
@@ -930,4 +978,6 @@ VARIANTS = {
     "denied-link-excluded": _denied_link_excluded,
     "planned-walk": _planned_walk,
     "link-in-map": _link_in_map,
+    "linked-compute": _linked_compute,
+    "approval-threshold": _approval_threshold,
 }

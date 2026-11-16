@@ -964,11 +964,20 @@ class Runtime:
                 - self._global.remote_calls
                 - self._global.reserved_remote_calls
             )
+            # The caller's approval threshold is met by a link's reservation as by a model
+            # call's: what is spent and held, plus this reservation, stays at or under it.
+            threshold = self.budget.get("approval_threshold_tokens")
             reason = None
             if needed["tokens"] > tokens_left:
                 reason = "tokens"
             elif needed["remote_calls"] > remote_left:
                 reason = "remote_calls"
+            elif (
+                threshold is not None
+                and self._global.tokens + self._global.reserved_tokens + needed["tokens"]
+                > threshold
+            ):
+                reason = "approval_threshold"
             if reason is not None:
                 self.record(
                     "link.refused",
@@ -979,6 +988,11 @@ class Runtime:
                     tokens_left=tokens_left,
                     remote_calls_left=remote_left,
                 )
+                if reason == "approval_threshold":
+                    raise BudgetError(
+                        f"link {name}: its worst case ({needed['tokens']} tokens) crosses the "
+                        f"token approval threshold ({threshold}); a new host grant is required"
+                    )
                 raise BudgetError(
                     f"link {name}: its worst case ({needed['tokens']} tokens, "
                     f"{needed['remote_calls']} remote calls) exceeds what the run has left "
@@ -1054,8 +1068,12 @@ class Runtime:
             async with self._lock:
                 self._global.reserved_tokens -= needed["tokens"]
                 self._global.reserved_remote_calls -= needed["remote_calls"]
+                # L-26: every counter the run keeps takes the inner run's figure. A run keeps no
+                # model-call counter (a model call is its `model.called` event, in the chain of
+                # the run that made it), so an inner run's model calls are stated per link only.
                 self._global.tokens += spent["tokens"]
                 self._global.remote_calls += spent["remote_calls"]
+                self._global.compute_calls += spent["compute_calls"]
                 for tool, count in spent["tool_calls"].items():
                     self._global.tool_calls[f"{name}:{tool}"] += count
                 totals = self._link_usage.setdefault(
@@ -1413,11 +1431,18 @@ class Runtime:
             "reserved_tokens": self._global.reserved_tokens,
             "remote_calls": self._global.remote_calls,
             "tool_calls": dict(self._global.tool_calls),
-            # compute.v0: present exactly when the graph declares modules, so every earlier
-            # package's usage is unchanged.
-            **({"compute_calls": self._global.compute_calls} if self._modules else {}),
+            # compute.v0: present exactly when the graph declares modules or the run holds links
+            # (link.v0 L-26: a linked package's compute calls are settled into it), so every
+            # earlier package's usage is unchanged.
+            **(
+                {"compute_calls": self._global.compute_calls}
+                if self._modules or self.links is not None
+                else {}
+            ),
             # link.v0 L-26: present exactly when the run holds links; what each link's inner
-            # runs spent, already inside the totals above (tool calls there are qualified).
+            # runs spent. Its tokens, remote calls, compute calls and tool calls are already
+            # inside the totals above (tool calls there are qualified); its model calls are
+            # stated here only, since a run's usage has no model-call total.
             **({"links": copy.deepcopy(self._link_usage)} if self.links is not None else {}),
             "peak_parallel_workers": self._peak,
             "workers": {

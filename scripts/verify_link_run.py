@@ -206,16 +206,17 @@ def verify(
         if accepted:
             plan = link["plan"] or {}
             parent = plan.get("parent", {})
-            # A host without a control plane writes a link plan, whose hash is recomputed here;
-            # the execution session records the inner Run Plan's bounded facts, which carry
-            # the plan's own hash.
-            own_hash = (
-                plan_hash(plan)
-                if plan.get("schema") == "agentpkg-link-plan-v0"
-                else plan.get("run_plan_sha256")
-            )
+            # A host without a control plane writes a link plan, whose hash is recomputed here.
+            # The execution session records the inner Run Plan's bounded facts, which carry
+            # the control plane's hash of the whole plan: that hash cannot be recomputed from
+            # the record, so the check says what it does check there.
+            recomputed = plan.get("schema") == "agentpkg-link-plan-v0"
+            own_hash = plan_hash(plan) if recomputed else plan.get("run_plan_sha256")
             checks.add(
-                f"{label}: its inner plan is hash-bound to this caller",
+                f"{label}: its inner plan is hash-bound to this caller"
+                if recomputed
+                else f"{label}: its inner plan names this caller, the pinned package and the "
+                "recorded plan hash (a Run Plan's hash is its control plane's, not recomputed)",
                 link["plan_hash"] == own_hash
                 and parent.get("package_digest") == caller.digest
                 and parent.get("dependency") == name
@@ -223,15 +224,15 @@ def verify(
             )
 
     # -- the composed bound, recomputed from the declarations -----------------------------------
+    # W(caller) (L-18, L-19): the package-level worst case, which holds the network's bound and
+    # every node beside the network, so that a figure observed at any node has its "at most".
     network = caller.graph.get("network")
-    if network is not None:
-        bound = worst_case(caller.graph, caller.policy, links=costs)
-    else:
-        bound = package_worst_case(caller.graph, caller.policy, links=costs)
-    at_most = {name: bound[name] for name in FIGURES} | {
-        "tool_calls": dict(bound["tool_calls"])
+    composed = package_worst_case(caller.graph, caller.policy, links=costs)
+    at_most = {name: composed[name] for name in FIGURES} | {
+        "tool_calls": dict(composed["tool_calls"])
     }
     if network is not None:
+        bound = worst_case(caller.graph, caller.policy, links=costs)
         at_most |= {"max_hops": bound["max_hops"], "activations": bound["activations"]}
         started = _events(audit, "network.started")
         if started:
@@ -345,10 +346,10 @@ def verify(
             inner_totals[figure] += spent[figure]
         for tool, count in tools.items():
             inner_tools[f"{name}:{tool}"] += count
-        totals = per_link.setdefault(name, {"runs": 0, "tokens": 0, "remote_calls": 0})
+        totals = per_link.setdefault(name, {"runs": 0} | {figure: 0 for figure in FIGURES})
         totals["runs"] += 1
-        totals["tokens"] += spent["tokens"]
-        totals["remote_calls"] += spent["remote_calls"]
+        for figure in FIGURES:
+            totals[figure] += spent[figure]
     checks.add(
         "no inner run of a denied link",
         not any(
@@ -372,9 +373,13 @@ def verify(
         e.get("tokens", 0) for e in _events(audit, "model.completed")
     ) + sum(e.get("tokens_charged", 0) for e in _events(audit, "model.failed"))
     own_tools = Counter(e["tool"] for e in _events(audit, "tool.called"))
+    own_compute = len(_events(audit, "compute.called"))
+    # L-26: the caller's usage holds every inner call in tokens, remote calls, compute calls
+    # and tool calls; a run's usage has no model-call total, so model calls are counted from
+    # the chains: the caller's own events and each inner run's.
     observed = {
         "model_calls": own_models + inner_totals["model_calls"],
-        "compute_calls": usage.get("compute_calls", 0) + inner_totals["compute_calls"],
+        "compute_calls": usage.get("compute_calls", 0),
         "remote_calls": usage["remote_calls"],
         "tokens": usage["tokens"],
         "tool_calls": dict(own_tools + inner_tools),
@@ -391,6 +396,15 @@ def verify(
     checks.add(
         "the caller's remote calls hold every inner run's",
         usage["remote_calls"] >= inner_totals["remote_calls"],
+    )
+    checks.add(
+        "the caller's compute calls are its own plus every inner run's",
+        usage.get("compute_calls", 0) == own_compute + inner_totals["compute_calls"],
+        {
+            "usage": usage.get("compute_calls"),
+            "own": own_compute,
+            "inner": inner_totals["compute_calls"],
+        },
     )
     stated = usage.get("links", {})
     checks.add(

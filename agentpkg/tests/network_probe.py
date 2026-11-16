@@ -524,6 +524,9 @@ def write(directory: Path, members: dict) -> Path:
         if isinstance(value, str):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(value, encoding="utf-8")
+        elif isinstance(value, bytes):  # A compute.v0 module of a linked package (link_probe).
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(value)
         else:
             _json(path, value)
     return directory

@@ -357,6 +357,71 @@
       "stage": "host",
       "code": "link_plan_parent_mismatch",
       "variant": null
+    },
+    {
+      "id": "linked-compute",
+      "title": "A linked package's compute calls are counted in the caller's usage",
+      "stage": "run",
+      "code": "completed",
+      "variant": "linked-compute",
+      "expect": {
+        "started": [
+          "index",
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "index",
+          "scribe"
+        ],
+        "usage": {
+          "compute_calls": 2
+        },
+        "link_usage": {
+          "index": {
+            "compute_calls": 2,
+            "model_calls": 0
+          },
+          "scribe": {
+            "compute_calls": 0,
+            "model_calls": 1
+          }
+        },
+        "attains": [
+          "model_calls",
+          "tool_calls",
+          "compute_calls"
+        ]
+      }
+    },
+    {
+      "id": "approval-threshold",
+      "title": "A linked package's worst case crosses the caller's approval threshold",
+      "stage": "run",
+      "code": "budget_exhausted",
+      "variant": "approval-threshold",
+      "expect": {
+        "node": "delegate",
+        "step": "delegate/Writer/draft",
+        "started": [
+          "index",
+          "index"
+        ],
+        "completed": [
+          "index",
+          "index"
+        ],
+        "refused": 1,
+        "reason": "approval_threshold"
+      }
+    },
+    {
+      "id": "inner-plan-alone",
+      "title": "An inner plan handed to the execution host as a caller's plan",
+      "stage": "host",
+      "code": "link_plan_parent_mismatch",
+      "variant": null
     }
   ]
 }

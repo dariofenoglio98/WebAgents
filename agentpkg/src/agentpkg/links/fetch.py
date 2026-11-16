@@ -18,9 +18,10 @@ def fetch_dependency(record: dict, *, limits=None, transport=None) -> bytes:
     address, a pinned connection, no redirect, a byte cap)."""
     from ..browser.fetch import FetchLimits, download_to_file
 
+    # The download writes into an existing private file and never creates one: `mkstemp` makes
+    # it (exclusive, mode 0600), and it stays until the bytes are read back.
     handle, staging = tempfile.mkstemp(prefix="agentpkg-link-", suffix=".part")
     os.close(handle)
-    os.unlink(staging)
     try:
         download_to_file(
             record["locator"], Path(staging), limits=limits or FetchLimits(), transport=transport
@@ -29,8 +30,7 @@ def fetch_dependency(record: dict, *, limits=None, transport=None) -> bytes:
     except AgentPkgError as exc:
         raise LinkRefusal("link_fetch_failed", f"dependency {record['id']!r}: {exc}") from exc
     finally:
-        if os.path.exists(staging):
-            os.unlink(staging)
+        Path(staging).unlink(missing_ok=True)
 
 
 __all__ = ["fetch_dependency"]

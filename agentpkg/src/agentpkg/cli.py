@@ -48,17 +48,6 @@ def _pairs(values, flag) -> dict:
     return found
 
 
-def _verify_under(path, trust_keys) -> dict:
-    """The archive verified under one of the operator's pinned keys."""
-    failure = None
-    for key in trust_keys:
-        try:
-            return verify_package(path, trusted_key=key)
-        except AgentPkgError as exc:
-            failure = exc
-    raise failure
-
-
 def _print(value):
     print(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False), flush=True)
 
@@ -231,7 +220,8 @@ def parser():
         default=[],
         help=(
             "Required for live mode; validates the archive publisher before dispatch. "
-            "Repeatable: a linked package's publisher is trusted when its key is one of these"
+            "Repeatable: the first key pins this package's publisher; a linked package's "
+            "publisher is trusted when its key is any of these"
         ),
     )
     run.add_argument(
@@ -553,7 +543,10 @@ def _dispatch(args):
         if mode == "live" and not trust_keys:
             raise AgentPkgError("Live run requires a signed artifact and --trust-key PUBLIC_KEY")
         if command == "run" and trust_keys:
-            verified = _verify_under(args.package, trust_keys)
+            # The first --trust-key pins this package's publisher, and only that one does: a
+            # key given to trust a linked publisher (link.v0 L-12) says nothing about who may
+            # sign the caller.
+            verified = verify_package(args.package, trusted_key=trust_keys[0])
             if verified["digest"] != package.digest:
                 raise AgentPkgError("Package changed between loading and signature verification")
         if mode == "fixture":

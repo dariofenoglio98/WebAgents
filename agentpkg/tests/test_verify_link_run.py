@@ -128,6 +128,54 @@ def test_usage_that_does_not_sum_fails(verifier, tmp_path, keys):
     )
 
 
+def test_a_linked_packages_compute_calls_are_inside_the_callers_usage(verifier, tmp_path, keys):
+    """L-26: the caller's `compute_calls` holds every inner run's, though the caller declares no
+    module; the verifier checks the sum and reads the observed figure from it."""
+    built, out = run(tmp_path, keys, "linked-compute")
+    usage = json.loads((out / "usage.json").read_text())
+    assert usage["compute_calls"] == 2 == usage["links"]["index"]["compute_calls"]
+    result = check(verifier, built, out)
+    assert result["passed"], result["checks"]
+    assert result["observed"]["compute_calls"] == result["at_most"]["compute_calls"] == 2
+    rewrite(out / "usage.json", lambda usage: usage.update(compute_calls=0))
+    assert "the caller's compute calls are its own plus every inner run's" in failed(
+        check(verifier, built, out)
+    )
+
+
+def test_a_node_beside_the_network_has_its_place_in_the_bound(verifier, tmp_path, keys):
+    """The bound is the package's worst case (L-18), not the network's alone: a top-level link
+    beside the network is observed, so it is in the "at most" too."""
+    from link_probe import add_node, add_worker
+
+    made = scenario("planned-walk")
+    add_worker(made.caller, "Aside")
+    add_node(
+        made.caller,
+        {
+            "id": "aside",
+            "type": "link",
+            "dependency": "index",
+            "worker": "Aside",
+            "depends_on": [],
+            "input": {"object": {"query": {"literal": "look up hello"}}},
+            "output_schema": "schemas/answer.schema.json",
+            "timeout_seconds": 20,
+            "writes": {},
+        },
+    )
+    built = write(tmp_path / "probe", made, keys)
+    grants = tmp_path / "grants.json"
+    grants.write_text(json.dumps(built.grants), encoding="utf-8")
+    out = tmp_path / "out"
+    argv = ["run", str(built.caller), "--mode", "fixture", "--grants", str(grants)]
+    assert main(argv + built.argv(tmp_path) + ["--out", str(out)]) == 0
+    result = check(verifier, built, out)
+    assert result["passed"], result["checks"]
+    assert result["observed"]["tool_calls"] == {"index:lookup": 3}
+    assert result["at_most"]["tool_calls"] == {"index:lookup": 3}
+
+
 def test_a_figure_past_the_recomputed_bound_fails(verifier, tmp_path, keys):
     """A caller whose declaration allows fewer lookups than the record holds: the bound comes
     from the declaration the verifier is given, never from the record."""

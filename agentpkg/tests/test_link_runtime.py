@@ -332,6 +332,40 @@ def test_the_cli_runs_a_composition_and_writes_the_inner_records(tmp_path, keys,
     assert json.loads(capsys.readouterr().out)["links"]["worst_case"]["model_calls"] == 9
 
 
+def test_a_linked_publishers_key_does_not_verify_the_caller(tmp_path, keys, capsys):
+    """T65 review 1, finding 4: the first `--trust-key` pins the caller's publisher; a key given
+    to trust a linked publisher never does. A caller signed by `index`'s publisher is refused
+    when the operator pinned `default` for it, though `index`'s key is also given."""
+    from agentpkg.package import build_package
+    from agentpkg.signing import sign_package
+
+    built = build(tmp_path, keys, "planned-walk")
+    grants = tmp_path / "grants.json"
+    grants.write_text(json.dumps(built.grants), encoding="utf-8")
+    unsigned = build_package(built.caller, tmp_path / "caller.unsigned.agent.pkg")
+    by_linked = sign_package(unsigned, keys["index"][0], tmp_path / "caller.by-index.agent.pkg")
+    by_own = sign_package(unsigned, keys["default"][0], tmp_path / "caller.by-default.agent.pkg")
+    link_args = built.argv(tmp_path)
+
+    def run(archive, order, out):
+        trust = [arg for name in order for arg in ("--trust-key", str(keys[name][1]))]
+        argv = ["run", str(archive), "--mode", "fixture", "--grants", str(grants)]
+        status = main(argv + link_args + trust + ["--out", str(tmp_path / out)])
+        return status, capsys.readouterr().err
+
+    status, err = run(by_linked, ("default", "index", "scribe"), "out-linked")
+    assert status == 2 and not (tmp_path / "out-linked").exists(), err
+    assert "trusted" in err or "signature" in err.lower(), err
+    # The caller's own key first: it runs, and the linked publishers' keys trust the links.
+    status, err = run(by_own, ("default", "index", "scribe"), "out-own")
+    assert status == 0, err
+    links = json.loads((tmp_path / "out-own" / "links.json").read_text())
+    assert {link["trust"] for link in links["links"]} == {"trusted"}
+    # The same keys with a linked publisher's first: that key is not the caller's.
+    status, err = run(by_own, ("index", "default", "scribe"), "out-order")
+    assert status == 2 and not (tmp_path / "out-order").exists(), err
+
+
 def test_the_cli_refuses_before_the_run(tmp_path, keys, capsys):
     built = build(tmp_path, keys, "digest-mismatch")
     grants = tmp_path / "grants.json"
@@ -432,4 +466,4 @@ def test_the_conformance_driver_writes_a_case_a_cli_runs(tmp_path, capsys):
     cases = subprocess.run(
         [sys.executable, str(driver), "--cases"], capture_output=True, text=True, check=True
     )
-    assert len(json.loads(cases.stdout)) == 34
+    assert len(json.loads(cases.stdout)) == 37

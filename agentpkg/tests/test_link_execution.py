@@ -184,6 +184,33 @@ class Composition:
         # inner plan under a `once` grant spends that receipt.
         package_fd = self.lease(self.stack.session, self.plan)
         fds = {name: self.lease(review[name], inner) for name, inner in self.inner.items()}
+        params = {
+            "run_id": "run-links",
+            "run_plan": execution_view(self.plan) if plan is None else plan,
+            "authorization": authorization_view(self.plan),
+            "input": self.fixtures[0]["input"],
+            "links": self.links_params() if links is None else links,
+        }
+        return await self.drive(
+            package_fd, fds if link_fds is None else link_fds(fds), params, close=fds.values()
+        )
+
+    async def run_alone(self, name):
+        """A linked package's inner plan handed to a runner as if it were a caller's: its own
+        archive (read from the file, so that only the runner is asked), its own plan and
+        authorization, its own fixture input, no links."""
+        inner = self.inner[name]
+        fixture = self.fixtures[1 + ("index", "scribe").index(name)]
+        params = {
+            "run_id": "run-alone",
+            "run_plan": execution_view(inner),
+            "authorization": authorization_view(inner),
+            "input": fixture["input"],
+        }
+        package_fd = os.open(self.stack.built.archives[name], os.O_RDONLY)
+        return await self.drive(package_fd, {}, params)
+
+    async def drive(self, package_fd, fds, params, close=()):
         artifacts = self.tmp_path / "artifacts"
         artifacts.mkdir(mode=0o700, exist_ok=True)
         artifacts_fd = os.open(artifacts, os.O_RDONLY | os.O_DIRECTORY)
@@ -213,20 +240,13 @@ class Composition:
             ),
             package_fd=package_fd,
             artifacts_fd=artifacts_fd,
-            link_fds=fds if link_fds is None else link_fds(fds),
+            link_fds=fds,
         )
         tasks = [
             asyncio.create_task(session._peer.serve()),
             asyncio.create_task(host_peer.serve()),
         ]
         try:
-            params = {
-                "run_id": "run-links",
-                "run_plan": execution_view(self.plan) if plan is None else plan,
-                "authorization": authorization_view(self.plan),
-                "input": self.fixtures[0]["input"],
-                "links": self.links_params() if links is None else links,
-            }
             try:
                 begin = await host_peer.call("execution.begin", params, timeout=30)
             except Exception as error:  # noqa: BLE001 - the refusal is what the test reads
@@ -240,7 +260,7 @@ class Composition:
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
-            for fd in (package_fd, artifacts_fd, *fds.values()):
+            for fd in (package_fd, artifacts_fd, *close):
                 try:
                     os.close(fd)
                 except OSError:
@@ -252,6 +272,14 @@ class Composition:
 
 def code(error):
     return getattr(error, "code", None) or str(error)
+
+
+def host_case(case_id):
+    """A case of the list's `host` stage: the execution host refuses the plan it was handed."""
+    from link_probe import CASES
+
+    cases = json.loads((CASES / "cases.json").read_text())["cases"]
+    return next(c for c in cases if c["stage"] == "host" and c["id"] == case_id)
 
 
 def test_the_planned_composition_runs_through_the_execution_session(tmp_path, keys):
@@ -294,6 +322,50 @@ def test_the_planned_composition_runs_through_the_execution_session(tmp_path, ke
     assert checked["passed"], checked["checks"]
 
 
+BOUND_FIGURES = (
+    "max_hops",
+    "max_activations",
+    "activations",
+    "model_calls",
+    "tool_calls",
+    "compute_calls",
+    "remote_calls",
+    "tokens",
+    "seconds",
+)
+
+
+def recorded_and_reserved(composition):
+    """The network's "at most" as the execution host recorded it at begin (R-24) and as the
+    runtime stated it when the node started (R-17)."""
+    begin, result, _, artifacts = asyncio.run(composition.run())
+    assert isinstance(begin, dict), begin
+    assert result["status"] == "completed", result.get("failure")
+    audit = json.loads((artifacts / "audit.json").read_text())
+    started = [e for e in audit if e["action"] == "network.started"][0]
+    recorded = begin["capabilities"]["network"]
+    return recorded, {key: recorded["worst_case"][key] for key in BOUND_FIGURES}, started["bound"]
+
+
+def test_the_execution_host_records_the_bound_the_runtime_reserves(tmp_path, keys):
+    """T65 review 1, finding 6: with links, the recorded "at most" is the composed one, the
+    same figures as `network.started`'s: each link's worst case inside its role."""
+    _, recorded, reserved = recorded_and_reserved(Composition(tmp_path, keys, "planned-walk"))
+    assert recorded == reserved
+    assert recorded["tool_calls"] == {"index:lookup": 2}
+    assert recorded["model_calls"] == 9  # the desk's eight and scribe's one
+
+
+def test_the_recorded_bound_leaves_out_a_denied_links_role(tmp_path, keys):
+    network, recorded, reserved = recorded_and_reserved(
+        Composition(tmp_path, keys, "denied-link-excluded", deny=("index",))
+    )
+    assert recorded == reserved
+    assert recorded["activations"]["Lookup"] == 0 and recorded["tool_calls"] == {}
+    assert network["role_budgets"]["Lookup"]["activation_bound"] == 0
+    assert network["role_budgets"]["Writer"]["activation_bound"] == 1
+
+
 def test_a_denied_link_reaches_the_runner_as_a_decision_without_an_archive(tmp_path, keys):
     composition = Composition(tmp_path, keys, "denied-link-excluded", deny=("index",))
     assert set(composition.inner) == {"scribe"}
@@ -311,12 +383,7 @@ def test_a_denied_link_reaches_the_runner_as_a_decision_without_an_archive(tmp_p
 
 def test_an_inner_plan_that_is_not_the_one_the_callers_plan_names_is_refused(tmp_path, keys):
     """N-34: another parent, another hash, or another package under the dependency's name."""
-    from link_probe import CASES
-
-    case = next(
-        c for c in json.loads((CASES / "cases.json").read_text())["cases"] if c["stage"] == "host"
-    )
-    assert (case["id"], case["code"]) == ("inner-plan-replay", "link_plan_parent_mismatch")
+    assert host_case("inner-plan-replay")["code"] == "link_plan_parent_mismatch"
     composition = Composition(tmp_path, keys)
 
     def changed(mutate):
@@ -332,6 +399,47 @@ def test_an_inner_plan_that_is_not_the_one_the_callers_plan_names_is_refused(tmp
     ):
         begin, result, *_ = asyncio.run(composition.run(links=changed(mutate)))
         assert result is None and code(begin) == "link_plan_parent_mismatch", begin
+
+
+def test_an_inner_plan_does_not_run_as_a_callers_plan(tmp_path, keys):
+    """N-54, L-15's limit case (T65 review 1, finding 2): an inner plan with no caller at all.
+    Begun on its own, the linked package would run outside any composition, on a link's card."""
+    assert host_case("inner-plan-alone")["code"] == "link_plan_parent_mismatch"
+    composition = Composition(tmp_path, keys)
+    for name in ("index", "scribe"):
+        assert composition.inner[name]["parent"]["dependency"] == name
+        begin, result, host, _ = asyncio.run(composition.run_alone(name))
+        assert result is None and code(begin) == "link_plan_parent_mismatch", begin
+        assert not host.requests
+
+
+def test_a_linked_package_is_leased_only_beside_its_caller(tmp_path, keys):
+    """The control plane's half of the same rule: the bytes of a linked package leave on a
+    lease only while its caller holds one, on a plan that names this inner plan."""
+    from agentpkg.browser.errors import ControlPlaneError
+
+    composition = Composition(tmp_path, keys)
+    control, stack = composition.stack.control, composition.stack
+    listed = control.links(stack.session)["links"]
+    review = {link["dependency"]: link["session_id"] for link in listed}
+    try:
+        composition.lease(review["index"], composition.inner["index"])
+    except ControlPlaneError as refusal:
+        assert refusal.code == "link_lease_without_caller", refusal
+    else:
+        raise AssertionError("an inner plan was leased with no caller's lease")
+    # Beside the caller's lease it is issued; once the caller's is released, no longer.
+    os.close(composition.lease(stack.session, composition.plan))
+    os.close(composition.lease(review["index"], composition.inner["index"]))
+    for session_id, lease_id in composition.leases:
+        control.release_execution_lease(session_id, lease_id)
+    composition.leases.clear()
+    try:
+        composition.lease(review["scribe"], composition.inner["scribe"])
+    except ControlPlaneError as refusal:
+        assert refusal.code == "link_lease_without_caller", refusal
+    else:
+        raise AssertionError("an inner plan was leased after its caller's lease ended")
 
 
 def test_the_runner_verifies_each_linked_archive_itself(tmp_path, keys):

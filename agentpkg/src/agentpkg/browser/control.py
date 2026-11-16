@@ -1087,6 +1087,34 @@ class ControlPlane:
                     "session_run_plan_sha256": plan["run_plan_sha256"],
                 },
             )
+        if session.parent is not None:
+            # link.v0 L-15: a linked package's bytes leave only beside its caller's. The caller
+            # is leased first, on a plan that names this very inner plan as accepted; an inner
+            # plan leased alone would be a run of the linked package outside any composition.
+            caller = self._sessions.get(session.parent)
+            with self._lock:
+                named = (
+                    ((caller.run_plan or {}).get("links") or {}).get(session.dependency)
+                    if caller is not None
+                    else None
+                )
+                beside = named is not None and any(
+                    not lease.expired()
+                    and lease.run_plan_sha256 == caller.run_plan["run_plan_sha256"]
+                    for lease in caller.leases.values()
+                )
+            if (
+                not beside
+                or named["decision"] != "accepted"
+                or named["plan_hash"] != plan["run_plan_sha256"]
+            ):
+                raise ControlPlaneError(
+                    "link_lease_without_caller",
+                    "A linked package's inner plan is leased only beside its caller's lease, on "
+                    "a caller's plan that names it; lease the caller first",
+                    status=409,
+                    details={"dependency": session.dependency},
+                )
         state = self._preflight(session)
         if not state["ready"] or state["stale"]:
             reasons = state["stale_reasons"] or state["blocking_reasons"]
