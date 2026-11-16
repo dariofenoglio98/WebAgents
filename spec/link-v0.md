@@ -451,3 +451,69 @@ check); `run` (the run fails with the code at the node named, or the control com
 | N-49 | `raise-unattended` | run | `budget_exhausted`; no card |
 | N-50 | `package-cap-never-raised` | run | `budget_exhausted`; no card (the limit that failed is the package's) |
 | N-51 | `second-raise-refused` | run | `budget_exhausted`; one `budget.requested` in the run |
+
+The reference asserts every row of N-1…N-33 (`test_link_cases.py`) and, in
+`test_link_runtime.py`, the authority boundary (an inner run built from its binding alone; a
+caller's grant and approval for the same permission and tool refused to the linked package), the
+reservation held and released, a link past its step's time, the composed bound under several
+walks, a denial of a publisher's key, the run record, `inspect` and the CLI.
+
+## 11. The example packages
+
+Four fictional publishers, each with its own key and its own origin
+([`examples/link/make_link_examples.py`](../examples/link/make_link_examples.py) generates the
+sources under `agents/`, and a test asserts the committed trees are its output):
+
+| Package | Publisher | What it does |
+|---|---|---|
+| `org.webagents.travel-planner` (Tripwright) | a travel planner | a network.v0 package: `FrontMan` (the entry, a chosen route) consults `Flights`, `Hotels` and `Calendar`, each at most once within six handoffs. `Flights` holds one `link` step to `webair-flights`, `Hotels` one to `hotel-aggregator`; `Calendar` calls the planner's own tool |
+| `org.webagents.webair-flights` (WebAir Flights) | WebAir, with WebAir's key | searches WebAir's fictional flights, then proposes one among them |
+| `org.webagents.staymere-hotels` (Staymere) | a hotel aggregator | searches the hotels it lists in a city, then proposes one |
+| `org.webagents.hotel-salitubam` (Hotel Salitubam) | one small hotel in Reykjavik | asks the hotel's own availability service, then proposes one room offer; the package a slot can join |
+
+Each linked package is one tool on its publisher's own service and one model step, with the
+same worst case: 1 model call, 1 call of its tool, 3 remote calls, 6,000 tokens. The planner's
+composed envelope, stated before consent: at most 6 handoffs; FrontMan at most 4 times and each
+specialist once; 10 model calls (8 of the planner, 1 of each linked package); one call each of
+`check-calendar`, `webair-flights:search-flights` and `hotel-aggregator:search-hotels`; 23 remote
+calls and 92,000 tokens. The planner is a star, so the bound is exact in model and tool calls,
+and its fixture walk, the full tour through both links, attains them
+(`agentpkg/tests/test_link_packages.py`).
+
+Every link's input is built from the trip's closed fields (airport codes bound by a pattern, ISO
+dates, an integer number of travellers); the request's free-text `notes` reach FrontMan's model
+and no link, and a test walks every link constructor against the schemas and fails on a source
+that admits free text. That is a property of this planner's declaration, not of the format
+(L-4): a package whose link input admits free text sends what its program puts there.
+
+The tool answers in the four fixtures are the demo origin's own
+(`demo/webair/tests/test_hotel.py`). All data is fictional; nothing is booked.
+
+## 12. Versions, deliberate limits, prior art
+
+**Versions.** agentpkg 0.8.0 implements §1…§5 (planned links) and validates a slot's
+declaration (§2.3, L-21); packages that use links declare `runtime.minimum_version: "0.8.0"`.
+The Chrome core's port is T66. The OpenClaw plugin stays frozen (D-029) and its execution host
+refuses 0.8.0 packages by version. The paper line is untouched.
+
+**Deliberate limits of v0.** Depth one (a linked package links nothing; the composition rule is
+stated for any depth); no conversational target; no remote linked agent (a link is a program
+run here); a slot only in a role's program, one candidate per step, at most two cards per run;
+`locate` reads the run's input or a tool's result and nothing a model can write; the linked
+package runs on the caller's model route; a link's seconds are inside its step's time; the bound
+counts calls and tokens, not the quality of a linked package's answer; what a linked package's
+own approved tools send to their hosts is that package's declaration, shown on its card.
+
+**Prior art.** The systems that link agents link a service: the A2A protocol and the framework
+features built on it (a remote agent behind an agent card, answered by its operator's server and
+model), remote graphs, external agents of a declared network, and agents wrapped as tools. What
+the caller sends is set by caller code, and what the remote side spends is outside the caller's
+accounting. The systems that share a program share instructions or code that the person's agent
+then runs with the person's own authority: skill folders, hub agents fetched with a
+trust-the-code flag, network files fetched by URL. On the pages read for this specification
+(November 2026), none of them fetches another publisher's agent program and runs it under the
+person's own model with the publisher verified, the program pinned by digest, its requirements
+declared and granted on its own card, and its worst case composed into the caller's before
+consent. network.v0's reservation (R-17) is the pattern of L-24, its bound (R-19…R-22) the
+frame of §4, conversation.v0's consent host the pattern of §6's card, and the package-URL and
+discovery policies (`docs/threat-model.md`) are reused unchanged.

@@ -959,7 +959,7 @@ RESOURCES = Profile(
         py_if(
             "B.runtime.remote_global",
             "runtime.py",
-            '        if self._global.remote_calls + count > self.budget["max_remote_calls"]:',
+            '        if self._global.remote_calls + held + count > self.budget["max_remote_calls"]:',
         ),
         py_if(
             "B.runtime.remote_worker",

@@ -536,10 +536,9 @@ class Runtime:
 
     def _remote(self, ctx, count=1):
         own = self._usage[ctx.worker_id]
-        if (
-            self._global.remote_calls + self._global.reserved_remote_calls + count
-            > self.budget["max_remote_calls"]
-        ):
+        # link.v0 L-24: the remote calls an inner run holds are not there to spend.
+        held = self._global.reserved_remote_calls
+        if self._global.remote_calls + held + count > self.budget["max_remote_calls"]:
             raise BudgetError("Global remote-call budget exhausted")
         if own.remote_calls + count > self.roles[ctx.role]["budget"]["remote_calls"]:
             raise BudgetError(f"Remote-call budget exhausted for {ctx.worker_id}")
