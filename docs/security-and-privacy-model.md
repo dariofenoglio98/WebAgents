@@ -9,8 +9,7 @@ nothing about today's code. The per-boundary implementation notes that this mode
 primary statement are kept in [threat-model.md](threat-model.md); every claim there now cites a
 property of §3. **Version 3** (2026-11-15, T65) turns §6.1's
 commitments for planned links (LK-1…LK-5) into implemented statements for the Python reference
-(`agentpkg` 0.8.0), with pointers and cases, and extends P-4, P-7, P-9 and P-17 by one sentence
-each; the Chrome core's pointers are T66's.
+(`agentpkg` 0.8.0), with pointers and cases, and extends P-4, P-5, P-7, P-9 and P-17 by one sentence each; the Chrome core's pointers are T66's.
 
 ## 0. How to read this document
 
@@ -378,7 +377,7 @@ availability or identity, receipt expiry) refuses as stale and is replaced, neve
 reference, the component that shows and authorizes cannot import the interpreter (a static scan
 and a fresh-interpreter check enforce it), and in the extension the separation is by execution
 context (the service worker authorizes, the offscreen document's Worker runs), not by an import
-rule: the service worker imports a digest helper from the interpreter module.
+rule: the service worker imports a digest helper from the interpreter module. Across a link (§6.1, LK-1, LK-2) each linked package has its own receipt and its own inner Run Plan, which names the caller it was prepared for; the caller's plan records each inner plan's hash, re-verification covers every one, and the execution host is handed each accepted link's inner plan and archive and verifies both itself.
 
 **Adversary.** A-PKG, A-ORIG or A-ISS changing the world between consent and start: a re-signed
 package, a withdrawn pin, a swapped binding or record, a replayed plan; a stale page authorizing
@@ -403,7 +402,7 @@ receipt spent at the first lease),
 
 **Conformance.** `control-plane/stale_trust_revoked`, `control-plane/stale_tool_changed`,
 `control-plane/once_replayed` (the receipt spent by the first lease; `once` within a run is P-4's),
-`network/execution-layer-envelope` (network N-28, N-29).
+`network/execution-layer-envelope` (network N-28, N-29). Across a link: `link/inner-plan-replay` (link N-34), and the control plane's re-verification in `agentpkg/tests/test_link_control.py`.
 
 **Experiment.** E1 (the plan-binding family of the first catalog is cited; the envelope-reservation
 profile of the second), E6 (CB-4, CB-5), E7 (preparation and re-verification cost).
@@ -1295,7 +1294,7 @@ slot's declaration and runs none, so they claim nothing about today's runs.
   bytes that were verified (P-1, P-5). *Bounds:* A-PKG or A-ORIG substituting the linked package; a
   caller naming a package it did not pin. *Residual:* P-1's and P-2's. *Python reference:*
   `agentpkg/src/agentpkg/links/resolve.py:resolve_links` (`verify_linked`, `check_record`), the
-  fetch through `agentpkg/src/agentpkg/browser/fetch.py:download_to_file`, unchanged. *Conformance:*
+  fetch through `agentpkg/src/agentpkg/browser/fetch.py:download_to_file`, unchanged. In the control plane each dependency is a package session of its own, `agentpkg/src/agentpkg/browser/links.py:resolve`; the execution host verifies each linked archive again, `agentpkg/src/agentpkg/execution/session.py:ExecutionSession._bind_links`. *Conformance:*
   `link/digest-mismatch`, `link/signer-mismatch`, `link/identity-mismatch`, `link/signature-absent`
   (link N-14…N-17). *Experiment:* EL.
 - **LK-2 One card per new publisher; a valid signature is not a trusted publisher across links.**
@@ -1313,8 +1312,8 @@ slot's declaration and runs none, so they claim nothing about today's runs.
   `agentpkg/src/agentpkg/links/host.py:LinkHost`; the trust evaluation per linked publisher and
   the refusal of an undecided one, `agentpkg/src/agentpkg/links/operator.py:operator_links`; a
   denied link's role out of every route, `agentpkg/src/agentpkg/delegation/analysis.py:denied_roles`
-  and `agentpkg/src/agentpkg/delegation/runner.py:run_network`. *Conformance:* `link/undecided`,
-  `link/denied-link-node`, `link/denied-link-excluded` (link N-23, N-30, N-31). *Experiment:* EL.
+  and `agentpkg/src/agentpkg/delegation/runner.py:run_network`. In the control plane: the review, the denial and the caller's plan, `agentpkg/src/agentpkg/browser/links.py:review` (`plan_links`, `staleness`), with a receipt and an inner Run Plan per linked package through the ordinary `ControlPlane.authorize` and `ControlPlane.prepare_run_plan` of `agentpkg/src/agentpkg/browser/control.py`. *Conformance:* `link/undecided`,
+  `link/denied-link-node`, `link/denied-link-excluded` (link N-23, N-30, N-31). An inner plan that is not the caller's: `link/inner-plan-replay` (link N-34). *Experiment:* EL.
 - **LK-3 A linked package gains no authority from its caller.** An inner run holds the intersection
   of the linked package's own declaration and the person's grants on its card; nothing of the
   caller's receipt, tools, resources, memory or state reaches it beyond the link's input instance,
@@ -1518,8 +1517,7 @@ consent and (planned) request, and can revoke what was remembered (P-4, P-12, P-
 - **Version 3 (2026-11-15, T65; D-690…D-699).** §6.1's commitments for the planned link
   (LK-1…LK-5) became implemented statements for the Python reference (`agentpkg` 0.8.0), each
   with its pointers and its cases of the family `link/*`; LK-6…LK-8 stay planned, with the
-  declaration's checks named under LK-6. P-4, P-7, P-9 and P-17 gained one sentence each for a
-  link, with their cases. §1.3 states what Agent Links add to the trusted base. LK-6 says the
+  declaration's checks named under LK-6. P-4, P-5, P-7, P-9 and P-17 gained one sentence each for a link, with their cases. §1.3 states what Agent Links add to the trusted base. LK-6 says the
   runtime never fetches a URL a model wrote, and names the residual of a tool that echoes its
   arguments into a URL. No property id changed. The checking script reads `link/*` case ids, the
   specification's N numbers and its rule ids L-n, checks DF-n, UC-n and LK-n for gaps and

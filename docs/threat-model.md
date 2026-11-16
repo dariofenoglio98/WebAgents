@@ -18,7 +18,7 @@ its residual). Nothing a specification cites has been removed.
 | P-2 a valid signature is not a trusted publisher | Threats and controls; What signatures and identity mean; Browser control-plane boundary; Agent Browser plugin boundary; Search and policy subscriptions; Agent Links |
 | P-3 data only | Threats and controls; workflow.v0 boundary; Code in packages |
 | P-4 declared at most, granted no more | Threats and controls; Browser control-plane boundary; Agent Browser plugin boundary; Run surface boundary; Package execution boundary; Tool broker boundary; Agent Links |
-| P-5 prepare, re-verify, then run | Browser control-plane boundary; Agent Browser plugin boundary; Run surface boundary; Model-router bridge boundary; Package execution boundary |
+| P-5 prepare, re-verify, then run | Browser control-plane boundary; Agent Browser plugin boundary; Run surface boundary; Model-router bridge boundary; Package execution boundary; Agent Links |
 | P-6 a model's output is data | Run surface boundary; Model-router bridge boundary; workflow.v0 boundary; In-browser inference |
 | P-7 control flow is the signed graph | Threats and controls; workflow.v0 boundary; Delegation networks; Agent Links |
 | P-8 tools only through bindings under the address policy | Threats and controls; Browser control-plane boundary; Tool broker boundary; Scholarly search, selected files and pacing; Chrome Agent Browser |
@@ -741,7 +741,7 @@ descriptions are the package's text, shown as data.
 
 ## Agent Links (T65, `link.v0`)
 
-*Properties: P-1, P-2, P-4, P-7, P-9, P-17 ([the model](security-and-privacy-model.md#3-properties)).*
+*Properties: P-1, P-2, P-4, P-5, P-7, P-9, P-17 ([the model](security-and-privacy-model.md#3-properties)).*
 
 [`spec/link-v0.md`](../spec/link-v0.md) lets one publisher's package ask another publisher's
 package for help. Until now one run held one publisher's program; a link puts a second
@@ -785,6 +785,12 @@ into the link's input instance, within its own view: the example planner builds 
 input from closed fields, a property of that package and not of the format. Free text a linked
 package returns reaches the caller's model as data (P-6). The linked package runs on the
 caller's model route, so a compromised model is the same adversary on both sides of the link.
-The reference's hosts today are the developer CLI and a driver that plays the person
-(`links/operator.py`); the control plane's review with a receipt and an inner Run Plan per
-linked package is specified (L-13…L-15).
+**Prepared, re-verified, then run.** The reference has two hosts. The developer CLI and a driver
+that plays the person bind decisions directly (`links/operator.py`). The control plane opens
+each dependency as a package session of its own (`browser/links.py`), so a linked publisher is
+authorized through the ordinary path with its own receipt and its own inner Run Plan, which
+names the caller it was prepared for; the caller's plan records each link with its inner
+plan's hash, and its preflight re-verifies every one. The execution session is handed each
+accepted link's inner plan and archive, refuses an inner plan that is not the one the caller's
+plan names or that names another caller, and verifies each archive itself (P-5); the modules it
+imports for that reach no control plane and no transport.
