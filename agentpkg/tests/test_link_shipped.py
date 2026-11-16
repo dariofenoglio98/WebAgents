@@ -155,8 +155,12 @@ def test_another_archive_under_a_dependencys_name_is_refused(tmp_path, capsys):
     assert capsys.readouterr().err.startswith("agentpkg: link_identity_mismatch: ")
 
 
-def test_the_demo_index_names_the_four_archives():
-    index = json.loads((ROOT / "examples" / "agent-index.json").read_text(encoding="utf-8"))
+def test_the_signed_index_1_7_0_names_the_four_archives():
+    """Index 1.7.0 is signed and kept beside the current one: the Chrome tree pins the current
+    index and its tests' clock, so T66 makes 1.7.0 current when it moves those (D-699)."""
+    examples = ROOT / "examples"
+    index = json.loads((examples / "agent-index-1.7.0.json").read_text(encoding="utf-8"))
+    assert index["content"] == json.loads((examples / "agent-index-1.7.0.content.json").read_text())
     content = index["content"]
     assert content["version"] == "1.7.0"
     entries = {entry["package_id"]: entry for entry in content["entries"]}
@@ -167,5 +171,5 @@ def test_the_demo_index_names_the_four_archives():
         assert entry["archive_sha256"] == hashlib.sha256(archive(stem).read_bytes()).hexdigest()
         assert entry["signer_fingerprint"] == fingerprint(_read_key(key(stem)))
         assert entry["package_url"].startswith("https://")
-    previous = json.loads((ROOT / "examples" / "agent-index-1.6.0.json").read_text())
-    assert previous["content"]["version"] == "1.6.0"
+    current = json.loads((examples / "agent-index.json").read_text(encoding="utf-8"))
+    assert current["content"]["version"] == "1.6.0"
