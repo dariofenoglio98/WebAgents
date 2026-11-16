@@ -54,6 +54,7 @@
         "hotel-aggregator:search-hotels": 1,
         "check-calendar": 1
       },
+      "compute_calls": 0,
       "links": {
         "webair-flights": {
           "runs": 1,
@@ -83,36 +84,36 @@
       "action": "link.started",
       "node_id": "plan-trip/Flights/search",
       "dependency": "webair-flights",
-      "inner_run_id": "a7f50cfc-b9dd-4fd2-a2f4-c676d0b07b85"
+      "inner_run_id": "d97ba5d7-cbfa-42d7-8a72-6ce92b77637b"
     },
     {
       "action": "link.completed",
       "node_id": "plan-trip/Flights/search",
       "dependency": "webair-flights",
-      "inner_run_id": "a7f50cfc-b9dd-4fd2-a2f4-c676d0b07b85"
+      "inner_run_id": "d97ba5d7-cbfa-42d7-8a72-6ce92b77637b"
     },
     {
       "action": "link.started",
       "node_id": "plan-trip/Hotels/search",
       "dependency": "hotel-aggregator",
-      "inner_run_id": "3d7e509d-e37c-4883-a01d-600919081f7f"
+      "inner_run_id": "073f0276-adbe-4a63-bd4a-0485b9dde902"
     },
     {
       "action": "link.completed",
       "node_id": "plan-trip/Hotels/search",
       "dependency": "hotel-aggregator",
-      "inner_run_id": "3d7e509d-e37c-4883-a01d-600919081f7f"
+      "inner_run_id": "073f0276-adbe-4a63-bd4a-0485b9dde902"
     }
   ],
   "inner_records": [
-    "link-3d7e509d-e37c-4883-a01d-600919081f7f.audit.json",
-    "link-3d7e509d-e37c-4883-a01d-600919081f7f.provenance.json",
-    "link-3d7e509d-e37c-4883-a01d-600919081f7f.result.json",
-    "link-3d7e509d-e37c-4883-a01d-600919081f7f.usage.json",
-    "link-a7f50cfc-b9dd-4fd2-a2f4-c676d0b07b85.audit.json",
-    "link-a7f50cfc-b9dd-4fd2-a2f4-c676d0b07b85.provenance.json",
-    "link-a7f50cfc-b9dd-4fd2-a2f4-c676d0b07b85.result.json",
-    "link-a7f50cfc-b9dd-4fd2-a2f4-c676d0b07b85.usage.json"
+    "link-073f0276-adbe-4a63-bd4a-0485b9dde902.audit.json",
+    "link-073f0276-adbe-4a63-bd4a-0485b9dde902.provenance.json",
+    "link-073f0276-adbe-4a63-bd4a-0485b9dde902.result.json",
+    "link-073f0276-adbe-4a63-bd4a-0485b9dde902.usage.json",
+    "link-d97ba5d7-cbfa-42d7-8a72-6ce92b77637b.audit.json",
+    "link-d97ba5d7-cbfa-42d7-8a72-6ce92b77637b.provenance.json",
+    "link-d97ba5d7-cbfa-42d7-8a72-6ce92b77637b.result.json",
+    "link-d97ba5d7-cbfa-42d7-8a72-6ce92b77637b.usage.json"
   ],
   "verification": {
     "schema": "webagents-verify-link-run-v0",
@@ -182,18 +183,18 @@
       "tokens": 14.777
     },
     "inner_dispatches": {
-      "a7f50cfc-b9dd-4fd2-a2f4-c676d0b07b85": {
+      "d97ba5d7-cbfa-42d7-8a72-6ce92b77637b": {
         "dependency": "webair-flights",
         "model_requests": 1,
         "tool_arguments": 1
       },
-      "3d7e509d-e37c-4883-a01d-600919081f7f": {
+      "073f0276-adbe-4a63-bd4a-0485b9dde902": {
         "dependency": "hotel-aggregator",
         "model_requests": 1,
         "tool_arguments": 1
       }
     },
-    "checks": 54,
+    "checks": 55,
     "passed": true
   },
   "passed": true

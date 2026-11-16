@@ -382,7 +382,9 @@ def verify(
         "compute_calls": usage.get("compute_calls", 0),
         "remote_calls": usage["remote_calls"],
         "tokens": usage["tokens"],
-        "tool_calls": dict(own_tools + inner_tools),
+        # Sorted, so that two verifications of one walk print the same JSON whatever the
+        # inner runs' ids were.
+        "tool_calls": dict(sorted((own_tools + inner_tools).items())),
     }
     checks.add(
         "the caller's tokens are its own calls plus every inner run's",
