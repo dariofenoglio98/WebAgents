@@ -481,7 +481,17 @@ def inspect_package(package: Package) -> dict:
         **_module_listing(package),
         **_conversation_listing(package),
         **_network_listing(package),
+        **_link_listing(package),
     }
+
+
+def _link_listing(package: Package) -> dict:
+    """link.v0: the dependencies and slots the program declares, where it declares any; the
+    composed envelope needs the linked packages (`agentpkg inspect --link`)."""
+    from .links.records import link_records
+
+    records = link_records(package)
+    return {} if records is None else {"links": records}
 
 
 def _network_listing(package: Package) -> dict:

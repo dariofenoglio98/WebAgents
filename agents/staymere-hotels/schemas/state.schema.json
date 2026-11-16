@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "request": {
+      "$ref": "query.schema.json"
+    },
+    "found": {
+      "anyOf": [
+        {
+          "$ref": "found.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "pick": {
+      "anyOf": [
+        {
+          "$ref": "pick.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "result": {
+      "anyOf": [
+        {
+          "$ref": "result.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "request",
+    "found",
+    "pick",
+    "result"
+  ],
+  "additionalProperties": false
+}

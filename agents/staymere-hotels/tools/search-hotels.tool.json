@@ -1,0 +1,23 @@
+{
+  "spec_version": "0.1",
+  "id": "search-hotels",
+  "version": "0.1.0",
+  "description": "Search the fictional hotels Staymere lists in a city for a stay.",
+  "execution": "remote",
+  "binding": "staymere.hotels",
+  "endpoint": "https://webagents-staymere-production.up.railway.app/api/v1/travel/hotels",
+  "method": "POST",
+  "input_schema": "schemas/query.schema.json",
+  "output_schema": "schemas/found.schema.json",
+  "permissions": [
+    "network.staymere"
+  ],
+  "domains": [
+    "webagents-staymere-production.up.railway.app"
+  ],
+  "timeout_seconds": 15,
+  "retries": 0,
+  "side_effects": "read",
+  "approval_required": false,
+  "extensions": {}
+}

@@ -136,9 +136,9 @@ L-10. **Resolution.** Before the caller is authorized, the host resolves every d
 obtains the bytes from the record's `locator` under the package-URL policy, unchanged (HTTPS, a
 public address, a pinned connection, no redirect, a byte cap; `browser/fetch.py`), or takes an
 archive the person supplied for that id, accepted only by its digest; it snapshots the bytes and
-verifies them as it verifies any package: container, integrity, schemas, and a **valid
-signature**, which a link always requires (`link_signature_invalid`), since a link crosses
-publishers. A fetch the policy refuses or that fails is `link_fetch_failed`. Resolution is
+verifies them as it verifies any package: container, integrity, schemas and a runtime version
+it supports (`link_package_invalid`, with the validator's reason), and a **valid signature**,
+which a link always requires (`link_signature_invalid`), since a link crosses publishers. A fetch the policy refuses or that fails is `link_fetch_failed`. Resolution is
 preparation: nothing of a linked package runs.
 
 L-11. **The checks**, in this order, each refusing the caller's plan: the package's `package_id`
@@ -146,8 +146,7 @@ and `version` are the record's (`link_identity_mismatch`); its digest is the pin
 (`link_digest_mismatch`); its signer is the declared `signer` where one is declared
 (`link_signer_mismatch`); it is a one-shot workflow.v0 package, not a conversation
 (`link_target_conversational`); it declares no dependency and its graph holds no `link` step of
-either form (`link_nested`); this runtime supports its `runtime.minimum_version`
-(`link_runtime_unsupported`).
+either form (`link_nested`).
 
 L-12. **Trust is the person's.** The linked package's signer is evaluated against the person's
 own trust store exactly as if the package had been opened directly, and reported as a separate
@@ -177,7 +176,7 @@ plan, or for a join not this run, is refused (`link_plan_parent_mismatch`).
 L-16. **A denied link** is unbound, as a denied optional capability is: the plan states it; the
 composed bound leaves it out (L-22); a role whose program holds a denied `link` step cannot
 complete, so it leaves every route's enum and target list, and a fixed route to it is refused at
-the transition check (`permission_denied`); a network whose entry holds one, and a run that
+the transition check (`permission_denied`, the decision recorded with `reason: "link_denied"`); a network whose entry holds one, and a run that
 reaches a denied top-level node or map step, fails there `permission_denied`, recorded
 `link.denied`. No inner run of a denied publisher ever starts.
 
@@ -223,7 +222,8 @@ stated in words, and counted as neither tool nor remote calls.
 L-22. **What the person is told.** `inspect`, the control plane's summary and the Run Plan state
 the composed envelope and name every linked package with its own worst case; for a slot, in
 words, "and, for a package joined during the run, at most …". A denied link is left out of the
-envelope: the roles that hold it have an activation bound of zero. Every figure is a theorem
+envelope: a role that holds it has an activation bound of zero, and its own edges, never
+taken, count for no other role's bound. Every figure is a theorem
 about the signed declarations, the caller's and the pinned ones: a run can stay below it and
 cannot pass it.
 
@@ -268,10 +268,11 @@ L-29. **Fixture mode.** An inner run replays the linked package's own fixture: i
 tool cases, by exact input, as a direct fixture run of that package does. Nothing in a fixture
 grants, routes or links.
 
-L-30. **The record.** Each inner run's record (result, audit, usage, provenance) is kept beside
-the caller's under `links/<inner_run_id>/`, and the caller's run record lists its links: for
-each, the package, the publisher, the trust state, the decision, the inner plan and its hash,
-and the inner runs with their status. Messages, inputs and results are hashed in the caller's
+L-30. **The record.** Each inner run's record is kept beside the caller's, as
+`link-<inner_run_id>.result.json`, `.audit.json`, `.usage.json` and `.provenance.json`, and the
+caller's run record lists its links in `links.json`: for each, the package, the publisher, the
+trust state, the decision, the inner plan and its hash, and the inner runs with their node and
+status. A package with links exports nothing under those names. Messages, inputs and results are hashed in the caller's
 audit, never recorded.
 
 ## 6. The join
@@ -382,7 +383,7 @@ are in its own chain, under its own run id.
 | Where | Codes |
 |---|---|
 | validation (the caller's package) | `link_minimum_version`, `link_dependency_unknown`, `link_dependency_duplicate`, `link_dependency_unused`, `link_locator_scheme`, `link_nested` (a dependency naming the caller), `link_caps`, `link_slot_scope`, `link_slot_duplicate`, `link_locate_source`, `link_request_task_unknown`, `link_slot_outcome_schema`, `link_bound_exceeds_budget` (a slot's ceiling); a link's input beyond a role's view: `network_state_read_outside_view` |
-| preparation (resolution, the composed check) | `link_fetch_failed`, `link_signature_invalid`, `link_identity_mismatch`, `link_digest_mismatch`, `link_signer_mismatch`, `link_target_conversational`, `link_nested`, `link_runtime_unsupported`, `link_model_incompatible`, `link_bound_exceeds_budget`, `link_undecided`, `link_plan_parent_mismatch` |
+| preparation (resolution, the composed check) | `link_fetch_failed`, `link_package_invalid`, `link_signature_invalid`, `link_identity_mismatch`, `link_digest_mismatch`, `link_signer_mismatch`, `link_target_conversational`, `link_nested`, `link_model_incompatible`, `link_bound_exceeds_budget`, `link_undecided`, `link_plan_parent_mismatch` |
 | grants | `execution_grant_unsupported` (a `once` grant the composition would consume more than once) |
 | at a `link` step | `schema_validation` (`link_input`, `link_result`), `budget_exhausted` (`link.refused`), `permission_denied` (`link.denied`), `link_error` (the inner run failed; `link.failed` names its code), `timeout` |
 | a slot's outcome (data, not a failure) | `unattended`, `policy`, `join_cap`, `not_found`, `verification`, `conversational`, `nested`, `publisher_denied`, `model_incompatible`, `over_ceiling`, `budget`, `declined`, `failed` |

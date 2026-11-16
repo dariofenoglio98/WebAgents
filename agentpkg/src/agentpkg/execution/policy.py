@@ -692,7 +692,9 @@ def _consumption_counts(package) -> dict[str, int]:
 
         for role_id in network["roles"]:
             activations = activation_bound(network, role_id)
-            costs = activation_costs(graph, role_id)
+            # The role's own program: a link's inner run consumes its own package's grants
+            # (link.v0 L-28 counts those on its card).
+            costs = activation_costs(graph, role_id, False)
             counts["memory"] += activations
             counts["model"] += activations * costs["model_calls"]
             for tool_id, per_activation in costs["tool_calls"].items():

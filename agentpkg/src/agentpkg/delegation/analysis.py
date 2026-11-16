@@ -148,17 +148,21 @@ def activation_costs(graph, role_id: str, links=None) -> dict:
     return costs
 
 
-def activation_bound(network, role_id: str) -> int:
+def activation_bound(network, role_id: str, denied=()) -> int:
     """The most times any allowed walk activates a role (R-20): every activation but the entry's
     first follows an edge into it, each edge is taken at most `max_uses` times, there are at
-    most `max_hops` transitions, and the role's own `max_activations` caps it further."""
+    most `max_hops` transitions, and the role's own `max_activations` caps it further. A role
+    in `denied` (link.v0 L-16) is never activated, so it counts zero and its own edges are
+    never taken."""
+    if role_id in denied:
+        return 0
     role = network["roles"][role_id]
     entry = 1 if role_id == network["entry"] else 0
     inbound = sum(
         edge["max_uses"]
-        for other in network["roles"].values()
+        for other_id, other in network["roles"].items()
         for edge in other["edges"]
-        if edge["to"] == role_id
+        if edge["to"] == role_id and other_id not in denied
     )
     bound = min(inbound + entry, network["max_hops"] + entry)
     if "max_activations" in role:
@@ -202,7 +206,7 @@ def worst_case(graph, policy, *, budget=None, node_timeout=None, links=None) -> 
     roles = list(network["roles"])
     entry = network["entry"]
     denied = denied_roles(network, links)
-    bounds = {role: 0 if role in denied else activation_bound(network, role) for role in roles}
+    bounds = {role: activation_bound(network, role, denied) for role in roles}
     total = min(network["max_hops"] + 1, sum(bounds.values()))
     costs = {role: activation_costs(graph, role, links) for role in roles}
     caps = dict(budget or policy["budget"])

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "trip": {
+      "type": "object",
+      "properties": {
+        "origin": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "destination": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "date_out": {
+          "type": "string",
+          "format": "date"
+        },
+        "date_back": {
+          "type": "string",
+          "format": "date"
+        },
+        "travellers": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        }
+      },
+      "required": [
+        "origin",
+        "destination",
+        "date_out",
+        "date_back",
+        "travellers"
+      ],
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "trip",
+    "summary"
+  ],
+  "additionalProperties": false
+}

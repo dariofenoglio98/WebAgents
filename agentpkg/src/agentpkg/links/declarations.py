@@ -103,6 +103,11 @@ def check_link_declarations(
                 "link_nested", f"dependency {record['id']!r} names this package itself (a cycle)"
             )
         records[record["id"]] = record
+    for export in graph.get("exports", []):
+        name = export["path"].lower()
+        if name == "links.json" or name.startswith("link-"):
+            # The host writes the run's links and each inner run's record under these names.
+            raise ValidationError(f"duplicate or reserved export path {name}")
     used = set()
     slots = []
     for label, step, where, role_id in operations:

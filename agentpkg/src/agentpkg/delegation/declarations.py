@@ -313,10 +313,11 @@ def check_network_declarations(
     return {"node": runner["id"], "roles": list(roles), "bound": bound}
 
 
-def network_records(package) -> dict | None:
+def network_records(package, links=None) -> dict | None:
     """The network as `inspect` and the agent page list it (R-24): the entry, the hop cap, the
     schemas, each role with its program's shape, its edges and its activation bound, and the
-    worst case under the package's own budgets."""
+    worst case under the package's own budgets. `links` (`analysis.link_cost`'s map) composes
+    the resolved links in (link.v0 L-22)."""
     graph = package.graph
     network = network_of(graph)
     if network is None:
@@ -325,7 +326,7 @@ def network_records(package) -> dict | None:
     workers = {w["id"]: w for w in graph["workers"]}
     roles = []
     for role_id, role in network["roles"].items():
-        costs = activation_costs(graph, role_id)
+        costs = activation_costs(graph, role_id, links)
         roles.append(
             {
                 "id": role_id,
@@ -357,7 +358,7 @@ def network_records(package) -> dict | None:
         "state_keys": list(package.json(network["state_schema"]).get("properties", {})),
         "message_schema": network["message_schema"],
         "roles": roles,
-        "worst_case": worst_case(graph, package.policy),
+        "worst_case": worst_case(graph, package.policy, links=links),
     }
 
 

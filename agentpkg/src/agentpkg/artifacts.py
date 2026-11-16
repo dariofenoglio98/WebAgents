@@ -29,6 +29,10 @@ from .workflow_values import evaluate
 # which is a host capability limit rather than a package-format rule.
 HOST_RESULT_NAMES = ("result.json", "audit.json", "usage.json", "provenance.json")
 RUN_RECORD_NAME = "run.json"
+# link.v0 L-30: the run's links and each inner run's record; a package with links may not
+# export under these names (`links.declarations`).
+LINKS_RECORD_NAME = "links.json"
+LINK_RUN_PREFIX = "link-"
 ARTIFACT_MODE = 0o600
 # One artifact is a rendered JSON document or a text export. The container
 # limits mean a result is bounded by what the interpreter already validated;
@@ -48,10 +52,24 @@ def artifact_records(result: dict, package=None) -> list[tuple[str, bytes]]:
     for a completed run, because an export selects from a final output that a
     failed run does not have.
     """
+    # link.v0 L-30: each inner run's report is written beside the caller's under flat names
+    # (the runner's descriptor admits no directory), and `result.json` does not repeat them.
+    inner_runs = result.get("inner_runs", {})
+    if inner_runs:
+        result = {key: value for key, value in result.items() if key != "inner_runs"}
     records: list[tuple[str, bytes]] = [("result.json", _encode_json(result))]
     for field in ("audit", "usage", "provenance"):
         if field in result:
             records.append((f"{field}.json", _encode_json(result[field])))
+    if "links" in result:
+        records.append((LINKS_RECORD_NAME, _encode_json(result["links"])))
+    for run_id, report in sorted(inner_runs.items()):
+        records.append((f"{LINK_RUN_PREFIX}{run_id}.result.json", _encode_json(report)))
+        for field in ("audit", "usage", "provenance"):
+            if field in report:
+                records.append(
+                    (f"{LINK_RUN_PREFIX}{run_id}.{field}.json", _encode_json(report[field]))
+                )
     if package is not None and result.get("status") == "completed":
         for export in package.graph.get("exports", []):
             value = evaluate(export["value"], {"result": result["output"]})
@@ -113,6 +131,8 @@ def write_artifacts_fd(dir_fd: int, records: list[tuple[str, bytes]]) -> list[st
 __all__ = [
     "ARTIFACT_MODE",
     "HOST_RESULT_NAMES",
+    "LINKS_RECORD_NAME",
+    "LINK_RUN_PREFIX",
     "MAX_ARTIFACT_BYTES",
     "RUN_RECORD_NAME",
     "artifact_records",

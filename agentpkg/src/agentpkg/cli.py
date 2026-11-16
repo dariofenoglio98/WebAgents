@@ -35,6 +35,30 @@ def _json_file(path, expected_type=dict):
     return value
 
 
+def _pairs(values, flag) -> dict:
+    """Repeatable `ID=VALUE` arguments as a map; an id named twice is refused."""
+    found = {}
+    for value in values or ():
+        name, separator, rest = value.partition("=")
+        if not separator or not name or not rest:
+            raise AgentPkgError(f"{flag} takes ID=VALUE, got {value!r}")
+        if name in found:
+            raise AgentPkgError(f"{flag} names {name!r} twice")
+        found[name] = rest
+    return found
+
+
+def _verify_under(path, trust_keys) -> dict:
+    """The archive verified under one of the operator's pinned keys."""
+    failure = None
+    for key in trust_keys:
+        try:
+            return verify_package(path, trusted_key=key)
+        except AgentPkgError as exc:
+            failure = exc
+    raise failure
+
+
 def _print(value):
     print(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False), flush=True)
 
@@ -68,6 +92,17 @@ def parser():
     ]:
         command = commands.add_parser(name, help=help_text)
         command.add_argument("package")
+        if name == "inspect":
+            command.add_argument(
+                "--link",
+                action="append",
+                default=[],
+                metavar="ID=ARCHIVE",
+                help=(
+                    "A linked package's archive for one declared dependency, repeatable; with "
+                    "every dependency supplied, inspect states the composed worst case"
+                ),
+            )
     build = commands.add_parser(
         "build", help="Validate and reproducibly build a ZIP_STORED artifact"
     )
@@ -182,7 +217,40 @@ def parser():
     )
     run.add_argument(
         "--trust-key",
-        help="Required for live mode; validates the archive publisher before dispatch",
+        action="append",
+        default=[],
+        help=(
+            "Required for live mode; validates the archive publisher before dispatch. "
+            "Repeatable: a linked package's publisher is trusted when its key is one of these"
+        ),
+    )
+    run.add_argument(
+        "--link",
+        action="append",
+        default=[],
+        metavar="ID=ARCHIVE",
+        help=(
+            "The archive of one declared dependency, repeatable; accepted only when its "
+            "package digest is the pinned one. A dependency without one is fetched from its "
+            "locator under the package-URL policy"
+        ),
+    )
+    run.add_argument(
+        "--link-grants",
+        action="append",
+        default=[],
+        metavar="ID=GRANTS_JSON",
+        help=(
+            "Accept one linked publisher: the JSON map of that package's own permission IDs "
+            "to once/session/always/deny. A caller's grants never reach a linked package"
+        ),
+    )
+    run.add_argument(
+        "--deny-link",
+        action="append",
+        default=[],
+        metavar="ID",
+        help="Deny one linked publisher: no inner run of its package starts",
     )
     run.add_argument(
         "--approve-tool",
@@ -191,7 +259,8 @@ def parser():
         metavar="TOOL_ID",
         help=(
             "Approve one declared tool, repeatable. A granted permission is not an approval: "
-            "the runtime refuses to dispatch any declared tool without one"
+            "the runtime refuses to dispatch any declared tool without one. A linked package's "
+            "tool is named ID:TOOL_ID"
         ),
     )
     run.add_argument(
@@ -429,7 +498,26 @@ def _dispatch(args):
             "publisher_trust": "not checked; use verify --trust-key",
         }
     if command == "inspect":
-        return inspect_package(package)
+        listing = inspect_package(package)
+        supplied = _pairs(args.link, "--link")
+        declared = [r.get("id") for r in package.manifest["dependencies"]]
+        if supplied and set(supplied) == set(declared):
+            # link.v0 L-22: with every dependency supplied, the composed envelope.
+            from .delegation.declarations import network_records
+            from .links.records import link_records
+            from .links.resolve import resolve_links
+
+            resolved = resolve_links(
+                package,
+                {name: Path(path).read_bytes() for name, path in supplied.items()},
+                trust=lambda signer, linked: "not evaluated by inspect",
+            )
+            listing["links"] = link_records(package, resolved)
+            if "network" in listing:
+                listing["network"] = network_records(
+                    package, {name: link.worst_case for name, link in resolved.items()}
+                )
+        return listing
     if command == "permissions":
         return permissions_summary(package)
     if command == "converse":
@@ -450,10 +538,11 @@ def _dispatch(args):
                 "turn; use agentpkg converse"
             )
         mode = args.mode if command == "run" else "fixture"
-        if mode == "live" and not args.trust_key:
+        trust_keys = list(getattr(args, "trust_key", None) or [])
+        if mode == "live" and not trust_keys:
             raise AgentPkgError("Live run requires a signed artifact and --trust-key PUBLIC_KEY")
-        if command == "run" and args.trust_key:
-            verified = verify_package(args.package, trusted_key=args.trust_key)
+        if command == "run" and trust_keys:
+            verified = _verify_under(args.package, trust_keys)
             if verified["digest"] != package.digest:
                 raise AgentPkgError("Package changed between loading and signature verification")
         if mode == "fixture":
@@ -482,8 +571,12 @@ def _dispatch(args):
         # because approving a tool is a separate decision from granting the
         # permission it travels under. `eval` runs the package's own declared
         # fixtures under blanket consent, which is already what its grants say.
-        approved = (
-            sorted(set(args.approve_tool or ())) if command == "run" else sorted(package.tools)
+        from .links.operator import operator_links, split_tool_approvals
+
+        approved, linked_approvals = (
+            split_tool_approvals(package, args.approve_tool or ())
+            if command == "run"
+            else (sorted(package.tools), {})
         )
         unknown = sorted(set(approved) - set(package.tools))
         if unknown:
@@ -510,6 +603,42 @@ def _dispatch(args):
             approved_tools=approved,
             memory=memory_run,
         )
+        if command == "run":
+            # link.v0 §3 with the operator as the person: every dependency resolved (a supplied
+            # archive by its digest, else its locator) and decided, before anything runs.
+            from .signing import _read_key, fingerprint
+
+            decisions = {
+                name: {
+                    "decision": "accepted",
+                    "grants": _json_file(path),
+                    "approved_tools": linked_approvals.get(name, []),
+                }
+                for name, path in _pairs(args.link_grants, "--link-grants").items()
+            }
+            for name in args.deny_link:
+                if name in decisions:
+                    raise AgentPkgError(f"--deny-link and --link-grants both name {name!r}")
+                decisions[name] = {"decision": "denied"}
+
+            def adapters(linked):
+                if mode == "fixture":
+                    return fixture_adapters(linked)[:2]
+                from .tools import create_handlers
+
+                return None, create_handlers(linked)
+
+            links = operator_links(
+                package,
+                archives=_pairs(args.link, "--link"),
+                decisions=decisions,
+                trusted={fingerprint(_read_key(path)) for path in trust_keys},
+                require_trusted=mode == "live",
+                router=router,
+                adapters=adapters,
+            )
+            if links is not None:
+                options["links"] = links
         if command == "run" and args.limits:
             options["limits"] = _json_file(args.limits)
         if args.out:
