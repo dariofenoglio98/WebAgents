@@ -402,7 +402,7 @@ receipt spent at the first lease),
 
 **Conformance.** `control-plane/stale_trust_revoked`, `control-plane/stale_tool_changed`,
 `control-plane/once_replayed` (the receipt spent by the first lease; `once` within a run is P-4's),
-`network/execution-layer-envelope` (network N-28, N-29). Across a link: `link/inner-plan-replay` (link N-34), and the control plane's re-verification in `agentpkg/tests/test_link_control.py`.
+`network/execution-layer-envelope` (network N-28, N-29). Across a link: `link/inner-plan-replay` and `link/inner-plan-alone` (link N-34, N-54), and the control plane's re-verification in `agentpkg/tests/test_link_control.py`.
 
 **Experiment.** E1 (the plan-binding family of the first catalog is cited; the envelope-reservation
 profile of the second), E6 (CB-4, CB-5), E7 (preparation and re-verification cost).
@@ -554,7 +554,7 @@ output; unknown usage consumes the reservation; a reported overrun is recorded a
 dispatch; absent or invalid usage fails rather than counting as zero. A conversation reserves a
 whole turn against the conversation's budget; a network is admitted before its first activation only
 if what the run has left covers its worst case, with nothing held; a compute call is bounded in
-memory, wall time and, on the reference, instructions. A link's worst case is admitted against what the run has left and, unlike a network's, held until its inner run settles; the caller's counters then take the inner run's usage (§6.1, LK-4).
+memory, wall time and, on the reference, instructions. A link's worst case is admitted against what the run has left and, unlike a network's, held until its inner run settles; the caller's counters then take the inner run's usage (§6.1, LK-4). The reservation meets the caller's token approval threshold as a model call's does (`link/approval-threshold`, link N-53).
 
 **Adversary.** A-PKG or A-MODEL driving a run past its bounds; A-PROV misreporting usage; a
 module that never returns.
@@ -1313,7 +1313,7 @@ slot's declaration and runs none, so they claim nothing about today's runs.
   the refusal of an undecided one, `agentpkg/src/agentpkg/links/operator.py:operator_links`; a
   denied link's role out of every route, `agentpkg/src/agentpkg/delegation/analysis.py:denied_roles`
   and `agentpkg/src/agentpkg/delegation/runner.py:run_network`. In the control plane: the review, the denial and the caller's plan, `agentpkg/src/agentpkg/browser/links.py:review` (`plan_links`, `staleness`), with a receipt and an inner Run Plan per linked package through the ordinary `ControlPlane.authorize` and `ControlPlane.prepare_run_plan` of `agentpkg/src/agentpkg/browser/control.py`. *Conformance:* `link/undecided`,
-  `link/denied-link-node`, `link/denied-link-excluded` (link N-23, N-30, N-31). An inner plan that is not the caller's: `link/inner-plan-replay` (link N-34). *Experiment:* EL.
+  `link/denied-link-node`, `link/denied-link-excluded` (link N-23, N-30, N-31). An inner plan that is not the caller's: `link/inner-plan-replay` (link N-34). An inner plan with no caller, handed over as a caller's plan, so that a link's card would run its package outside any composition: `link/inner-plan-alone` (link N-54), refused by `agentpkg/src/agentpkg/execution/session.py:ExecutionSession`, and by the control plane's lease, which hands a linked package's bytes out only beside its caller's (`agentpkg/src/agentpkg/browser/control.py:ControlPlane.issue_execution_lease`). *Experiment:* EL.
 - **LK-3 A linked package gains no authority from its caller.** An inner run holds the intersection
   of the linked package's own declaration and the person's grants on its card; nothing of the
   caller's receipt, tools, resources, memory or state reaches it beyond the link's input instance,
@@ -1347,7 +1347,12 @@ slot's declaration and runs none, so they claim nothing about today's runs.
   bound recomputed from the declarations by `scripts/verify_link_run.py`. *Conformance:*
   `link/bound-exceeds-budget`, `link/reservation-refused`, `link/inner-over-budget`,
   `link/planned-walk`, `link/link-in-map`, and for a slot's ceiling
-  `link/slot-bound-exceeds-budget` (link N-13, N-21, N-28, N-29, N-32, N-33). *Experiment:* EL.
+  `link/slot-bound-exceeds-budget` (link N-13, N-21, N-28, N-29, N-32, N-33); a linked package's
+  compute calls counted in the caller's usage, `link/linked-compute` (link N-52); a link's
+  reservation against the caller's approval threshold, `link/approval-threshold` (link N-53).
+  On the execution host, the bound recorded before the run is the composed one, the figures the
+  runtime states when the network starts
+  (`agentpkg/src/agentpkg/execution/policy.py:check_network`). *Experiment:* EL.
 - **LK-5 Depth is bounded and cycles are refused.** The first version admits one level: a linked
   package, named by a dependency or joined through a slot, that declares dependencies of its own
   or whose program holds a `link` step of either form, a slot's included, is refused, at
@@ -1401,8 +1406,9 @@ slot's declaration and runs none, so they claim nothing about today's runs.
   raise per run, bounded in size); a raise past the publisher's ceiling. *Residual:* the person's
   decision.
 
-**Evidence.** The reference's cases for the planned link are `link/*` N-1…N-33
-(`examples/link/cases/cases.json`, `agentpkg/tests/test_link_cases.py`), and the planner's fixture
+**Evidence.** The reference's cases for the planned link are `link/*` N-1…N-34 and N-52…N-54
+(`examples/link/cases/cases.json`; `agentpkg/tests/test_link_cases.py`, and
+`agentpkg/tests/test_link_execution.py` for the two cases of the execution host), and the planner's fixture
 walk through both links attains the composed model and tool calls
 (`agentpkg/tests/test_link_packages.py`). **Evidence planned:** the conformance family `link/*`
 on both runtimes (a digest and a signer
@@ -1521,7 +1527,11 @@ consent and (planned) request, and can revoke what was remembered (P-4, P-12, P-
   runtime never fetches a URL a model wrote, and names the residual of a tool that echoes its
   arguments into a URL. No property id changed. The checking script reads `link/*` case ids, the
   specification's N numbers and its rule ids L-n, checks DF-n, UC-n and LK-n for gaps and
-  duplicates, and reads an experiment id list in every sentence form.
+  duplicates, and reads an experiment id list in every sentence form. After the first review of
+  the reference (same version, before its merge): an inner plan is authority only inside its
+  caller's run (LK-2's pointers, `link/inner-plan-alone`); the settlement counts a linked
+  package's compute calls in the caller's usage and a link's reservation meets the caller's
+  approval threshold (LK-4's and P-9's cases, `link/linked-compute`, `link/approval-threshold`).
 - **Version 1** is [threat-model.md](threat-model.md): the per-boundary notes written with each
   milestone from the format to Agent Delegation. They are kept as the implementation notes of this
   model: each section states the properties it implements, and nothing a specification cites was

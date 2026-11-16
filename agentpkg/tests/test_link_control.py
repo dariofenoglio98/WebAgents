@@ -282,6 +282,13 @@ def test_denying_one_dependency_denies_its_publishers_key(tmp_path, keys):
     )
     assert [link["decision"] for link in review["links"]] == ["denied", "denied"]
     assert len(review["publishers"]) == 1
+    # The denial is withdrawn by key too (T65 review 1, nit 10): naming the other dependency
+    # that key signed withdraws it for both.
+    review = stack.control.decide_link(
+        stack.session, package_digest=stack.digest, dependency="scribe", decision="undecided"
+    )
+    assert [link["decision"] for link in review["links"]] == ["undecided", "undecided"]
+    assert not stack.control._session(stack.session).link_denials
 
 
 @pytest.mark.parametrize(

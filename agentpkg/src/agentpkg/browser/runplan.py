@@ -583,22 +583,12 @@ def build_run_plan(
     if links is not None:
         # link.v0 L-15, L-22: the caller's plan records each link with the person's decision
         # and its inner plan's hash, and the envelope composed across them.
-        from ..links.analysis import package_worst_case
+        from ..links.analysis import WORST_CASE_FIGURES, package_worst_case
 
         composed = package_worst_case(package.graph, package.policy, links=link_costs)
         plan["links"] = {name: dict(entry) for name, entry in sorted(links.items())}
         plan["execution"]["links"] = {
-            "worst_case": {
-                figure: composed[figure]
-                for figure in (
-                    "model_calls",
-                    "tool_calls",
-                    "compute_calls",
-                    "remote_calls",
-                    "tokens",
-                    "seconds",
-                )
-            }
+            "worst_case": {figure: composed[figure] for figure in WORST_CASE_FIGURES}
         }
     plan["run_plan_sha256"] = sha256(canonical_json(plan))
     return plan

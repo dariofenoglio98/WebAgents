@@ -215,7 +215,7 @@ AUTHORIZATION = Profile(
         py_if(
             "A.runner.mode_permission",
             "execution/session.py",
-            '            if grants.get(permission_id, "deny") == "deny":',
+            '        if grants.get(permission_id, "deny") == "deny":',
         ),
         py_if(
             "A.runner.tool_not_approved",

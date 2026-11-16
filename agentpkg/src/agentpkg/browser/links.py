@@ -10,13 +10,12 @@ decisions and prepares plans; a linked package's inner run is the execution host
 from __future__ import annotations
 
 from ..errors import ValidationError
+from ..links.analysis import WORST_CASE_FIGURES as FIGURES
 from ..links.analysis import package_worst_case
 from ..links.records import link_records
 from ..links.resolve import LinkRefusal, ResolvedLink, check_composition, check_record
 from ..package import read_regular_bytes
 from .errors import ControlPlaneError
-
-FIGURES = ("model_calls", "tool_calls", "compute_calls", "remote_calls", "tokens", "seconds")
 
 
 def _refusal(refusal: LinkRefusal, *, status=409, subject=None) -> ControlPlaneError:

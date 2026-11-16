@@ -462,6 +462,20 @@ def test_a_plan_without_its_links_does_not_run(tmp_path, keys):
     assert result is None and code(begin) == "execution_plan_invalid", begin
 
 
+def test_an_inner_plan_is_a_model_backed_plan_on_its_callers_route(tmp_path, keys):
+    """L-14 at the execution host (T65 review 1, nit 7): the inner run is given the caller's
+    router, so an inner plan that names another model, or is a tool probe, is refused."""
+    composition = Composition(tmp_path, keys)
+    links = composition.links_params()
+    links["scribe"]["run_plan"]["model_binding"]["host_model_id"] = "host/beta"
+    begin, result, *_ = asyncio.run(composition.run(links=links))
+    assert result is None and code(begin) == "execution_plan_invalid", begin
+    links = composition.links_params()
+    links["index"]["run_plan"]["execution"]["mode"] = "tool_probe"
+    begin, result, *_ = asyncio.run(composition.run(links=links))
+    assert result is None and code(begin) == "execution_plan_invalid", begin
+
+
 def test_a_once_grant_the_composition_consumes_twice_is_refused_at_begin(tmp_path, keys):
     composition = Composition(tmp_path, keys, once=("index", "desk.read"))
     begin, result, *_ = asyncio.run(composition.run())

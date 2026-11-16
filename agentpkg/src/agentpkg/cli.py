@@ -502,8 +502,22 @@ def _dispatch(args):
         listing = inspect_package(package)
         supplied = _pairs(args.link, "--link")
         declared = [r.get("id") for r in package.manifest["dependencies"]]
-        if supplied and set(supplied) == set(declared):
-            # link.v0 L-22: with every dependency supplied, the composed envelope.
+        if supplied:
+            # link.v0 L-22: with every dependency supplied, the composed envelope. With only
+            # some of them there is no "at most" to state, so inspect says which is missing
+            # rather than print the declaration alone as if nothing had been asked.
+            stray = sorted(set(supplied) - set(declared))
+            if stray:
+                raise AgentPkgError(
+                    f"link_dependency_unknown: {stray[0]!r} is not a dependency this package "
+                    "declares"
+                )
+            missing = sorted(set(declared) - set(supplied))
+            if missing:
+                raise AgentPkgError(
+                    "link_unresolved: the composed worst case needs every dependency; no "
+                    f"--link was given for {', '.join(repr(name) for name in missing)}"
+                )
             from .delegation.declarations import network_records
             from .links.records import link_records
             from .links.resolve import resolve_links

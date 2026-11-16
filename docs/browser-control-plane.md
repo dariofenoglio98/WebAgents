@@ -489,7 +489,8 @@ worst case and where its decision stands, grouped by publisher key, with the com
 The person decides per linked publisher through the ordinary path: `authorize` on the linked
 session issues **its own receipt**, and `run-plan` on it prepares **its own inner Run Plan**,
 which carries `parent: {package_digest, dependency}` and is hash-bound over it. `links/decide`
-denies a publisher's key instead; every dependency that key signed is then denied.
+denies a publisher's key instead; every dependency that key signed is then denied, and
+withdrawing the denial through any one of them withdraws it for all of them.
 
 The caller's `run-plan` is refused until every link is resolved and decided (`link_unresolved`,
 `link_undecided`: an accepted link has a ready inner plan on the same model) and the composed
@@ -499,6 +500,10 @@ plan_hash}}`, states the composed envelope, and is hash-bound over both. Its pre
 re-verifies every inner plan: cleared, changed, itself stale, or prepared for another caller.
 A linked session dies with its caller's. Nothing here runs anything: the execution session is
 handed each accepted link's inner plan and its own lease, and verifies each archive itself.
+A linked session's `execution-lease` is issued only beside its caller's: while the caller holds
+a live lease on a plan that names this inner plan as accepted (`link_lease_without_caller`
+otherwise), so the caller is leased first. An inner plan is authority only inside its caller's
+run, and the execution session refuses one handed over as a caller's plan.
 
 ### Host-owned resources
 
@@ -632,7 +637,7 @@ include `unauthorized`, `not_found`, `method_not_allowed`, `invalid_request`,
 `resource_unknown`, `resource_selection_required`, and for links `link_fetch_failed`,
 `link_package_invalid`, `link_signature_invalid`, `link_identity_mismatch`,
 `link_digest_mismatch`, `link_signer_mismatch`, `link_target_conversational`, `link_nested`,
-`link_dependency_unknown`; a caller's `run_plan_refused` may carry `link_unresolved`,
+`link_dependency_unknown`, `link_lease_without_caller`; a caller's `run_plan_refused` may carry `link_unresolved`,
 `link_undecided` or `link_bound_exceeds_budget` among its blocking reasons, and a stale plan
 `link_plan_cleared`, `link_plan_changed`, `link_plan_stale` or `link_plan_parent_mismatch`.
 

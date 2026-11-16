@@ -954,7 +954,7 @@ class Runtime:
         except ValidationError as exc:
             exc.failed_check = {"check": "link_input", "dependency": name}
             raise
-        needed = host.reservation(binding, self.budget)
+        needed = host.reservation(binding)
         async with self._lock:
             tokens_left = (
                 self.budget["hard_tokens"] - self._global.tokens - self._global.reserved_tokens
@@ -1000,13 +1000,33 @@ class Runtime:
                 )
             self._global.reserved_tokens += needed["tokens"]
             self._global.reserved_remote_calls += needed["remote_calls"]
-        # Unknown usage consumes the reservation (L-26), as a model call's does.
-        spent = {**needed, "model_calls": 0, "tool_calls": {}, "compute_calls": 0}
+        # Nothing is spent until an inner run exists.
+        spent = dict(tokens=0, remote_calls=0, model_calls=0, tool_calls={}, compute_calls=0)
         inner = None
         try:
-            inner = host.start(
-                binding, router=self.router, limits=needed, deadline_seconds=deadline_seconds
-            )
+            try:
+                inner = host.start(
+                    binding, router=self.router, limits=needed, deadline_seconds=deadline_seconds
+                )
+            except Exception as exc:
+                # An inner run that could not be built: nothing ran, so nothing is charged, and
+                # the step fails as a failed inner run's does (L-27), `link.failed` naming the
+                # cause with no run id.
+                from .links.errors import LinkError
+                from .workflow import failure_code
+
+                code = failure_code(exc)
+                self.record(
+                    "link.failed",
+                    context=ctx,
+                    dependency=name,
+                    inner_run_id=None,
+                    error_code=code,
+                    usage=spent,
+                )
+                raise LinkError(name, code) from exc
+            # From here on, unknown usage consumes the reservation (L-26), as a model call's.
+            spent = {**needed, "model_calls": 0, "tool_calls": {}, "compute_calls": 0}
             self.record(
                 "link.started",
                 context=ctx,

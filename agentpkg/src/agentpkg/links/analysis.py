@@ -21,6 +21,17 @@ from ..delegation.analysis import (
     worst_case,
 )
 
+#: The figures of a worst case that a record, a review or a plan states: W(p)'s own, without
+#: the `requirement` the analysis keeps for the composed check.
+WORST_CASE_FIGURES = (
+    "model_calls",
+    "tool_calls",
+    "compute_calls",
+    "remote_calls",
+    "tokens",
+    "seconds",
+)
+
 
 def link_operations(graph):
     """Every `link` step of a graph as `(qualified id, step, where, role)`: `where` is `node` (a
@@ -130,4 +141,4 @@ def composed_requirement(graph, policy, links=None) -> tuple[str, int, int] | No
     return None
 
 
-__all__ = ["composed_requirement", "link_operations", "package_worst_case"]
+__all__ = ["WORST_CASE_FIGURES", "composed_requirement", "link_operations", "package_worst_case"]

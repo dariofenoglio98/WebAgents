@@ -1028,6 +1028,16 @@ class ControlPlane:
             if decision == "denied":
                 session.link_denials.add(dependency)
             else:
+                # A denial is of the publisher's key (L-13), so it is withdrawn by key: every
+                # denied dependency that key signed, whichever of them this call names.
+                linked = links.children(self, session)
+                if dependency in linked:
+                    key = linked[dependency].publisher["signer_fingerprint"]
+                    session.link_denials -= {
+                        name
+                        for name, child in linked.items()
+                        if child.publisher["signer_fingerprint"] == key
+                    }
                 session.link_denials.discard(dependency)
             # A decision on a link changes what the caller's plan may say.
             self._release_all(session)

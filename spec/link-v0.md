@@ -179,6 +179,17 @@ was cleared, changed or is itself stale. An inner plan whose `parent` is not thi
 a join not this run, is refused (`link_plan_parent_mismatch`) by re-verification and again by
 the execution host, which is handed each accepted link's inner plan and archive, verifies the
 archive itself, and takes from the caller's plan only which inner plan the person agreed to.
+It applies to each inner plan and its authorization the checks it applies to the caller's
+(required permissions, tool bindings and approvals, resources), and refuses an inner plan that
+is not a model-backed plan on the caller's model route (`execution_plan_invalid`).
+
+**An inner plan is authority only inside its caller's run.** A plan that carries `parent` is
+never a run's own plan: an execution host handed one as the caller's plan refuses it
+(`link_plan_parent_mismatch`), so a linked package cannot run outside the caller's composition,
+reservation and audit on the grants the person gave on a link's card. A host that hands out
+package bytes on a lease hands a linked package's only beside its caller's: while the caller
+holds a live lease on a plan that names this inner plan as accepted
+(`link_lease_without_caller` otherwise).
 
 L-16. **A denied link** is unbound, as a denied optional capability is: the plan states it; the
 composed bound leaves it out (L-22); a role whose program holds a denied `link` step cannot
@@ -244,8 +255,12 @@ inner run starts.
 L-24. **The reservation.** The linked package's worst case under the effective limits (its own
 caps as the host lowered them) must fit what the run has left in tokens and remote calls;
 otherwise the step is refused before anything is spent (`link.refused` with `reason: tokens |
-remote_calls`, the step `budget_exhausted`), unless the person raises their own limit (§7). The
-reservation is **held** until settlement, so that parallel work cannot spend it.
+remote_calls`, the step `budget_exhausted`), unless the person raises their own limit (§7). A
+caller that declares `approval_threshold_tokens` meets it here as at a model call: where the
+tokens spent and held plus the reservation would pass the threshold, the step is refused the
+same way (`reason: approval_threshold`); §7's raise does not apply to it. The checks run in
+that order (tokens, remote calls, the threshold), and the first that fails names the reason.
+The reservation is **held** until settlement, so that parallel work cannot spend it.
 
 L-25. **The inner run** is a run of the linked package's own program from its inner plan: its
 own run id, audit chain, grants, tool bindings, approvals, resources and counters; the caller's
@@ -255,16 +270,41 @@ limits and the reservation; a deadline that is the minimum of its own and the st
 Nothing else crosses: no grant, tool, resource, record, state key or message of the caller, and
 nothing of the inner run's state or audit reaches the caller's program.
 
+The model route is the caller's and the accounting is the inner run's: an inner run's model
+requests go to the route the caller's plan binds, each is reserved, counted and recorded
+(`model.called`, `model.completed`, with the request's hash) by the inner run's own mediator in
+its own chain, and none appears in the caller's chain. What the caller's chain holds of an
+inner run is `link.started` and `link.completed` or `link.failed`. A reader that looks for what
+a linked package sent to the model reads the inner chain.
+
 L-26. **Settlement.** `link.started` is recorded before the inner run and `link.completed` or
-`link.failed` after it. The caller's counters then take the inner run's reported usage: tokens,
-remote calls, model calls, compute calls and tool calls (qualified, L-19); an inner run whose
-usage is unknown consumes the reservation. The run's totals and the composed bound are therefore
-enforced across publishers, and one usage record holds every call.
+`link.failed` after it. Every counter a run's usage keeps then takes the inner run's reported
+figure: **tokens**, **remote calls**, **compute calls** and **tool calls** (qualified
+`<dependency>:<tool>`, L-19). A run's usage keeps no model-call total (a model call is its
+`model.called` event, in the chain of the run that made it), so an inner run's **model calls**
+are stated per link only. The usage record therefore reads:
+
+- `tokens`, `remote_calls`, `tool_calls`: the caller's own and every inner run's;
+- `compute_calls`: likewise; present exactly when the caller's graph declares modules **or the
+  run holds links** (a package without either keeps the record it had before);
+- `links: {<dependency>: {runs, tokens, remote_calls, model_calls, tool_calls, compute_calls}}`,
+  present exactly when the run holds links: each link's inner runs summed, its tool calls under
+  the linked package's own tool ids. `runs` counts the inner runs that started. These figures
+  are inside the totals above, except `model_calls`, which has no total.
+
+An inner run whose usage is unknown consumes the reservation; where no inner run could be built
+(L-27), nothing is charged. The run's totals and the composed bound are therefore enforced
+across publishers, and one usage record holds every call.
 
 L-27. **Failures.** An inner run that fails fails the step `link_error`; `link.failed` names
-the inner run's own code, and the inner record keeps its audit. A result outside the step's
-`output_schema` fails the step `schema_validation` (`failed_check: {check: "link_result"}`)
-after `link.completed`. A step that reaches a denied link is L-16's.
+the inner run's own code, and the inner record keeps its audit. An inner run that could not be
+built (the host could not start it) fails the step the same way: `link.failed` with
+`inner_run_id: null` and the cause's code, no `link.started`, the reservation released and
+nothing charged. A step that passes its `timeout_seconds` fails `timeout` at the step; the
+inner run was cancelled by it, so `link.failed` says `cancelled`, and the inner record ends
+there. A result outside the step's `output_schema` fails the step `schema_validation`
+(`failed_check: {check: "link_result"}`) after `link.completed`. A step that reaches a denied
+link is L-16's.
 
 L-28. **`once`.** A `once` grant on a linked package's card is refused before the run where the
 composition could consume that permission more than once: a link reached more than once (a map,
@@ -275,12 +315,37 @@ L-29. **Fixture mode.** An inner run replays the linked package's own fixture: i
 tool cases, by exact input, as a direct fixture run of that package does. Nothing in a fixture
 grants, routes or links.
 
-L-30. **The record.** Each inner run's record is kept beside the caller's, as
-`link-<inner_run_id>.result.json`, `.audit.json`, `.usage.json` and `.provenance.json`, and the
-caller's run record lists its links in `links.json`: for each, the package, the publisher, the
-trust state, the decision, the inner plan and its hash, and the inner runs with their node and
-status. A package with links exports nothing under those names. Messages, inputs and results are hashed in the caller's
-audit, never recorded.
+L-30. **The record.** A run that holds links writes, beside its own `result.json`,
+`audit.json`, `usage.json` and `provenance.json`:
+
+- **`links.json`**, the run's links:
+
+  ```
+  {"schema": "agentpkg-run-links-v0",
+   "links": [{"dependency", "package_id", "name", "version", "digest", "archive_sha256",
+              "signer", "trust", "decision": "accepted" | "denied",
+              "worst_case": {model_calls, tool_calls, compute_calls, remote_calls, tokens,
+                             seconds} | null,
+              "plan": <the inner plan> | null, "plan_hash": <its hash> | null}, …],
+   "runs":  [{"inner_run_id", "dependency", "node_id", "status": "completed" | "failed",
+              "error_code": <the inner run's code> | null}, …]}
+  ```
+
+  `links` is ordered by dependency id, one entry per declared dependency; `runs` is in the
+  order the inner runs ended, one entry per inner run that started. `plan` is the inner plan
+  the person's decision produced: the link plan of a host without a control plane (D-691:
+  `{schema: "agentpkg-link-plan-v0", parent, package, publisher, decisions, tool_approvals,
+  worst_case}`, whose canonical SHA-256 is `plan_hash`), or the inner Run Plan's bounded facts
+  with its own `run_plan_sha256`. A denied link has `plan` and `plan_hash` null; where the host
+  holds no archive for it (an execution host is handed none), `name` and `worst_case` are
+  absent or null too.
+- **each inner run's own record**, under flat names (a run's artifact directory holds no
+  subdirectory): `link-<inner_run_id>.result.json`, `.audit.json`, `.usage.json` and
+  `.provenance.json`, each what a direct run of the linked package writes under those names.
+
+The caller's `result.json` carries the same `links` record and does not repeat the inner runs'
+reports. A package with links exports nothing named `links.json` or beginning `link-`.
+Messages, inputs and results are hashed in the caller's audit, never recorded.
 
 ## 6. The join
 
@@ -375,8 +440,10 @@ L-45. Beside workflow.v0's and network.v0's events, in the caller's chain:
 `link.started {node_id, dependency | slot, package_id, digest, inner_plan_hash, inner_run_id,
 reserved: {tokens, remote_calls}, input_hash}` before an inner run; `link.completed {node_id,
 inner_run_id, usage, result_hash}` or `link.failed {node_id, inner_run_id, error_code, usage}`
-after it; `link.refused {node_id, dependency | slot, reason, needed, tokens_left,
-remote_calls_left}` for a refused reservation; `link.denied {node_id, dependency}` when a step
+after it (`inner_run_id` null and no `link.started` where no inner run could be built, L-27);
+`link.refused {node_id, dependency | slot, reason: "tokens" | "remote_calls" |
+"approval_threshold", needed, tokens_left, remote_calls_left}` for a refused reservation
+(L-24); `link.denied {node_id, dependency}` when a step
 reaches a denied link; `link.requested {node_id, slot, fetches: [{url, kind: "discovery" |
 "package", status}], candidate: {package_id, version, digest, signer} | null}` when a slot has
 looked; `link.decided {node_id, slot, accepted, decided_by: "person" | "runtime", reason,
@@ -392,9 +459,10 @@ are in its own chain, under its own run id.
 | validation (the caller's package) | `link_minimum_version`, `link_dependency_unknown`, `link_dependency_duplicate`, `link_dependency_unused`, `link_locator_scheme`, `link_nested` (a dependency naming the caller), `link_caps`, `link_slot_scope`, `link_slot_duplicate`, `link_locate_source`, `link_request_task_unknown`, `link_slot_outcome_schema`, `link_bound_exceeds_budget` (a slot's ceiling); a link's input beyond a role's view: `network_state_read_outside_view` |
 | preparation (resolution, the composed check) | `link_fetch_failed`, `link_package_invalid`, `link_signature_invalid`, `link_identity_mismatch`, `link_digest_mismatch`, `link_signer_mismatch`, `link_target_conversational`, `link_nested`, `link_model_incompatible`, `link_publisher_untrusted` (a host that requires a trusted publisher), `link_bound_exceeds_budget`, `link_unresolved`, `link_undecided` |
 | re-verification of a caller's plan (stale reasons) | `link_plan_cleared`, `link_plan_changed`, `link_plan_stale`, `link_plan_parent_mismatch` |
-| the execution host | `link_plan_parent_mismatch` (the inner plan handed over is not the one the caller's plan names, or names another caller), `execution_plan_invalid` (a plan without its links, an accepted link without its inner plan or archive), the artifact codes for a linked archive, L-11's codes again on the verified bytes |
+| a lease on a linked package's bytes | `link_lease_without_caller` (no live lease of its caller on a plan that names this inner plan) |
+| the execution host | `link_plan_parent_mismatch` (the inner plan handed over is not the one the caller's plan names, or names another caller; an inner plan handed over as a caller's plan), `execution_plan_invalid` (a plan without its links, an accepted link without its inner plan or archive, an inner plan that is not a model-backed plan on the caller's route), the artifact codes for a linked archive, L-11's codes again on the verified bytes, the authorization codes on an inner plan as on the caller's (`execution_permission_denied`, the tool-binding codes) |
 | grants | `execution_grant_unsupported` (a `once` grant the composition would consume more than once) |
-| at a `link` step | `schema_validation` (`link_input`, `link_result`), `budget_exhausted` (`link.refused`), `permission_denied` (`link.denied`), `link_error` (the inner run failed; `link.failed` names its code), `timeout` |
+| at a `link` step | `schema_validation` (`link_input`, `link_result`), `budget_exhausted` (`link.refused`: `tokens`, `remote_calls`, `approval_threshold`), `permission_denied` (`link.denied`), `link_error` (the inner run failed or could not be built; `link.failed` names its code), `timeout` (the step's time passed; `link.failed` says `cancelled`) |
 | a slot's outcome (data, not a failure) | `unattended`, `policy`, `join_cap`, `not_found`, `verification`, `conversational`, `nested`, `publisher_denied`, `model_incompatible`, `over_ceiling`, `budget`, `declined`, `failed` |
 
 A validation or preparation refusal's message starts with its code.
@@ -461,8 +529,16 @@ the code at the node named, or the control completes).
 | N-49 | `raise-unattended` | run | `budget_exhausted`; no card |
 | N-50 | `package-cap-never-raised` | run | `budget_exhausted`; no card (the limit that failed is the package's) |
 | N-51 | `second-raise-refused` | run | `budget_exhausted`; one `budget.requested` in the run |
+| N-52 | `linked-compute` | run | control: completed; a linked package's compute calls are in the caller's `usage.compute_calls`, its model calls under `usage.links` only (L-26) |
+| N-53 | `approval-threshold` | run | `budget_exhausted`; `link.refused` with `approval_threshold`, no `link.started` for that link (L-24) |
+| N-54 | `inner-plan-alone` | host | `link_plan_parent_mismatch` (an inner plan handed over as a caller's plan, L-15) |
 
-The reference asserts every row of N-1…N-33 (`test_link_cases.py`) and, in
+N-1…N-34 and N-52…N-54 are the planned link's rows (N-52…N-54 were added after the first
+review of the reference and keep the later numbers so that no cited number moves); N-35…N-51
+are the join's and the raise's.
+
+The reference asserts every row of N-1…N-33, N-52 and N-53 (`test_link_cases.py`), N-34 and
+N-54 on the execution session (`test_link_execution.py`) and, in
 `test_link_runtime.py`, the authority boundary (an inner run built from its binding alone; a
 caller's grant and approval for the same permission and tool refused to the linked package), the
 reservation held and released, a link past its step's time, the composed bound under several
@@ -507,7 +583,12 @@ The Chrome core's port is T66. The OpenClaw plugin stays frozen (D-029) and its 
 refuses 0.8.0 packages by version. The paper line is untouched.
 
 **The reference's two hosts.** The developer CLI and a driver that plays the person bind
-decisions directly (`links/operator.py`) and write a link plan per accepted link. The control
+decisions directly (`links/operator.py`) and write a link plan per accepted link. On the CLI
+the operator's pinned keys are the `--trust-key` arguments: **the first pins the caller's
+publisher and only that one verifies the caller**; every key given is in the set a linked
+publisher is trusted by (L-12). A key given for a linked publisher therefore never stands in
+for the caller's, and a caller signed by a linked publisher's key is refused unless that key is
+the first. The control
 plane opens each dependency as a package session of its own (`resolve_links`), so a linked
 package is authorized and planned through the ordinary path, and the execution session builds
 the same link host from the caller's plan and the inner plans. There a linked package whose

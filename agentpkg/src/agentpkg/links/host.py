@@ -20,22 +20,13 @@ from dataclasses import dataclass, field
 
 from ..delegation.analysis import activation_bound, network_of
 from ..package import Package, canonical_json, sha256
-from .analysis import link_operations, package_worst_case
+from .analysis import WORST_CASE_FIGURES, link_operations, package_worst_case
 from .resolve import LinkRefusal, ResolvedLink, check_composition
 
 LINK_PLAN_SCHEMA = "agentpkg-link-plan-v0"
 RUN_LINKS_SCHEMA = "agentpkg-run-links-v0"
 ACCEPTED = "accepted"
 DENIED = "denied"
-#: The figures of a worst case a record states (the requirement is the analysis's own).
-WORST_CASE_FIGURES = (
-    "model_calls",
-    "tool_calls",
-    "compute_calls",
-    "remote_calls",
-    "tokens",
-    "seconds",
-)
 
 
 def worst_case_figures(worst_case: dict) -> dict:
@@ -205,7 +196,7 @@ class LinkHost:
     def binding(self, dependency: str) -> LinkBinding:
         return self.bindings[dependency]
 
-    def reservation(self, binding: LinkBinding, budget: dict) -> dict:
+    def reservation(self, binding: LinkBinding) -> dict:
         """L-24: the linked package's worst case under the effective limits, its own caps as the
         host lowered them, in the two figures a run reserves."""
         package = binding.link.package

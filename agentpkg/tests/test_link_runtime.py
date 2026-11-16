@@ -243,6 +243,39 @@ def test_the_reservation_is_held_while_the_inner_run_works_and_released_after(tm
     assert workflow.runtime._global.reserved_remote_calls == 0
 
 
+def test_an_inner_run_that_cannot_be_built_charges_nothing_and_is_recorded(tmp_path, keys):
+    """T65 review 1, nit 8: no inner run, no charge; the audit says why the link did not run."""
+    built = build(tmp_path, keys, "planned-walk")
+    package = load_package(built.caller)
+    router, _, input_value = fixture_adapters(package)
+    links = link_host(built, package, router)
+    start = links.start
+
+    def refusing(binding, **options):
+        if binding.link.dependency == "scribe":
+            raise PolicyError("the inner run could not be built")
+        return start(binding, **options)
+
+    links.start = refusing
+    workflow = Workflow(package, grants=built.grants, router=router, approved_tools=[], links=links)
+    with pytest.raises(Exception) as failure:
+        asyncio.run(workflow.run(input_value))
+    report = failure.value.execution_report
+    step = [e for e in events(report, "node.failed") if e["node_id"] == "delegate/Writer/draft"]
+    assert step[0]["error_code"] == "link_error"
+    failed = events(report, "link.failed")
+    assert [(e["dependency"], e["inner_run_id"], e["error_code"]) for e in failed] == [
+        ("scribe", None, "permission_denied")
+    ]
+    assert [e["dependency"] for e in events(report, "link.started")] == ["index", "index"]
+    usage = report["usage"]
+    # The 1,500 tokens held for scribe were released, not charged.
+    own = sum(e["tokens"] for e in events(report, "model.completed"))
+    assert usage["tokens"] == own and usage["reserved_tokens"] == 0
+    assert usage["links"]["scribe"]["runs"] == 0 and usage["links"]["scribe"]["tokens"] == 0
+    assert [run["dependency"] for run in report["links"]["runs"]] == ["index", "index"]
+
+
 def test_a_link_past_its_steps_time_fails_as_timeout_and_settles(tmp_path, keys):
     made = scenario()
     base.role(made.caller, "Lookup")["steps"][0]["timeout_seconds"] = 0.05
@@ -330,6 +363,13 @@ def test_the_cli_runs_a_composition_and_writes_the_inner_records(tmp_path, keys,
     assert "inner_runs" not in json.loads((out / "result.json").read_text())
     assert main(["inspect", str(built.caller)] + built.argv(tmp_path)[:4]) == 0
     assert json.loads(capsys.readouterr().out)["links"]["worst_case"]["model_calls"] == 9
+    # With only some dependencies supplied there is no composed figure: inspect says which is
+    # missing (T65 review 1, nit 12), and names a link the package does not declare.
+    assert main(["inspect", str(built.caller)] + built.argv(tmp_path)[:2]) == 2
+    assert capsys.readouterr().err.startswith("agentpkg: link_unresolved: ")
+    stray = ["--link", f"nobody={built.archives['index']}"]
+    assert main(["inspect", str(built.caller)] + built.argv(tmp_path)[:4] + stray) == 2
+    assert capsys.readouterr().err.startswith("agentpkg: link_dependency_unknown: ")
 
 
 def test_a_linked_publishers_key_does_not_verify_the_caller(tmp_path, keys, capsys):

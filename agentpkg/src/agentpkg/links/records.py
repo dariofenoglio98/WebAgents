@@ -4,9 +4,8 @@ the slots the signed program declares, and the composed envelope once the links 
 from __future__ import annotations
 
 from ..delegation.analysis import link_cost, network_of
+from .analysis import WORST_CASE_FIGURES as FIGURES
 from .analysis import link_operations, package_worst_case
-
-FIGURES = ("model_calls", "tool_calls", "compute_calls", "remote_calls", "tokens", "seconds")
 
 
 def link_records(package, resolved=None, denied=()) -> dict | None:

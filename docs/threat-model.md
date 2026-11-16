@@ -793,4 +793,11 @@ names the caller it was prepared for; the caller's plan records each link with i
 plan's hash, and its preflight re-verifies every one. The execution session is handed each
 accepted link's inner plan and archive, refuses an inner plan that is not the one the caller's
 plan names or that names another caller, and verifies each archive itself (P-5); the modules it
-imports for that reach no control plane and no transport.
+imports for that reach no control plane and no transport. An inner plan is authority only
+inside its caller's run: the execution session refuses one handed over as a caller's plan, and
+the control plane leases a linked package's bytes only beside its caller's live lease, so the
+grants the person gave on a link's card cannot run that package outside the composition, its
+reservation and its audit. On the CLI the first `--trust-key` pins the caller's publisher and
+no other key verifies the caller, so a key pinned for a linked publisher does not widen who may
+sign the package the person asked to run. A link's reservation meets the caller's token
+approval threshold as a model call's does.

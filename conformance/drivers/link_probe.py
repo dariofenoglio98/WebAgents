@@ -17,7 +17,11 @@ the linked packages need distinct ones), the caller's grants file, and the argum
 `run` takes beside the package and `--out`: `--link`, `--link-grants`, `--deny-link`,
 `--approve-tool <id>:<tool>` and, where the case lowers a host limit, `--limits`. A runner
 builds and signs the caller with its own key (`--signed-archive` for a caller both CLIs must
-refuse at validation); nothing here runs a package.
+refuse at validation); nothing here runs a package. `trust_keys` are the linked publishers'
+public keys: a runner that pins keys passes its own caller key as the first `--trust-key`,
+since the first pins the caller's publisher and only that one verifies the caller (link.v0
+§12). The cases of the stage `host` are an execution host's (a plan handed to a runner), not
+a CLI's.
 """
 
 from __future__ import annotations

@@ -338,6 +338,43 @@ def normalize_authorization(raw) -> dict:
     }
 
 
+def check_authorization(package, plan: dict, authorization: dict, *, subject=None):
+    """What a plan and its authorization say of one verified package, for the caller's plan and
+    for each linked package's inner plan alike: `(grants, tools, resources)`, or a refusal.
+    `subject` names a linked package in the refusal's detail."""
+    named = {"dependency": subject} if subject else {}
+    # The person's decisions, unchanged or refused.
+    grants = normalize_grants(package, authorization["decisions"])
+    for permission_id in plan["execution"]["required_permission_ids"]:
+        if grants.get(permission_id, "deny") == "deny":
+            raise ExecutionError(
+                "execution_permission_denied",
+                f"A model-backed run requires permission {permission_id!r}, which is denied.",
+                detail={"permission": permission_id, **named},
+            )
+    # Every tool binding, re-derived from the verified package and compared with the plan,
+    # then matched against the approvals the person actually gave. Permission and approval
+    # are separate questions and both are asked.
+    tools = check_tools(package, plan["tool_bindings"], grants, authorization["tool_approvals"])
+    approved_but_denied = [
+        tool_id
+        for tool_id in plan["execution"]["denied_tool_ids"]
+        if authorization["tool_approvals"].get(tool_id) is True
+    ]
+    if approved_but_denied:
+        # A tool the person approved is never "denied": the plan would be dropping an approved
+        # tool's binding, which no profile can do.
+        raise ExecutionError(
+            TOOL_NOT_BOUND,
+            "The run plan denies a tool the authorization approved.",
+            detail={"tool_ids": approved_but_denied[:32], **named},
+        )
+    # The host resources the person picked, by reference only, each re-checked against the
+    # signed package's own declarations.
+    resources = check_resource_grants(package, plan["resource_grants"], grants)
+    return grants, tools, resources
+
+
 class ExecutionSession:
     """One run, from bound plan to written artifacts, and then nothing more."""
 
@@ -457,37 +494,9 @@ class ExecutionSession:
             }
         )
 
-        # 3. The person's decisions, unchanged or refused.
-        grants = normalize_grants(package, authorization["decisions"])
-        for permission_id in plan["execution"]["required_permission_ids"]:
-            if grants.get(permission_id, "deny") == "deny":
-                raise ExecutionError(
-                    "execution_permission_denied",
-                    f"A model-backed run requires permission {permission_id!r}, which is denied.",
-                    detail={"permission": permission_id},
-                )
-
-        # 3b. Every tool binding, re-derived from the verified package and
-        #     compared with the plan, then matched against the approvals the
-        #     person actually gave. Permission and approval are separate
-        #     questions and both are asked.
-        tools = check_tools(package, plan["tool_bindings"], grants, authorization["tool_approvals"])
-        approved_but_denied = [
-            tool_id
-            for tool_id in plan["execution"]["denied_tool_ids"]
-            if authorization["tool_approvals"].get(tool_id) is True
-        ]
-        if approved_but_denied:
-            # A tool the person approved is never "denied": the plan would be
-            # dropping an approved tool's binding, which no profile can do.
-            raise ExecutionError(
-                TOOL_NOT_BOUND,
-                "The run plan denies a tool the authorization approved.",
-                detail={"tool_ids": approved_but_denied[:32]},
-            )
-        # 3c. The host resources the person picked, by reference only, each
-        #     re-checked against the signed package's own declarations.
-        resources = check_resource_grants(package, plan["resource_grants"], grants)
+        # 3. The person's decisions, the tool bindings and the host resources: one function,
+        #    which every linked package's inner plan goes through as well (4b).
+        grants, tools, resources = check_authorization(package, plan, authorization)
         handlers = tool_handlers(
             self._peer, plan["tool_bindings"], resource_grants=plan["resource_grants"]
         )
@@ -683,11 +692,22 @@ class ExecutionSession:
                 tool_bindings=inner_plan["tool_bindings"],
                 denied_tools=inner_plan["execution"]["denied_tool_ids"],
             )
-            grants = normalize_grants(linked, authorization["decisions"])
-            check_tools(
-                linked, inner_plan["tool_bindings"], grants, authorization["tool_approvals"]
-            )
-            check_resource_grants(linked, inner_plan["resource_grants"], grants)
+            # L-14: an inner plan is a model-backed plan on the caller's route. The inner run is
+            # given the caller's router whatever its plan says, so a plan that names another
+            # model would be a record of a route the run never used.
+            if inner_plan["execution"]["mode"] != "model" or (
+                plan["model_binding"] is not None
+                and inner_plan["model_binding"]["host_model_id"]
+                != plan["model_binding"]["host_model_id"]
+            ):
+                raise invalid(
+                    f"The inner plan of {name!r} is not a model-backed plan on its caller's "
+                    "model route.",
+                    dependency=name,
+                )
+            # The same checks the caller's plan and authorization pass, on the linked
+            # package's own.
+            grants, _, _ = check_authorization(linked, inner_plan, authorization, subject=name)
             if router is not None and linked.manifest["model_requirements"]["tasks"]:
                 check_model(linked, router)
             bindings[name] = LinkBinding(

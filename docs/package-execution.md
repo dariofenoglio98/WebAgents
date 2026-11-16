@@ -658,7 +658,8 @@ function and schemas, and a call by its bytes in and out.
   effective limits, the permission), `compute.completed` (output hash and bytes, memory pages,
   `engine: {id, elapsed_ms, fuel_consumed}`) or `compute.failed` (the reason and its facts), each
   naming the node or map step that made the call, on the coordinator as on a worker. The run's
-  `usage` carries `compute_calls` exactly when the graph declares modules.
+  `usage` carries `compute_calls` exactly when the graph declares modules or the run holds links
+  (§14e: a linked package's compute calls are counted in it).
 - **Fixture mode runs modules for real** (C-50): the fixture document has no compute key; the
   same bytes give the same output in every mode and on every conforming engine (C-47).
 
@@ -764,14 +765,24 @@ decision from the host.
   composition whose worst case the caller's own budget cannot hold, refuse before anything runs.
   The developer CLI is such a host: `agentpkg run <caller> --link <id>=<archive> --link-grants
   <id>=<grants.json> --approve-tool <id>:<tool>` or `--deny-link <id>`; `agentpkg inspect
-  <caller> --link …` prints the composed envelope.
+  <caller> --link …` prints the composed envelope, and refuses when only some dependencies are
+  supplied. A dependency given no `--link` is fetched from its locator under the package-URL
+  policy. `--trust-key` is repeatable: the first key pins the caller's publisher and only that
+  one verifies the caller; every key given is in the set a linked publisher is trusted by.
 - **At the step** (`Runtime.call_link`): a denied link is refused (`link.denied`); the input is
   validated against the linked package's input schema; the linked worst case is reserved in
-  tokens and remote calls against what the run has left and held; `link.started` names the
-  inner run; the inner run is a `Workflow` over the linked package built from its binding alone,
-  with the caller's model route and the reservation as its limits; afterwards the caller's
-  counters take its usage and `link.completed` or `link.failed` is recorded. A failed inner run
-  fails the step `link_error`.
+  tokens and remote calls against what the run has left, and against the caller's
+  `approval_threshold_tokens` as a model call is (`link.refused` otherwise), and held;
+  `link.started` names the inner run; the inner run is a `Workflow` over the linked package
+  built from its binding alone, with the caller's model route and the reservation as its
+  limits; afterwards the caller's counters take its usage (tokens, remote calls, compute calls,
+  tool calls qualified `<dependency>:<tool>`; `usage.links` states each link's figures, its
+  model calls there only) and `link.completed` or `link.failed` is recorded. A failed inner run
+  fails the step `link_error`; one that could not be built charges nothing.
+- **The execution host** is handed the caller's plan with each accepted link's inner plan and
+  archive. It refuses an inner plan begun as a caller's plan, applies to each inner plan the
+  authorization checks it applies to the caller's, and records the network's "at most" with the
+  links' costs: the figures `network.started` states.
 - **The record.** `links.json` lists each link with its publisher, the decision and the inner
   plan, and the inner runs made; each inner run's own `result`, `audit`, `usage` and `provenance`
   are written beside the caller's as `link-<inner run id>.*.json`.
