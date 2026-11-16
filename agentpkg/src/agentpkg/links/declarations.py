@@ -167,6 +167,18 @@ def check_link_declarations(
 
 def _check_slot(label, step, role_id, manifest, graph, *, documents, schema, expression, at_schema):
     name = f"link step {label}"
+    view = step["input"]
+    if (
+        not isinstance(view, dict)
+        or set(view) != {"object"}
+        or not isinstance(view["object"], dict)
+    ):
+        # The join card states the view by the names of its fields (L-34): a reference or any
+        # other constructor would hand the request-building call a value the card cannot name.
+        raise _refuse(
+            "link_slot_input",
+            f"{name}: a slot's input is an object constructor, whose fields are the view",
+        )
     tasks = {task["id"] for task in manifest["model_requirements"]["tasks"]}
     if step["request"]["task"] not in tasks:
         raise _refuse(

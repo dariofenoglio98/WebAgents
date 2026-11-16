@@ -1309,8 +1309,9 @@ sentence is all that path exercises.
   before the run, in one review that lists every linked publisher, and may deny one: a denied link
   is unbound, as a denied optional tool is, and a role whose only step is a denied link leaves the
   route enum. A denial lasts for the run: a publisher the person denied, at the review or on a join
-  card (LK-6), is not offered again in that run, and a join whose candidate that key signed is
-  refused without a card and recorded. *Bounds:* a caller vouching for a linked publisher (a link
+  card (LK-6), is not offered again in that run, a join whose candidate that key signed is
+  refused without a card and recorded, and a planned link that key signed starts no inner run
+  after the denial. *Bounds:* a caller vouching for a linked publisher (a link
   grants nothing: P-2, P-18); a denied publisher asked for again through a join. *Residual:* consent
   fatigue (DF-8's budget; remembered decisions, DF-6, later). *Python reference:* a binding per dependency
   with the person's decision and a denial of the publisher's key,
@@ -1318,7 +1319,7 @@ sentence is all that path exercises.
   the refusal of an undecided one, `agentpkg/src/agentpkg/links/operator.py:operator_links`; a
   denied link's role out of every route, `agentpkg/src/agentpkg/delegation/analysis.py:denied_roles`
   and `agentpkg/src/agentpkg/delegation/runner.py:run_network`. In the control plane: the review, the denial and the caller's plan, `agentpkg/src/agentpkg/browser/links.py:review` (`plan_links`, `staleness`), with a receipt and an inner Run Plan per linked package through the ordinary `ControlPlane.authorize` and `ControlPlane.prepare_run_plan` of `agentpkg/src/agentpkg/browser/control.py`. *Conformance:* `link/undecided`,
-  `link/denied-link-node`, `link/denied-link-excluded` (link N-23, N-30, N-31). An inner plan that is not the caller's: `link/inner-plan-replay` (link N-34). An inner plan with no caller, handed over as a caller's plan, so that a link's card would run its package outside any composition: `link/inner-plan-alone` (link N-54), refused by `agentpkg/src/agentpkg/execution/session.py:ExecutionSession`, and by the control plane's lease, which hands a linked package's bytes out only beside its caller's (`agentpkg/src/agentpkg/browser/control.py:ControlPlane.issue_execution_lease`). *Experiment:* EL.
+  `link/denied-link-node`, `link/denied-link-excluded` (link N-23, N-30, N-31). A key declined on a join card stops the planned link it signed, `agentpkg/src/agentpkg/links/host.py:LinkHost.denied` read by `agentpkg/src/agentpkg/runtime.py:Runtime.call_link`: `link/declined-key-planned-link` (link N-57). An inner plan that is not the caller's: `link/inner-plan-replay` (link N-34). An inner plan with no caller, handed over as a caller's plan, so that a link's card would run its package outside any composition: `link/inner-plan-alone` (link N-54), refused by `agentpkg/src/agentpkg/execution/session.py:ExecutionSession`, and by the control plane's lease, which hands a linked package's bytes out only beside its caller's (`agentpkg/src/agentpkg/browser/control.py:ControlPlane.issue_execution_lease`). *Experiment:* EL.
 - **LK-3 A linked package gains no authority from its caller.** An inner run holds the intersection
   of the linked package's own declaration and the person's grants on its card; nothing of the
   caller's receipt, tools, resources, memory or state reaches it beyond the link's input instance,
@@ -1409,7 +1410,10 @@ sentence is all that path exercises.
   `link/join-declined`, `link/join-not-found`, `link/join-verification`, `link/join-nested`,
   `link/join-denied-publisher`, `link/join-over-ceiling-tokens` and its five siblings,
   `link/join-budget`, `link/join-request-nonconforming`, `link/join-inner-failed`,
-  `link/join-accepted` (link N-36, N-38…N-46). *Experiment:* EL.
+  `link/join-accepted` (link N-36, N-38…N-46); a slot whose `input` is not an object of named
+  fields, so that the card's view could not name what is sent, `link/slot-input` (link N-55); a
+  candidate no worst case is defined for, refused as data, `link/join-conversational` (link
+  N-56). *Experiment:* EL.
 - **LK-7 No person, no join; the caps.** An unattended run refuses every join and every raise and
   records the refusal; a slot's joins and a run's joins are capped, and the rest are refused without
   a card and summarised at the end; a signed policy may forbid joins (P-10, P-11, UC-3, UC-6).
@@ -1436,7 +1440,7 @@ sentence is all that path exercises.
   `link/package-cap-never-raised`, `link/second-raise-refused` (link N-47…N-51). *Experiment:* EL.
 
 **Evidence.** The reference's cases for a link made during a run and for the raise are `link/*`
-N-35…N-51 (`agentpkg/tests/test_link_cases.py`, with the properties behind them in
+N-35…N-51 and N-55…N-57 (`agentpkg/tests/test_link_cases.py`, with the properties behind them in
 `agentpkg/tests/test_link_join.py`), and the planner 0.2.0's fixture walk joins the named hotel's
 package through its card (`agentpkg/tests/test_link_packages.py`). The reference's cases for the planned link are `link/*` N-1…N-34 and N-52…N-54
 (`examples/link/cases/cases.json`; `agentpkg/tests/test_link_cases.py`, and
@@ -1572,6 +1576,11 @@ consent and (planned) request, and can revoke what was remembered (P-4, P-12, P-
   reference does what version 3 specified, with three points made exact in the specification
   (a declined card denies the key for the run; the reservation is held from before the card;
   the raise's amount is what the reservation needs). The Chrome core's pointers are T66's.
+  After the review of the run-time half (same version, before its merge): LK-2 says what a
+  denial on a card does to a planned link the same key signed (it starts no inner run
+  afterwards, `link/declined-key-planned-link`); a slot's view is an object of named fields, so
+  the card names all that is sent (`link/slot-input`); a candidate's bytes are never a failure
+  of the caller's step (`link/join-conversational`).
 - **Version 1** is [threat-model.md](threat-model.md): the per-boundary notes written with each
   milestone from the format to Agent Delegation. They are kept as the implementation notes of this
   model: each section states the properties it implements, and nothing a specification cites was

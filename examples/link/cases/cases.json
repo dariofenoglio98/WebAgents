@@ -550,7 +550,8 @@
           {
             "accepted": false,
             "decided_by": "runtime",
-            "reason": "nested"
+            "reason": "nested",
+            "worst_case": null
           }
         ],
         "requested": [
@@ -1124,6 +1125,81 @@
       "stage": "host",
       "code": "link_plan_parent_mismatch",
       "variant": null
+    },
+    {
+      "id": "slot-input",
+      "title": "A slot whose input is not an object constructor, so the card could not name the view",
+      "stage": "validation",
+      "code": "link_slot_input",
+      "variant": "slot-input"
+    },
+    {
+      "id": "join-conversational",
+      "title": "A candidate that is a conversation package is refused without a card; no worst case is stated for it",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-conversational",
+      "expect": {
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "runtime",
+            "reason": "conversational",
+            "worst_case": null
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "declined-key-planned-link",
+      "title": "A key declined on a join card stops its planned link for the rest of the run",
+      "stage": "run",
+      "code": "permission_denied",
+      "variant": "declined-key-planned-link",
+      "expect": {
+        "node": "delegate",
+        "step": "delegate/Lookup/lookup",
+        "started": [
+          "scribe"
+        ],
+        "completed": [
+          "scribe"
+        ],
+        "denied": 1,
+        "slot_step": "delegate/Writer/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "person",
+            "reason": "declined",
+            "provenance": "fixture"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ],
+        "cards": 1
+      }
     }
   ]
 }

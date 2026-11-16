@@ -6,6 +6,7 @@ N-35…N-51 are `test_link_cases.py`'s; these are the properties behind them."""
 import asyncio
 import copy
 import json
+import time
 
 import link_probe as probe
 import network_probe as base
@@ -397,3 +398,256 @@ def test_the_cli_runs_a_case_of_the_run_time_half(tmp_path, capsys, case):
         assert (out / f"link-{run['inner_run_id']}.audit.json").is_file()
     else:
         assert entry["package"] is None and entry["reason"] == "declined"
+
+
+# -- review 3: fixture mode never dials; a candidate's bytes never fail the caller's step; a
+# -- declined key stops its planned link; the view names all that is sent; the cards' time ----
+
+
+def test_fixture_mode_never_dials_for_a_join_fixture_that_records_no_web(
+    tmp_path, keys, capsys, monkeypatch
+):
+    import agentpkg.browser.discovery as discovery
+    import agentpkg.links.fetch as fetch
+
+    built = build(tmp_path, keys, "join-accepted")
+    fixture = json.loads(built.join_fixture.read_text())
+    # Only the person's decisions: no page and no package was recorded.
+    del fixture["pages"], fixture["packages"]
+    built.join_fixture.write_text(json.dumps(fixture), encoding="utf-8")
+    discover, looks = discovery.discover_website, []
+
+    def watched(url, **options):
+        # The production discovery code, on recorded mechanics only: a call without them
+        # would resolve and dial the page's real host.
+        network = options.get("network")
+        assert network is not None and network.resolver is not None, "the real web"
+        assert network.connector is not discovery.DiscoveryNetwork.connector, "the real web"
+        looks.append(url)
+        return discover(url, **options)
+
+    def no_fetch(record, **options):
+        raise AssertionError("fixture mode would fetch a package from the real web")
+
+    monkeypatch.setattr(discovery, "discover_website", watched)
+    monkeypatch.setattr(fetch, "fetch_dependency", no_fetch)
+    grants = tmp_path / "grants.json"
+    grants.write_text(json.dumps(built.grants), encoding="utf-8")
+    out = tmp_path / "out"
+    argv = ["run", str(built.caller), "--mode", "fixture", "--grants", str(grants)]
+    assert main(argv + built.argv(tmp_path) + ["--out", str(out)]) == 0, capsys.readouterr().err
+    assert looks == [probe.HELPER_PAGE]
+    audit = json.loads((out / "audit.json").read_text())
+    # The slot looked, at an empty recorded web, and found nothing.
+    (looked,) = [e for e in audit if e["action"] == "link.requested"]
+    assert [(f["url"], f["kind"]) for f in looked["fetches"]] == [(probe.HELPER_PAGE, "discovery")]
+    assert looked["fetches"][0]["status"] != "ok" and looked["candidate"] is None
+    (decision,) = [e for e in audit if e["action"] == "link.decided"]
+    assert (decision["decided_by"], decision["reason"]) == ("runtime", "not_found")
+
+
+def test_a_candidate_that_is_no_workflow_package_is_refused_as_data(tmp_path, keys):
+    # A shipped, signed package of another entrypoint: valid bytes, and no graph a worst case
+    # can be computed from.
+    legacy = base.ROOT / "dist" / "literature-review-legacy.agent.pkg"
+    built = build(tmp_path, keys, "join-accepted")
+    fixture = json.loads(built.join_fixture.read_text())
+    fixture["packages"][probe.HELPER_ARCHIVE] = str(legacy)
+    built.join_fixture.write_text(json.dumps(fixture), encoding="utf-8")
+    package, links, report, error = run_fixture(built)
+    assert error is None and report["status"] == "completed"
+    (event,) = events(report, "link.decided")
+    assert decided(report) == [(False, "runtime", "conversational")]
+    assert event["candidate"]["digest"] == load_package(legacy).digest
+    # No worst case is defined for it, so none is stated.
+    assert event["worst_case"] is None
+    assert report["links"]["joins"][0]["worst_case"] is None
+    assert report["usage"]["reserved_tokens"] == 0
+
+
+def slot_failures(report):
+    return [e for e in events(report, "link.failed") if "slot" in e]
+
+
+def test_a_package_this_host_cannot_run_is_a_failed_join_after_the_decision(tmp_path, keys):
+    built = build(tmp_path, keys, "join-accepted")
+
+    def prepare(router, links, options):
+        def unrunnable(linked):
+            raise KeyError("fixtures/workflow.json")
+
+        links.joins.adapters = unrunnable
+
+    package, links, report, error = run_fixture(built, prepare)
+    assert error is None and report["status"] == "completed"
+    # The person's decision is recorded, then the failure, with no inner run to name.
+    (event,) = events(report, "link.decided")
+    assert event["accepted"] and event["decided_by"] == "person" and event["inner_plan_hash"]
+    (failure,) = slot_failures(report)
+    assert (failure["inner_run_id"], failure["error_code"]) == (None, "worker_error")
+    assert event["sequence"] < failure["sequence"]
+    assert not [e for e in events(report, "link.started") if "slot" in e]
+    # The caller's model is not asked for a request no run would take.
+    assert not [e for e in events(report, "model.called") if e["node_id"] == STEP]
+    (entry,) = report["links"]["joins"]
+    assert (entry["joined"], entry["reason"]) == (False, "failed")
+    assert report["usage"]["links"]["helper"]["runs"] == 0
+    assert report["usage"]["reserved_tokens"] == 0
+
+
+@pytest.mark.parametrize("stage", ["build", "run"])
+def test_whatever_a_joined_packages_inner_run_raises_is_its_failure(tmp_path, keys, stage):
+    built = build(tmp_path, keys, "join-accepted")
+
+    def prepare(router, links, options):
+        start = links.start
+
+        def broken(binding, **kwargs):
+            if "slot" not in binding.plan["parent"]:
+                return start(binding, **kwargs)
+            if stage == "build":
+                raise KeyError("deadline_seconds")
+            inner = start(binding, **kwargs)
+
+            async def boom(payload):
+                raise RuntimeError("the candidate's own")
+
+            inner.run = boom
+            return inner
+
+        links.start = broken
+
+    package, links, report, error = run_fixture(built, prepare)
+    assert error is None and report["status"] == "completed"
+    (failure,) = slot_failures(report)
+    assert failure["error_code"] == "worker_error"
+    assert (failure["inner_run_id"] is None) == (stage == "build")
+    assert [j["reason"] for j in report["links"]["joins"]] == ["failed"]
+    assert report["usage"]["reserved_tokens"] == 0
+
+
+def test_a_planned_links_fault_still_surfaces(tmp_path, keys):
+    # The other side of the rule: a planned link's package was pinned and checked at
+    # preparation, so what is not a classified error there is this runtime's fault.
+    built = build(tmp_path, keys)
+
+    def prepare(router, links, options):
+        def broken(binding, **kwargs):
+            raise KeyError("deadline_seconds")
+
+        links.start = broken
+
+    package, links, report, error = run_fixture(built, prepare)
+    assert report["status"] == "failed" and report["error_code"] == "worker_error"
+    assert not events(report, "link.failed")
+
+
+def test_a_key_declined_on_a_card_stops_its_planned_link(tmp_path, keys):
+    built = build(tmp_path, keys, "declined-key-planned-link")
+    package, links, report, error = run_fixture(built)
+    assert report["status"] == "failed" and report["error_code"] == "permission_denied"
+    (card,) = events(report, "link.decided")
+    (denied,) = events(report, "link.denied")
+    assert (card["reason"], denied["dependency"]) == ("declined", "index")
+    assert card["candidate"]["signer"] == links.binding("index").link.signer
+    assert card["sequence"] < denied["sequence"]
+    # The review's decision on `index` stands in the record; the denial is the card's.
+    assert links.binding("index").decision == "accepted"
+    assert not [e for e in events(report, "link.started") if e.get("dependency") == "index"]
+
+
+def test_a_slots_input_is_an_object_constructor(tmp_path, keys):
+    # The card's view is the fields of the slot's input (L-34): every constructor that is not
+    # an object of named fields is refused, whatever it would yield.
+    for constructor in (
+        probe.message(),
+        probe.message("/text"),
+        {"literal": {"query": "x"}},
+        {"coalesce": [{"object": {"query": probe.message("/text")}}]},
+    ):
+        made = probe.scenario()
+        probe.add_slot(made, input=constructor)
+        built = probe.write(tmp_path / f"probe-{len(list(tmp_path.iterdir()))}", made, keys)
+        with pytest.raises(ValidationError, match="^link_slot_input: "):
+            load_package(built.caller)
+
+
+def test_a_joined_packages_run_ends_before_its_steps_time_as_its_own_failure(
+    tmp_path, keys, monkeypatch
+):
+    import agentpkg.runtime as runtime
+
+    built = build(tmp_path, keys, "join-accepted")
+    # The slot's step has 20 seconds: leave the card and the inner run half a second of them.
+    monkeypatch.setattr(runtime, "CARD_MARGIN_SECONDS", 19.5)
+    handed = []
+
+    def prepare(router, links, options):
+        start = links.start
+
+        def slow(binding, **kwargs):
+            inner = start(binding, **kwargs)
+            if "slot" in binding.plan["parent"]:
+                handed.append(kwargs["deadline_seconds"])
+
+                async def never(payload):
+                    await asyncio.sleep(60)
+
+                inner.run = never
+            return inner
+
+        links.start = slow
+
+    began = time.monotonic()
+    package, links, report, error = run_fixture(built, prepare)
+    # The step did not time out: the inner run was ended first, and that is data.
+    assert error is None and report["status"] == "completed"
+    assert time.monotonic() - began < 10
+    # The deadline the inner run reports is the step's declared one, not a clock's reading.
+    assert handed == [20]
+    (failure,) = slot_failures(report)
+    assert failure["error_code"] == "cancelled" and failure["inner_run_id"]
+    assert [j["reason"] for j in report["links"]["joins"]] == ["failed"]
+    assert not [e for e in events(report, "node.failed") if e["node_id"] == STEP]
+    assert report["usage"]["reserved_tokens"] == 0
+
+
+def test_an_unanswered_raise_card_ends_before_its_nodes_time(tmp_path, monkeypatch):
+    import agentpkg.runtime as runtime
+
+    run = plain(tmp_path)
+    reserved = events(run(), "model.called")[0]["reserved_tokens"]
+    # The node has 20 seconds, far less than the card's own 120: leave the card 0.3 of them.
+    monkeypatch.setattr(runtime, "CARD_MARGIN_SECONDS", 19.7)
+
+    class Silent:
+        asked = []
+
+        async def ask(self, request):
+            self.asked.append(request)
+            await asyncio.sleep(3600)
+
+    report = run(limits={"hard_tokens": reserved - 10}, consent=Silent(), plan_hash="ab" * 32)
+    # The refusal of before (L-43), not the node's own timeout.
+    assert report["status"] == "failed" and report["error_code"] == "budget_exhausted"
+    (request,) = Silent.asked
+    assert 0 < request.timeout_seconds <= 0.3
+    assert len(events(report, "budget.requested")) == 1 and not events(report, "budget.raised")
+
+
+def test_a_model_call_computes_nothing_for_a_raise_nobody_can_be_asked(tmp_path, monkeypatch):
+    from agentpkg.runtime import Runtime
+
+    calls = []
+    asked = Runtime._ask_raise
+
+    async def counting(self, *args, **kwargs):
+        calls.append(args)
+        return await asked(self, *args, **kwargs)
+
+    monkeypatch.setattr(Runtime, "_ask_raise", counting)
+    run = plain(tmp_path)
+    assert run()["status"] == "completed" and calls == []
+    # With a person there, the one check of the call that needs it.
+    assert run(consent=FixtureConsent(), plan_hash="ab" * 32)["status"] == "completed"
+    assert len(calls) == 1

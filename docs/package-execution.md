@@ -799,7 +799,12 @@ decision from the host.
   package as a linked one. `agentpkg run … --join-fixture <json>` binds a recorded person (the
   decisions on the cards) and, optionally, a recorded web (pages and archives by URL, replayed
   through the discovery and package-URL code); the record gains `joins`, the operator's plan
-  and its hash, which a join's inner plan names with the run and the slot.
+  and its hash, which a join's inner plan names with the run and the slot. In `--mode fixture`
+  a slot looks at the recorded web and nothing else: a fixture that records none is an empty
+  web, and no address is resolved or dialled; only a live run without a recorded web looks at
+  the real one. A candidate's bytes never fail the caller's step: what cannot be analysed,
+  built or run is a refusal or a `failed` join in the record. A card the person declines
+  denies its publisher's key for the rest of the run, a planned link of that key included.
 - **The budget-raise request** (`Runtime._ask_raise`, link.v0 §7): a model call's token
   reservation, or a planned link's reservation, that fails on the host's limit where the
   package's own cap is higher may ask the person once per run to raise that limit to what the

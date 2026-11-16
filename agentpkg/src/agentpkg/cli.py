@@ -270,7 +270,9 @@ def parser():
             "The cards of the run answered from a recording (link.v0 sections 6 and 7): the "
             "person's decisions on a slot's join cards and on the budget-raise card, and "
             "optionally the recorded pages and package archives a slot looks at, replayed "
-            "through the discovery and package-URL policies. Without it nobody is there to "
+            "through the discovery and package-URL policies. A fixture run looks at nothing "
+            "else (with no recorded page it finds none); only a live run without a recorded "
+            "web looks at the real one. Without the option nobody is there to "
             "ask: every join is refused `unattended` and no raise is asked"
         ),
     )
@@ -663,14 +665,19 @@ def _dispatch(args):
                 options["limits"] = _json_file(args.limits)
             if args.join_fixture:
                 # link.v0 §6, §7: the person's cards answered from a recording, and what a
-                # slot may look at: the recorded web, or the real one under the same policies.
+                # slot may look at: the recorded web, or, in live mode only, the real one under
+                # the same policies.
                 from .links.host import plan_hash
-                from .links.join import JoinHost, load_join_fixture
+                from .links.join import JoinHost, RecordedWeb, load_join_fixture
                 from .links.operator import operator_plan
 
                 web, consent = load_join_fixture(
                     _json_file(args.join_fixture), Path(args.join_fixture).resolve().parent
                 )
+                if web is None and mode == "fixture":
+                    # Fixture mode touches no network (L-29): a fixture that records no web
+                    # is a web with nothing in it, so a slot that looks finds nothing.
+                    web = RecordedWeb({}, {})
                 if web is None:
                     from .browser.discovery import discover_website
                     from .links.fetch import fetch_dependency

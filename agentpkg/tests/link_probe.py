@@ -677,7 +677,18 @@ def _write_join(directory: Path, scenario: Scenario, keys: dict):
         return None, None, {}
     document = {"schema": "agentpkg-join-fixture-v0"}
     candidate, joinable = None, {}
-    if "candidate" in join:
+    if "archive" in join:
+        # A candidate taken as it is: some signed archive the page advertises.
+        import shutil
+
+        archive = directory / "helper.agent.pkg"
+        shutil.copyfile(join["archive"], archive)
+        candidate = load_package(archive)
+        slot = slot_of(scenario.caller)
+        joinable = {slot[1]["slot"] if slot else "helper": archive}
+        document["pages"] = {HELPER_PAGE: {"body": join.get("page", PAGE_WITH_PACKAGE)}}
+        document["packages"] = {HELPER_ARCHIVE: archive.name}
+    elif "candidate" in join:
         members = copy.deepcopy(join["candidate"])
         # The joined package replays its own fixture: one lookup per query a walk can send it.
         queries = [reply for target, reply in scenario.walk if target == "Lookup"] or ["none"]
@@ -875,6 +886,12 @@ def _slot_caps(s):
 
 def _slot_bound(s):
     add_slot(s, budget={"model_calls": 1, "tokens": 100000})
+
+
+def _slot_input(s):
+    # The whole message by reference: the card could name none of the fields that would go to
+    # the request-building call.
+    add_slot(s, input=message())
 
 
 def _digest_mismatch(s):
@@ -1148,6 +1165,22 @@ def _join_nested(s):
     }
 
 
+def _join_conversational(s):
+    # The page advertises a signed conversation package: not something a link can run, and
+    # nothing a worst case is computed for.
+    with_join(s, decisions=[ACCEPT])
+    del s.join["candidate"]
+    s.join["archive"] = CONVERSATIONAL
+
+
+def _declined_key_planned_link(s):
+    # `index` is accepted at the review. Writer's slot then finds a package `index`'s key
+    # signed, and the person declines its card: that key is denied for the rest of the run,
+    # so the planned link to `index`, reached afterwards, starts no inner run.
+    with_join(s, role_id="Writer", decisions=[{"accepted": False}], key="index")
+    s.walk = [("Writer", "write it up"), ("Lookup", "look up hello"), ("done", "all done")]
+
+
 def _join_denied_publisher(s):
     # The person denied `index`'s publisher at the review; the page the slot looks at
     # advertises a package that key signed.
@@ -1310,4 +1343,7 @@ VARIANTS = {
     "raise-unattended": _raise_unattended,
     "package-cap-never-raised": _package_cap_never_raised,
     "second-raise-refused": _second_raise_refused,
+    "slot-input": _slot_input,
+    "join-conversational": _join_conversational,
+    "declined-key-planned-link": _declined_key_planned_link,
 }

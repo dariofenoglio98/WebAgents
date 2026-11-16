@@ -8,7 +8,7 @@ import copy
 from .compute.errors import ComputeError
 from .errors import AgentPkgError, ValidationError
 from .links.errors import LinkError
-from .runtime import BudgetError, PolicyError, Runtime, digest
+from .runtime import BudgetError, PolicyError, Runtime, digest, forget_time, note_time
 from .validation import schema_validator, validate_instance, validate_payload
 from .workflow_values import evaluate, select, tokens
 
@@ -418,6 +418,8 @@ class Workflow:
     async def _step(self, node, env, ctx):
         self._event("node.started", node, ctx)
         ctx.operation_id = f"{ctx.node_id}/{node['id']}"
+        # What a wait for the person inside this step may read (a card ends before the step).
+        noted = note_time(node["timeout_seconds"])
         try:
             async with asyncio.timeout(node["timeout_seconds"]):
                 result = await self._operation(node, env, ctx)
@@ -429,6 +431,7 @@ class Workflow:
             )
             raise
         finally:
+            forget_time(noted)
             del ctx.operation_id
 
     async def _map(self, node, view):
@@ -492,6 +495,7 @@ class Workflow:
             if k in snapshot
         }
         self._event("node.started", node)
+        noted = note_time(node["timeout_seconds"])
         try:
             async with asyncio.timeout(node["timeout_seconds"]):
                 if node["type"] == "map":
@@ -542,6 +546,8 @@ class Workflow:
             if isinstance(exc, asyncio.CancelledError):
                 raise
             raise WorkflowError(code, node["id"]) from exc
+        finally:
+            forget_time(noted)
 
     async def run(self, input_value):
         if self._used:

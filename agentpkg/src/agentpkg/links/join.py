@@ -174,9 +174,20 @@ def over_ceiling(worst_case: dict, step) -> str | None:
 
 def verify_candidate(found: Found, slot: str, host: JoinHost) -> ResolvedLink:
     """L-10 for a candidate: its bytes verified as any package's, with a valid signature, and
-    described as a resolved link is. Raises the `LinkRefusal` of `links.resolve`."""
-    package, archive_sha256, signer = verify_linked(found.data, f"slot {slot!r}")
+    described as a resolved link is. Raises the `LinkRefusal` of `links.resolve`.
+
+    The profile is read before the worst case: W(p) is defined for a one-shot workflow.v0
+    package one level deep (L-18), and only such a declaration is analysed. A candidate the
+    profile refuses has no worst case (`worst_case` None); `refusal_before_card` names why."""
+    label = f"slot {slot!r}"
+    package, archive_sha256, signer = verify_linked(found.data, label)
     manifest = package.manifest
+    try:
+        check_profile(package, label)
+    except LinkRefusal:
+        worst_case = None
+    else:
+        worst_case = package_worst_case(package.graph, package.policy)
     return ResolvedLink(
         dependency=slot,
         record={
@@ -190,7 +201,7 @@ def verify_candidate(found: Found, slot: str, host: JoinHost) -> ResolvedLink:
         archive_sha256=archive_sha256,
         signer=signer,
         trust=host.trust(signer, package),
-        worst_case=package_worst_case(package.graph, package.policy),
+        worst_case=worst_case,
     )
 
 
@@ -273,8 +284,10 @@ def card_facts(link: ResolvedLink, step, found: Found, *, reason, left: dict, ca
                 "privacy": manifest["model_requirements"].get("privacy"),
             },
         },
-        # What the request to this package may draw from: the fields of the slot's `input`.
-        "view": sorted(step["input"].get("object", {})),
+        # What the request to this package may draw from: the fields of the slot's `input`,
+        # which validation requires to be an `object` constructor (`link_slot_input`), so
+        # that these names are the whole of it.
+        "view": sorted(step["input"]["object"]),
         "worst_case": {
             figure: copy.deepcopy(link.worst_case[figure]) for figure in WORST_CASE_FIGURES
         },
@@ -413,8 +426,10 @@ def load_join_fixture(
     """A join fixture (`agentpkg run --join-fixture`): the recorded web (`pages` by URL with
     their `body` as text or `body_base64`; `packages` by URL as an archive path relative to the
     fixture) and the person's recorded decisions (`decisions.joins` by slot,
-    `decisions.raise`). Either half may be absent: without `pages` and `packages` the host
-    looks at the real web; without `decisions` nobody is there to ask."""
+    `decisions.raise`). Either half may be absent. Without `pages` and `packages` no web is
+    returned: a fixture run then looks at an empty recorded web and finds nothing, and only a
+    live run looks at the real one (the host's choice; `agentpkg run` makes it by `--mode`).
+    Without `decisions` nobody is there to ask."""
     from pathlib import Path
 
     from ..package import MAX_FILES, MAX_TOTAL_BYTES, read_regular_bytes

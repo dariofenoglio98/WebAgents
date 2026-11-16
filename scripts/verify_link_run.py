@@ -45,7 +45,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "agentpkg" / "src"))
 
 from agentpkg.browser.evaluation import signature_report
-from agentpkg.delegation.analysis import link_cost, worst_case
+from agentpkg.delegation.analysis import worst_case
 from agentpkg.execution.report import verify_audit_chain
 from agentpkg.links.analysis import link_operations, package_worst_case
 from agentpkg.links.host import plan_hash
@@ -234,17 +234,23 @@ def verify(
             plan_hash(stated_plan) == caller_plan_hash
             and stated_plan.get("package", {}).get("digest") == caller.digest,
         )
-    joined_plans = {}
+    # A slot may join more than once in a run (`max_joins`), so a joined package is known by the
+    # inner plan its card produced, never by its slot alone.
+    joined_plans, joined_archives = {}, {}
     for entry in joins:
         if not entry.get("accepted"):
             continue
         slot, kept = entry["slot"], entry.get("package") or {}
         label = f"join {slot}"
-        source = (links or {}).get(slot) or _find(kept.get("digest", ""))
+        # The archive handed over for the slot, unless another of `dist/` is the one this card
+        # was decided on (a slot's second join may be of another package).
+        source = (links or {}).get(slot)
+        if source is None or load_package(source).digest != kept.get("digest"):
+            source = _find(kept.get("digest", "")) or source
         if not checks.add(f"{label}: the joined package is at hand", source is not None):
             continue
         archive = load_package(source)
-        linked[slot] = archive
+        joined_archives[entry["inner_plan_hash"]] = archive
         joined_plans[entry["inner_plan_hash"]] = kept.get("plan") or {}
         signature = signature_report(archive)
         candidate = entry.get("candidate") or {}
@@ -338,7 +344,11 @@ def verify(
             and all(e["run_id"] == inner_id for e in inner_audit)
             and inner_id != run_id,
         )
-        package_ = linked.get(name)
+        package_ = (
+            joined_archives.get(event["inner_plan_hash"])
+            if "slot" in event
+            else linked.get(name)
+        )
         opened = _events(inner_audit, "runtime.started")
         checks.add(
             f"{label}: it ran the pinned package",
@@ -522,8 +532,8 @@ def verify(
                 for name, step in slots.items()
             ),
         )
-    # A key the person declined on a card is denied from then on (L-13): no later card of it
-    # and no inner run of it.
+    # A key the person declined on a card is denied from then on (L-13, L-35): no later card of
+    # it, and no inner run of it started after the decline, a planned link's or a join's.
     declined: dict = {}
     for event in decisions:
         signer = (event.get("candidate") or {}).get("signer")
@@ -534,21 +544,34 @@ def verify(
             )
             if not event.get("accepted"):
                 declined.setdefault(signer, event["sequence"])
+
+    def signer_of(start):
+        if "slot" in start:
+            card = decided.get(start["inner_plan_hash"], {})
+            return (card.get("candidate") or {}).get("signer")
+        return listed.get(start.get("dependency"), {}).get("signer")
+
     if decisions:
         checks.add(
             "no inner run of a key declined on a card",
             not any(
-                (decided.get(e["inner_plan_hash"], {}).get("candidate") or {}).get("signer")
-                in declined
-                for e in starts.values()
-                if "slot" in e
+                signer_of(start) in declined and start["sequence"] > declined[signer_of(start)]
+                for start in starts.values()
             ),
         )
+
+    def at(node_id, action, after, before):
+        return [
+            e
+            for e in _events(audit, action)
+            if e.get("node_id") == node_id and after < e["sequence"] < before
+        ]
+
     for event in decisions:
         if not event.get("accepted"):
             continue
         slot = event.get("slot")
-        package_ = linked.get(slot)
+        package_ = joined_archives.get(event["inner_plan_hash"])
         own = (
             package_worst_case(package_.graph, package_.policy)
             if package_ is not None
@@ -563,29 +586,47 @@ def verify(
             and all(own[figure] == (event.get("worst_case") or {}).get(figure) for figure in FIGURES)
             and dict(own["tool_calls"]) == (event.get("worst_case") or {}).get("tool_calls"),
         )
-        calls = [
-            e
-            for e in _events(audit, "model.called")
-            if e["node_id"] == event["node_id"] and e["sequence"] > event["sequence"]
-        ]
-        looked = [
-            e
-            for e in _events(audit, "link.requested")
-            if e["node_id"] == event["node_id"] and e["sequence"] < event["sequence"]
-        ]
+        # A slot step may run once per activation of its role, and a slot may join more than
+        # once, so each decision has its window at the step: from the decision before it to
+        # the one after it. Before this decision, the look; after it, at most one
+        # request-building call, then at most one inner run, this decision's.
+        node_id, here = event["node_id"], event["sequence"]
+        others = [e["sequence"] for e in decisions if e["node_id"] == node_id]
+        opened = max((s for s in others if s < here), default=-1)
+        closed = min((s for s in others if s > here), default=float("inf"))
+        calls = at(node_id, "model.called", here, closed)
+        began = at(node_id, "link.started", here, closed)
         checks.add(
             f"join {slot}: looked, then decided, then the request built, then the inner run",
-            bool(looked)
+            bool(at(node_id, "link.requested", opened, here))
+            and len(calls) <= 1
+            and len(began) <= 1
             and all(
-                e["sequence"] > event["sequence"]
-                for e in starts.values()
-                if e.get("inner_plan_hash") == event["inner_plan_hash"]
-            )
-            and not any(
-                e["node_id"] == event["node_id"] and e["sequence"] < event["sequence"]
-                for e in _events(audit, "model.called")
-            )
-            and len(calls) <= 1,
+                e.get("inner_plan_hash") == event["inner_plan_hash"]
+                and all(call["sequence"] < e["sequence"] for call in calls)
+                for e in began
+            ),
+        )
+    if decisions:
+        # And nothing at a slot step outside such a window: a model call or an inner run there
+        # has an accepted decision of that step as the last one before it.
+        def last_decision(later):
+            prior = [
+                e
+                for e in decisions
+                if e["node_id"] == later["node_id"] and e["sequence"] < later["sequence"]
+            ]
+            return prior[-1] if prior else {}
+
+        steps = {e["node_id"] for e in decisions}
+        checks.add(
+            "at a slot step, a model call and an inner run follow an accepted decision of it",
+            all(
+                last_decision(e).get("accepted")
+                for action in ("model.called", "link.started")
+                for e in _events(audit, action)
+                if e.get("node_id") in steps
+            ),
         )
     raises = _events(audit, "budget.raised")
     asks = _events(audit, "budget.requested")

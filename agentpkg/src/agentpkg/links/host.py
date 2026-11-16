@@ -207,6 +207,12 @@ class LinkHost:
     def binding(self, dependency: str) -> LinkBinding:
         return self.bindings[dependency]
 
+    def denied(self, binding: LinkBinding) -> bool:
+        """Whether a link may start no inner run now (L-13, L-35): the person denied it at the
+        review, or has since declined a join card of the key that signed it. A denial is of
+        the publisher's key and lasts for the run."""
+        return binding.decision != ACCEPTED or binding.link.signer in self.denied_keys
+
     def reservation(self, binding: LinkBinding) -> dict:
         """L-24: the linked package's worst case under the effective limits, its own caps as the
         host lowered them, in the two figures a run reserves."""

@@ -35,7 +35,8 @@ package that is conversational (B-284); a linked package, a dependency's or a jo
 that declares dependencies of its own or whose graph holds a `link` step of either form, and a
 dependency that names the caller's own package (depth one, B-285); a dependency without a digest
 or with a locator that is not HTTPS; a slot outside a role's program; a slot whose `locate` reads
-anything but the run's input or a tool step's result; more than the caps of L-2, L-6, L-7
+anything but the run's input or a tool step's result; a slot whose `input` is not an object of
+named fields; more than the caps of L-2, L-6, L-7
 and L-39; a remote linked agent (a link is a program run here, never a service).
 
 ## 2. Declarations
@@ -99,7 +100,10 @@ A slot is a step of a role's program and nowhere else (`link_slot_scope`: not a 
 not a map step, never on the coordinator); a graph holds at most **2** slot steps, with distinct
 slot ids, none of them a dependency's id (`link_caps`, `link_slot_duplicate`: a slot and a
 dependency share the names of the usage record and the audit). `input` is the **view**: what the request to a
-joined package may draw from, under L-4's scope. `request` names a declared model task and the
+joined package may draw from. It is an `object` constructor and no other form
+(`link_slot_input`): its field names are what the card states (L-34) and its value is all the
+request-building call is handed (L-37), so the card names everything that may be sent; each
+field's own constructor is under L-4's scope. `request` names a declared model task and the
 output cap of the request-building call (L-37; `link_request_task_unknown`). `reason`, optional,
 is a constructor of at most 500 characters shown on the card as the agent's words. `max_joins`
 (1…2) caps the cards this slot may show in a run. `budget` is the **ceiling**: every figure the
@@ -202,7 +206,10 @@ composed bound leaves it out (L-22); a role whose program holds a denied `link` 
 complete, so it leaves every route's enum and target list, and a fixed route to it is refused at
 the transition check (`permission_denied`, the decision recorded with `reason: "link_denied"`); a network whose entry holds one, and a run that
 reaches a denied top-level node or map step, fails there `permission_denied`, recorded
-`link.denied`. No inner run of a denied publisher ever starts.
+`link.denied`. No inner run of a denied publisher ever starts. A key the person declines on a
+join card during the run (L-35) is denied from that decision on: a step that then reaches a
+planned link that key signed fails the same way, `permission_denied` with `link.denied`. The
+routes' enums and the bound are the plan's and are not recomputed during the run.
 
 L-17. **No person, no question.** A run without a person starts only when every dependency is
 already decided; an undecided one refuses the plan (`link_undecided`).
@@ -319,7 +326,10 @@ a role whose activation bound is above one), or an inner program that consumes i
 
 L-29. **Fixture mode.** An inner run replays the linked package's own fixture: its model and
 tool cases, by exact input, as a direct fixture run of that package does. Nothing in a fixture
-grants, routes or links.
+grants, routes or links. Fixture mode touches no network, a slot's look included: a slot looks
+at a recorded web (§10's join fixture) and at nothing else, and a fixture that records no web
+is a web with nothing in it, so every look ends `not_found`. A joined package that carries no
+fixture cannot be replayed: its join is `failed` (L-38).
 
 L-30. **The record.** A run that holds links writes, beside its own `result.json`,
 `audit.json`, `usage.json` and `provenance.json`:
@@ -396,12 +406,17 @@ ceiling in some figure; `link.decided` names the first as `figure`, in the order
 tool calls in total, compute calls, remote calls, tokens, seconds), `budget` (its reservation
 does not fit what the run has left or would cross the caller's approval threshold; `figure`
 names which; §7's raise is not asked for a join). The checks run in the order of this list, and
-the first that fails names the reason.
+the first that fails names the reason. A worst case is computed only for a candidate that
+passes the two profile checks: W(p) is defined for a one-shot workflow.v0 package one level
+deep (L-18), so a `conversational` or `nested` candidate has none, and `link.decided` states
+`worst_case: null` for it. Whatever a candidate's verified bytes hold, the outcome is one of
+these reasons and never a failure of the caller's step (L-8).
 
 L-34. **The card** shows facts the runtime computed: the publisher's key and its trust state in
 the person's store; the package's id and version; its name and description, marked as the
 publisher's words; its declared tools with their endpoints and permissions, the records it
-requests by type, its model needs; the slot's view in words (the fields of `input`); the
+requests by type, its model needs; the slot's view in words (the fields of `input`, which is
+an object of named fields, L-6, so the names are all of it); the
 candidate's own worst case, inside the ceiling; that the "at most" already accepted does not
 change; what the run has left; and the slot's `reason`, marked as the agent's words. The facts
 are one document (`schemas/link-join-card.schema.json`: `slot`, `publisher`, `package`,
@@ -412,8 +427,12 @@ reaches the caller's model before the decision.
 
 L-35. **The decision.** The default is no. The person accepts, with that package's grants and
 approvals, or declines (`declined`); a card that is not answered within the step's time is
-declined (`provenance: "timeout"`). Every card shown counts toward the caps, accepted or not,
-and a declined card denies the candidate's key for the rest of the run (L-13). The decision is
+declined (`provenance: "timeout"`): the card's wait ends one second before the step's time
+does, so that an unanswered card is a no and not the step's `timeout`. Every card shown counts
+toward the caps, accepted or not, and a declined card denies the candidate's key for the rest
+of the run (L-13): a later candidate that key signed is `publisher_denied`, and a planned link
+it signed, accepted at the review, starts no further inner run (L-16); inner runs that ended
+before the decision stand. The decision is
 recorded with who made it and where it came from (`decided_by: "person"` for every card;
 `provenance`: the host's surface, a fixture, `timeout`). Accepting the card of a publisher the
 person's store does not know accepts that package for this run and pins nothing. A host
@@ -442,7 +461,22 @@ L-38. **After the decision.** The inner run is started under the held reservatio
 and recorded as a planned link's, named by its slot: `usage.links[<slot>]`, its tools
 `<slot>:<tool>` in the caller's `tool_calls` (the bound holds them in total as `<slot>:*`). An
 inner run that fails is `joined: false`, reason `failed`, with `link.failed` naming its code:
-the candidate's failure is data.
+the candidate's failure is data. So is everything else a joined package's bytes cause after the
+decision, since they are a third party's, found during the run: where the host cannot build
+what the inner run is handed (its tool handlers; in fixture mode its replay) or the inner run
+itself, the accepted `link.decided` stands, `link.failed` follows it with `inner_run_id: null`
+and the cause's code (`worker_error` for what the runtime cannot classify), nothing is charged,
+and the outcome is `failed`; the host's part comes before the request-building call, so no
+model call is made for a package that cannot run. An error the inner run raises instead of
+reporting is `link.failed` with its run id and the outcome `failed`. A planned link differs
+(L-27): its package was pinned and checked at preparation, so only a classified failure is a
+`link_error` there.
+
+**The step's time.** The look, the card and the request-building call are the caller's own
+and run inside the step's `timeout_seconds`. The inner run of a join has what is left of that
+time less one second: one that is still running then is ended by the runtime, `link.failed`
+says `cancelled` (as L-27's), and the outcome is `failed`. After an accepted decision, a slot
+step's own `timeout` can therefore come only from the request-building call.
 
 L-39. **The caps.** A slot shows at most `max_joins` cards in a run; a run shows at most **2**
 in all. Past a cap no card is shown, and the run's end summary counts the refused joins.
@@ -478,8 +512,10 @@ L-43. **The card** shows the limit, the usage so far, the reservation that faile
 it is for, the new limit asked, the package's own cap, and the step's `reason` where it has
 one, marked as the agent's words (`schemas/budget-raise-card.schema.json`: `limit`, `from`,
 `to`, `needed`, `used`, `package_cap`, `node_id`, `reason`). The default is no. Denied,
-unanswered within the card's time (120 seconds in the reference, inside the step's own time)
-or unattended, the step fails `budget_exhausted` as it would have.
+unanswered within the card's time or unattended, the step fails `budget_exhausted` as it would
+have. The card's time is 120 seconds in the reference and never past the operation that asks:
+it ends one second before the enclosing step's, node's or role activation's own time does, so
+an unanswered card is the refusal of before and not that operation's `timeout`.
 
 L-44. **The decision** is recorded `budget.requested {limit: "tokens" | "remote_calls", from,
 to, needed, plan_hash}` when the card is shown and, when accepted, `budget.raised {limit, from,
@@ -500,14 +536,17 @@ after it (`inner_run_id` null and no `link.started` where no inner run could be 
 `link.refused {node_id, dependency | slot, reason: "tokens" | "remote_calls" |
 "approval_threshold", needed, tokens_left, remote_calls_left}` for a refused reservation
 (L-24); `link.denied {node_id, dependency}` when a step
-reaches a denied link; `link.requested {node_id, slot, fetches: [{url, kind: "discovery" |
+reaches a denied link, denied at the review or by a card declined earlier in the run (L-35); `link.requested {node_id, slot, fetches: [{url, kind: "discovery" |
 "package", status}], candidate: {package_id, version, digest, signer} | null}` when a slot has
 looked (not for `unattended`, `policy`, `join_cap` or a `locate` that yielded no URL: nothing
 was looked at); `link.decided {node_id, slot, accepted, decided_by: "person" | "runtime",
 reason, provenance, candidate, worst_case, inner_plan_hash, figure?}` for every outcome of a
 slot step, refused without a card or decided on one (`candidate` and `worst_case` null where
-no candidate verified; `inner_plan_hash` null unless accepted); a join's `link.started`,
-`link.completed`, `link.failed` name the `slot` where a planned link's name the `dependency`;
+no candidate verified; `worst_case` null too for a `conversational` or `nested` candidate,
+L-33; `inner_plan_hash` null unless accepted); a join's `link.started`,
+`link.completed`, `link.failed` name the `slot` where a planned link's name the `dependency`
+(`link.failed` with `inner_run_id: null` after an accepted `link.decided` where the joined
+package's inner run could not be built, L-38);
 `budget.requested` and `budget.raised` (L-44). A `link` step's
 `node_id` is its qualified id (`<node>/<role>/<step>` in a network). The inner run's own events
 are in its own chain, under its own run id.
@@ -516,14 +555,14 @@ are in its own chain, under its own run id.
 
 | Where | Codes |
 |---|---|
-| validation (the caller's package) | `link_minimum_version`, `link_dependency_unknown`, `link_dependency_duplicate`, `link_dependency_unused`, `link_locator_scheme`, `link_nested` (a dependency naming the caller), `link_caps`, `link_slot_scope`, `link_slot_duplicate`, `link_locate_source`, `link_request_task_unknown`, `link_slot_outcome_schema`, `link_bound_exceeds_budget` (a slot's ceiling); a link's input beyond a role's view: `network_state_read_outside_view` |
+| validation (the caller's package) | `link_minimum_version`, `link_dependency_unknown`, `link_dependency_duplicate`, `link_dependency_unused`, `link_locator_scheme`, `link_nested` (a dependency naming the caller), `link_caps`, `link_slot_scope`, `link_slot_duplicate`, `link_slot_input`, `link_locate_source`, `link_request_task_unknown`, `link_slot_outcome_schema`, `link_bound_exceeds_budget` (a slot's ceiling); a link's input beyond a role's view: `network_state_read_outside_view` |
 | preparation (resolution, the composed check) | `link_fetch_failed`, `link_package_invalid`, `link_signature_invalid`, `link_identity_mismatch`, `link_digest_mismatch`, `link_signer_mismatch`, `link_target_conversational`, `link_nested`, `link_model_incompatible`, `link_publisher_untrusted` (a host that requires a trusted publisher), `link_bound_exceeds_budget`, `link_unresolved`, `link_undecided` |
 | re-verification of a caller's plan (stale reasons) | `link_plan_cleared`, `link_plan_changed`, `link_plan_stale`, `link_plan_parent_mismatch` |
 | a lease on a linked package's bytes | `link_lease_without_caller` (no live lease of its caller on a plan that names this inner plan) |
 | the execution host | `link_plan_parent_mismatch` (the inner plan handed over is not the one the caller's plan names, or names another caller; an inner plan handed over as a caller's plan), `execution_plan_invalid` (a plan without its links, an accepted link without its inner plan or archive, an inner plan that is not a model-backed plan on the caller's route), the artifact codes for a linked archive, L-11's codes again on the verified bytes, the authorization codes on an inner plan as on the caller's (`execution_permission_denied`, the tool-binding codes) |
 | grants | `execution_grant_unsupported` (a `once` grant the composition would consume more than once) |
-| at a `link` step | `schema_validation` (`link_input`, `link_result`), `budget_exhausted` (`link.refused`: `tokens`, `remote_calls`, `approval_threshold`), `permission_denied` (`link.denied`), `link_error` (the inner run failed or could not be built; `link.failed` names its code), `timeout` (the step's time passed; `link.failed` says `cancelled`) |
-| at a slot step | `schema_validation` or `model_error` (the request-building call's answer), `budget_exhausted` (that call's reservation), `worker_error` (the host answered a card outside the decision contract), `timeout` |
+| at a `link` step | `schema_validation` (`link_input`, `link_result`), `budget_exhausted` (`link.refused`: `tokens`, `remote_calls`, `approval_threshold`), `permission_denied` (`link.denied`: denied at the review, or its key declined on a join card since), `link_error` (the inner run failed or could not be built; `link.failed` names its code), `timeout` (the step's time passed; `link.failed` says `cancelled`) |
+| at a slot step | `schema_validation` or `model_error` (the request-building call's answer), `budget_exhausted` (that call's reservation), `worker_error` (the host answered a card outside the decision contract), `timeout` (the look or the request-building call passed the step's time; never the card or the joined package's inner run, L-35, L-38) |
 | a slot's outcome (data, not a failure) | `unattended`, `policy`, `join_cap`, `not_found`, `verification`, `conversational`, `nested`, `publisher_denied`, `model_incompatible`, `over_ceiling`, `budget`, `declined`, `failed` |
 | a raise (no code of its own) | a reservation that no raise admits fails `budget_exhausted` as before (`model.refused`, `link.refused`) |
 
@@ -594,10 +633,14 @@ the code at the node named, or the control completes).
 | N-52 | `linked-compute` | run | control: completed; a linked package's compute calls are in the caller's `usage.compute_calls`, its model calls under `usage.links` only (L-26) |
 | N-53 | `approval-threshold` | run | `budget_exhausted`; `link.refused` with `approval_threshold`, no `link.started` for that link (L-24) |
 | N-54 | `inner-plan-alone` | host | `link_plan_parent_mismatch` (an inner plan handed over as a caller's plan, L-15) |
+| N-55 | `slot-input` | validation | `link_slot_input` (a slot whose `input` is a reference, not an object of named fields, L-6) |
+| N-56 | `join-conversational` | run | control: completed; `conversational`, no card, `worst_case: null` (L-33) |
+| N-57 | `declined-key-planned-link` | run | `permission_denied`; a card declined, then `link.denied` at the planned link that key signed, no inner run of it (L-35) |
 
 N-1…N-34 and N-52…N-54 are the planned link's rows (N-52…N-54 were added after the first
 review of the reference and keep the later numbers so that no cited number moves); N-35…N-51
-are the join's and the raise's. The list holds 59 cases: N-42 is six.
+are the join's and the raise's, and so are N-55…N-57, added after the review of the run-time
+half. The list holds 62 cases: N-42 is six.
 
 The cases of the run-time half carry a **join fixture** (`agentpkg-join-fixture-v0`, the
 argument of `run --join-fixture`), which a conformance runner passes to either CLI: `pages`
@@ -606,9 +649,11 @@ an archive's path beside the fixture) are a recorded web, replayed through the d
 package-URL code unchanged; `decisions.joins` (by slot, the cards' answers in order:
 `{accepted, grants, approved_tools}`) and `decisions.raise` (`{accepted}`) are the person's
 recorded answers (`provenance: "fixture"`). A card the recording does not answer is declined;
-without `decisions` nobody is there to ask.
+without `decisions` nobody is there to ask. Without `pages` and `packages` a fixture run looks
+at an empty recorded web (L-29: nothing is found, nothing is dialled); only a live run handed
+such a fixture looks at the real web, under the same policies.
 
-The reference asserts every row of N-1…N-33, N-35…N-53 (`test_link_cases.py`), N-34 and
+The reference asserts every row of N-1…N-33, N-35…N-53, N-55…N-57 (`test_link_cases.py`), N-34 and
 N-54 on the execution session (`test_link_execution.py`) and, in
 `test_link_runtime.py`, the authority boundary (an inner run built from its binding alone; a
 caller's grant and approval for the same permission and tool refused to the linked package), the
@@ -616,8 +661,11 @@ reservation held and released, a link past its step's time, the composed bound u
 walks, a denial of a publisher's key, the run record, `inspect` and the CLI; in
 `test_link_join.py`, where a slot looks, the card's facts, the request-building call's data
 (the view and the joined package's name, description and input schema, nothing else), the
-caps, the denial that lasts for the run, an unanswered card, and the raise's rules (the bound
-of half, the package's cap, one per run, a model call's reservation).
+caps, the denial that lasts for the run (a later candidate and a planned link of the declined
+key), an unanswered card, a candidate whose bytes no worst case can be computed from, a joined
+package the host cannot run or whose inner run raises or outlasts the step, a fixture run that
+dials nothing, and the raise's rules (the bound of half, the package's cap, one per run, a
+model call's reservation, the card's time inside its node's).
 
 ## 11. The example packages
 
