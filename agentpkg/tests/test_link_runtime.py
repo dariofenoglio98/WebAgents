@@ -384,3 +384,52 @@ def test_a_composition_under_other_walks_stays_inside_the_bound(tmp_path, keys):
         assert usage["tokens"] <= bound["tokens"]
         for tool, count in usage["tool_calls"].items():
             assert count <= bound["tool_calls"][tool]
+
+
+def test_the_schema_patches_are_applied():
+    """`spec/link-v0/*.schema.patch.json` describe the step and check the result: applying them
+    to the live schemas again changes nothing."""
+    from agentpkg.validation import SCHEMAS
+
+    contracts = base.ROOT / "spec" / "link-v0"
+    schemas = {
+        name: json.loads((SCHEMAS / f"{name}.schema.json").read_text(encoding="utf-8"))
+        for name in ("workflow", "manifest")
+    }
+    for name in ("workflow", "manifest"):
+        patch = json.loads((contracts / f"{name}.schema.patch.json").read_text(encoding="utf-8"))
+        live = schemas[name]
+        for operation in patch:
+            assert operation["op"] == "add"
+            *parents, last = operation["path"].split("/")[1:]
+            target = live
+            for part in parents:
+                target = target[int(part)] if isinstance(target, list) else target[part]
+            if isinstance(target, list):
+                assert operation["value"] in target, operation["path"]
+            else:
+                assert target[last] == operation["value"], operation["path"]
+    for kind in ("step", "node"):
+        assert "link" in schemas["workflow"]["$defs"][kind]["properties"]["type"]["enum"]
+
+
+def test_the_conformance_driver_writes_a_case_a_cli_runs(tmp_path, capsys):
+    import subprocess
+    import sys
+
+    driver = base.ROOT / "conformance" / "drivers" / "link_probe.py"
+    done = subprocess.run(
+        [sys.executable, str(driver), str(tmp_path / "case"), "planned-walk"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    written = json.loads(done.stdout)
+    assert written["case"]["id"] == "planned-walk"
+    out = tmp_path / "out"
+    argv = ["run", written["source"], "--mode", "fixture", "--grants", written["grants"]]
+    assert main(argv + written["argv"] + ["--out", str(out)]) == 0, capsys.readouterr().err
+    cases = subprocess.run(
+        [sys.executable, str(driver), "--cases"], capture_output=True, text=True, check=True
+    )
+    assert len(json.loads(cases.stdout)) == 33
