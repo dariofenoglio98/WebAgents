@@ -1,0 +1,23 @@
+{
+  "spec_version": "0.1",
+  "id": "check-calendar",
+  "version": "0.1.0",
+  "description": "List a fictional traveller's calendar entries over a date range.",
+  "execution": "remote",
+  "binding": "webair.travel_calendar",
+  "endpoint": "https://webagents-webair-production.up.railway.app/api/v1/travel/calendar",
+  "method": "POST",
+  "input_schema": "schemas/calendar-query.schema.json",
+  "output_schema": "schemas/calendar-entries.schema.json",
+  "permissions": [
+    "network.webair"
+  ],
+  "domains": [
+    "webagents-webair-production.up.railway.app"
+  ],
+  "timeout_seconds": 15,
+  "retries": 0,
+  "side_effects": "read",
+  "approval_required": false,
+  "extensions": {}
+}

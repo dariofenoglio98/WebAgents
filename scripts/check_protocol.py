@@ -40,14 +40,22 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_security_model import FORBIDDEN, collapsed, properties, read
+from check_security_model import EXPERIMENTS as MODEL_EXPERIMENTS
+from check_security_model import (
+    FORBIDDEN,
+    LETTERED_EXPERIMENT,
+    collapsed,
+    properties,
+    read,
+)
 from check_security_model import defined_ids as model_defined_ids
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROTOCOL = ROOT / "experiments" / "PROTOCOL.md"
 DEFAULT_MODEL = ROOT / "docs" / "security-and-privacy-model.md"
 
-EXPERIMENTS = [f"E{n}" for n in range(1, 11)] + ["EA", "EL"]
+# The registered experiments: the model checker's list, one list for both checkers.
+EXPERIMENTS = list(MODEL_EXPERIMENTS)
 # Planned experiments: a section may exist with `Question` and `Status` only; registered by amendment.
 # EL was planned from version 1 and registered by T64's amendment (version 3, 2026-11-15, D-689).
 PLANNED_EXPERIMENTS: list[str] = []
@@ -86,7 +94,9 @@ CITATION_RE = re.compile(r"\b(P|DF|UC|LK|CB)-(\d+)\b")
 # second endpoint must repeat the prefix, so that "P-4… 300 runs" is a citation of P-4 and a number.
 CITATION_RANGE_RE = re.compile(r"\b(P|DF|UC|LK|CB)-(\d+)\s*(?:…|\.\.\.|–)\s*\1-(\d+)\b")
 NUMBERED_EXPERIMENT_RE = re.compile(r"\bE(\d+)\b")
-LETTERED_EXPERIMENT_RE = re.compile(r"\bE([A-Z])\b")
+LETTERED_EXPERIMENT_RE = (
+    LETTERED_EXPERIMENT  # one lettered-id pattern, the model checker's
+)
 TASK_RE = re.compile(r"\bT(\d+)\b")
 
 

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "city": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "check_in": {
+      "type": "string",
+      "format": "date"
+    },
+    "check_out": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "city",
+    "check_in",
+    "check_out"
+  ],
+  "additionalProperties": false
+}

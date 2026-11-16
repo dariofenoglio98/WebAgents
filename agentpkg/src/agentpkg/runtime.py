@@ -99,6 +99,8 @@ class WorkerUsage:
     tokens: int = 0
     reserved_tokens: int = 0
     remote_calls: int = 0
+    # link.v0 L-24: remote calls held for an inner run until it settles (the run only).
+    reserved_remote_calls: int = 0
     tool_calls: Counter = field(default_factory=Counter)
     # compute.v0: counted for the run only (`usage.compute_calls`), never per worker.
     compute_calls: int = 0
@@ -128,6 +130,9 @@ class Context:
 
     async def consent(self, node, facts, text):
         return await self._runtime.call_consent(self, node, facts, text)
+
+    async def link(self, step, payload, deadline_seconds):
+        return await self._runtime.call_link(self, step, payload, deadline_seconds)
 
     def event(self, action, **metadata):
         self._runtime._check_context(self)
@@ -199,8 +204,13 @@ class Runtime:
         observer=None,
         memory=None,
         turn=None,
+        links=None,
     ):
         self.package = package
+        # link.v0: what the run holds about its links (`links.host.LinkHost`): the resolved
+        # packages, the person's decision on each publisher and what an accepted one was
+        # granted. None: a package without links.
+        self.links = links
         # What the run holds about memory (memory.v0 §7): the scan set of the egress guards
         # (M-36, M-37), the grants, the proposals check and the agent document. None: no memory
         # at all, an empty scan set, nothing refused on that account.
@@ -252,8 +262,14 @@ class Runtime:
             raise PolicyError("Remote-agent delegation is not implemented")
         if any(r["kind"] != "packaged" for r in self.roles.values()):
             raise PolicyError("Only declared packaged worker roles can execute")
-        if package.manifest.get("dependencies"):
-            raise PolicyError("Dependency execution/loading is not implemented")
+        if package.manifest.get("dependencies") and (
+            links is None or links.caller.digest != package.digest
+        ):
+            # link.v0 L-10, L-17: a host resolves and decides every dependency before the run.
+            raise PolicyError(
+                "link_unresolved: declared dependencies must be resolved and decided before the run"
+            )
+        self._link_usage = {}
         self.compute = None
         self._modules = {}
         self._prepare_compute()
@@ -520,7 +536,9 @@ class Runtime:
 
     def _remote(self, ctx, count=1):
         own = self._usage[ctx.worker_id]
-        if self._global.remote_calls + count > self.budget["max_remote_calls"]:
+        # link.v0 L-24: the remote calls an inner run holds are not there to spend.
+        held = self._global.reserved_remote_calls
+        if self._global.remote_calls + held + count > self.budget["max_remote_calls"]:
             raise BudgetError("Global remote-call budget exhausted")
         if own.remote_calls + count > self.roles[ctx.role]["budget"]["remote_calls"]:
             raise BudgetError(f"Remote-call budget exhausted for {ctx.worker_id}")
@@ -882,7 +900,11 @@ class Runtime:
             tokens_left = (
                 self.budget["hard_tokens"] - self._global.tokens - self._global.reserved_tokens
             )
-            remote_left = self.budget["max_remote_calls"] - self._global.remote_calls
+            remote_left = (
+                self.budget["max_remote_calls"]
+                - self._global.remote_calls
+                - self._global.reserved_remote_calls
+            )
             facts = dict(
                 node_id=node_id,
                 bound=summary,
@@ -902,6 +924,201 @@ class Runtime:
                     f"({tokens_left} tokens, {remote_left} remote calls)"
                 )
             self.record("network.started", context=self._root, entry=entry, **facts)
+
+    @property
+    def link_costs(self):
+        """`delegation.analysis.link_cost`'s map for this run: each dependency's worst case, None
+        for a link the person denied; None when the package has no links."""
+        return self.links.worst_cases if self.links is not None else None
+
+    async def call_link(self, ctx, step, payload, deadline_seconds):
+        """One planned link (link.v0 §5): the denial, the input against the linked package's own
+        schema, the reservation, the inner run, the settlement, the result. The inner run is
+        built from its binding alone (`links.host.InnerRun`): its own grants, approvals,
+        handlers and counters; of this run it receives the validated input and returns the
+        validated result, nothing else (L-25)."""
+        self._check_context(ctx)
+        name = step["dependency"]
+        host = self.links
+        if host is None or name not in host.bindings:
+            raise PolicyError(f"link_unresolved: dependency {name} was not resolved for this run")
+        binding = host.binding(name)
+        if binding.decision != "accepted":
+            self.record("link.denied", context=ctx, dependency=name)
+            raise PolicyError(f"Link {name} was denied by the person")
+        linked = binding.link.package
+        try:
+            validate_instance(
+                linked.files, linked.graph["input_schema"], payload, f"link {name} input"
+            )
+        except ValidationError as exc:
+            exc.failed_check = {"check": "link_input", "dependency": name}
+            raise
+        needed = host.reservation(binding)
+        async with self._lock:
+            tokens_left = (
+                self.budget["hard_tokens"] - self._global.tokens - self._global.reserved_tokens
+            )
+            remote_left = (
+                self.budget["max_remote_calls"]
+                - self._global.remote_calls
+                - self._global.reserved_remote_calls
+            )
+            # The caller's approval threshold is met by a link's reservation as by a model
+            # call's: what is spent and held, plus this reservation, stays at or under it.
+            threshold = self.budget.get("approval_threshold_tokens")
+            reason = None
+            if needed["tokens"] > tokens_left:
+                reason = "tokens"
+            elif needed["remote_calls"] > remote_left:
+                reason = "remote_calls"
+            elif (
+                threshold is not None
+                and self._global.tokens + self._global.reserved_tokens + needed["tokens"]
+                > threshold
+            ):
+                reason = "approval_threshold"
+            if reason is not None:
+                self.record(
+                    "link.refused",
+                    context=ctx,
+                    dependency=name,
+                    reason=reason,
+                    needed=needed,
+                    tokens_left=tokens_left,
+                    remote_calls_left=remote_left,
+                )
+                if reason == "approval_threshold":
+                    raise BudgetError(
+                        f"link {name}: its worst case ({needed['tokens']} tokens) crosses the "
+                        f"token approval threshold ({threshold}); a new host grant is required"
+                    )
+                raise BudgetError(
+                    f"link {name}: its worst case ({needed['tokens']} tokens, "
+                    f"{needed['remote_calls']} remote calls) exceeds what the run has left "
+                    f"({tokens_left} tokens, {remote_left} remote calls)"
+                )
+            self._global.reserved_tokens += needed["tokens"]
+            self._global.reserved_remote_calls += needed["remote_calls"]
+        # Nothing is spent until an inner run exists.
+        spent = dict(tokens=0, remote_calls=0, model_calls=0, tool_calls={}, compute_calls=0)
+        inner = None
+        try:
+            try:
+                inner = host.start(
+                    binding, router=self.router, limits=needed, deadline_seconds=deadline_seconds
+                )
+            except Exception as exc:
+                # An inner run that could not be built: nothing ran, so nothing is charged, and
+                # the step fails as a failed inner run's does (L-27), `link.failed` naming the
+                # cause with no run id.
+                from .links.errors import LinkError
+                from .workflow import failure_code
+
+                code = failure_code(exc)
+                self.record(
+                    "link.failed",
+                    context=ctx,
+                    dependency=name,
+                    inner_run_id=None,
+                    error_code=code,
+                    usage=spent,
+                )
+                raise LinkError(name, code) from exc
+            # From here on, unknown usage consumes the reservation (L-26), as a model call's.
+            spent = {**needed, "model_calls": 0, "tool_calls": {}, "compute_calls": 0}
+            self.record(
+                "link.started",
+                context=ctx,
+                dependency=name,
+                package_id=linked.manifest["package_id"],
+                digest=linked.digest,
+                inner_plan_hash=binding.plan_hash,
+                inner_run_id=inner.run_id,
+                reserved=needed,
+                input_hash=digest(payload),
+            )
+            try:
+                report = await inner.run(payload)
+            finally:
+                spent = inner.usage()
+            if report["status"] != "completed":
+                from .links.errors import LinkError
+
+                raise LinkError(name, report.get("error_code") or "worker_error")
+            result = report["output"]
+            self.record(
+                "link.completed",
+                context=ctx,
+                dependency=name,
+                inner_run_id=inner.run_id,
+                usage=spent,
+                result_hash=digest(result),
+            )
+            host.finished(
+                inner,
+                name=name,
+                node_id=operation_node_id(ctx),
+                status="completed",
+                error_code=None,
+            )
+            return copy.deepcopy(result)
+        except BaseException as exc:
+            if inner is not None:
+                from .workflow import failure_code
+
+                code = getattr(exc, "inner_code", None) or failure_code(exc)
+                self.record(
+                    "link.failed",
+                    context=ctx,
+                    dependency=name,
+                    inner_run_id=inner.run_id,
+                    error_code=code,
+                    usage=spent,
+                )
+                host.finished(
+                    inner,
+                    name=name,
+                    node_id=operation_node_id(ctx),
+                    status="failed",
+                    error_code=code,
+                )
+            raise
+        finally:
+            async with self._lock:
+                self._global.reserved_tokens -= needed["tokens"]
+                self._global.reserved_remote_calls -= needed["remote_calls"]
+                # L-26: every counter the run keeps takes the inner run's figure. A run keeps no
+                # model-call counter (a model call is its `model.called` event, in the chain of
+                # the run that made it), so an inner run's model calls are stated per link only.
+                self._global.tokens += spent["tokens"]
+                self._global.remote_calls += spent["remote_calls"]
+                self._global.compute_calls += spent["compute_calls"]
+                for tool, count in spent["tool_calls"].items():
+                    self._global.tool_calls[f"{name}:{tool}"] += count
+                totals = self._link_usage.setdefault(
+                    name,
+                    {
+                        "runs": 0,
+                        "tokens": 0,
+                        "remote_calls": 0,
+                        "model_calls": 0,
+                        "tool_calls": {},
+                        "compute_calls": 0,
+                    },
+                )
+                totals["runs"] += 1 if inner is not None else 0
+                for key in ("tokens", "remote_calls", "model_calls", "compute_calls"):
+                    totals[key] += spent[key]
+                for tool, count in spent["tool_calls"].items():
+                    totals["tool_calls"][tool] = totals["tool_calls"].get(tool, 0) + count
+                self.record(
+                    "budget.updated",
+                    context=ctx,
+                    tokens=self._global.tokens,
+                    reserved_tokens=self._global.reserved_tokens,
+                    remote_calls=self._global.remote_calls,
+                )
 
     def _engine_facts(self, outcome) -> dict:
         """Which engine ran the call and what it measured; the figures are the engine's own
@@ -1234,9 +1451,19 @@ class Runtime:
             "reserved_tokens": self._global.reserved_tokens,
             "remote_calls": self._global.remote_calls,
             "tool_calls": dict(self._global.tool_calls),
-            # compute.v0: present exactly when the graph declares modules, so every earlier
-            # package's usage is unchanged.
-            **({"compute_calls": self._global.compute_calls} if self._modules else {}),
+            # compute.v0: present exactly when the graph declares modules or the run holds links
+            # (link.v0 L-26: a linked package's compute calls are settled into it), so every
+            # earlier package's usage is unchanged.
+            **(
+                {"compute_calls": self._global.compute_calls}
+                if self._modules or self.links is not None
+                else {}
+            ),
+            # link.v0 L-26: present exactly when the run holds links; what each link's inner
+            # runs spent. Its tokens, remote calls, compute calls and tool calls are already
+            # inside the totals above (tool calls there are qualified); its model calls are
+            # stated here only, since a run's usage has no model-call total.
+            **({"links": copy.deepcopy(self._link_usage)} if self.links is not None else {}),
             "peak_parallel_workers": self._peak,
             "workers": {
                 w: {

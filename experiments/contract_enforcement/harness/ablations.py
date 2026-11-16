@@ -215,7 +215,7 @@ AUTHORIZATION = Profile(
         py_if(
             "A.runner.mode_permission",
             "execution/session.py",
-            '            if grants.get(permission_id, "deny") == "deny":',
+            '        if grants.get(permission_id, "deny") == "deny":',
         ),
         py_if(
             "A.runner.tool_not_approved",
@@ -959,7 +959,7 @@ RESOURCES = Profile(
         py_if(
             "B.runtime.remote_global",
             "runtime.py",
-            '        if self._global.remote_calls + count > self.budget["max_remote_calls"]:',
+            '        if self._global.remote_calls + held + count > self.budget["max_remote_calls"]:',
         ),
         py_if(
             "B.runtime.remote_worker",

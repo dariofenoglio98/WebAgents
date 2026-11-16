@@ -71,6 +71,10 @@ DEMO_DOCUMENTS = {
     "demo/packages/travel-network-0.1.0.agent.pkg": REPO
     / "dist"
     / "travel-network-0.1.0.agent.pkg",
+    # WebAir Flights (link.v0, T65), at the path the travel planner's manifest names.
+    "demo/packages/webair-flights-0.1.0.agent.pkg": REPO
+    / "dist"
+    / "webair-flights-0.1.0.agent.pkg",
 }
 HOST_RESOURCES = DEMO / "host-resources.json"
 MAX_PACKAGE_BYTES = 16 * 1024 * 1024

@@ -4,9 +4,9 @@ The WebAgents Chrome browser searches a signed agent index and lets a person sub
 signed policy. Neither belongs to the fictional airline; they are served from this origin only
 because it is the demo deployment that exists (a new hosting project is not available on the
 free plan). The origin publishes them the way it publishes its own package: the operator names a
-directory at startup, exactly nine files are read from it once, there, and each is served at
+directory at startup, exactly ten files are read from it once, there, and each is served at
 one fixed path. A request can never name, widen or swap a file, and nothing else in that
-directory becomes reachable. Without a directory the nine paths answer 404.
+directory becomes reachable. Without a directory the ten paths answer 404.
 
     /agent-index.json                              the signed WebAgents demo index
     /policies/webagents-research.json              the signed example research policy
@@ -74,6 +74,12 @@ DOCUMENTS: dict[str, tuple[str, str, int]] = {
     ),
     "/packages/travel-network-0.1.0.agent.pkg": (
         "packages/travel-network-0.1.0.agent.pkg",
+        MEDIA_TYPE,
+        16 * 1024 * 1024,
+    ),
+    # WebAir Flights (link.v0, T65): the path the travel planner's signed manifest names.
+    "/packages/webair-flights-0.1.0.agent.pkg": (
+        "packages/webair-flights-0.1.0.agent.pkg",
         MEDIA_TYPE,
         16 * 1024 * 1024,
     ),

@@ -14,15 +14,15 @@ its residual). Nothing a specification cites has been removed.
 
 | Property | Implemented in the sections |
 |---|---|
-| P-1 integrity and provenance of what runs | Threats and controls; What signatures and identity mean; Browser control-plane boundary; Package execution boundary |
-| P-2 a valid signature is not a trusted publisher | Threats and controls; What signatures and identity mean; Browser control-plane boundary; Agent Browser plugin boundary; Search and policy subscriptions |
+| P-1 integrity and provenance of what runs | Threats and controls; What signatures and identity mean; Browser control-plane boundary; Package execution boundary; Agent Links |
+| P-2 a valid signature is not a trusted publisher | Threats and controls; What signatures and identity mean; Browser control-plane boundary; Agent Browser plugin boundary; Search and policy subscriptions; Agent Links |
 | P-3 data only | Threats and controls; workflow.v0 boundary; Code in packages |
-| P-4 declared at most, granted no more | Threats and controls; Browser control-plane boundary; Agent Browser plugin boundary; Run surface boundary; Package execution boundary; Tool broker boundary |
-| P-5 prepare, re-verify, then run | Browser control-plane boundary; Agent Browser plugin boundary; Run surface boundary; Model-router bridge boundary; Package execution boundary |
+| P-4 declared at most, granted no more | Threats and controls; Browser control-plane boundary; Agent Browser plugin boundary; Run surface boundary; Package execution boundary; Tool broker boundary; Agent Links |
+| P-5 prepare, re-verify, then run | Browser control-plane boundary; Agent Browser plugin boundary; Run surface boundary; Model-router bridge boundary; Package execution boundary; Agent Links |
 | P-6 a model's output is data | Run surface boundary; Model-router bridge boundary; workflow.v0 boundary; In-browser inference |
-| P-7 control flow is the signed graph | Threats and controls; workflow.v0 boundary; Delegation networks |
+| P-7 control flow is the signed graph | Threats and controls; workflow.v0 boundary; Delegation networks; Agent Links |
 | P-8 tools only through bindings under the address policy | Threats and controls; Browser control-plane boundary; Tool broker boundary; Scholarly search, selected files and pacing; Chrome Agent Browser |
-| P-9 budgets and conservative accounting | Threats and controls; Model-router bridge boundary; Package execution boundary; Tool broker boundary; workflow.v0 boundary; Conversations and consent; Delegation networks; In-browser inference |
+| P-9 budgets and conservative accounting | Threats and controls; Model-router bridge boundary; Package execution boundary; Tool broker boundary; workflow.v0 boundary; Conversations and consent; Delegation networks; In-browser inference; Agent Links |
 | P-10 fail closed | Model-router bridge boundary; Tool broker boundary; In-browser inference |
 | P-11 a hash-linked audit | Threats and controls; File and memory handling; Package execution boundary; Scholarly search, selected files and pacing; Conversations and consent |
 | P-12 the person's data by type | Threats and controls; File and memory handling; Run surface boundary; Scholarly search, selected files and pacing; User memory |
@@ -30,7 +30,7 @@ its residual). Nothing a specification cites has been removed.
 | P-14 memory through reviewed proposals | File and memory handling; User memory |
 | P-15 compute isolation | Code in packages |
 | P-16 consent bound to constructed facts | Conversations and consent; Conversations in Chrome |
-| P-17 confinement across roles | Threats and controls; workflow.v0 boundary; Delegation networks |
+| P-17 confinement across roles | Threats and controls; workflow.v0 boundary; Delegation networks; Agent Links |
 | P-18 inputs from the web grant nothing | Threats and controls; File and memory handling; Browser control-plane boundary; Scholarly search, selected files and pacing; Search and policy subscriptions |
 | P-19 least privilege and secrets at rest (the extension) | Browser control-plane boundary; Agent Browser plugin boundary; Chrome Agent Browser; Native helper and macOS installer; Conversations in Chrome; In-browser inference |
 
@@ -738,3 +738,66 @@ remote-call budget, so a model that keeps choosing an exhausted edge spends at m
 envelope already counts, and each attempt's refusal is recorded. The agent page's figures and the
 run page's decisions are rendered from the summary and the audit by `textContent`; the role
 descriptions are the package's text, shown as data.
+
+## Agent Links (T65, `link.v0`)
+
+*Properties: P-1, P-2, P-4, P-5, P-7, P-9, P-17 ([the model](security-and-privacy-model.md#3-properties)).*
+
+[`spec/link-v0.md`](../spec/link-v0.md) lets one publisher's package ask another publisher's
+package for help. Until now one run held one publisher's program; a link puts a second
+publisher's program into the same run, and the boundary this section describes is the one
+between them. The model's §6.1 states the commitments (LK-1…LK-8); this note says how the
+reference keeps the first five, the planned link, and what it leaves open. A link made during
+a run (a slot, LK-6…LK-8) is specified and validated, and the reference runs none yet.
+
+**What a link is.** The caller's signed manifest names the linked package by id, version,
+package digest, an HTTPS locator and, optionally, its publisher key. Before the run the host
+resolves it (`links/resolve.py`): the bytes from the locator under the package-URL policy,
+unchanged, or an archive the person supplied, accepted only by its digest; verified as any
+package, with a valid signature required; then the record's identity, digest and signer, a
+one-shot workflow.v0 target, and depth one. The signer is evaluated against the person's own
+trust store as if the package had been opened directly; the caller's trust and the caller's
+declared signer vouch for nothing (P-2). The bytes an inner run executes are the bytes that were
+verified (P-1).
+
+**No authority from the caller.** The person decides per linked publisher, and an accepted one
+gets its own grants, tool approvals and handlers (`links/host.py:LinkBinding`). An inner run is
+an ordinary run of the linked package's own program, built from that binding alone
+(`InnerRun`): it cannot name a grant, a tool, a resource, a record or a state key of the caller,
+because none was put in it. Of the caller it receives one input instance, validated against its
+own input schema, and it returns one result, validated against its own output schema and then
+against the caller's step schema (P-4, P-17). A denial is of the publisher's key: every
+dependency that key signed is unbound, a role that holds one leaves every route's targets, and
+no inner run of it starts.
+
+**One bound across publishers.** A link's cost is the linked package's own worst case, computed
+from its declaration, and it enters the caller's bound where the step stands (a role's
+activation, a map's item, a node), so the "at most" a person is told before the run holds every
+linked program (P-7). At run time the linked worst case must fit what the run has left and is
+held until the inner run settles; the inner run's limits are the reservation; the caller's
+counters then take what it spent (P-9). `scripts/verify_link_run.py` recomputes the bound from
+the declarations and checks a run's record against it.
+
+**What it does not give.** The quality of a linked package's answer. What the linked package's
+own approved tools send to their own declared hosts: that is its declaration, shown on its
+card, and a person who accepts a publisher has accepted it. What the caller's program puts
+into the link's input instance, within its own view: the example planner builds every link
+input from closed fields, a property of that package and not of the format. Free text a linked
+package returns reaches the caller's model as data (P-6). The linked package runs on the
+caller's model route, so a compromised model is the same adversary on both sides of the link.
+**Prepared, re-verified, then run.** The reference has two hosts. The developer CLI and a driver
+that plays the person bind decisions directly (`links/operator.py`). The control plane opens
+each dependency as a package session of its own (`browser/links.py`), so a linked publisher is
+authorized through the ordinary path with its own receipt and its own inner Run Plan, which
+names the caller it was prepared for; the caller's plan records each link with its inner
+plan's hash, and its preflight re-verifies every one. The execution session is handed each
+accepted link's inner plan and archive, refuses an inner plan that is not the one the caller's
+plan names or that names another caller, and verifies each archive itself (P-5); the modules it
+imports for that reach no control plane and no transport. An inner plan is authority only
+inside its caller's run: the execution session refuses one handed over as a caller's plan, and
+the control plane leases a linked package's bytes only beside its caller's live lease, so the
+grants the person gave on a link's card cannot run that package outside the composition, its
+reservation and its audit. On the CLI the first `--trust-key` pins the caller's publisher and
+no other key verifies the caller, so a key pinned for a linked publisher does not widen who may
+sign the package the person asked to run. A link's reservation meets the caller's token
+approval threshold as a model call's does.

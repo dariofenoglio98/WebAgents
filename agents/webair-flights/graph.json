@@ -1,0 +1,198 @@
+{
+  "spec_version": "0.1",
+  "profile": "workflow.v0",
+  "coordinator": "Coordinator",
+  "workers": [
+    {
+      "id": "Coordinator",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 0,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "request",
+        "found",
+        "pick",
+        "result"
+      ],
+      "state_write": [
+        "result"
+      ]
+    },
+    {
+      "id": "Searcher",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [
+        "search-flights"
+      ],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 0,
+        "remote_calls": 1
+      },
+      "state_read": [
+        "request"
+      ],
+      "state_write": [
+        "found"
+      ]
+    },
+    {
+      "id": "Advisor",
+      "kind": "packaged",
+      "skills": [
+        "flight-advisor"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 6000,
+        "remote_calls": 2
+      },
+      "state_read": [
+        "request",
+        "found"
+      ],
+      "state_write": [
+        "pick"
+      ]
+    }
+  ],
+  "input_schema": "schemas/query.schema.json",
+  "output_schema": "schemas/result.schema.json",
+  "initial_state": {
+    "object": {
+      "request": {
+        "from": "input",
+        "path": ""
+      },
+      "found": {
+        "literal": null
+      },
+      "pick": {
+        "literal": null
+      },
+      "result": {
+        "literal": null
+      }
+    }
+  },
+  "deadline_seconds": 280,
+  "fixture": "fixtures/workflow.json",
+  "exports": [
+    {
+      "path": "result.txt",
+      "format": "text",
+      "value": {
+        "from": "result",
+        "path": "/reason"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "search",
+      "type": "tool",
+      "tool": "search-flights",
+      "worker": "Searcher",
+      "depends_on": [],
+      "input": {
+        "from": "state",
+        "path": "/request"
+      },
+      "output_schema": "schemas/found.schema.json",
+      "timeout_seconds": 20,
+      "writes": {
+        "/found": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "propose",
+      "type": "llm",
+      "task": "propose",
+      "max_output_tokens": 3000,
+      "worker": "Advisor",
+      "depends_on": [
+        "search"
+      ],
+      "input": {
+        "object": {
+          "request": {
+            "from": "state",
+            "path": "/request"
+          },
+          "found": {
+            "from": "state",
+            "path": "/found"
+          }
+        }
+      },
+      "output_schema": "schemas/pick.schema.json",
+      "timeout_seconds": 240,
+      "writes": {
+        "/pick": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "result",
+      "type": "validate",
+      "worker": "Coordinator",
+      "depends_on": [
+        "propose"
+      ],
+      "input": {
+        "object": {
+          "options": {
+            "from": "state",
+            "path": "/found/options"
+          },
+          "recommended": {
+            "from": "state",
+            "path": "/pick/recommended"
+          },
+          "reason": {
+            "from": "state",
+            "path": "/pick/reason"
+          }
+        }
+      },
+      "output_schema": "schemas/result.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/result": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "worker": "Coordinator",
+      "depends_on": [
+        "search",
+        "propose",
+        "result"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/result"
+      },
+      "output_schema": "schemas/result.schema.json",
+      "timeout_seconds": 10,
+      "writes": {}
+    }
+  ],
+  "extensions": {}
+}

@@ -1,0 +1,78 @@
+{
+  "spec_version": "0.1",
+  "package_id": "org.webagents.hotel-salitubam",
+  "name": "Hotel Salitubam",
+  "version": "0.1.0",
+  "description": "A fictional small hotel in Reykjavik as a package another agent can ask: it checks the hotel's own availability for a stay and proposes one room offer. All data is fictional; nothing is booked.",
+  "publisher": {
+    "id": "hotel-salitubam",
+    "name": "Hotel Salitubam (fictional hotel)"
+  },
+  "created_at": "2026-11-15T12:00:00Z",
+  "runtime": {
+    "api": "agentpkg-runtime-v0",
+    "minimum_version": "0.8.0"
+  },
+  "capabilities": [],
+  "entrypoint": "workflow.v0",
+  "graph": "graph.json",
+  "policy": "policy/policy.json",
+  "skills": [
+    {
+      "id": "front-desk",
+      "version": "0.1.0",
+      "path": "skills/front-desk/SKILL.md"
+    }
+  ],
+  "tools": [
+    {
+      "id": "check-availability",
+      "path": "tools/check-availability.tool.json"
+    }
+  ],
+  "schemas": [
+    {
+      "id": "query",
+      "path": "schemas/query.schema.json"
+    },
+    {
+      "id": "found",
+      "path": "schemas/found.schema.json"
+    },
+    {
+      "id": "pick",
+      "path": "schemas/pick.schema.json"
+    },
+    {
+      "id": "result",
+      "path": "schemas/result.schema.json"
+    },
+    {
+      "id": "state",
+      "path": "schemas/state.schema.json"
+    }
+  ],
+  "model_requirements": {
+    "tasks": [
+      {
+        "id": "propose",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      }
+    ],
+    "routing": "host",
+    "fallback_policy": "deny",
+    "extensions": {}
+  },
+  "evals": [],
+  "attestations": [],
+  "dependencies": [],
+  "update": {
+    "channel": "local",
+    "locator": null
+  },
+  "extensions": {}
+}

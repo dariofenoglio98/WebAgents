@@ -134,6 +134,8 @@ def test_the_origin_serves_exactly_its_routes(client):
         | {("/api/v1/schemas", "GET")}
         # The travel network's fictional partner services (T26, D-290).
         | {(f"/api/v1/travel/{name}", "POST") for name in ("flights", "hotels", "calendar")}
+        # The named hotel's fictional availability service, for Agent Links (T65, D-695).
+        | {("/api/v1/hotel/availability", "POST")}
         | {("/static/webair.css", "GET"), ("/health", "GET")}
         | {("/agent.pkg", "GET"), ("/agent.pkg", "HEAD")}
         # T8: the WebAgents demo documents, fixed paths read from one configured directory
@@ -152,6 +154,8 @@ def test_the_origin_serves_exactly_its_routes(client):
                 "/packages/literature-review-0.2.5.agent.pkg",
                 # T26: the travel network, which index 1.6.0 names.
                 "/packages/travel-network-0.1.0.agent.pkg",
+                # T65: WebAir Flights, which index 1.7.0 names and the travel planner pins.
+                "/packages/webair-flights-0.1.0.agent.pkg",
             )
             for method in ("GET", "HEAD")
         }

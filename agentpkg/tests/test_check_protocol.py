@@ -241,8 +241,7 @@ def planned(checker, monkeypatch, protocol_text):
 
 
 def test_planned_copy_passes_the_planned_checks(checker, tmp_path, planned):
-    problems = _problems(checker, tmp_path, planned)
-    assert not any("EL" in p for p in problems), problems
+    assert _problems(checker, tmp_path, planned) == []
 
 
 def test_planned_experiment_needs_question_and_status(checker, tmp_path, planned):

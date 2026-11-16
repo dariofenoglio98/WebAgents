@@ -173,6 +173,87 @@ def test_lettered_ids_of_the_id_list_are_read(checker, model_text, tmp_path):
     assert report["experiments"]["unknown"] == ["EM"]
 
 
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "the protocol's experiments E7, E8, and EK cite them",
+        "the protocol's experiments E1–E10 and EK cite them",
+        "the protocol's experiments E7 or EK cite them",
+        "the protocol's Experiment EK cites them",
+    ],
+)
+def test_unknown_lettered_experiment_in_every_list_form(checker, model_text, tmp_path, sentence):
+    # ", and", "or", an en-dash range and a capitalised "Experiment" (T64 review 2, carry-over 2).
+    text = replace_once(model_text, "the protocol's experiment EL cites them", sentence)
+    report = run(checker, tmp_path, text)
+    assert report["experiments"]["unknown"] == ["EK"]
+    assert not report["passed"]
+
+
+def test_a_lettered_word_after_a_field_id_list_is_prose(checker, model_text, tmp_path):
+    # Only the id list that opens the field is read: "EU-hosted" after it is a word (carry-over 3).
+    text = replace_once(
+        model_text,
+        "**Experiment.** E1, E7, E8.",
+        "**Experiment.** E1, E7, E8. An EU-hosted rerun is not one of them.",
+    )
+    report = run(checker, tmp_path, text)
+    assert report["experiments"]["unknown"] == []
+    assert report["experiments"]["passed"]
+
+
+def test_a_lettered_id_after_a_field_note_is_read(checker, model_text, tmp_path):
+    # The field's list is read across its parenthetical notes.
+    text = replace_once(
+        model_text,
+        "(the trust family of the first catalog is cited), E8.",
+        "(the trust family of the first catalog is cited), EB.",
+    )
+    report = run(checker, tmp_path, text)
+    assert report["experiments"]["unknown"] == ["EB"]
+
+
+def test_an_id_named_in_a_list_inside_a_field_is_counted_once(checker, model_text, tmp_path):
+    # An id that an id list and a field both read is one citation (carry-over 6).
+    base = run(checker, tmp_path, model_text)["experiments"]["cited"]
+    text = replace_once(
+        model_text, "**Experiment.** E1, E7, E8.", "**Experiment.** EL, experiments EA and EL."
+    )
+    report = run(checker, tmp_path, text)
+    assert report["experiments"]["unknown"] == []
+    # Three numbered ids leave, three lettered positions enter: EL in the field, EA and EL in
+    # the list; the field's own reading stops at the word "experiments".
+    assert report["experiments"]["cited"] == base
+
+
+def test_one_list_of_experiments_for_both_checkers(checker):
+    spec = importlib.util.spec_from_file_location(
+        "check_protocol", ROOT / "scripts" / "check_protocol.py"
+    )
+    protocol = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(protocol)
+    assert protocol.EXPERIMENTS == checker.EXPERIMENTS
+    assert protocol.LETTERED_EXPERIMENT_RE.pattern == checker.LETTERED_EXPERIMENT.pattern
+
+
+@pytest.mark.parametrize("kind", ["LK", "UC"])
+def test_a_deleted_bullet_is_a_gap(checker, model_text, tmp_path, kind):
+    # As P-n: a missing id in the middle of DF, UC or LK fails, whatever the count (carry-over 5).
+    start = model_text.index(f"- **{kind}-5 ")
+    end = model_text.index(f"- **{kind}-6 ")
+    report = run(checker, tmp_path, model_text[:start] + model_text[end:])
+    assert report["id_series"]["gaps"] == [f"{kind}-5"]
+    assert not report["passed"]
+
+
+def test_a_repeated_bullet_is_a_duplicate(checker, model_text, tmp_path):
+    start = model_text.index("- **LK-5 ")
+    end = model_text.index("- **LK-6 ")
+    report = run(checker, tmp_path, model_text[:end] + model_text[start:end] + model_text[end:])
+    assert report["id_series"]["duplicates"] == ["LK-5"]
+    assert not report["passed"]
+
+
 def test_a_lettered_word_in_prose_is_not_an_experiment(checker, model_text, tmp_path):
     assert "(the EU guidelines, 2019)" in model_text
     report = run(checker, tmp_path, model_text)

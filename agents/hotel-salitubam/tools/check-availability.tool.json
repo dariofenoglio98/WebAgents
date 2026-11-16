@@ -1,0 +1,23 @@
+{
+  "spec_version": "0.1",
+  "id": "check-availability",
+  "version": "0.1.0",
+  "description": "Ask the fictional Hotel Salitubam's own availability service for a stay.",
+  "execution": "remote",
+  "binding": "salitubam.availability",
+  "endpoint": "https://webagents-hotel-salitubam-production.up.railway.app/api/v1/hotel/availability",
+  "method": "POST",
+  "input_schema": "schemas/query.schema.json",
+  "output_schema": "schemas/found.schema.json",
+  "permissions": [
+    "network.salitubam"
+  ],
+  "domains": [
+    "webagents-hotel-salitubam-production.up.railway.app"
+  ],
+  "timeout_seconds": 15,
+  "retries": 0,
+  "side_effects": "read",
+  "approval_required": false,
+  "extensions": {}
+}

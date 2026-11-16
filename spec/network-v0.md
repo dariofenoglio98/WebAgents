@@ -432,6 +432,11 @@ route decisions; the conformance suite runs every case of §7 and both fixture w
 runtimes (`conformance/run.mjs`, the network family). The OpenClaw plugin stays frozen (D-029)
 and its execution host refuses 0.7.0 packages by version. The paper line is untouched.
 
+**Links.** A role's program may hold a `link` step (link.v0, [`link-v0.md`](link-v0.md),
+agentpkg 0.8.0): another publisher's package, run as an inner run. Its worst case is added to
+the role's activation cost (R-19), and a role that holds a link the person denied is never
+activated and is not a route's target (link.v0 L-16, L-19…L-22).
+
 **Deliberate limits of v0.** No remote roles; no roles created at run time; no nesting (a
 call-and-return is two edges, and the hop cap bounds it); no loop inside a role (a program is
 straight-line; the only loop is the network's, bounded); no consent step inside a role; no

@@ -16,7 +16,7 @@ from ..errors import AgentPkgError, ValidationError
 from ..runtime import BudgetError, PolicyError, digest
 from ..validation import validate_instance
 from ..workflow_values import evaluate, tokens
-from .analysis import DONE, route_data, worst_case
+from .analysis import DONE, denied_roles, route_data, worst_case
 
 
 class RouteRefusal(AgentPkgError):
@@ -40,6 +40,8 @@ class Walk:
     hop: int = 0
     uses: Counter = field(default_factory=Counter)
     activations: Counter = field(default_factory=Counter)
+    # link.v0 L-16: the roles whose program holds a link the person denied; never a target.
+    denied: frozenset = frozenset()
 
 
 async def run_network(workflow, node, message, ctx):
@@ -60,15 +62,23 @@ async def run_network(workflow, node, message, ctx):
         raise
     # The run's "at most" (R-21): the bound under the effective budget, the node's timeout and
     # the deadline as the host lowered it, the same figures the execution host recorded.
+    # With links, the composed bound (link.v0 L-19): each link's worst case inside its role's
+    # activation cost, a denied link's role never activated.
     bound = worst_case(
         graph,
         package.policy,
         budget=rt.budget,
         node_timeout=min(node["timeout_seconds"], workflow.deadline_seconds),
+        links=rt.link_costs,
     )
+    denied = frozenset(denied_roles(network, rt.link_costs))
+    if network["entry"] in denied:
+        # The entry holds a denied link, so no activation of this network could complete.
+        rt.record("link.denied", context=ctx, node_id=node_id, role=network["entry"])
+        raise PolicyError(f"network {node_id}: its entry role holds a link the person denied")
     await rt.reserve_network(ctx, node_id, bound, entry=network["entry"])
     state = copy.deepcopy(evaluate(network["initial"], {}))
-    walk = Walk()
+    walk = Walk(denied=denied)
     current = network["entry"]
     walk.activations[current] = 1
     # The shared state after the current activation's patch, once validated; the loop commits it,
@@ -203,6 +213,10 @@ def _check_transition(rt, ctx, node_id, network, role_id, role, walk, answer, ch
             reason = "end_not_allowed"
     elif not declared:
         reason = "edge_undeclared"
+    elif target in walk.denied:
+        # link.v0 L-16: the target's program holds a denied link. A chosen route never names
+        # it (it left the enum); a fixed route to it is refused here.
+        reason = "link_denied"
     elif walk.hop >= network["max_hops"]:
         reason = "hops_exhausted"
     else:
@@ -219,7 +233,7 @@ def _check_transition(rt, ctx, node_id, network, role_id, role, walk, answer, ch
     if reason is not None:
         if chosen_by == "model":
             raise RouteRefusal(reason, target if declared else None)
-        if reason in ("edge_undeclared", "end_not_allowed"):
+        if reason in ("edge_undeclared", "end_not_allowed", "link_denied"):
             raise PolicyError(f"role {role_id}: route to {target!r} is not declared ({reason})")
         raise BudgetError(f"role {role_id}: route to {target!r} refused ({reason})")
 
@@ -248,8 +262,11 @@ async def _route(workflow, node_id, network, role_id, role, local, walk, ctx):
         walk.uses,
         walk.activations,
         walk.hop,
+        walk.denied,
     )
-    targets = [edge["to"] for edge in role["edges"]] + ([DONE] if role["may_end"] else [])
+    targets = [edge["to"] for edge in role["edges"] if edge["to"] not in walk.denied] + (
+        [DONE] if role["may_end"] else []
+    )
     bundled = workflow._model_schema(message_schema)
     schema = {
         "type": "object",

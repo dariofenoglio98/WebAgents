@@ -1,0 +1,68 @@
+{
+  "profile": "workflow.fixture.v0",
+  "input": {
+    "city": "KEF",
+    "check_in": "2027-03-09",
+    "check_out": "2027-03-14"
+  },
+  "models": {
+    "propose": [
+      {
+        "input": {
+          "request": {
+            "city": "KEF",
+            "check_in": "2027-03-09",
+            "check_out": "2027-03-14"
+          },
+          "found": {
+            "options": [
+              {
+                "id": "H-HAF",
+                "name": "Harbour Guesthouse (fictional)",
+                "nights": 5,
+                "price_usd": 850
+              },
+              {
+                "id": "H-AUR",
+                "name": "Aurora Hotel (fictional)",
+                "nights": 5,
+                "price_usd": 1075
+              }
+            ]
+          }
+        },
+        "output": {
+          "recommended": "H-HAF",
+          "reason": "The cheaper of the two for five nights: $850."
+        }
+      }
+    ]
+  },
+  "tools": {
+    "search-hotels": [
+      {
+        "input": {
+          "city": "KEF",
+          "check_in": "2027-03-09",
+          "check_out": "2027-03-14"
+        },
+        "output": {
+          "options": [
+            {
+              "id": "H-HAF",
+              "name": "Harbour Guesthouse (fictional)",
+              "nights": 5,
+              "price_usd": 850
+            },
+            {
+              "id": "H-AUR",
+              "name": "Aurora Hotel (fictional)",
+              "nights": 5,
+              "price_usd": 1075
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
