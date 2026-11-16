@@ -9,7 +9,7 @@ import json
 import network_probe as base
 import pytest
 from link_probe import FULL_TOUR, Scenario, scenario, write
-from test_link_cases import build, events, keys, link_host, run_fixture  # noqa: F401
+from test_link_cases import build, events, link_host, run_fixture
 
 from agentpkg.cli import main
 from agentpkg.delegation.analysis import activation_costs, link_cost, worst_case

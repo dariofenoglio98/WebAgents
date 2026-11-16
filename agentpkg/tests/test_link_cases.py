@@ -16,21 +16,10 @@ from agentpkg.links.host import check_once
 from agentpkg.links.operator import operator_links
 from agentpkg.links.resolve import LinkRefusal
 from agentpkg.package import load_package
-from agentpkg.signing import _read_key, fingerprint, keygen
+from agentpkg.signing import _read_key, fingerprint
 from agentpkg.workflow import run_workflow
 
 CASE_LIST = json.loads((CASES / "cases.json").read_text())
-
-
-@pytest.fixture(scope="module")
-def keys(tmp_path_factory):
-    """One publisher key per linked package: a denial is of a key (L-13)."""
-    directory = tmp_path_factory.mktemp("link-keys")
-    made = {}
-    for name in ("default", "index", "scribe"):
-        made[name] = (directory / f"{name}.private.pem", directory / f"{name}.pub.pem")
-        keygen(*made[name])
-    return made
 
 
 def build(tmp_path, keys, variant=None):

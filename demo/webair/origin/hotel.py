@@ -76,9 +76,7 @@ def availability(request: AvailabilityRequest) -> AvailabilityResponse:
     check_in = _day(request.check_in, "check_in")
     nights = (_day(request.check_out, "check_out") - check_in).days
     if not 1 <= nights <= MAX_NIGHTS:
-        raise WebAirError(
-            "invalid_stay", f"A stay is 1 to {MAX_NIGHTS} nights.", field="check_out"
-        )
+        raise WebAirError("invalid_stay", f"A stay is 1 to {MAX_NIGHTS} nights.", field="check_out")
     offers = []
     for room_id, name, guests, nightly in ROOMS:
         rooms = -(-request.travellers // guests)
@@ -102,9 +100,7 @@ def router() -> APIRouter:
     def call(request: Request, arguments: AvailabilityRequest) -> AvailabilityResponse:
         return availability(arguments)
 
-    endpoint = json_endpoint(
-        "availability", AvailabilityRequest, call, label="hotel availability"
-    )
+    endpoint = json_endpoint("availability", AvailabilityRequest, call, label="hotel availability")
     endpoint.__name__ = "hotel_availability"
     routes.add_api_route("/availability", endpoint, methods=["POST"], include_in_schema=False)
     return routes
