@@ -36,7 +36,9 @@ def run(tmp_path, keys, variant="planned-walk"):
 
 
 def check(verifier, built, out, **options):
-    return verifier.verify(out, package=built.caller, links=built.archives, **options)
+    return verifier.verify(
+        out, package=built.caller, links={**built.archives, **built.joinable}, **options
+    )
 
 
 def failed(result):
@@ -212,3 +214,87 @@ def test_the_canary_hook_binds_observations_to_the_audit(verifier, tmp_path, key
         assert needle in verifier.encodings("look up hello")
     names = failed(check(verifier, built, out, observations=sent, canaries=["look up hello"]))
     assert any("no canary in what it sent" in name for name in names)
+
+
+# -- the run-time half: a join and a raise (D-697) ------------------------------------------------
+
+
+def test_a_run_with_a_join_verifies_and_recomputes_the_candidates_worst_case(
+    verifier, tmp_path, keys
+):
+    built, out = run(tmp_path, keys, "join-accepted")
+    result = check(verifier, built, out)
+    assert result["passed"], result["checks"]
+    assert result["joins"] == [
+        {
+            "slot": "helper",
+            "joined": True,
+            "reason": None,
+            "decided_by": "person",
+            "package_id": "org.example.link-probe.helper",
+        }
+    ]
+    # The slot is in the bound at its ceiling, whatever joined.
+    assert result["at_most"]["tool_calls"]["helper:*"] == 2
+    assert result["observed"]["tool_calls"]["helper:lookup"] == 1
+
+
+@pytest.mark.parametrize("variant", ["join-declined", "unattended-join", "join-cap"])
+def test_a_run_with_a_refused_join_verifies(verifier, tmp_path, keys, variant):
+    built, out = run(tmp_path, keys, variant)
+    result = check(verifier, built, out)
+    assert result["passed"], result["checks"]
+    assert [join["joined"] for join in result["joins"]] == (
+        [True, False] if variant == "join-cap" else [False]
+    )
+
+
+def test_a_join_plan_of_another_run_fails(verifier, tmp_path, keys):
+    built, out = run(tmp_path, keys, "join-accepted")
+
+    def another_run(record):
+        record["joins"][0]["package"]["plan"]["parent"]["run_id"] = "0" * 8
+
+    rewrite(out / "links.json", another_run)
+    assert (
+        "join helper: its inner plan is hash-bound to this plan, this run and this slot"
+        in failed(check(verifier, built, out))
+    )
+
+
+def test_a_candidate_past_the_slots_ceiling_fails(verifier, tmp_path, keys):
+    built, out = run(tmp_path, keys, "join-accepted")
+    # The same record against a caller whose slot allows the joined package no tool call.
+    tighter = tmp_path / "tighter"
+    import shutil
+
+    shutil.copytree(built.caller, tighter)
+    graph = json.loads((tighter / "graph.json").read_text())
+    slot = graph["network"]["roles"]["Lookup"]["steps"][-1]
+    slot["budget"]["tool_calls"] = 0
+    (tighter / "graph.json").write_text(json.dumps(graph))
+    result = verifier.verify(out, package=tighter, links={**built.archives, **built.joinable})
+    assert any("fits the slot's ceiling" in name for name in failed(result))
+
+
+def test_a_run_with_a_raise_verifies_and_a_raise_under_another_plan_fails(verifier, tmp_path, keys):
+    built, out = run(tmp_path, keys, "raise-accepted")
+    result = check(verifier, built, out)
+    assert result["passed"], result["checks"]
+    assert result["raises"] == [{"limit": "tokens", "from": 1700, "to": result["raises"][0]["to"]}]
+    assert result["raises"][0]["to"] <= 1700 + 850
+
+    def another_plan(record):
+        record["caller_plan"]["limits"] = {}
+        record["caller_plan_hash"] = "0" * 64
+
+    rewrite(out / "links.json", another_plan)
+    names = failed(check(verifier, built, out))
+    assert "a raise names this run and its plan, and was asked for these figures" in names
+    assert "the caller's plan is the one its hash names" in names
+
+
+def test_a_canary_in_an_address_a_slot_fetched_fails(verifier, tmp_path, keys):
+    built, out = run(tmp_path, keys, "join-declined")
+    assert check(verifier, built, out, canaries=["helper.example"])["passed"] is False
+    assert check(verifier, built, out, canaries=["NOT-THERE"])["passed"]

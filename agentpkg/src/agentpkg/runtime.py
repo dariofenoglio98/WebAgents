@@ -22,6 +22,10 @@ from .errors import AgentPkgError, ValidationError
 from .toolbridge.facts import schema_facts
 from .validation import validate_document, validate_instance
 
+#: How long the one budget-raise card of a run waits for the person (link.v0 L-43); a join
+#: card waits for its step's time.
+RAISE_CARD_SECONDS = 120.0
+
 
 class PolicyError(AgentPkgError):
     """A package request exceeds user authority or supported runtime behavior."""
@@ -134,6 +138,9 @@ class Context:
     async def link(self, step, payload, deadline_seconds):
         return await self._runtime.call_link(self, step, payload, deadline_seconds)
 
+    async def join(self, step, view, urls, reason, deadline_seconds):
+        return await self._runtime.call_join(self, step, view, urls, reason, deadline_seconds)
+
     def event(self, action, **metadata):
         self._runtime._check_context(self)
         self._runtime.record(action, context=self, **metadata)
@@ -205,8 +212,17 @@ class Runtime:
         memory=None,
         turn=None,
         links=None,
+        consent=None,
+        plan_hash=None,
     ):
         self.package = package
+        # link.v0 §6, §7: the person's surface during the run (`conversation.host.RunConsentHost`):
+        # a join card and the one budget-raise card are asked there. None: nobody is there to
+        # ask, so every join is refused `unattended` and no raise is asked (L-33, L-43).
+        self.consent = consent
+        # The hash of the plan this run was decided under, as its host states it (a Run Plan's,
+        # or an operator's plan): what a decision made during the run names (L-36, L-44).
+        self.plan_hash = plan_hash
         # link.v0: what the run holds about its links (`links.host.LinkHost`): the resolved
         # packages, the person's decision on each publisher and what an accepted one was
         # granted. None: a package without links.
@@ -249,6 +265,10 @@ class Runtime:
                 self.budget[key] = min(value, self.budget[key])
         if self.budget["max_parallel_workers"] < 1:
             raise PolicyError("At least one worker slot is required")
+        # link.v0 L-42: the person's own run limits as the plan set them, which one raise may
+        # lift by at most half, never above the package's own caps (`self.policy`).
+        self._plan_limits = {key: self.budget[key] for key in ("hard_tokens", "max_remote_calls")}
+        self._raise_asked = False
         memory = self.policy["memory"]
         # `agent-scoped` (memory.v0 M-48) keeps the run's state semantics of `session`; the
         # package's own document is a pair of tools, never state. The other scopes stay refused.
@@ -931,6 +951,125 @@ class Runtime:
         for a link the person denied; None when the package has no links."""
         return self.links.worst_cases if self.links is not None else None
 
+    async def _ask_raise(self, ctx, limit, amount, *, admitted_otherwise=True) -> bool:
+        """The budget-raise request (link.v0 §7). A reservation of `amount` that fails on the
+        person's own run limit (`limit`: `hard_tokens` or `max_remote_calls`, as the host
+        lowered it under the package's cap) may be answered by one card per run: to raise that
+        limit to what the reservation needs, by at most half of the plan's limit and never
+        above the package's own cap. No person, a raise already asked, a reservation another
+        bound would still refuse, or an amount the rule cannot admit: no card, and the refusal
+        stands. True when the limit was raised."""
+        from .conversation.host import RunRequest, check_run_decision
+
+        if limit == "hard_tokens":
+            name, used = "tokens", self._global.tokens + self._global.reserved_tokens
+        else:
+            name = "remote_calls"
+            used = self._global.remote_calls + self._global.reserved_remote_calls
+        current, target = self.budget[limit], used + amount
+        if (
+            self.consent is None
+            or self._raise_asked
+            or not admitted_otherwise
+            or target <= current
+            or target > self.policy["budget"][limit]
+            or target - current > self._plan_limits[limit] // 2
+        ):
+            return False
+        self._raise_asked = True
+        node_id = operation_node_id(ctx)
+        facts = {
+            "limit": name,
+            "from": current,
+            "to": target,
+            "needed": amount,
+            "used": used,
+            "package_cap": self.policy["budget"][limit],
+            "node_id": node_id,
+            # A step's stated reason, the agent's words, where it has one; no step that
+            # reserves has one in this version.
+            "reason": None,
+        }
+        validate_document(facts, "budget-raise-card", "budget-raise card")
+        self.record(
+            "budget.requested",
+            context=ctx,
+            limit=name,
+            to=target,
+            needed=amount,
+            plan_hash=self.plan_hash,
+            **{"from": current},
+        )
+        request = RunRequest("budget.raise", self.run_id, node_id, facts, RAISE_CARD_SECONDS)
+        try:
+            answer = await asyncio.wait_for(self.consent.ask(request), RAISE_CARD_SECONDS)
+        except TimeoutError:
+            return False  # an unanswered card is a no (L-43)
+        decision = check_run_decision("budget.raise", answer)
+        if not decision["accepted"]:
+            return False
+        async with self._lock:
+            self.budget[limit] = target
+            self.record(
+                "budget.raised",
+                context=ctx,
+                limit=name,
+                to=target,
+                decided_by="person",
+                provenance=decision["provenance"],
+                plan_hash=self.plan_hash,
+                **{"from": current},
+            )
+        return True
+
+    async def _hold(self, ctx, needed, *, raisable):
+        """A link's reservation (L-24): its worst case must fit what the run has left in tokens
+        and remote calls and stay under the caller's approval threshold, in that order; then it
+        is held until settlement. Returns `(None, left)` when held, else `(reason, left)`, with
+        `left` what the run had. `raisable`: a refusal on the person's own limit may first ask
+        the raise of §7."""
+        threshold = self.budget.get("approval_threshold_tokens")
+        for attempt in (0, 1):
+            async with self._lock:
+                left = {
+                    "tokens": self.budget["hard_tokens"]
+                    - self._global.tokens
+                    - self._global.reserved_tokens,
+                    "remote_calls": self.budget["max_remote_calls"]
+                    - self._global.remote_calls
+                    - self._global.reserved_remote_calls,
+                }
+                over_threshold = (
+                    threshold is not None
+                    and self._global.tokens + self._global.reserved_tokens + needed["tokens"]
+                    > threshold
+                )
+                reason = None
+                if needed["tokens"] > left["tokens"]:
+                    reason = "tokens"
+                elif needed["remote_calls"] > left["remote_calls"]:
+                    reason = "remote_calls"
+                elif over_threshold:
+                    reason = "approval_threshold"
+                if reason is None:
+                    self._global.reserved_tokens += needed["tokens"]
+                    self._global.reserved_remote_calls += needed["remote_calls"]
+                    return None, left
+            if attempt or not raisable or reason == "approval_threshold":
+                break
+            # One raise lifts one limit: it is asked only where the other figure and the
+            # threshold would then admit the reservation.
+            other = "remote_calls" if reason == "tokens" else "tokens"
+            raised = await self._ask_raise(
+                ctx,
+                "hard_tokens" if reason == "tokens" else "max_remote_calls",
+                needed[reason],
+                admitted_otherwise=needed[other] <= left[other] and not over_threshold,
+            )
+            if not raised:
+                break
+        return reason, left
+
     async def call_link(self, ctx, step, payload, deadline_seconds):
         """One planned link (link.v0 §5): the denial, the input against the linked package's own
         schema, the reservation, the inner run, the settlement, the result. The inner run is
@@ -955,51 +1094,39 @@ class Runtime:
             exc.failed_check = {"check": "link_input", "dependency": name}
             raise
         needed = host.reservation(binding)
-        async with self._lock:
-            tokens_left = (
-                self.budget["hard_tokens"] - self._global.tokens - self._global.reserved_tokens
+        reason, left = await self._hold(ctx, needed, raisable=True)
+        if reason is not None:
+            self.record(
+                "link.refused",
+                context=ctx,
+                dependency=name,
+                reason=reason,
+                needed=needed,
+                tokens_left=left["tokens"],
+                remote_calls_left=left["remote_calls"],
             )
-            remote_left = (
-                self.budget["max_remote_calls"]
-                - self._global.remote_calls
-                - self._global.reserved_remote_calls
-            )
-            # The caller's approval threshold is met by a link's reservation as by a model
-            # call's: what is spent and held, plus this reservation, stays at or under it.
-            threshold = self.budget.get("approval_threshold_tokens")
-            reason = None
-            if needed["tokens"] > tokens_left:
-                reason = "tokens"
-            elif needed["remote_calls"] > remote_left:
-                reason = "remote_calls"
-            elif (
-                threshold is not None
-                and self._global.tokens + self._global.reserved_tokens + needed["tokens"]
-                > threshold
-            ):
-                reason = "approval_threshold"
-            if reason is not None:
-                self.record(
-                    "link.refused",
-                    context=ctx,
-                    dependency=name,
-                    reason=reason,
-                    needed=needed,
-                    tokens_left=tokens_left,
-                    remote_calls_left=remote_left,
-                )
-                if reason == "approval_threshold":
-                    raise BudgetError(
-                        f"link {name}: its worst case ({needed['tokens']} tokens) crosses the "
-                        f"token approval threshold ({threshold}); a new host grant is required"
-                    )
+            if reason == "approval_threshold":
                 raise BudgetError(
-                    f"link {name}: its worst case ({needed['tokens']} tokens, "
-                    f"{needed['remote_calls']} remote calls) exceeds what the run has left "
-                    f"({tokens_left} tokens, {remote_left} remote calls)"
+                    f"link {name}: its worst case ({needed['tokens']} tokens) crosses the "
+                    "token approval threshold "
+                    f"({self.budget['approval_threshold_tokens']}); a new host grant is required"
                 )
-            self._global.reserved_tokens += needed["tokens"]
-            self._global.reserved_remote_calls += needed["remote_calls"]
+            raise BudgetError(
+                f"link {name}: its worst case ({needed['tokens']} tokens, "
+                f"{needed['remote_calls']} remote calls) exceeds what the run has left "
+                f"({left['tokens']} tokens, {left['remote_calls']} remote calls)"
+            )
+        return await self._inner_run(
+            ctx, "dependency", name, binding, payload, needed, deadline_seconds
+        )
+
+    async def _inner_run(self, ctx, key, name, binding, payload, needed, deadline_seconds):
+        """An inner run under a reservation that is already held (L-25…L-27): started,
+        recorded, run, settled into this run's counters, and its record kept. `key` says what
+        `name` is, in the events and the record: a `dependency` or a `slot`."""
+        host = self.links
+        linked = binding.link.package
+        named = {key: name}
         # Nothing is spent until an inner run exists.
         spent = dict(tokens=0, remote_calls=0, model_calls=0, tool_calls={}, compute_calls=0)
         inner = None
@@ -1008,10 +1135,10 @@ class Runtime:
                 inner = host.start(
                     binding, router=self.router, limits=needed, deadline_seconds=deadline_seconds
                 )
-            except Exception as exc:
+            except AgentPkgError as exc:
                 # An inner run that could not be built: nothing ran, so nothing is charged, and
                 # the step fails as a failed inner run's does (L-27), `link.failed` naming the
-                # cause with no run id.
+                # cause with no run id. Anything else is a fault of this runtime and surfaces.
                 from .links.errors import LinkError
                 from .workflow import failure_code
 
@@ -1019,10 +1146,10 @@ class Runtime:
                 self.record(
                     "link.failed",
                     context=ctx,
-                    dependency=name,
                     inner_run_id=None,
                     error_code=code,
                     usage=spent,
+                    **named,
                 )
                 raise LinkError(name, code) from exc
             # From here on, unknown usage consumes the reservation (L-26), as a model call's.
@@ -1030,13 +1157,13 @@ class Runtime:
             self.record(
                 "link.started",
                 context=ctx,
-                dependency=name,
                 package_id=linked.manifest["package_id"],
                 digest=linked.digest,
                 inner_plan_hash=binding.plan_hash,
                 inner_run_id=inner.run_id,
                 reserved=needed,
                 input_hash=digest(payload),
+                **named,
             )
             try:
                 report = await inner.run(payload)
@@ -1050,13 +1177,14 @@ class Runtime:
             self.record(
                 "link.completed",
                 context=ctx,
-                dependency=name,
                 inner_run_id=inner.run_id,
                 usage=spent,
                 result_hash=digest(result),
+                **named,
             )
             host.finished(
                 inner,
+                key=key,
                 name=name,
                 node_id=operation_node_id(ctx),
                 status="completed",
@@ -1071,13 +1199,14 @@ class Runtime:
                 self.record(
                     "link.failed",
                     context=ctx,
-                    dependency=name,
                     inner_run_id=inner.run_id,
                     error_code=code,
                     usage=spent,
+                    **named,
                 )
                 host.finished(
                     inner,
+                    key=key,
                     name=name,
                     node_id=operation_node_id(ctx),
                     status="failed",
@@ -1108,8 +1237,8 @@ class Runtime:
                     },
                 )
                 totals["runs"] += 1 if inner is not None else 0
-                for key in ("tokens", "remote_calls", "model_calls", "compute_calls"):
-                    totals[key] += spent[key]
+                for figure in ("tokens", "remote_calls", "model_calls", "compute_calls"):
+                    totals[figure] += spent[figure]
                 for tool, count in spent["tool_calls"].items():
                     totals["tool_calls"][tool] = totals["tool_calls"].get(tool, 0) + count
                 self.record(
@@ -1119,6 +1248,214 @@ class Runtime:
                     reserved_tokens=self._global.reserved_tokens,
                     remote_calls=self._global.remote_calls,
                 )
+
+    async def call_join(self, ctx, step, view, urls, reason, deadline_seconds):
+        """One slot step (link.v0 §6): the refusals that need no look, the look (discovery of
+        each located page in order, then the one candidate's bytes), the candidate verified,
+        the refusals before any card, the reservation, the card, the person's decision, the
+        inner plan, the request-building call, the inner run. Every outcome but a failure of
+        the caller's own request-building call is data: `{joined, reason, result}` (L-8).
+        Nothing of the candidate reaches this run's model before the decision."""
+        from .conversation.errors import ConsentError
+        from .conversation.host import RunRequest, check_run_decision
+        from .links.errors import LinkError
+        from .links.host import ACCEPTED, LinkBinding, link_plan, plan_hash, worst_case_figures
+        from .links.join import (
+            MAX_RUN_CARDS,
+            candidate_facts,
+            card_facts,
+            find_candidate,
+            refusal_before_card,
+            slot_reason,
+            verify_candidate,
+        )
+        from .links.resolve import LinkRefusal
+
+        self._check_context(ctx)
+        began = time.monotonic()
+        slot = step["slot"]
+        host = self.links
+        joins = host.joins if host is not None else None
+        node_id = operation_node_id(ctx)
+        candidate = worst = None
+
+        def decided(why, *, accepted=False, by="runtime", provenance=None, plan=None, **more):
+            facts = dict(
+                slot=slot,
+                accepted=accepted,
+                decided_by=by,
+                reason=why,
+                provenance=provenance,
+                candidate=candidate,
+                worst_case=worst,
+                inner_plan_hash=plan,
+                **more,
+            )
+            self.record("link.decided", context=ctx, **facts)
+            if host is not None:
+                host.join_records.append(
+                    {"node_id": node_id, "joined": False, **copy.deepcopy(facts)}
+                )
+            return {"joined": False, "reason": why, "result": None}
+
+        if self.consent is None or joins is None:
+            return decided("unattended")
+        if joins.policy == "forbid":
+            return decided("policy")
+        if host.cards[slot] >= step["max_joins"] or sum(host.cards.values()) >= MAX_RUN_CARDS:
+            return decided("join_cap")
+        if not urls:
+            return decided("not_found")
+        found = await find_candidate(joins, urls)
+        link = None
+        if found.data is not None:
+            try:
+                link = verify_candidate(found, slot, joins)
+            except LinkRefusal:
+                found.reason = "verification"
+        if link is not None:
+            candidate = candidate_facts(link)
+            worst = worst_case_figures(link.worst_case)
+        self.record(
+            "link.requested", context=ctx, slot=slot, fetches=found.fetches, candidate=candidate
+        )
+        if link is None:
+            return decided(found.reason)
+        refusal = refusal_before_card(
+            link, step, caller=self.package, denied_keys=host.denied_keys, router=self.router
+        )
+        if refusal is not None:
+            return decided(refusal[0], **({"figure": refusal[1]} if refusal[1] else {}))
+        # The candidate's worst case is held from here to settlement, so that what the card
+        # says the run has left is still there when the inner run starts.
+        needed = host.reservation(LinkBinding(link, ACCEPTED))
+        refused, left = await self._hold(ctx, needed, raisable=False)
+        if refused is not None:
+            return decided("budget", figure=refused)
+        handed = False
+        try:
+            host.cards[slot] += 1
+            cards = {
+                "slot": {"shown": host.cards[slot], "max": step["max_joins"]},
+                "run": {"shown": sum(host.cards.values()), "max": MAX_RUN_CARDS},
+            }
+            facts = card_facts(
+                link, step, found, reason=slot_reason(reason), left=left, cards=cards
+            )
+            validate_document(facts, "link-join-card", "join card")
+            # A card that is not answered within the step's time is declined (L-35).
+            patience = max(0.0, deadline_seconds - (time.monotonic() - began) - 1.0)
+            request = RunRequest("link.join", self.run_id, node_id, facts, patience)
+            try:
+                answer = await asyncio.wait_for(self.consent.ask(request), patience)
+            except TimeoutError:
+                answer = {"accepted": False, "provenance": "timeout"}
+            decision = check_run_decision("link.join", answer)
+            if decision["accepted"]:
+                unknown = sorted(set(decision["approved_tools"]) - set(link.package.tools))
+                known = {p["id"] for p in link.package.policy["permissions"]}
+                if unknown or set(decision["grants"]) - known:
+                    raise ConsentError(
+                        "consent_decision_invalid",
+                        "a join decision names a tool or a permission the joined package "
+                        "does not declare",
+                    )
+            else:
+                # A denial lasts for the run (L-13): this key is not offered again in it.
+                host.denied_keys.add(link.signer)
+                return decided("declined", by="person", provenance=decision["provenance"])
+            router, handlers = joins.adapters(link.package) if joins.adapters else (None, {})
+            binding = LinkBinding(
+                link,
+                ACCEPTED,
+                grants=dict(decision["grants"]),
+                approved_tools=tuple(decision["approved_tools"]),
+                handlers=handlers,
+                router=router,
+            )
+            # L-36: the card's grants, under this plan, this run and this slot. The caller's
+            # plan is not rewritten: the join is this inner plan plus the audit.
+            binding.plan = link_plan(
+                self.package,
+                link,
+                grants=binding.grants,
+                approved_tools=binding.approved_tools,
+                parent={"plan_hash": self.plan_hash, "run_id": self.run_id, "slot": slot},
+            )
+            binding.plan_hash = plan_hash(binding.plan)
+            decided(
+                None,
+                accepted=True,
+                by="person",
+                provenance=decision["provenance"],
+                plan=binding.plan_hash,
+            )
+            host.joined[binding.plan_hash] = binding
+            request_value = await self._join_request(ctx, step, view, link)
+            handed = True
+            try:
+                result = await self._inner_run(
+                    ctx, "slot", slot, binding, request_value, needed, deadline_seconds
+                )
+            except LinkError:
+                # L-38: after the decision a candidate's failure is data too.
+                host.join_records[-1]["reason"] = "failed"
+                return {"joined": False, "reason": "failed", "result": None}
+            host.join_records[-1]["joined"] = True
+            return {"joined": True, "reason": None, "result": result}
+        finally:
+            if not handed:
+                async with self._lock:
+                    self._global.reserved_tokens -= needed["tokens"]
+                    self._global.reserved_remote_calls -= needed["remote_calls"]
+
+    async def _join_request(self, ctx, step, view, link):
+        """The request-building call (L-37): one model call of this run's own, by the role's
+        worker under the slot's `request` task. Its data is exactly the slot's view and the
+        joined package's name, description and input schema; its output schema is that input
+        schema. A non-conforming answer fails the step as any model call's does."""
+        from .workflow import WorkflowError, bundle_schema
+
+        linked = link.package
+        schema = bundle_schema(linked, linked.graph["input_schema"])
+        data = {
+            "view": copy.deepcopy(view),
+            "package": {
+                "name": linked.manifest["name"],
+                "description": linked.manifest["description"],
+                "input_schema": schema,
+            },
+        }
+
+        def check(answer):
+            # The joined package's own closed validator (formats, local references).
+            validate_instance(
+                linked.files, linked.graph["input_schema"], answer, f"slot {step['slot']} request"
+            )
+
+        try:
+            return await self.call_model(
+                ctx,
+                step["request"]["task"],
+                data,
+                schema,
+                max_output_tokens=step["request"]["max_output_tokens"],
+                check=check,
+            )
+        except (PolicyError, TimeoutError, asyncio.CancelledError):
+            raise
+        except Exception as exc:
+            from jsonschema.exceptions import ValidationError as SchemaFailure
+
+            code = (
+                "schema_validation"
+                if isinstance(exc, (SchemaFailure, ValidationError))
+                else "model_error"
+            )
+            error = WorkflowError(code, operation_node_id(ctx))
+            if isinstance(getattr(exc, "failed_check", None), dict):
+                error.failed_check = exc.failed_check
+            raise error from exc
 
     def _engine_facts(self, outcome) -> dict:
         """Which engine ran the call and what it measured; the figures are the engine's own
@@ -1339,6 +1676,20 @@ class Runtime:
                 context_window=router.context_window,
             )
         own = self._usage[ctx.worker_id]
+        # link.v0 §7: where this reservation would fail on the person's own run limit and on
+        # nothing else, the person may be asked, once per run, to raise that limit.
+        wanted = self._global.tokens + self._global.reserved_tokens + reservation
+        threshold = self.budget.get("approval_threshold_tokens")
+        await self._ask_raise(
+            ctx,
+            "hard_tokens",
+            reservation,
+            admitted_otherwise=(
+                own.tokens + own.reserved_tokens + reservation
+                <= self.roles[ctx.role]["budget"]["tokens"]
+                and (threshold is None or wanted <= threshold)
+            ),
+        )
         async with self._lock:
             self._check_context(ctx)
             if (

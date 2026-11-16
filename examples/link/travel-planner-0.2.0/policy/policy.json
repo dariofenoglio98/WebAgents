@@ -1,0 +1,80 @@
+{
+  "spec_version": "0.1",
+  "permissions": [
+    {
+      "id": "model.reasoning",
+      "kind": "model",
+      "description": "Read messages, decide the next role, draft the answer.",
+      "required": true,
+      "resources": [
+        "host-router"
+      ]
+    },
+    {
+      "id": "memory.session",
+      "kind": "memory",
+      "description": "The run's state and the network's shared state, for this run only.",
+      "required": true,
+      "resources": [
+        "session"
+      ]
+    },
+    {
+      "id": "network.webair",
+      "kind": "network",
+      "description": "Ask the WebAir origin's fictional calendar service.",
+      "required": true,
+      "resources": [
+        "webagents-webair-production.up.railway.app"
+      ]
+    },
+    {
+      "id": "network.search",
+      "kind": "network",
+      "description": "Search the web for a hotel's own page through the planner's search service.",
+      "required": true,
+      "resources": [
+        "webagents-tripwright-production.up.railway.app"
+      ]
+    }
+  ],
+  "network": {
+    "allowed_domains": [
+      "webagents-webair-production.up.railway.app",
+      "webagents-tripwright-production.up.railway.app"
+    ],
+    "https_only": true,
+    "allow_redirects": false
+  },
+  "memory": {
+    "scope": "session",
+    "retention": "session",
+    "raw_documents": false,
+    "state_schema": "schemas/state.schema.json",
+    "sharing": "explicit_views"
+  },
+  "budget": {
+    "estimated_tokens": 4000,
+    "hard_tokens": 128000,
+    "max_remote_calls": 36,
+    "max_calls_per_tool": {
+      "check-calendar": 1,
+      "web.search": 1
+    },
+    "max_parallel_workers": 2,
+    "estimated_cost_usd": null,
+    "approval_threshold_tokens": null
+  },
+  "delegation": {
+    "max_depth": 1,
+    "approved_roles": [
+      "FrontMan",
+      "Flights",
+      "Hotels",
+      "Calendar",
+      "FindHotel"
+    ],
+    "allow_remote": false
+  },
+  "extensions": {}
+}

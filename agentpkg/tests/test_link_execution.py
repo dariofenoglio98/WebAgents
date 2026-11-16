@@ -364,6 +364,12 @@ def test_the_recorded_bound_leaves_out_a_denied_links_role(tmp_path, keys):
     assert recorded["activations"]["Lookup"] == 0 and recorded["tool_calls"] == {}
     assert network["role_budgets"]["Lookup"]["activation_bound"] == 0
     assert network["role_budgets"]["Writer"]["activation_bound"] == 1
+    # One set of figures: every role's recorded bound is the worst case's, so Desk does not
+    # count the edges back from the role that is never activated.
+    assert {
+        role: budget["activation_bound"] for role, budget in network["role_budgets"].items()
+    } == recorded["activations"]
+    assert recorded["activations"]["Desk"] == 2
 
 
 def test_a_denied_link_reaches_the_runner_as_a_decision_without_an_archive(tmp_path, keys):
@@ -440,6 +446,29 @@ def test_a_linked_package_is_leased_only_beside_its_caller(tmp_path, keys):
         assert refusal.code == "link_lease_without_caller", refusal
     else:
         raise AssertionError("an inner plan was leased after its caller's lease ended")
+
+
+def test_releasing_the_callers_lease_releases_its_linked_packages_leases(tmp_path, keys):
+    """A linked package's lease lives only beside its caller's (L-15): when the caller's lease
+    is released, by the host or because a decision on a link cleared its plan, the leases of its
+    linked packages go with it."""
+    composition = Composition(tmp_path, keys)
+    control, stack = composition.stack.control, composition.stack
+    listed = control.links(stack.session)["links"]
+    review = {link["dependency"]: link["session_id"] for link in listed}
+
+    def leased():
+        os.close(composition.lease(stack.session, composition.plan))
+        os.close(composition.lease(review["index"], composition.inner["index"]))
+        caller = [lease for session, lease in composition.leases if session == stack.session]
+        child = [lease for session, lease in composition.leases if session == review["index"]]
+        composition.leases.clear()
+        return caller[0], child[0]
+
+    caller_lease, child_lease = leased()
+    assert control.release_execution_lease(stack.session, caller_lease)["released"] is True
+    # The linked package's lease is gone already: releasing it again finds nothing.
+    assert control.release_execution_lease(review["index"], child_lease)["released"] is False
 
 
 def test_the_runner_verifies_each_linked_archive_itself(tmp_path, keys):

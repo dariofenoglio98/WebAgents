@@ -359,6 +359,708 @@
       "variant": null
     },
     {
+      "id": "unattended-join",
+      "title": "No person is there to ask: the slot looks at nothing and the step yields unattended",
+      "stage": "run",
+      "code": "completed",
+      "variant": "unattended-join",
+      "expect": {
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "runtime",
+            "reason": "unattended"
+          }
+        ]
+      }
+    },
+    {
+      "id": "join-declined",
+      "title": "The person declines the join card: no inner run, no request-building call",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-declined",
+      "expect": {
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "person",
+            "reason": "declined",
+            "provenance": "fixture"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ],
+        "cards": 1
+      }
+    },
+    {
+      "id": "join-cap",
+      "title": "A slot past its max_joins shows no card",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-cap",
+      "expect": {
+        "started": [
+          "index",
+          "helper",
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "helper",
+          "index",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 1,
+        "decided": [
+          {
+            "accepted": true,
+            "decided_by": "person",
+            "reason": null,
+            "provenance": "fixture"
+          },
+          {
+            "accepted": false,
+            "decided_by": "runtime",
+            "reason": "join_cap"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ],
+        "cards": 1,
+        "activations": {
+          "Desk": 4,
+          "Lookup": 2,
+          "Writer": 1
+        }
+      }
+    },
+    {
+      "id": "join-not-found",
+      "title": "The page the slot looks at advertises no package",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-not-found",
+      "expect": {
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "runtime",
+            "reason": "not_found"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:no_candidate"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "join-verification",
+      "title": "A candidate without a valid publisher signature is refused without a card",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-verification",
+      "expect": {
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "runtime",
+            "reason": "verification"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "join-nested",
+      "title": "A candidate that declares a dependency and holds a link step is refused without a card",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-nested",
+      "expect": {
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "runtime",
+            "reason": "nested"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "join-denied-publisher",
+      "title": "A candidate signed by a key the person denied at the review is refused without a card",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-denied-publisher",
+      "expect": {
+        "started": [
+          "scribe"
+        ],
+        "completed": [
+          "scribe"
+        ],
+        "slot_step": "delegate/Writer/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "runtime",
+            "reason": "publisher_denied"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ],
+        "activations": {
+          "Desk": 2,
+          "Writer": 1
+        },
+        "absent_target": "Lookup"
+      }
+    },
+    {
+      "id": "join-over-ceiling-model-calls",
+      "title": "A candidate whose worst case passes the slot's ceiling in model calls is refused without a card",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-over-ceiling-model-calls",
+      "expect": {
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "runtime",
+            "reason": "over_ceiling",
+            "figure": "model_calls"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "join-over-ceiling-tool-calls",
+      "title": "A candidate whose worst case passes the slot's ceiling in tool calls is refused without a card",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-over-ceiling-tool-calls",
+      "expect": {
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "runtime",
+            "reason": "over_ceiling",
+            "figure": "tool_calls"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "join-over-ceiling-compute-calls",
+      "title": "A candidate whose worst case passes the slot's ceiling in compute calls is refused without a card",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-over-ceiling-compute-calls",
+      "expect": {
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "runtime",
+            "reason": "over_ceiling",
+            "figure": "compute_calls"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "join-over-ceiling-remote-calls",
+      "title": "A candidate whose worst case passes the slot's ceiling in remote calls is refused without a card",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-over-ceiling-remote-calls",
+      "expect": {
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "runtime",
+            "reason": "over_ceiling",
+            "figure": "remote_calls"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "join-over-ceiling-tokens",
+      "title": "A candidate whose worst case passes the slot's ceiling in tokens is refused without a card",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-over-ceiling-tokens",
+      "expect": {
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "runtime",
+            "reason": "over_ceiling",
+            "figure": "tokens"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "join-over-ceiling-seconds",
+      "title": "A candidate whose worst case passes the slot's ceiling in seconds is refused without a card",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-over-ceiling-seconds",
+      "expect": {
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "runtime",
+            "reason": "over_ceiling",
+            "figure": "seconds"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "join-budget",
+      "title": "A candidate inside the ceiling that the run has too little left for is refused without a card",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-budget",
+      "expect": {
+        "started": [
+          "index"
+        ],
+        "completed": [
+          "index"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 0,
+        "decided": [
+          {
+            "accepted": false,
+            "decided_by": "runtime",
+            "reason": "budget",
+            "figure": "tokens"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ],
+        "activations": {
+          "Desk": 2,
+          "Lookup": 1
+        }
+      }
+    },
+    {
+      "id": "join-request-nonconforming",
+      "title": "The request-building call's answer is not the joined package's input",
+      "stage": "run",
+      "code": "schema_validation",
+      "variant": "join-request-nonconforming",
+      "expect": {
+        "node": "delegate",
+        "step": "delegate/Lookup/ask",
+        "started": [
+          "index"
+        ],
+        "completed": [
+          "index"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 1,
+        "decided": [
+          {
+            "accepted": true,
+            "decided_by": "person",
+            "reason": null,
+            "provenance": "fixture"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ],
+        "cards": 1
+      }
+    },
+    {
+      "id": "join-inner-failed",
+      "title": "A joined package's inner run fails: the step yields failed, the run goes on",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-inner-failed",
+      "expect": {
+        "started": [
+          "index",
+          "helper",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 1,
+        "failed": {
+          "helper": "permission_denied"
+        },
+        "decided": [
+          {
+            "accepted": true,
+            "decided_by": "person",
+            "reason": null,
+            "provenance": "fixture"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ],
+        "cards": 1
+      }
+    },
+    {
+      "id": "join-accepted",
+      "title": "A join: looked, decided on the card, the request built, the inner run started and completed, in that order",
+      "stage": "run",
+      "code": "completed",
+      "variant": "join-accepted",
+      "expect": {
+        "started": [
+          "index",
+          "helper",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "helper",
+          "scribe"
+        ],
+        "slot_step": "delegate/Lookup/ask",
+        "request_calls": 1,
+        "decided": [
+          {
+            "accepted": true,
+            "decided_by": "person",
+            "reason": null,
+            "provenance": "fixture"
+          }
+        ],
+        "requested": [
+          [
+            "discovery:ok",
+            "package:ok"
+          ]
+        ],
+        "cards": 1,
+        "order": [
+          "link.requested",
+          "link.decided",
+          "model.called",
+          "link.started",
+          "link.completed"
+        ],
+        "link_usage": {
+          "helper": {
+            "runs": 1,
+            "model_calls": 0
+          }
+        },
+        "usage": {
+          "tool_calls": {
+            "index:lookup": 1,
+            "helper:lookup": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "raise-accepted",
+      "title": "A link's reservation fails on the person's limit; the person raises it once, within half",
+      "stage": "run",
+      "code": "completed",
+      "variant": "raise-accepted",
+      "expect": {
+        "started": [
+          "index",
+          "scribe"
+        ],
+        "completed": [
+          "index",
+          "scribe"
+        ],
+        "raise": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "raise-denied",
+      "title": "The person declines the raise: the refusal stands",
+      "stage": "run",
+      "code": "budget_exhausted",
+      "variant": "raise-denied",
+      "expect": {
+        "node": "delegate",
+        "step": "delegate/Writer/draft",
+        "started": [
+          "index"
+        ],
+        "completed": [
+          "index"
+        ],
+        "refused": 1,
+        "reason": "tokens",
+        "raise": [
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "id": "raise-unattended",
+      "title": "Nobody is there to ask: no raise card, the refusal stands",
+      "stage": "run",
+      "code": "budget_exhausted",
+      "variant": "raise-unattended",
+      "expect": {
+        "node": "delegate",
+        "step": "delegate/Writer/draft",
+        "started": [
+          "index"
+        ],
+        "completed": [
+          "index"
+        ],
+        "refused": 1,
+        "reason": "tokens",
+        "raise": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "package-cap-never-raised",
+      "title": "A reservation that fails on the package's own cap (a role's budget) asks no raise",
+      "stage": "run",
+      "code": "budget_exhausted",
+      "variant": "package-cap-never-raised",
+      "expect": {
+        "node": "delegate",
+        "started": [],
+        "completed": [],
+        "raise": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "second-raise-refused",
+      "title": "One raise per run: a later reservation that fails is refused without a card",
+      "stage": "run",
+      "code": "budget_exhausted",
+      "variant": "second-raise-refused",
+      "expect": {
+        "node": "delegate",
+        "step": "delegate/Desk/read",
+        "started": [
+          "index"
+        ],
+        "completed": [
+          "index"
+        ],
+        "raise": [
+          1,
+          1
+        ]
+      }
+    },
+    {
       "id": "linked-compute",
       "title": "A linked package's compute calls are counted in the caller's usage",
       "stage": "run",

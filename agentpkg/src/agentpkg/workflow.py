@@ -71,6 +71,47 @@ def _deferred_failure(exc):
     return None
 
 
+def bundle_schema(package, path):
+    """One of a package's schemas with its package-relative references bundled into one local
+    $defs namespace: what a router is handed, self-contained."""
+    from .validation import _schema_reference
+
+    docs = {s["path"]: package.json(s["path"]) for s in package.manifest["schemas"]}
+    names = {p: f"s{i}" for i, p in enumerate(sorted(docs))}
+
+    def bundle(value, base):
+        if isinstance(value, list):
+            return [bundle(v, base) for v in value]
+        if not isinstance(value, dict):
+            return value
+        out = {k: bundle(v, base) for k, v in value.items()}
+        if "$ref" in value:
+            target, fragment = _schema_reference(base, value["$ref"])
+            out["$ref"] = "#/$defs/" + names[target] + fragment
+        return out
+
+    included = {}
+    pending = [path]
+
+    def discover(value, base):
+        if isinstance(value, dict):
+            if "$ref" in value:
+                target, _ = _schema_reference(base, value["$ref"])
+                if names[target] not in included and target not in pending:
+                    pending.append(target)
+            for child in value.values():
+                discover(child, base)
+        elif isinstance(value, list):
+            for child in value:
+                discover(child, base)
+
+    while pending:
+        current = pending.pop()
+        included[names[current]] = bundle(docs[current], current)
+        discover(docs[current], current)
+    return {"$ref": "#/$defs/" + names[path], "$defs": included}
+
+
 class Workflow:
     """One execution per instance. All authority remains in the host mediator.
 
@@ -93,6 +134,8 @@ class Workflow:
         turn=None,
         deadline_seconds=None,
         links=None,
+        consent=None,
+        plan_hash=None,
     ):
         # Recheck the exact payload, not mutable manifest/graph aliases supplied by callers.
         from .package import integrity_statement
@@ -137,7 +180,12 @@ class Workflow:
             memory=memory,
             turn=turn,
             links=links,
+            consent=consent,
+            plan_hash=plan_hash,
         )
+        # link.v0 L-7: the run's own input as the person supplied it, which a slot's `locate`
+        # reads and nothing else of a role's program does.
+        self._input = None
         self._used = False
         self._task = None
         self._cancel_requested = False
@@ -273,13 +321,21 @@ class Workflow:
             # (§5). The mediator validates the input against the linked package's schema,
             # reserves, starts, settles and records; a failed inner run is `link_error`, and
             # the result is checked against this step's own schema below (L-5, L-27).
+            limit = min(node["timeout_seconds"], self.deadline_seconds)
             if "slot" in node:
-                raise PolicyError(
-                    "link_join_unavailable: this runtime validates a slot and cannot run one yet"
+                # A slot (§6): `value` is the view, what the request to a joined package may
+                # draw from; `locate` reads the run's input and this role's earlier tool
+                # results (L-7); the stated reason is the agent's words on the card. The
+                # outcome is data whatever the candidate does (L-8).
+                from .links.join import locate_urls
+
+                urls = locate_urls(
+                    node["locate"], {"input": self._input, "steps": env.get("steps", {})}
                 )
-            result = await ctx.link(
-                node, value, min(node["timeout_seconds"], self.deadline_seconds)
-            )
+                reason = evaluate(node["reason"], env) if "reason" in node else None
+                result = await ctx.join(node, value, urls, reason, limit)
+            else:
+                result = await ctx.link(node, value, limit)
         elif kind == "network":
             # network.v0: the graph's delegation network, run by the coordinator's one node:
             # activations as worker instances, the model's route decisions checked against the
@@ -357,43 +413,7 @@ class Workflow:
         return result
 
     def _model_schema(self, path):
-        """Bundle package-relative references into one local $defs namespace."""
-        from .validation import _schema_reference
-
-        docs = {s["path"]: self.package.json(s["path"]) for s in self.package.manifest["schemas"]}
-        names = {p: f"s{i}" for i, p in enumerate(sorted(docs))}
-
-        def bundle(value, base):
-            if isinstance(value, list):
-                return [bundle(v, base) for v in value]
-            if not isinstance(value, dict):
-                return value
-            out = {k: bundle(v, base) for k, v in value.items()}
-            if "$ref" in value:
-                target, fragment = _schema_reference(base, value["$ref"])
-                out["$ref"] = "#/$defs/" + names[target] + fragment
-            return out
-
-        included = {}
-        pending = [path]
-
-        def discover(value, base):
-            if isinstance(value, dict):
-                if "$ref" in value:
-                    target, _ = _schema_reference(base, value["$ref"])
-                    if names[target] not in included and target not in pending:
-                        pending.append(target)
-                for child in value.values():
-                    discover(child, base)
-            elif isinstance(value, list):
-                for child in value:
-                    discover(child, base)
-
-        while pending:
-            current = pending.pop()
-            included[names[current]] = bundle(docs[current], current)
-            discover(docs[current], current)
-        return {"$ref": "#/$defs/" + names[path], "$defs": included}
+        return bundle_schema(self.package, path)
 
     async def _step(self, node, env, ctx):
         self._event("node.started", node, ctx)
@@ -542,6 +562,7 @@ class Workflow:
                 self.package.files, self.graph["input_schema"], input_value, "workflow input"
             )
             env = {"input": input_value}
+            self._input = copy.deepcopy(input_value)
             if self.turn is not None:
                 # The turn starts from the persisted state (conversation.v0 V-4).
                 env["conversation"] = copy.deepcopy(self.turn.state)

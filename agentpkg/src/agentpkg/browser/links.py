@@ -51,17 +51,24 @@ def children(plane, session) -> dict:
     return found
 
 
+def signed_with(plane, session, dependency) -> set:
+    """Every dependency the key that signed `dependency` signed, itself included: a decision on
+    a link is a decision on its publisher's key (L-13)."""
+    linked = children(plane, session)
+    if dependency not in linked:
+        return {dependency}
+    key = linked[dependency].publisher["signer_fingerprint"]
+    return {dependency} | {
+        name for name, child in linked.items() if child.publisher["signer_fingerprint"] == key
+    }
+
+
 def denied(plane, session) -> set:
     """The dependencies the person denied: by name, and every one signed by a denied key."""
-    linked = children(plane, session)
-    keys = {
-        linked[name].publisher["signer_fingerprint"]
-        for name in session.link_denials
-        if name in linked
-    }
-    return set(session.link_denials) | {
-        name for name, child in linked.items() if child.publisher["signer_fingerprint"] in keys
-    }
+    found = set()
+    for name in session.link_denials:
+        found |= signed_with(plane, session, name)
+    return found
 
 
 def decision(plane, session, dependency, child) -> str:

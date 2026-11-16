@@ -97,7 +97,8 @@ L-6. A `link` step may name a **slot** instead of a dependency:
 
 A slot is a step of a role's program and nowhere else (`link_slot_scope`: not a top-level node,
 not a map step, never on the coordinator); a graph holds at most **2** slot steps, with distinct
-slot ids (`link_caps`, `link_slot_duplicate`). `input` is the **view**: what the request to a
+slot ids, none of them a dependency's id (`link_caps`, `link_slot_duplicate`: a slot and a
+dependency share the names of the usage record and the audit). `input` is the **view**: what the request to a
 joined package may draw from, under L-4's scope. `request` names a declared model task and the
 output cap of the request-building call (L-37; `link_request_task_unknown`). `reason`, optional,
 is a constructor of at most 500 characters shown on the card as the agent's words. `max_joins`
@@ -113,8 +114,10 @@ person supplied it, a source `locate` alone may name inside a role; or (b) `step
 an earlier `tool` step of the same role. Either way the schema at the pointer is a string of
 `format: uri` (nullable allowed). The role's view of the shared state, the message and the result
 of an `llm`, `compute`, `join`, `validate` or `link` step are refused: a model can write each of
-them. A reference that selects nothing, or null, yields no URL; a value that is not an `https://`
-URL the package-URL policy admits is not looked at. The address a runtime looks at before the
+them. A reference that selects nothing, or null, yields no URL; a `coalesce` yields its first
+member that yields a URL (so an address the person gave is looked at instead of a search
+result's, not beside it); an `array` yields its members' URLs in order, each once; a value that
+is not an `https://` URL the discovery policy admits is listed as refused and not looked at. The address a runtime looks at before the
 person decides is therefore the person's or an approved tool's, never a model's (L-40).
 
 L-8. **The outcome.** A slot step never fails on account of the candidate: its result is
@@ -189,7 +192,10 @@ never a run's own plan: an execution host handed one as the caller's plan refuse
 reservation and audit on the grants the person gave on a link's card. A host that hands out
 package bytes on a lease hands a linked package's only beside its caller's: while the caller
 holds a live lease on a plan that names this inner plan as accepted
-(`link_lease_without_caller` otherwise).
+(`link_lease_without_caller` otherwise), and a caller's released lease releases its linked
+packages' leases with it. A tool probe is of one package: an inner plan always carries
+`parent`, so this version has no tool probe of a linked package, and a caller's own probe is
+handed its links as its run is.
 
 L-16. **A denied link** is unbound, as a denied optional capability is: the plan states it; the
 composed bound leaves it out (L-22); a role whose program holds a denied `link` step cannot
@@ -327,9 +333,22 @@ L-30. **The record.** A run that holds links writes, beside its own `result.json
               "worst_case": {model_calls, tool_calls, compute_calls, remote_calls, tokens,
                              seconds} | null,
               "plan": <the inner plan> | null, "plan_hash": <its hash> | null}, …],
-   "runs":  [{"inner_run_id", "dependency", "node_id", "status": "completed" | "failed",
-              "error_code": <the inner run's code> | null}, …]}
+   "runs":  [{"inner_run_id", "dependency" | "slot", "node_id",
+              "status": "completed" | "failed", "error_code": <the inner run's code> | null}, …],
+   "joins": [{"node_id", "slot", "joined", "accepted", "decided_by", "reason", "provenance",
+              "candidate", "worst_case", "inner_plan_hash", "figure"?,
+              "package": {the joined package's facts, "worst_case", "plan", "plan_hash"} | null},
+             …],
+   "caller_plan": <the plan the run was decided under>, "caller_plan_hash": <its hash>}
   ```
+
+  `joins` is present exactly when the caller's graph holds a slot: one entry per slot step that
+  ran, in order, with `link.decided`'s members (L-45), `joined` (true only when the inner run
+  completed; `reason` is `failed` when it did not) and, for an accepted join, the joined
+  package as a link's entry states it, with the inner plan of L-36. `caller_plan` and
+  `caller_plan_hash` are present where the host states the plan a decision made during the run
+  names (L-36): a host without a control plane states its operator plan there when a person can
+  be asked during the run, and a record without either is what a planned-link run writes.
 
   `links` is ordered by dependency id, one entry per declared dependency; `runs` is in the
   order the inner runs ended, one entry per inner run that started. `plan` is the inner plan
@@ -355,9 +374,12 @@ the slot's and the run's caps are not spent (`join_cap`, L-39); `locate` is eval
 is looked at in order by discovery, under its rules unchanged (one page, a byte cap, no script, a
 package location on the page's own origin, nothing fetched beyond the page; `browser/discovery.py`);
 the candidate's package is fetched under the package-URL policy and verified (L-10); the
-refusals before any card (L-33); the card (L-34); the person's decision (L-35); the inner plan
-(L-36); the request-building call (L-37); the inner run (L-25, L-26). The discovery and package
-fetches carry no body, cookie or referrer, and each is recorded with `link.requested`.
+refusals before any card (L-33), the last of which is the reservation of the candidate's worst
+case (L-24), **held from there to settlement**, so that what the card says the run has left is
+there when the inner run starts; the card (L-34); the person's decision (L-35); the inner plan
+(L-36); the request-building call (L-37), made beside the held reservation; the inner run
+(L-25, L-26). The discovery and package fetches carry no body, cookie or referrer, and each is
+recorded with `link.requested`, read or refused, before anything is decided.
 
 L-32. **One candidate per step.** The first page that advertises a package gives the candidate;
 a page that advertises none, or cannot be read, moves to the next URL. A candidate that fails
@@ -367,37 +389,60 @@ L-33. **Refused without a card**, as data (`joined: false` with the reason, reco
 `link.decided` with `decided_by: "runtime"`): `unattended` (no person; no page is looked at),
 `policy`, `join_cap`, `not_found` (no URL, or no page advertised a package), `verification` (the
 candidate's fetch or verification failed, a valid signature included), `conversational`,
-`nested` (L-11's two profile checks), `publisher_denied` (the candidate's key was denied in this
-run, at the review or on an earlier card), `model_incompatible`, `over_ceiling` (the candidate's
-own worst case exceeds the slot's ceiling in some figure, named), `budget` (it exceeds what the
-run has left).
+`nested` (L-11's two profile checks; a candidate that is the caller's own package),
+`publisher_denied` (the candidate's key was denied in this run, at the review or on an earlier
+card), `model_incompatible`, `over_ceiling` (the candidate's own worst case exceeds the slot's
+ceiling in some figure; `link.decided` names the first as `figure`, in the order model calls,
+tool calls in total, compute calls, remote calls, tokens, seconds), `budget` (its reservation
+does not fit what the run has left or would cross the caller's approval threshold; `figure`
+names which; §7's raise is not asked for a join). The checks run in the order of this list, and
+the first that fails names the reason.
 
 L-34. **The card** shows facts the runtime computed: the publisher's key and its trust state in
 the person's store; the package's id and version; its name and description, marked as the
 publisher's words; its declared tools with their endpoints and permissions, the records it
 requests by type, its model needs; the slot's view in words (the fields of `input`); the
 candidate's own worst case, inside the ceiling; that the "at most" already accepted does not
-change; what the run has left; and the slot's `reason`, marked as the agent's words. Nothing of
-the candidate reaches the caller's model before the decision.
+change; what the run has left; and the slot's `reason`, marked as the agent's words. The facts
+are one document (`schemas/link-join-card.schema.json`: `slot`, `publisher`, `package`,
+`source`, `requirements`, `view`, `worst_case`, `ceiling`, `at_most_unchanged`, `left`,
+`reason`, `cards`), validated before it is shown; two of its members carry words, the package's
+`name` and `description` (the publisher's) and `reason` (the agent's). Nothing of the candidate
+reaches the caller's model before the decision.
 
 L-35. **The decision.** The default is no. The person accepts, with that package's grants and
 approvals, or declines (`declined`); a card that is not answered within the step's time is
-declined. Every card shown counts toward the caps, accepted or not. The decision is recorded
-with who made it and where it came from (`provenance`: the host's surface, or a fixture).
+declined (`provenance: "timeout"`). Every card shown counts toward the caps, accepted or not,
+and a declined card denies the candidate's key for the rest of the run (L-13). The decision is
+recorded with who made it and where it came from (`decided_by: "person"` for every card;
+`provenance`: the host's surface, a fixture, `timeout`). Accepting the card of a publisher the
+person's store does not know accepts that package for this run and pins nothing. A host
+answers `{accepted, provenance}` and, when it accepts, the joined package's own `grants` and
+`approved_tools`; an answer outside that contract, or one that names a permission or a tool the
+package does not declare, is the host's failure (the step fails `worker_error`), never a yes.
 
 L-36. **The inner plan of a join** is prepared with the card's grants, as L-14's, with `parent:
-{plan_hash, run_id, slot}`: the caller's plan, this run, this slot. The caller's plan is never
-rewritten: the join is the inner plan plus the caller's audit.
+{plan_hash, run_id, slot}`: the caller's plan, this run, this slot. `plan_hash` is the hash of
+the plan the run was decided under: the caller's Run Plan's, or, on a host without a control
+plane, the canonical SHA-256 of its **operator plan** `{schema: "agentpkg-operator-plan-v0",
+package: {package_id, version, digest}, decisions, tool_approvals, limits, links: {<id>:
+{decision, decisions, tool_approvals}}}`, which the run record states (L-30). The caller's plan
+is never rewritten: the join is the inner plan plus the caller's audit.
 
 L-37. **The request-building call.** After an accepted decision, one model call by the role's
 worker under the slot's `request` task builds the joined package's input: its data is exactly
 `{"view": <the slot's input value>, "package": {"name", "description", "input_schema"}}`, no
-message and no state beyond the view; its output schema is the joined package's input schema.
-A non-conforming answer fails the step as any model call's does: the call is the caller's own.
+message and no state beyond the view; `input_schema` is the joined package's input schema
+bundled into one document as a route request's schema is, and the same document is the call's
+output schema. The answer is then checked by the joined package's own validator. The call is
+the caller's own, recorded at the slot step's id: a non-conforming answer fails the step as any
+model call's does (`schema_validation`), a refused reservation is `budget_exhausted`.
 
-L-38. **After the decision.** The inner run is reserved, started, settled and recorded as a
-planned link's. An inner run that fails is `joined: false`, reason `failed`, with `link.failed`
-naming its code: the candidate's failure is data.
+L-38. **After the decision.** The inner run is started under the held reservation, settled
+and recorded as a planned link's, named by its slot: `usage.links[<slot>]`, its tools
+`<slot>:<tool>` in the caller's `tool_calls` (the bound holds them in total as `<slot>:*`). An
+inner run that fails is `joined: false`, reason `failed`, with `link.failed` naming its code:
+the candidate's failure is data.
 
 L-39. **The caps.** A slot shows at most `max_joins` cards in a run; a run shows at most **2**
 in all. Past a cap no card is shown, and the run's end summary counts the refused joins.
@@ -415,22 +460,33 @@ key on the card.
 L-41. **When.** A reservation, a model call's or a link's, that fails on the **person's** run
 limit (the host's token or remote-call limit, where the package's own cap is higher) may be
 answered by a request to raise that limit, when a person is present and no raise was asked in
-this run. A reservation that fails on the package's own cap is refused as before: the
-publisher's ceiling is not the person's to raise, and the "at most" was computed from it.
+this run. The reservations are the token reservation of a model call and a planned link's
+reservation in tokens or remote calls. A reservation that fails on the package's own cap (its
+`hard_tokens` or `max_remote_calls`, a role's own budget) is refused as before: the
+publisher's ceiling is not the person's to raise, and the "at most" was computed from it. No
+raise is asked for the approval threshold, for a slot's `budget` refusal (data, L-33), or by an
+inner run, whose limits are its reservation.
 
-L-42. **The amount** is what the failed reservation needs beyond the limit, and never more than
-half of the plan's host limit nor above the package's own cap. If that cannot admit the
-reservation, no card is shown and the refusal stands.
+L-42. **The amount** is what the failed reservation needs beyond the limit: the new limit `to`
+is what the run has spent and holds plus the reservation, exactly. A card is shown only when
+`to − from` is at most half of the plan's host limit (rounded down), `to` is at most the
+package's own cap, and every other bound would then admit the reservation (the role's own
+budget, the approval threshold, the other figure of a link's reservation). Otherwise no card is
+shown and the refusal stands.
 
 L-43. **The card** shows the limit, the usage so far, the reservation that failed and the step
-it is for, the new limit asked, and the step's `reason` where it has one, marked as the agent's
-words. The default is no. Denied, unanswered or unattended, the step fails `budget_exhausted`
-as it would have.
+it is for, the new limit asked, the package's own cap, and the step's `reason` where it has
+one, marked as the agent's words (`schemas/budget-raise-card.schema.json`: `limit`, `from`,
+`to`, `needed`, `used`, `package_cap`, `node_id`, `reason`). The default is no. Denied,
+unanswered within the card's time (120 seconds in the reference, inside the step's own time)
+or unattended, the step fails `budget_exhausted` as it would have.
 
-L-44. **The decision** is recorded `budget.requested {limit, from, to, needed}` and, when
-accepted, `budget.raised {limit, from, to, decided_by, run_id, plan_hash}`, naming the run and
-the plan it was decided for; the effective limit is the plan's plus the raise, and the plan is
-not rewritten. One request per run, whatever its answer.
+L-44. **The decision** is recorded `budget.requested {limit: "tokens" | "remote_calls", from,
+to, needed, plan_hash}` when the card is shown and, when accepted, `budget.raised {limit, from,
+to, decided_by, provenance, plan_hash}`, naming the plan it was decided for (L-36's hash) in an
+event that is this run's (`run_id`); a denied request stands alone in the audit. The effective
+limit becomes `to`, the usage record states it, and the plan is not rewritten. One request per
+run, whatever its answer.
 
 **Properties.** This specification implements LK-1…LK-8 and extends P-1, P-2, P-4, P-5, P-7, P-9, P-17 and P-18 of [the security and privacy model](../docs/security-and-privacy-model.md#3-properties); a change to one of them is a new version of both documents (D-336).
 
@@ -446,9 +502,13 @@ after it (`inner_run_id` null and no `link.started` where no inner run could be 
 (L-24); `link.denied {node_id, dependency}` when a step
 reaches a denied link; `link.requested {node_id, slot, fetches: [{url, kind: "discovery" |
 "package", status}], candidate: {package_id, version, digest, signer} | null}` when a slot has
-looked; `link.decided {node_id, slot, accepted, decided_by: "person" | "runtime", reason,
-provenance, candidate, worst_case, inner_plan_hash}` for every outcome of a slot step, refused
-without a card or decided on one; `budget.requested` and `budget.raised` (L-44). A `link` step's
+looked (not for `unattended`, `policy`, `join_cap` or a `locate` that yielded no URL: nothing
+was looked at); `link.decided {node_id, slot, accepted, decided_by: "person" | "runtime",
+reason, provenance, candidate, worst_case, inner_plan_hash, figure?}` for every outcome of a
+slot step, refused without a card or decided on one (`candidate` and `worst_case` null where
+no candidate verified; `inner_plan_hash` null unless accepted); a join's `link.started`,
+`link.completed`, `link.failed` name the `slot` where a planned link's name the `dependency`;
+`budget.requested` and `budget.raised` (L-44). A `link` step's
 `node_id` is its qualified id (`<node>/<role>/<step>` in a network). The inner run's own events
 are in its own chain, under its own run id.
 
@@ -463,7 +523,9 @@ are in its own chain, under its own run id.
 | the execution host | `link_plan_parent_mismatch` (the inner plan handed over is not the one the caller's plan names, or names another caller; an inner plan handed over as a caller's plan), `execution_plan_invalid` (a plan without its links, an accepted link without its inner plan or archive, an inner plan that is not a model-backed plan on the caller's route), the artifact codes for a linked archive, L-11's codes again on the verified bytes, the authorization codes on an inner plan as on the caller's (`execution_permission_denied`, the tool-binding codes) |
 | grants | `execution_grant_unsupported` (a `once` grant the composition would consume more than once) |
 | at a `link` step | `schema_validation` (`link_input`, `link_result`), `budget_exhausted` (`link.refused`: `tokens`, `remote_calls`, `approval_threshold`), `permission_denied` (`link.denied`), `link_error` (the inner run failed or could not be built; `link.failed` names its code), `timeout` (the step's time passed; `link.failed` says `cancelled`) |
+| at a slot step | `schema_validation` or `model_error` (the request-building call's answer), `budget_exhausted` (that call's reservation), `worker_error` (the host answered a card outside the decision contract), `timeout` |
 | a slot's outcome (data, not a failure) | `unattended`, `policy`, `join_cap`, `not_found`, `verification`, `conversational`, `nested`, `publisher_denied`, `model_incompatible`, `over_ceiling`, `budget`, `declined`, `failed` |
+| a raise (no code of its own) | a reservation that no raise admits fails `budget_exhausted` as before (`model.refused`, `link.refused`) |
 
 A validation or preparation refusal's message starts with its code.
 
@@ -519,15 +581,15 @@ the code at the node named, or the control completes).
 | N-39 | `join-verification` | run | control: completed; `verification` (a tampered candidate) |
 | N-40 | `join-nested` | run | control: completed; `nested`, no card |
 | N-41 | `join-denied-publisher` | run | control: completed; `publisher_denied`, no card |
-| N-42 | `join-over-ceiling` | run | control: completed; `over_ceiling`, one variant per figure |
-| N-43 | `join-budget` | run | control: completed; `budget` |
+| N-42 | `join-over-ceiling-model-calls`, `-tool-calls`, `-compute-calls`, `-remote-calls`, `-tokens`, `-seconds` | run | control: completed; `over_ceiling` with that `figure`, six cases |
+| N-43 | `join-budget` | run | control: completed; `budget` (`figure: tokens`) |
 | N-44 | `join-request-nonconforming` | run | `schema_validation` at the request-building call, after the decision |
 | N-45 | `join-inner-failed` | run | control: completed; `joined: false`, `failed`; `link.failed` |
 | N-46 | `join-accepted` | run | control: completed; requested, decided, the request call, started, completed, in that order |
 | N-47 | `raise-accepted` | run | control: completed; `budget.raised` names the run and the plan |
 | N-48 | `raise-denied` | run | `budget_exhausted` |
 | N-49 | `raise-unattended` | run | `budget_exhausted`; no card |
-| N-50 | `package-cap-never-raised` | run | `budget_exhausted`; no card (the limit that failed is the package's) |
+| N-50 | `package-cap-never-raised` | run | `budget_exhausted`; no card (the limit that failed is the package's: a role's own budget) |
 | N-51 | `second-raise-refused` | run | `budget_exhausted`; one `budget.requested` in the run |
 | N-52 | `linked-compute` | run | control: completed; a linked package's compute calls are in the caller's `usage.compute_calls`, its model calls under `usage.links` only (L-26) |
 | N-53 | `approval-threshold` | run | `budget_exhausted`; `link.refused` with `approval_threshold`, no `link.started` for that link (L-24) |
@@ -535,14 +597,27 @@ the code at the node named, or the control completes).
 
 N-1…N-34 and N-52…N-54 are the planned link's rows (N-52…N-54 were added after the first
 review of the reference and keep the later numbers so that no cited number moves); N-35…N-51
-are the join's and the raise's.
+are the join's and the raise's. The list holds 59 cases: N-42 is six.
 
-The reference asserts every row of N-1…N-33, N-52 and N-53 (`test_link_cases.py`), N-34 and
+The cases of the run-time half carry a **join fixture** (`agentpkg-join-fixture-v0`, the
+argument of `run --join-fixture`), which a conformance runner passes to either CLI: `pages`
+(by URL: `body` or `body_base64`, optional `status` and `content_type`) and `packages` (by URL:
+an archive's path beside the fixture) are a recorded web, replayed through the discovery and
+package-URL code unchanged; `decisions.joins` (by slot, the cards' answers in order:
+`{accepted, grants, approved_tools}`) and `decisions.raise` (`{accepted}`) are the person's
+recorded answers (`provenance: "fixture"`). A card the recording does not answer is declined;
+without `decisions` nobody is there to ask.
+
+The reference asserts every row of N-1…N-33, N-35…N-53 (`test_link_cases.py`), N-34 and
 N-54 on the execution session (`test_link_execution.py`) and, in
 `test_link_runtime.py`, the authority boundary (an inner run built from its binding alone; a
 caller's grant and approval for the same permission and tool refused to the linked package), the
 reservation held and released, a link past its step's time, the composed bound under several
-walks, a denial of a publisher's key, the run record, `inspect` and the CLI.
+walks, a denial of a publisher's key, the run record, `inspect` and the CLI; in
+`test_link_join.py`, where a slot looks, the card's facts, the request-building call's data
+(the view and the joined package's name, description and input schema, nothing else), the
+caps, the denial that lasts for the run, an unanswered card, and the raise's rules (the bound
+of half, the package's cap, one per run, a model call's reservation).
 
 ## 11. The example packages
 
@@ -575,10 +650,27 @@ that admits free text. That is a property of this planner's declaration, not of 
 The tool answers in the four fixtures are the demo origin's own
 (`demo/webair/tests/test_hotel.py`). All data is fictional; nothing is booked.
 
+**The planner 0.2.0** (D-683; its source is `examples/link/travel-planner-0.2.0/`, generated
+by the same script and unsigned until its go/no-go, when it replaces 0.1.0's tree under
+`agents/` as a new signed version) is 0.1.0 plus one role, `FindHotel`, for a hotel the
+traveller names that the aggregator does not list: a `web.search` tool step (the planner's own
+tool, a query in and at most five results out), then a slot, `named-hotel`. Its `locate` reads
+the address the person gave in the request's `hotel_url`, else the first search result's `url`;
+its view is the stay's closed fields (check-in, check-out, travellers); its ceiling is one
+model call, one tool call, three remote calls and 6,000 tokens within 300 seconds. The run's
+input gains `hotel_url`; the network's messages keep to `text` and `notes`, so no model writes
+an address a slot reads. The composed envelope before consent: at most 8 handoffs, FrontMan at
+most 5 times, 14 model calls (10 of the planner, one of each linked package, the
+request-building call and the joined package's one), 33 remote calls and 122,000 tokens, with
+the join inside it at its ceiling. `examples/link/join-fixture.json` records Hotel Salitubam's
+page, its signed archive and the person's acceptance: the fixture walk joins the hotel's
+package and attains the 14 model calls; the same walk without a person yields `unattended` and
+ends with the aggregator's hotel (`agentpkg/tests/test_link_packages.py`).
+
 ## 12. Versions, deliberate limits, prior art
 
-**Versions.** agentpkg 0.8.0 implements §1…§5 (planned links) and validates a slot's
-declaration (§2.3, L-21); packages that use links declare `runtime.minimum_version: "0.8.0"`.
+**Versions.** agentpkg 0.8.0 implements §1…§7: planned links, the join and the budget-raise
+request; packages that use links declare `runtime.minimum_version: "0.8.0"`.
 The Chrome core's port is T66. The OpenClaw plugin stays frozen (D-029) and its execution host
 refuses 0.8.0 packages by version. The paper line is untouched.
 
@@ -595,6 +687,18 @@ the same link host from the caller's plan and the inner plans. There a linked pa
 model needs the route does not meet is refused by its own plan's preparation, and a linked
 package must declare a model permission to be planned at all, used or not (the control plane
 plans model-backed runs only).
+
+**The cards of a run in the reference.** A run asks the person through the consent surface
+its host hands it (`conversation.host.RunConsentHost`: one `ask` per card), and looks through
+the host's `links.join.JoinHost` (discovery, the package fetch, the person's trust store, what
+a joined package's inner run is handed). The developer CLI binds both from `--join-fixture`
+(§10): recorded answers, and a recorded web or, where the fixture records none, the real one
+under the same policies. A driver that plays the person supplies its own surface. **The
+execution session hands a run no surface**: the frozen OpenClaw plugin, the only shell over
+it, cannot show a card and refuses 0.8.0 packages by version, so a slot there yields
+`unattended` and a failed reservation is refused as before; the session's host protocol gains
+no mid-run request in this version. The Chrome core's port (T66) is where a prepared Run Plan
+and a person at a card meet.
 
 **Deliberate limits of v0.** Depth one (a linked package links nothing; the composition rule is
 stated for any depth); no conversational target; no remote linked agent (a link is a program

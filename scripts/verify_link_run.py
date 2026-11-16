@@ -49,6 +49,7 @@ from agentpkg.delegation.analysis import link_cost, worst_case
 from agentpkg.execution.report import verify_audit_chain
 from agentpkg.links.analysis import link_operations, package_worst_case
 from agentpkg.links.host import plan_hash
+from agentpkg.links.join import MAX_RUN_CARDS, over_ceiling
 from agentpkg.package import load_package
 from agentpkg.runtime import digest
 
@@ -120,7 +121,7 @@ def inner_dispatches(directory: Path) -> dict:
         path = directory / f"link-{run['inner_run_id']}.audit.json"
         audit = _json(path) if path.is_file() else []
         found[run["inner_run_id"]] = {
-            "dependency": run["dependency"],
+            "dependency": run.get("dependency") or run.get("slot"),
             "model_requests": [e["input_hash"] for e in _events(audit, "model.called")],
             "tool_arguments": [
                 {
@@ -222,6 +223,46 @@ def verify(
                 and parent.get("dependency") == name
                 and plan.get("package", {}).get("digest") == archive.digest,
             )
+
+    # -- the packages joined during the run (section 6) -----------------------------------------
+    joins = record.get("joins", [])
+    stated_plan = record.get("caller_plan")
+    caller_plan_hash = record.get("caller_plan_hash")
+    if stated_plan is not None:
+        checks.add(
+            "the caller's plan is the one its hash names",
+            plan_hash(stated_plan) == caller_plan_hash
+            and stated_plan.get("package", {}).get("digest") == caller.digest,
+        )
+    joined_plans = {}
+    for entry in joins:
+        if not entry.get("accepted"):
+            continue
+        slot, kept = entry["slot"], entry.get("package") or {}
+        label = f"join {slot}"
+        source = (links or {}).get(slot) or _find(kept.get("digest", ""))
+        if not checks.add(f"{label}: the joined package is at hand", source is not None):
+            continue
+        archive = load_package(source)
+        linked[slot] = archive
+        joined_plans[entry["inner_plan_hash"]] = kept.get("plan") or {}
+        signature = signature_report(archive)
+        candidate = entry.get("candidate") or {}
+        checks.add(
+            f"{label}: the archive is the one the card was decided on",
+            archive.digest == kept.get("digest") == candidate.get("digest")
+            and signature["signature_status"] == "valid"
+            and signature["signer_fingerprint"] == kept.get("signer") == candidate.get("signer"),
+        )
+        plan = kept.get("plan") or {}
+        checks.add(
+            f"{label}: its inner plan is hash-bound to this plan, this run and this slot",
+            plan_hash(plan) == entry["inner_plan_hash"] == kept.get("plan_hash")
+            and plan.get("parent")
+            == {"plan_hash": caller_plan_hash, "run_id": run_id, "slot": slot}
+            and caller_plan_hash is not None
+            and plan.get("package", {}).get("digest") == archive.digest,
+        )
 
     # -- the composed bound, recomputed from the declarations -----------------------------------
     # W(caller) (L-18, L-19): the package-level worst case, which holds the network's bound and
@@ -328,7 +369,9 @@ def verify(
                     for tool, count in tools.items()
                 ),
             )
-            inner_plan = (link or {}).get("plan") or {}
+            inner_plan = (link or {}).get("plan") or joined_plans.get(
+                event["inner_plan_hash"], {}
+            )
             approved = set(inner_plan.get("tool_approvals", [])) | {
                 binding["tool_id"] for binding in inner_plan.get("tool_bindings") or []
             }
@@ -423,11 +466,20 @@ def verify(
             observed[figure] <= at_most[figure],
             {"observed": observed[figure], "at_most": at_most[figure]},
         )
+    # A slot's ceiling is a total over the joined package's own tools (`<slot>:*`).
+    slot_tools: Counter = Counter()
     for tool, count in sorted(observed["tool_calls"].items()):
-        qualified = tool if tool in at_most["tool_calls"] else f"{tool.split(':')[0]}:*"
+        if tool in at_most["tool_calls"]:
+            checks.add(
+                f"tool_calls.{tool} inside the composed bound",
+                count <= at_most["tool_calls"][tool],
+            )
+        else:
+            slot_tools[f"{tool.split(':')[0]}:*"] += count
+    for tool, count in sorted(slot_tools.items()):
         checks.add(
             f"tool_calls.{tool} inside the composed bound",
-            count <= at_most["tool_calls"].get(qualified, 0),
+            count <= at_most["tool_calls"].get(tool, 0),
         )
     if network is not None:
         activations = Counter(e["role"] for e in _events(audit, "network.activated"))
@@ -450,40 +502,127 @@ def verify(
         for _, step, _, _ in link_operations(caller.graph)
         if "slot" in step
     }
-    for event in _events(audit, "link.decided"):
-        if not event.get("accepted"):
-            continue
-        ceiling = (
-            link_cost(slots[event["slot"]]) if event.get("slot") in slots else None
-        )
-        worst = event.get("worst_case") or {}
+    decisions = _events(audit, "link.decided")
+    if slots or decisions:
         checks.add(
-            f"join {event.get('slot')}: the candidate's worst case fits the slot's ceiling",
-            ceiling is not None
-            and worst.get("model_calls", 0) + 1 <= ceiling["model_calls"]
-            and sum(worst.get("tool_calls", {}).values())
-            <= sum(ceiling["tool_calls"].values())
+            "the record's joins are the audit's decisions, in order",
+            [(j["slot"], j["accepted"], j["decided_by"], j.get("inner_plan_hash")) for j in joins]
+            == [
+                (e["slot"], e["accepted"], e["decided_by"], e.get("inner_plan_hash"))
+                for e in decisions
+            ],
+        )
+    cards = [event for event in decisions if event.get("decided_by") == "person"]
+    if slots:
+        checks.add(
+            "the cards shown are inside the caps",
+            len(cards) <= MAX_RUN_CARDS
             and all(
-                worst.get(figure, 0) <= ceiling[figure]
-                for figure in ("compute_calls", "remote_calls", "tokens")
+                sum(1 for card in cards if card["slot"] == name) <= step["max_joins"]
+                for name, step in slots.items()
             ),
         )
-    for event in _events(audit, "budget.raised"):
-        asked = [
+    # A key the person declined on a card is denied from then on (L-13): no later card of it
+    # and no inner run of it.
+    declined: dict = {}
+    for event in decisions:
+        signer = (event.get("candidate") or {}).get("signer")
+        if event.get("decided_by") == "person":
+            checks.add(
+                f"join {event['slot']}: no card for a key declined earlier in the run",
+                signer not in declined,
+            )
+            if not event.get("accepted"):
+                declined.setdefault(signer, event["sequence"])
+    if decisions:
+        checks.add(
+            "no inner run of a key declined on a card",
+            not any(
+                (decided.get(e["inner_plan_hash"], {}).get("candidate") or {}).get("signer")
+                in declined
+                for e in starts.values()
+                if "slot" in e
+            ),
+        )
+    for event in decisions:
+        if not event.get("accepted"):
+            continue
+        slot = event.get("slot")
+        package_ = linked.get(slot)
+        own = (
+            package_worst_case(package_.graph, package_.policy)
+            if package_ is not None
+            else None
+        )
+        checks.add(
+            f"join {slot}: the candidate's worst case, recomputed from its own declaration, "
+            "fits the slot's ceiling in every figure and is the one the card stated",
+            slot in slots
+            and own is not None
+            and over_ceiling(own, slots[slot]) is None
+            and all(own[figure] == (event.get("worst_case") or {}).get(figure) for figure in FIGURES)
+            and dict(own["tool_calls"]) == (event.get("worst_case") or {}).get("tool_calls"),
+        )
+        calls = [
             e
-            for e in _events(audit, "budget.requested")
-            if e["sequence"] < event["sequence"]
+            for e in _events(audit, "model.called")
+            if e["node_id"] == event["node_id"] and e["sequence"] > event["sequence"]
+        ]
+        looked = [
+            e
+            for e in _events(audit, "link.requested")
+            if e["node_id"] == event["node_id"] and e["sequence"] < event["sequence"]
         ]
         checks.add(
-            "a raise names this run and the plan it was asked for",
+            f"join {slot}: looked, then decided, then the request built, then the inner run",
+            bool(looked)
+            and all(
+                e["sequence"] > event["sequence"]
+                for e in starts.values()
+                if e.get("inner_plan_hash") == event["inner_plan_hash"]
+            )
+            and not any(
+                e["node_id"] == event["node_id"] and e["sequence"] < event["sequence"]
+                for e in _events(audit, "model.called")
+            )
+            and len(calls) <= 1,
+        )
+    raises = _events(audit, "budget.raised")
+    asks = _events(audit, "budget.requested")
+    if raises or asks:
+        checks.add("at most one raise is asked in a run", len(asks) <= 1 and len(raises) <= 1)
+    for event in raises:
+        asked = [e for e in asks if e["sequence"] < event["sequence"]]
+        cap = caller.policy["budget"][
+            "hard_tokens" if event["limit"] == "tokens" else "max_remote_calls"
+        ]
+        checks.add(
+            "a raise names this run and its plan, and was asked for these figures",
             event["run_id"] == run_id
             and bool(asked)
             and event.get("plan_hash") is not None
-            and event.get("plan_hash") == asked[-1].get("plan_hash"),
+            and event.get("plan_hash") == caller_plan_hash == asked[-1].get("plan_hash")
+            and (event["limit"], event["from"], event["to"])
+            == (asked[-1]["limit"], asked[-1]["from"], asked[-1]["to"]),
+        )
+        checks.add(
+            "a raise lifts the person's limit by at most half and never above the package's cap",
+            event["to"] - event["from"] <= event["from"] // 2 and event["to"] <= cap,
+            {"from": event["from"], "to": event["to"], "package_cap": cap},
         )
 
     # -- the canary hook ------------------------------------------------------------------------
     dispatches = inner_dispatches(directory)
+    if canaries:
+        # What a slot looked at before the person decided (the addresses of its fetches).
+        needles = [needle for canary in canaries for needle in encodings(canary)]
+        fetched = json.dumps(
+            [f["url"] for e in _events(audit, "link.requested") for f in e["fetches"]]
+        )
+        checks.add(
+            "no canary in what a slot fetched before the decision",
+            not any(needle in fetched for needle in needles),
+        )
     if observations is not None:
         needles = [needle for canary in canaries for needle in encodings(canary)]
         for inner_id, seen in sorted(observations.items()):
@@ -524,6 +663,28 @@ def verify(
             }
             for name, link in sorted(listed.items())
         ],
+        # Present where the run holds them: every slot step's outcome, and the one raise.
+        **(
+            {
+                "joins": [
+                    {
+                        "slot": entry["slot"],
+                        "joined": entry.get("joined", False),
+                        "reason": entry.get("reason"),
+                        "decided_by": entry["decided_by"],
+                        "package_id": (entry.get("candidate") or {}).get("package_id"),
+                    }
+                    for entry in joins
+                ]
+            }
+            if joins
+            else {}
+        ),
+        **(
+            {"raises": [{key: e[key] for key in ("limit", "from", "to")} for e in raises]}
+            if raises
+            else {}
+        ),
         "at_most": at_most,
         "observed": observed,
         "tightness": {

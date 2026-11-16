@@ -56,7 +56,7 @@ def _memory_driver():
 def _keys(directory: Path) -> dict:
     directory.mkdir(parents=True, exist_ok=True)
     keys = {}
-    for name in ("default", "index", "scribe"):
+    for name in ("default", "index", "scribe", "helper"):
         keys[name] = (directory / f"{name}.private.pem", directory / f"{name}.pub.pem")
         if not keys[name][0].exists():
             keygen(*keys[name])

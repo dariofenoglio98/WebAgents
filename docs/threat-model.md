@@ -747,8 +747,8 @@ descriptions are the package's text, shown as data.
 package for help. Until now one run held one publisher's program; a link puts a second
 publisher's program into the same run, and the boundary this section describes is the one
 between them. The model's §6.1 states the commitments (LK-1…LK-8); this note says how the
-reference keeps the first five, the planned link, and what it leaves open. A link made during
-a run (a slot, LK-6…LK-8) is specified and validated, and the reference runs none yet.
+reference keeps them and what it leaves open: first the planned link (LK-1…LK-5), then a link
+made during a run and the budget-raise request (LK-6…LK-8), at the end of this note.
 
 **What a link is.** The caller's signed manifest names the linked package by id, version,
 package digest, an HTTPS locator and, optionally, its publisher key. Before the run the host
@@ -801,3 +801,36 @@ reservation and its audit. On the CLI the first `--trust-key` pins the caller's 
 no other key verifies the caller, so a key pinned for a linked publisher does not widen who may
 sign the package the person asked to run. A link's reservation meets the caller's token
 approval threshold as a model call's does.
+**A link made during a run** (`links/join.py`, `Runtime.call_join`; LK-6, LK-7). A declared
+slot may be bound to a package the runtime finds while the run is under way. The one place
+where the runtime dials a host no plan names is bounded in four ways. *Where it looks*: `locate`
+reads an address the person put in the run's input or the URL fields of an approved tool's
+validated result, never a model's output, a message or the shared state (refused at
+validation), at most three addresses; a `coalesce` takes the person's address instead of a
+search result's. *How it looks*: website discovery and the package fetch, unchanged (HTTPS, a
+public address, a pinned connection, no cookie, body or referrer, the head only, a package on
+the page's own origin), each fetch recorded with `link.requested` before anything is decided.
+*What it may bind*: one candidate per step, verified as any package with a valid signature,
+refused without a card when it is a conversation, could start a further run, was signed by a
+key the person denied in this run, does not fit the caller's model route, exceeds the slot's
+declared ceiling in any figure, or exceeds what the run has left; the ceiling is in the "at
+most" the person accepted before the run, so a join never raises it. *Who decides*: the person,
+on a card of facts the runtime computed from the candidate's verified bytes; the default is no,
+an unanswered card is a no, no person is no card, and at most two cards are shown in a run.
+Nothing of the candidate reaches the caller's model before the decision; afterwards one model
+call of the caller builds the request from the slot's declared view and the joined package's
+name, description and input schema, and the joined program runs as any linked one: from its
+own grants, inside a reservation, holding nothing of the caller's. Every refusal is data to the
+caller's program and an event in the audit. What this does not give: a search service chooses
+which page is looked at, and a tool that echoes its arguments into a result's address can put
+model-written text in the address the slot fetches, which is no wider than the approved tool
+call; the person's reading of the card; the joined package's name and description are its
+publisher's words and reach the caller's model after the decision.
+
+**The budget-raise request** (`Runtime._ask_raise`; LK-8). Where a model call's or a planned
+link's reservation fails on the person's own run limit, the runtime may ask once per run to
+raise that limit to what the reservation needs, by at most half and never above the package's
+own cap; denied, unanswered or with nobody to ask, the refusal stands. The publisher's ceilings
+and the "at most" computed from them are never raised. In the reference the developer CLI and a
+driver that plays the person hand a run its consent surface; the execution session hands none.
+

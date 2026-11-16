@@ -11,8 +11,38 @@ from __future__ import annotations
 
 from ..errors import AgentPkgError
 from ..package import MAX_FILES, MAX_TOTAL_BYTES, Package, read_regular_bytes
+from .analysis import link_operations
 from .host import ACCEPTED, DENIED, LinkBinding, LinkHost
 from .resolve import LinkRefusal, check_model, resolve_links
+
+OPERATOR_PLAN_SCHEMA = "agentpkg-operator-plan-v0"
+
+
+def operator_plan(caller: Package, *, grants, approved_tools, limits, decisions) -> dict:
+    """What an operator decided before a run, where no control plane prepared a Run Plan: the
+    package, its grants and tool approvals, the host's limits and the decision on each linked
+    publisher. Its canonical SHA-256 is the `plan_hash` a join's inner plan and a raise name
+    (L-36, L-44)."""
+    manifest = caller.manifest
+    return {
+        "schema": OPERATOR_PLAN_SCHEMA,
+        "package": {
+            "package_id": manifest["package_id"],
+            "version": manifest["version"],
+            "digest": caller.digest,
+        },
+        "decisions": dict(sorted((grants or {}).items())),
+        "tool_approvals": sorted(approved_tools or ()),
+        "limits": dict(sorted((limits or {}).items())),
+        "links": {
+            name: {
+                "decision": ACCEPTED if decision.get("decision") == ACCEPTED else DENIED,
+                "decisions": dict(sorted(decision.get("grants", {}).items())),
+                "tool_approvals": sorted(decision.get("approved_tools", ())),
+            }
+            for name, decision in sorted((decisions or {}).items())
+        },
+    }
 
 
 def split_tool_approvals(caller: Package, approvals) -> tuple[list, dict]:
@@ -39,6 +69,8 @@ def operator_links(
     router=None,
     adapters=None,
     fetch=None,
+    joins=None,
+    caller_plan=None,
 ) -> LinkHost | None:
     """Resolve the caller's dependencies and bind the operator's decisions.
 
@@ -47,7 +79,9 @@ def operator_links(
     publisher key fingerprints the operator pinned for this run. `adapters(package)` returns
     `(router or None, handlers)` for an accepted linked package: its own fixture replay, or
     the host's handlers for its tools with None for the caller's model route. A package
-    without dependencies returns None."""
+    without dependencies and without a slot returns None. `joins` (`links.join.JoinHost`) lets
+    the run's slots look and join; `caller_plan` is the operator's plan, where a decision made
+    during the run is to name it."""
     archives = dict(archives or {})
     decisions = dict(decisions or {})
     declared = [record.get("id") for record in caller.manifest["dependencies"]]
@@ -57,7 +91,7 @@ def operator_links(
             "link_dependency_unknown",
             f"{stray[0]!r} is not a dependency this package declares",
         )
-    if not declared:
+    if not declared and next(link_operations(caller.graph), None) is None:
         return None
     sources = {
         name: read_regular_bytes(path, MAX_TOTAL_BYTES + MAX_FILES * 1024)
@@ -100,7 +134,7 @@ def operator_links(
             router=inner_router,
             limits=decision.get("limits"),
         )
-    return LinkHost(caller, bindings)
+    return LinkHost(caller, bindings, joins=joins, caller_plan=caller_plan)
 
 
-__all__ = ["operator_links", "split_tool_approvals"]
+__all__ = ["OPERATOR_PLAN_SCHEMA", "operator_links", "operator_plan", "split_tool_approvals"]

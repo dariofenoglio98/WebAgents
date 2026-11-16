@@ -790,6 +790,22 @@ decision from the host.
   declarations and checks the record against it.
 - **Fixture mode.** An inner run replays the linked package's own fixture, so the example
   planner's walk runs through both links offline.
+- **A slot** (`Runtime.call_join`, link.v0 §6) is run where the host hands the run a person to
+  ask and a way to look: without them the step yields `joined: false`, reason `unattended`,
+  and the caller's program goes on. Otherwise the runtime looks at the located addresses by
+  website discovery, fetches and verifies the one candidate, refuses it without a card where
+  the specification says so, holds its worst case, asks the person on a card of computed facts
+  and, on a yes, builds the request with one model call of the caller and runs the joined
+  package as a linked one. `agentpkg run … --join-fixture <json>` binds a recorded person (the
+  decisions on the cards) and, optionally, a recorded web (pages and archives by URL, replayed
+  through the discovery and package-URL code); the record gains `joins`, the operator's plan
+  and its hash, which a join's inner plan names with the run and the slot.
+- **The budget-raise request** (`Runtime._ask_raise`, link.v0 §7): a model call's token
+  reservation, or a planned link's reservation, that fails on the host's limit where the
+  package's own cap is higher may ask the person once per run to raise that limit to what the
+  reservation needs, by at most half; `budget.requested` and `budget.raised` record it. The
+  execution session hands a run no consent surface, so there a slot is unattended and no raise
+  is asked.
 
 ## 15. Why Meeting Agenda was the first package
 

@@ -137,6 +137,9 @@ def check_link_declarations(
     for name in names:
         if names.count(name) > 1:
             raise _refuse("link_slot_duplicate", f"two slot steps named {name!r}")
+        if name in records:
+            # A slot and a dependency share the names of the usage record and the audit.
+            raise _refuse("link_slot_duplicate", f"slot {name!r} is named as a dependency is")
     for label, step, role_id in slots:
         _check_slot(
             label,
