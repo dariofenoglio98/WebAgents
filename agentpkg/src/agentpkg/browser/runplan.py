@@ -432,6 +432,9 @@ def build_run_plan(
     tool_registry: dict | None = None,
     probe_tool_id: str | None = None,
     resource_registry: dict | None = None,
+    parent: dict | None = None,
+    links: dict | None = None,
+    link_costs: dict | None = None,
 ) -> dict:
     """Freeze one decision into a hashed, self-describing artifact."""
     created = datetime.now(UTC)
@@ -556,7 +559,9 @@ def build_run_plan(
         # the signed declaration; only a plan of a delegation package carries it.
         from ..delegation.declarations import network_records
 
-        records = network_records(package)
+        # With links, the composed envelope (link.v0 L-22): each accepted link's worst case
+        # inside its role's cost, a denied link's role never activated.
+        records = network_records(package, link_costs)
         plan["execution"]["network"] = {
             "node": records["node"],
             "entry": records["entry"],
@@ -571,6 +576,30 @@ def build_run_plan(
             " Declared tools the selected profile left out and the person did not approve are "
             "listed in denied_tool_ids; the runtime refuses any call to them (D-022)."
         )
+    if parent is not None:
+        # link.v0 L-14: an inner plan names the caller it was prepared for, and is hash-bound
+        # over it; only a linked package's plan carries it.
+        plan["parent"] = dict(parent)
+    if links is not None:
+        # link.v0 L-15, L-22: the caller's plan records each link with the person's decision
+        # and its inner plan's hash, and the envelope composed across them.
+        from ..links.analysis import package_worst_case
+
+        composed = package_worst_case(package.graph, package.policy, links=link_costs)
+        plan["links"] = {name: dict(entry) for name, entry in sorted(links.items())}
+        plan["execution"]["links"] = {
+            "worst_case": {
+                figure: composed[figure]
+                for figure in (
+                    "model_calls",
+                    "tool_calls",
+                    "compute_calls",
+                    "remote_calls",
+                    "tokens",
+                    "seconds",
+                )
+            }
+        }
     plan["run_plan_sha256"] = sha256(canonical_json(plan))
     return plan
 

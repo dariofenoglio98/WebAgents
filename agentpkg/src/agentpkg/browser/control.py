@@ -135,6 +135,12 @@ class Session:
     run_plan: dict | None = None
     # One-time private copies of this snapshot, issued to a trusted runner.
     leases: dict[str, ExecutionLease] = field(default_factory=dict)
+    # link.v0 (§3): a linked package is a session of its own. A caller holds its children by
+    # dependency id and the dependencies the person denied; a child names its caller.
+    links: dict[str, str] = field(default_factory=dict)
+    link_denials: set[str] = field(default_factory=set)
+    parent: str | None = None
+    dependency: str | None = None
     # Receipts whose `once` grants a run has already used. `once` means one
     # run: a plan under such a receipt is stale until the person decides again.
     spent_receipt_ids: set[str] = field(default_factory=set)
@@ -247,6 +253,11 @@ class ControlPlane:
 
     def _drop(self, session: Session) -> None:
         self._sessions.pop(session.session_id, None)
+        # A linked package's session lives and dies with its caller's.
+        for child_id in list(session.links.values()):
+            child = self._sessions.get(child_id)
+            if child is not None:
+                self._drop(child)
         for lease in list(session.leases.values()):
             release_lease(lease)
         session.leases.clear()
@@ -314,15 +325,24 @@ class ControlPlane:
         with self._lock:
             self.purge_expired()
             self._check_capacity(0)
+        return self._open_bytes(self._download(url, limits), {"kind": "url", "display": str(url)})
+
+    def _download(self, url, limits=None) -> bytes:
+        """One artifact's bytes under the package-URL policy; `open_url` and a link's locator
+        (link.v0 L-10) share it unchanged."""
+        if limits is None:
+            limits = FetchLimits(
+                max_bytes=self.config.max_package_bytes,
+                timeout_seconds=self.config.download_timeout_seconds,
+            )
         staging = self.cache_dir / f"download-{token_urlsafe(12)}.part"
         fd = os.open(staging, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
         os.close(fd)
         try:
             download_to_file(url, staging, limits=limits, transport=self._transport)
-            data = read_regular_bytes(staging, self.config.max_package_bytes + 1)
+            return read_regular_bytes(staging, self.config.max_package_bytes + 1)
         finally:
             staging.unlink(missing_ok=True)
-        return self._open_bytes(data, {"kind": "url", "display": str(url)})
 
     def discover_website(self, url) -> dict:
         """Report the agent packages one HTTPS web page advertises. Open none.
@@ -351,6 +371,9 @@ class ControlPlane:
             )
 
     def _open_bytes(self, data: bytes, source: dict) -> dict:
+        return self._open_session(data, source).summary
+
+    def _open_session(self, data: bytes, source: dict) -> Session:
         """One capture, one hash, one on-disk snapshot, then evaluation only."""
         if len(data) > self.config.max_package_bytes:
             raise ControlPlaneError(
@@ -392,7 +415,7 @@ class ControlPlane:
             self._pending -= 1
             self._pending_bytes -= len(data)
             self._sessions[session_id] = session
-        return session.summary
+        return session
 
     def _evaluate(self, session_id, directory, snapshot, archive_sha256, data, source) -> Session:
         evaluation = evaluate_snapshot(snapshot)
@@ -893,6 +916,12 @@ class ControlPlane:
             probe_tool_id=probe,
             resource_registry=resources,
         )
+        # link.v0 (L-14…L-17, L-20): every link resolved and decided, each accepted one with a
+        # ready inner plan on this model, and the composition inside the caller's own budget.
+        from . import links as link_plans
+
+        link_blockers, link_section, link_costs = link_plans.plan_links(self, session, model_id)
+        blockers = blockers + link_blockers
         if blockers:
             # A run plan exists only when it is ready. Writing down a plan that
             # could not be run would create an artifact asserting a binding this
@@ -929,6 +958,16 @@ class ControlPlane:
             tool_registry=registry,
             probe_tool_id=probe,
             resource_registry=resources,
+            parent=(
+                {
+                    "package_digest": self._session(session.parent).package.digest,
+                    "dependency": session.dependency,
+                }
+                if session.parent is not None
+                else None
+            ),
+            links=link_section,
+            link_costs=link_costs,
         )
         with self._lock:
             session.catalog = normalized
@@ -946,6 +985,55 @@ class ControlPlane:
                 "ready": plan["readiness"]["ready"],
             }
         return {"run_plan": plan, "preflight": self._preflight(session)}
+
+    # -- links (link.v0 §3) ----------------------------------------------------
+    def resolve_links(self, session_id: str, *, package_digest, archives=None) -> dict:
+        """Fetch, snapshot and verify every dependency of this package, each as a session of
+        its own, and check it against its record (L-10…L-12). `archives` names local archives
+        the person supplied by dependency id, accepted only by the pinned digest. Returns the
+        review (L-13): each linked package with its publisher, worst case and session, on which
+        the host authorizes it and prepares its inner plan as for any package."""
+        from . import links
+
+        session = self._session(session_id)
+        self._require_digest(session, package_digest)
+        return links.resolve(self, session, archives)
+
+    def links(self, session_id: str) -> dict:
+        """The review of a caller's links as it stands: decisions, receipts, inner plans."""
+        from . import links
+
+        session = self._session(session_id)
+        with self._lock:
+            return links.review(self, session)
+
+    def decide_link(self, session_id: str, *, package_digest, dependency, decision) -> dict:
+        """Deny one linked publisher (L-13, L-16), or withdraw that denial. Accepting is the
+        linked package's own authorization. A denial is of the publisher's key for the run."""
+        from . import links
+
+        session = self._session(session_id)
+        self._require_digest(session, package_digest)
+        if dependency not in session.links:
+            raise ControlPlaneError(
+                "link_dependency_unknown",
+                f"{dependency!r} is not a resolved link of this session",
+                status=404,
+            )
+        if decision not in ("denied", "undecided"):
+            raise ControlPlaneError(
+                "invalid_decision", "decision is 'denied' or 'undecided' (to withdraw a denial)"
+            )
+        with self._lock:
+            if decision == "denied":
+                session.link_denials.add(dependency)
+            else:
+                session.link_denials.discard(dependency)
+            # A decision on a link changes what the caller's plan may say.
+            self._release_all(session)
+            session.run_plan = None
+            session.summary["run_plan"] = {"state": "absent", "run_plan_id": None, "ready": False}
+            return links.review(self, session)
 
     def run_plan(self, session_id: str) -> dict:
         """The prepared plan plus a freshly recomputed readiness check."""
@@ -1066,6 +1154,20 @@ class ControlPlane:
         }
 
     def _preflight(self, session: Session) -> dict:
+        state = self._own_preflight(session)
+        plan = session.run_plan
+        if plan.get("links"):
+            # link.v0 L-15: re-verification covers every inner plan the caller's plan names.
+            from . import links
+
+            reasons = links.staleness(self, session, plan)
+            state["links"] = {"planned": len(plan["links"]), "current": not reasons}
+            if reasons:
+                state["stale_reasons"] = state["stale_reasons"] + reasons
+                state.update(state="stale", ready=False, stale=True)
+        return state
+
+    def _own_preflight(self, session: Session) -> dict:
         plan = session.run_plan
         return preflight(
             plan,

@@ -451,10 +451,15 @@ def warnings(package: Package, evaluation: dict, publisher: dict) -> list:
     if policy["delegation"]["allow_remote"]:
         warn("remote_delegation_requested", "critical", "Remote delegation is not implemented.")
     if package.manifest["dependencies"]:
+        # link.v0: a dependency is a linked package. The host resolves each one (fetched,
+        # verified, shown with its own publisher) before the person agrees to anything.
         warn(
-            "dependencies_declared",
-            "warning",
-            "Pinned dependencies are declared; no dependency resolver is installed.",
+            "links_declared",
+            "info",
+            f"This package asks {len(package.manifest['dependencies'])} other package(s) for "
+            "help (Agent Links). Each is fetched and verified first, is shown with its own "
+            "publisher and requirements, and runs under what you grant it, never under this "
+            "package's grants; you can deny one.",
         )
     if package.manifest["update"]["locator"]:
         warn(

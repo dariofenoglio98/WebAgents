@@ -207,7 +207,9 @@ def index_files() -> dict:
             tasks=[],
         ),
         "policy/policy.json": _policy(
-            ["memory.session", "desk.read"],
+            # A model permission it never uses: the control plane plans a model-backed run only
+            # for a package that declares one.
+            ["model.reasoning", "memory.session", "desk.read"],
             hard_tokens=1,
             tool_caps={"lookup": 1},
             roles=["Finder"],
@@ -391,7 +393,11 @@ class Scenario:
         default_factory=lambda: {
             "index": {
                 "decision": "accepted",
-                "grants": {"memory.session": "session", "desk.read": "session"},
+                "grants": {
+                    "model.reasoning": "session",
+                    "memory.session": "session",
+                    "desk.read": "session",
+                },
                 "approved_tools": ["lookup"],
             },
             "scribe": {
