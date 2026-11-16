@@ -85,7 +85,8 @@ Rescored offline under both corrections (this directory's outcomes are unchanged
   stopped at 128 units with 2 harness errors when the VPN dropped; kept unchanged, superseded by this directory.
 
 ## The local-results check with the user (gates the hosted rungs, §2.8)
-- date: pending (after the L4, L9 and L30 paper directories).
+- date: **2026-11-16**, with the user (T32 session): the local rungs' results (L4, L9, L30, their findings and the
+  superseded directories) approved; the hosted rungs H and H2 may start (the user runs them, U11).
 
 ## Tables (`analyze.py`, 2,000 bootstrap resamples, seed 31)
 ```
