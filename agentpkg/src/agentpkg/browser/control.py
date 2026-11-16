@@ -1030,15 +1030,7 @@ class ControlPlane:
             else:
                 # A denial is of the publisher's key (L-13), so it is withdrawn by key: every
                 # denied dependency that key signed, whichever of them this call names.
-                linked = links.children(self, session)
-                if dependency in linked:
-                    key = linked[dependency].publisher["signer_fingerprint"]
-                    session.link_denials -= {
-                        name
-                        for name, child in linked.items()
-                        if child.publisher["signer_fingerprint"] == key
-                    }
-                session.link_denials.discard(dependency)
+                session.link_denials -= links.signed_with(self, session, dependency)
             # A decision on a link changes what the caller's plan may say.
             self._release_all(session)
             session.run_plan = None
@@ -1097,34 +1089,7 @@ class ControlPlane:
                     "session_run_plan_sha256": plan["run_plan_sha256"],
                 },
             )
-        if session.parent is not None:
-            # link.v0 L-15: a linked package's bytes leave only beside its caller's. The caller
-            # is leased first, on a plan that names this very inner plan as accepted; an inner
-            # plan leased alone would be a run of the linked package outside any composition.
-            caller = self._sessions.get(session.parent)
-            with self._lock:
-                named = (
-                    ((caller.run_plan or {}).get("links") or {}).get(session.dependency)
-                    if caller is not None
-                    else None
-                )
-                beside = named is not None and any(
-                    not lease.expired()
-                    and lease.run_plan_sha256 == caller.run_plan["run_plan_sha256"]
-                    for lease in caller.leases.values()
-                )
-            if (
-                not beside
-                or named["decision"] != "accepted"
-                or named["plan_hash"] != plan["run_plan_sha256"]
-            ):
-                raise ControlPlaneError(
-                    "link_lease_without_caller",
-                    "A linked package's inner plan is leased only beside its caller's lease, on "
-                    "a caller's plan that names it; lease the caller first",
-                    status=409,
-                    details={"dependency": session.dependency},
-                )
+        self._require_caller_lease(session, plan)
         state = self._preflight(session)
         if not state["ready"] or state["stale"]:
             reasons = state["stale_reasons"] or state["blocking_reasons"]
@@ -1136,6 +1101,9 @@ class ControlPlane:
             )
         with self._lock:
             self.purge_expired()
+            # Again under the lock the lease is issued in: the caller's lease may have been
+            # released while this plan was re-verified.
+            self._require_caller_lease(session, plan)
             live = [lease for lease in session.leases.values() if not lease.expired()]
             if live:
                 # One active execution per session. A second lease would be a
@@ -1178,6 +1146,46 @@ class ControlPlane:
             },
         }
 
+    def _require_caller_lease(self, session: Session, plan: dict) -> None:
+        """link.v0 L-15: a linked package's bytes leave only beside its caller's. The caller is
+        leased first, on a plan that names this very inner plan as accepted; an inner plan
+        leased alone would be a run of the linked package outside any composition."""
+        if session.parent is None:
+            return
+        caller = self._sessions.get(session.parent)
+        with self._lock:
+            named = (
+                ((caller.run_plan or {}).get("links") or {}).get(session.dependency)
+                if caller is not None
+                else None
+            )
+            beside = named is not None and any(
+                not lease.expired() and lease.run_plan_sha256 == caller.run_plan["run_plan_sha256"]
+                for lease in caller.leases.values()
+            )
+        if (
+            not beside
+            or named["decision"] != "accepted"
+            or named["plan_hash"] != plan["run_plan_sha256"]
+        ):
+            raise ControlPlaneError(
+                "link_lease_without_caller",
+                "A linked package's inner plan is leased only beside its caller's lease, on "
+                "a caller's plan that names it; lease the caller first",
+                status=409,
+                details={"dependency": session.dependency},
+            )
+
+    def _release_linked(self, session: Session) -> None:
+        """link.v0 L-15: once a caller holds no live lease, the leases of its linked packages
+        are released with it; a linked package's bytes are out only beside its caller's."""
+        if any(not lease.expired() for lease in session.leases.values()):
+            return
+        for child_id in session.links.values():
+            child = self._sessions.get(child_id)
+            if child is not None:
+                self._release_all(child)
+
     def release_execution_lease(self, session_id: str, lease_id: str) -> dict:
         """Delete one lease's private copy. Safe to call more than once."""
         session = self._session(session_id)
@@ -1185,6 +1193,7 @@ class ControlPlane:
             lease = session.leases.pop(lease_id, None)
             if lease is not None:
                 release_lease(lease)
+                self._release_linked(session)
         return {
             "session_id": session_id,
             "lease_id": lease_id,
@@ -1226,6 +1235,7 @@ class ControlPlane:
         for lease in list(session.leases.values()):
             release_lease(lease)
         session.leases.clear()
+        self._release_linked(session)
 
     def _require_digest(self, session: Session, package_digest) -> None:
         if not isinstance(package_digest, str) or not package_digest:

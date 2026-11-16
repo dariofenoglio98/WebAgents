@@ -1,0 +1,1121 @@
+{
+  "profile": "workflow.fixture.v0",
+  "input": {
+    "text": "Plan a trip from Boston to Reykjavik: out on 9 March 2027, back on the 14th, one traveller; I want to stay at Hotel Salitubam; check my calendar too.",
+    "notes": "I prefer a quiet room.",
+    "hotel_url": null
+  },
+  "models": {
+    "understand": [
+      {
+        "input": {
+          "text": "Plan a trip from Boston to Reykjavik: out on 9 March 2027, back on the 14th, one traveller; I want to stay at Hotel Salitubam; check my calendar too.",
+          "notes": "I prefer a quiet room.",
+          "trip": null,
+          "flights": [],
+          "flight_pick": null,
+          "hotels": [],
+          "hotel_pick": null,
+          "calendar": [],
+          "hotel_name": null,
+          "named_hotel": null
+        },
+        "output": {
+          "trip": {
+            "origin": "BOS",
+            "destination": "KEF",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "hotel_name": "Hotel Salitubam",
+          "summary": "A Boston to Reykjavik trip, 9 to 14 March 2027, one traveller, at Hotel Salitubam; the calendar is to be checked."
+        }
+      },
+      {
+        "input": {
+          "text": "Results are in the shared state.",
+          "notes": "",
+          "trip": {
+            "origin": "BOS",
+            "destination": "KEF",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "flights": [
+            {
+              "id": "WA205-20270309",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T20:30",
+              "stops": 0,
+              "price_usd": 287
+            }
+          ],
+          "flight_pick": {
+            "id": "WA205-20270309",
+            "reason": "The only flight on that date: nonstop at 20:30 for $287."
+          },
+          "hotels": [],
+          "hotel_pick": null,
+          "calendar": [],
+          "hotel_name": "Hotel Salitubam",
+          "named_hotel": null
+        },
+        "output": {
+          "trip": {
+            "origin": "BOS",
+            "destination": "KEF",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "hotel_name": "Hotel Salitubam",
+          "summary": "Flights found; the hotel and the calendar still to do."
+        }
+      },
+      {
+        "input": {
+          "text": "Results are in the shared state.",
+          "notes": "",
+          "trip": {
+            "origin": "BOS",
+            "destination": "KEF",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "flights": [
+            {
+              "id": "WA205-20270309",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T20:30",
+              "stops": 0,
+              "price_usd": 287
+            }
+          ],
+          "flight_pick": {
+            "id": "WA205-20270309",
+            "reason": "The only flight on that date: nonstop at 20:30 for $287."
+          },
+          "hotels": [
+            {
+              "id": "H-HAF",
+              "name": "Harbour Guesthouse (fictional)",
+              "nights": 5,
+              "price_usd": 850
+            },
+            {
+              "id": "H-AUR",
+              "name": "Aurora Hotel (fictional)",
+              "nights": 5,
+              "price_usd": 1075
+            }
+          ],
+          "hotel_pick": {
+            "id": "H-HAF",
+            "reason": "The cheaper of the two for five nights: $850."
+          },
+          "calendar": [],
+          "hotel_name": "Hotel Salitubam",
+          "named_hotel": null
+        },
+        "output": {
+          "trip": {
+            "origin": "BOS",
+            "destination": "KEF",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "hotel_name": "Hotel Salitubam",
+          "summary": "The aggregator does not list Hotel Salitubam; its own page may be asked."
+        }
+      },
+      {
+        "input": {
+          "text": "Results are in the shared state.",
+          "notes": "",
+          "trip": {
+            "origin": "BOS",
+            "destination": "KEF",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "flights": [
+            {
+              "id": "WA205-20270309",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T20:30",
+              "stops": 0,
+              "price_usd": 287
+            }
+          ],
+          "flight_pick": {
+            "id": "WA205-20270309",
+            "reason": "The only flight on that date: nonstop at 20:30 for $287."
+          },
+          "hotels": [
+            {
+              "id": "H-HAF",
+              "name": "Harbour Guesthouse (fictional)",
+              "nights": 5,
+              "price_usd": 850
+            },
+            {
+              "id": "H-AUR",
+              "name": "Aurora Hotel (fictional)",
+              "nights": 5,
+              "price_usd": 1075
+            }
+          ],
+          "hotel_pick": {
+            "id": "H-HAF",
+            "reason": "The cheaper of the two for five nights: $850."
+          },
+          "calendar": [],
+          "hotel_name": "Hotel Salitubam",
+          "named_hotel": {
+            "joined": true,
+            "reason": null,
+            "result": {
+              "options": [
+                {
+                  "id": "SAL-STD-20270309-5N",
+                  "room": "Standard double",
+                  "rooms": 1,
+                  "nights": 5,
+                  "price_usd": 910
+                },
+                {
+                  "id": "SAL-FAM-20270309-5N",
+                  "room": "Family room",
+                  "rooms": 1,
+                  "nights": 5,
+                  "price_usd": 1230
+                },
+                {
+                  "id": "SAL-HRB-20270309-5N",
+                  "room": "Harbour suite",
+                  "rooms": 1,
+                  "nights": 5,
+                  "price_usd": 1590
+                }
+              ],
+              "recommended": "SAL-STD-20270309-5N",
+              "reason": "One traveller fits the standard double, the cheapest room: $910 for five nights."
+            }
+          }
+        },
+        "output": {
+          "trip": {
+            "origin": "BOS",
+            "destination": "KEF",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "hotel_name": "Hotel Salitubam",
+          "summary": "Flights and hotels are in; the calendar still to do."
+        }
+      },
+      {
+        "input": {
+          "text": "Results are in the shared state.",
+          "notes": "",
+          "trip": {
+            "origin": "BOS",
+            "destination": "KEF",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "flights": [
+            {
+              "id": "WA205-20270309",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T20:30",
+              "stops": 0,
+              "price_usd": 287
+            }
+          ],
+          "flight_pick": {
+            "id": "WA205-20270309",
+            "reason": "The only flight on that date: nonstop at 20:30 for $287."
+          },
+          "hotels": [
+            {
+              "id": "H-HAF",
+              "name": "Harbour Guesthouse (fictional)",
+              "nights": 5,
+              "price_usd": 850
+            },
+            {
+              "id": "H-AUR",
+              "name": "Aurora Hotel (fictional)",
+              "nights": 5,
+              "price_usd": 1075
+            }
+          ],
+          "hotel_pick": {
+            "id": "H-HAF",
+            "reason": "The cheaper of the two for five nights: $850."
+          },
+          "calendar": [
+            {
+              "date": "2027-03-11",
+              "title": "Group meeting (movable)"
+            }
+          ],
+          "hotel_name": "Hotel Salitubam",
+          "named_hotel": {
+            "joined": true,
+            "reason": null,
+            "result": {
+              "options": [
+                {
+                  "id": "SAL-STD-20270309-5N",
+                  "room": "Standard double",
+                  "rooms": 1,
+                  "nights": 5,
+                  "price_usd": 910
+                },
+                {
+                  "id": "SAL-FAM-20270309-5N",
+                  "room": "Family room",
+                  "rooms": 1,
+                  "nights": 5,
+                  "price_usd": 1230
+                },
+                {
+                  "id": "SAL-HRB-20270309-5N",
+                  "room": "Harbour suite",
+                  "rooms": 1,
+                  "nights": 5,
+                  "price_usd": 1590
+                }
+              ],
+              "recommended": "SAL-STD-20270309-5N",
+              "reason": "One traveller fits the standard double, the cheapest room: $910 for five nights."
+            }
+          }
+        },
+        "output": {
+          "trip": {
+            "origin": "BOS",
+            "destination": "KEF",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "hotel_name": "Hotel Salitubam",
+          "summary": "Flights, hotels and the calendar are in; ready to answer."
+        }
+      },
+      {
+        "input": {
+          "text": "Results are in the shared state.",
+          "notes": "",
+          "trip": {
+            "origin": "BOS",
+            "destination": "KEF",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "flights": [
+            {
+              "id": "WA205-20270309",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T20:30",
+              "stops": 0,
+              "price_usd": 287
+            }
+          ],
+          "flight_pick": {
+            "id": "WA205-20270309",
+            "reason": "The only flight on that date: nonstop at 20:30 for $287."
+          },
+          "hotels": [
+            {
+              "id": "H-HAF",
+              "name": "Harbour Guesthouse (fictional)",
+              "nights": 5,
+              "price_usd": 850
+            },
+            {
+              "id": "H-AUR",
+              "name": "Aurora Hotel (fictional)",
+              "nights": 5,
+              "price_usd": 1075
+            }
+          ],
+          "hotel_pick": {
+            "id": "H-HAF",
+            "reason": "The cheaper of the two for five nights: $850."
+          },
+          "calendar": [],
+          "hotel_name": "Hotel Salitubam",
+          "named_hotel": {
+            "joined": false,
+            "reason": "unattended",
+            "result": null
+          }
+        },
+        "output": {
+          "trip": {
+            "origin": "BOS",
+            "destination": "KEF",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "hotel_name": "Hotel Salitubam",
+          "summary": "Flights and hotels are in; the calendar still to do."
+        }
+      },
+      {
+        "input": {
+          "text": "Results are in the shared state.",
+          "notes": "",
+          "trip": {
+            "origin": "BOS",
+            "destination": "KEF",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "flights": [
+            {
+              "id": "WA205-20270309",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T20:30",
+              "stops": 0,
+              "price_usd": 287
+            }
+          ],
+          "flight_pick": {
+            "id": "WA205-20270309",
+            "reason": "The only flight on that date: nonstop at 20:30 for $287."
+          },
+          "hotels": [
+            {
+              "id": "H-HAF",
+              "name": "Harbour Guesthouse (fictional)",
+              "nights": 5,
+              "price_usd": 850
+            },
+            {
+              "id": "H-AUR",
+              "name": "Aurora Hotel (fictional)",
+              "nights": 5,
+              "price_usd": 1075
+            }
+          ],
+          "hotel_pick": {
+            "id": "H-HAF",
+            "reason": "The cheaper of the two for five nights: $850."
+          },
+          "calendar": [
+            {
+              "date": "2027-03-11",
+              "title": "Group meeting (movable)"
+            }
+          ],
+          "hotel_name": "Hotel Salitubam",
+          "named_hotel": {
+            "joined": false,
+            "reason": "unattended",
+            "result": null
+          }
+        },
+        "output": {
+          "trip": {
+            "origin": "BOS",
+            "destination": "KEF",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "hotel_name": "Hotel Salitubam",
+          "summary": "Flights, hotels and the calendar are in; ready to answer."
+        }
+      }
+    ],
+    "route": [
+      {
+        "input": {
+          "input": {
+            "summary": "A Boston to Reykjavik trip, 9 to 14 March 2027, one traveller, at Hotel Salitubam; the calendar is to be checked.",
+            "trip": {
+              "origin": "BOS",
+              "destination": "KEF",
+              "date_out": "2027-03-09",
+              "date_back": "2027-03-14",
+              "travellers": 1
+            },
+            "flights": [],
+            "flight_pick": null,
+            "hotels": [],
+            "hotel_pick": null,
+            "calendar": [],
+            "hotel_name": "Hotel Salitubam",
+            "named_hotel": null
+          },
+          "targets": [
+            {
+              "role": "Flights",
+              "description": "Asks WebAir Flights, another publisher's package, for flights for the trip in the shared state (fictional airline data).",
+              "uses_left": 1
+            },
+            {
+              "role": "Hotels",
+              "description": "Asks Staymere, another publisher's package, for hotels at the destination for the trip's nights (fictional data).",
+              "uses_left": 1
+            },
+            {
+              "role": "FindHotel",
+              "description": "For a hotel the traveller named that the aggregator does not list: searches for the hotel's own page and may ask the agent that page offers, after the person agrees (fictional data).",
+              "uses_left": 1
+            },
+            {
+              "role": "Calendar",
+              "description": "Lists the traveller's calendar entries over the trip's dates (fictional data).",
+              "uses_left": 1
+            }
+          ],
+          "hops_left": 8,
+          "may_end": true
+        },
+        "output": {
+          "next": "Flights",
+          "message": {
+            "text": "Find flights BOS to KEF, out 2027-03-09, one traveller.",
+            "notes": ""
+          }
+        }
+      },
+      {
+        "input": {
+          "input": {
+            "summary": "Flights found; the hotel and the calendar still to do.",
+            "trip": {
+              "origin": "BOS",
+              "destination": "KEF",
+              "date_out": "2027-03-09",
+              "date_back": "2027-03-14",
+              "travellers": 1
+            },
+            "flights": [
+              {
+                "id": "WA205-20270309",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T20:30",
+                "stops": 0,
+                "price_usd": 287
+              }
+            ],
+            "flight_pick": {
+              "id": "WA205-20270309",
+              "reason": "The only flight on that date: nonstop at 20:30 for $287."
+            },
+            "hotels": [],
+            "hotel_pick": null,
+            "calendar": [],
+            "hotel_name": "Hotel Salitubam",
+            "named_hotel": null
+          },
+          "targets": [
+            {
+              "role": "Flights",
+              "description": "Asks WebAir Flights, another publisher's package, for flights for the trip in the shared state (fictional airline data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Hotels",
+              "description": "Asks Staymere, another publisher's package, for hotels at the destination for the trip's nights (fictional data).",
+              "uses_left": 1
+            },
+            {
+              "role": "FindHotel",
+              "description": "For a hotel the traveller named that the aggregator does not list: searches for the hotel's own page and may ask the agent that page offers, after the person agrees (fictional data).",
+              "uses_left": 1
+            },
+            {
+              "role": "Calendar",
+              "description": "Lists the traveller's calendar entries over the trip's dates (fictional data).",
+              "uses_left": 1
+            }
+          ],
+          "hops_left": 6,
+          "may_end": true
+        },
+        "output": {
+          "next": "Hotels",
+          "message": {
+            "text": "Find a hotel in Reykjavik from 2027-03-09 to 2027-03-14.",
+            "notes": ""
+          }
+        }
+      },
+      {
+        "input": {
+          "input": {
+            "summary": "The aggregator does not list Hotel Salitubam; its own page may be asked.",
+            "trip": {
+              "origin": "BOS",
+              "destination": "KEF",
+              "date_out": "2027-03-09",
+              "date_back": "2027-03-14",
+              "travellers": 1
+            },
+            "flights": [
+              {
+                "id": "WA205-20270309",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T20:30",
+                "stops": 0,
+                "price_usd": 287
+              }
+            ],
+            "flight_pick": {
+              "id": "WA205-20270309",
+              "reason": "The only flight on that date: nonstop at 20:30 for $287."
+            },
+            "hotels": [
+              {
+                "id": "H-HAF",
+                "name": "Harbour Guesthouse (fictional)",
+                "nights": 5,
+                "price_usd": 850
+              },
+              {
+                "id": "H-AUR",
+                "name": "Aurora Hotel (fictional)",
+                "nights": 5,
+                "price_usd": 1075
+              }
+            ],
+            "hotel_pick": {
+              "id": "H-HAF",
+              "reason": "The cheaper of the two for five nights: $850."
+            },
+            "calendar": [],
+            "hotel_name": "Hotel Salitubam",
+            "named_hotel": null
+          },
+          "targets": [
+            {
+              "role": "Flights",
+              "description": "Asks WebAir Flights, another publisher's package, for flights for the trip in the shared state (fictional airline data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Hotels",
+              "description": "Asks Staymere, another publisher's package, for hotels at the destination for the trip's nights (fictional data).",
+              "uses_left": 0
+            },
+            {
+              "role": "FindHotel",
+              "description": "For a hotel the traveller named that the aggregator does not list: searches for the hotel's own page and may ask the agent that page offers, after the person agrees (fictional data).",
+              "uses_left": 1
+            },
+            {
+              "role": "Calendar",
+              "description": "Lists the traveller's calendar entries over the trip's dates (fictional data).",
+              "uses_left": 1
+            }
+          ],
+          "hops_left": 4,
+          "may_end": true
+        },
+        "output": {
+          "next": "FindHotel",
+          "message": {
+            "text": "Find the page of Hotel Salitubam and ask it for the stay.",
+            "notes": ""
+          }
+        }
+      },
+      {
+        "input": {
+          "input": {
+            "summary": "Flights and hotels are in; the calendar still to do.",
+            "trip": {
+              "origin": "BOS",
+              "destination": "KEF",
+              "date_out": "2027-03-09",
+              "date_back": "2027-03-14",
+              "travellers": 1
+            },
+            "flights": [
+              {
+                "id": "WA205-20270309",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T20:30",
+                "stops": 0,
+                "price_usd": 287
+              }
+            ],
+            "flight_pick": {
+              "id": "WA205-20270309",
+              "reason": "The only flight on that date: nonstop at 20:30 for $287."
+            },
+            "hotels": [
+              {
+                "id": "H-HAF",
+                "name": "Harbour Guesthouse (fictional)",
+                "nights": 5,
+                "price_usd": 850
+              },
+              {
+                "id": "H-AUR",
+                "name": "Aurora Hotel (fictional)",
+                "nights": 5,
+                "price_usd": 1075
+              }
+            ],
+            "hotel_pick": {
+              "id": "H-HAF",
+              "reason": "The cheaper of the two for five nights: $850."
+            },
+            "calendar": [],
+            "hotel_name": "Hotel Salitubam",
+            "named_hotel": {
+              "joined": true,
+              "reason": null,
+              "result": {
+                "options": [
+                  {
+                    "id": "SAL-STD-20270309-5N",
+                    "room": "Standard double",
+                    "rooms": 1,
+                    "nights": 5,
+                    "price_usd": 910
+                  },
+                  {
+                    "id": "SAL-FAM-20270309-5N",
+                    "room": "Family room",
+                    "rooms": 1,
+                    "nights": 5,
+                    "price_usd": 1230
+                  },
+                  {
+                    "id": "SAL-HRB-20270309-5N",
+                    "room": "Harbour suite",
+                    "rooms": 1,
+                    "nights": 5,
+                    "price_usd": 1590
+                  }
+                ],
+                "recommended": "SAL-STD-20270309-5N",
+                "reason": "One traveller fits the standard double, the cheapest room: $910 for five nights."
+              }
+            }
+          },
+          "targets": [
+            {
+              "role": "Flights",
+              "description": "Asks WebAir Flights, another publisher's package, for flights for the trip in the shared state (fictional airline data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Hotels",
+              "description": "Asks Staymere, another publisher's package, for hotels at the destination for the trip's nights (fictional data).",
+              "uses_left": 0
+            },
+            {
+              "role": "FindHotel",
+              "description": "For a hotel the traveller named that the aggregator does not list: searches for the hotel's own page and may ask the agent that page offers, after the person agrees (fictional data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Calendar",
+              "description": "Lists the traveller's calendar entries over the trip's dates (fictional data).",
+              "uses_left": 1
+            }
+          ],
+          "hops_left": 2,
+          "may_end": true
+        },
+        "output": {
+          "next": "Calendar",
+          "message": {
+            "text": "Check the calendar from 2027-03-09 to 2027-03-14.",
+            "notes": ""
+          }
+        }
+      },
+      {
+        "input": {
+          "input": {
+            "summary": "Flights, hotels and the calendar are in; ready to answer.",
+            "trip": {
+              "origin": "BOS",
+              "destination": "KEF",
+              "date_out": "2027-03-09",
+              "date_back": "2027-03-14",
+              "travellers": 1
+            },
+            "flights": [
+              {
+                "id": "WA205-20270309",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T20:30",
+                "stops": 0,
+                "price_usd": 287
+              }
+            ],
+            "flight_pick": {
+              "id": "WA205-20270309",
+              "reason": "The only flight on that date: nonstop at 20:30 for $287."
+            },
+            "hotels": [
+              {
+                "id": "H-HAF",
+                "name": "Harbour Guesthouse (fictional)",
+                "nights": 5,
+                "price_usd": 850
+              },
+              {
+                "id": "H-AUR",
+                "name": "Aurora Hotel (fictional)",
+                "nights": 5,
+                "price_usd": 1075
+              }
+            ],
+            "hotel_pick": {
+              "id": "H-HAF",
+              "reason": "The cheaper of the two for five nights: $850."
+            },
+            "calendar": [
+              {
+                "date": "2027-03-11",
+                "title": "Group meeting (movable)"
+              }
+            ],
+            "hotel_name": "Hotel Salitubam",
+            "named_hotel": {
+              "joined": true,
+              "reason": null,
+              "result": {
+                "options": [
+                  {
+                    "id": "SAL-STD-20270309-5N",
+                    "room": "Standard double",
+                    "rooms": 1,
+                    "nights": 5,
+                    "price_usd": 910
+                  },
+                  {
+                    "id": "SAL-FAM-20270309-5N",
+                    "room": "Family room",
+                    "rooms": 1,
+                    "nights": 5,
+                    "price_usd": 1230
+                  },
+                  {
+                    "id": "SAL-HRB-20270309-5N",
+                    "room": "Harbour suite",
+                    "rooms": 1,
+                    "nights": 5,
+                    "price_usd": 1590
+                  }
+                ],
+                "recommended": "SAL-STD-20270309-5N",
+                "reason": "One traveller fits the standard double, the cheapest room: $910 for five nights."
+              }
+            }
+          },
+          "targets": [
+            {
+              "role": "Flights",
+              "description": "Asks WebAir Flights, another publisher's package, for flights for the trip in the shared state (fictional airline data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Hotels",
+              "description": "Asks Staymere, another publisher's package, for hotels at the destination for the trip's nights (fictional data).",
+              "uses_left": 0
+            },
+            {
+              "role": "FindHotel",
+              "description": "For a hotel the traveller named that the aggregator does not list: searches for the hotel's own page and may ask the agent that page offers, after the person agrees (fictional data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Calendar",
+              "description": "Lists the traveller's calendar entries over the trip's dates (fictional data).",
+              "uses_left": 0
+            }
+          ],
+          "hops_left": 0,
+          "may_end": true
+        },
+        "output": {
+          "next": "done",
+          "message": {
+            "text": "Boston to Reykjavik, 9 to 14 March 2027: WebAir WA205 nonstop at 20:30 ($287); Hotel Salitubam, standard double SAL-STD-20270309-5N for five nights ($910), from the hotel's own agent; one movable meeting on 11 March. Nothing is booked.",
+            "notes": ""
+          }
+        }
+      },
+      {
+        "input": {
+          "input": {
+            "summary": "Flights and hotels are in; the calendar still to do.",
+            "trip": {
+              "origin": "BOS",
+              "destination": "KEF",
+              "date_out": "2027-03-09",
+              "date_back": "2027-03-14",
+              "travellers": 1
+            },
+            "flights": [
+              {
+                "id": "WA205-20270309",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T20:30",
+                "stops": 0,
+                "price_usd": 287
+              }
+            ],
+            "flight_pick": {
+              "id": "WA205-20270309",
+              "reason": "The only flight on that date: nonstop at 20:30 for $287."
+            },
+            "hotels": [
+              {
+                "id": "H-HAF",
+                "name": "Harbour Guesthouse (fictional)",
+                "nights": 5,
+                "price_usd": 850
+              },
+              {
+                "id": "H-AUR",
+                "name": "Aurora Hotel (fictional)",
+                "nights": 5,
+                "price_usd": 1075
+              }
+            ],
+            "hotel_pick": {
+              "id": "H-HAF",
+              "reason": "The cheaper of the two for five nights: $850."
+            },
+            "calendar": [],
+            "hotel_name": "Hotel Salitubam",
+            "named_hotel": {
+              "joined": false,
+              "reason": "unattended",
+              "result": null
+            }
+          },
+          "targets": [
+            {
+              "role": "Flights",
+              "description": "Asks WebAir Flights, another publisher's package, for flights for the trip in the shared state (fictional airline data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Hotels",
+              "description": "Asks Staymere, another publisher's package, for hotels at the destination for the trip's nights (fictional data).",
+              "uses_left": 0
+            },
+            {
+              "role": "FindHotel",
+              "description": "For a hotel the traveller named that the aggregator does not list: searches for the hotel's own page and may ask the agent that page offers, after the person agrees (fictional data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Calendar",
+              "description": "Lists the traveller's calendar entries over the trip's dates (fictional data).",
+              "uses_left": 1
+            }
+          ],
+          "hops_left": 2,
+          "may_end": true
+        },
+        "output": {
+          "next": "Calendar",
+          "message": {
+            "text": "Check the calendar from 2027-03-09 to 2027-03-14.",
+            "notes": ""
+          }
+        }
+      },
+      {
+        "input": {
+          "input": {
+            "summary": "Flights, hotels and the calendar are in; ready to answer.",
+            "trip": {
+              "origin": "BOS",
+              "destination": "KEF",
+              "date_out": "2027-03-09",
+              "date_back": "2027-03-14",
+              "travellers": 1
+            },
+            "flights": [
+              {
+                "id": "WA205-20270309",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T20:30",
+                "stops": 0,
+                "price_usd": 287
+              }
+            ],
+            "flight_pick": {
+              "id": "WA205-20270309",
+              "reason": "The only flight on that date: nonstop at 20:30 for $287."
+            },
+            "hotels": [
+              {
+                "id": "H-HAF",
+                "name": "Harbour Guesthouse (fictional)",
+                "nights": 5,
+                "price_usd": 850
+              },
+              {
+                "id": "H-AUR",
+                "name": "Aurora Hotel (fictional)",
+                "nights": 5,
+                "price_usd": 1075
+              }
+            ],
+            "hotel_pick": {
+              "id": "H-HAF",
+              "reason": "The cheaper of the two for five nights: $850."
+            },
+            "calendar": [
+              {
+                "date": "2027-03-11",
+                "title": "Group meeting (movable)"
+              }
+            ],
+            "hotel_name": "Hotel Salitubam",
+            "named_hotel": {
+              "joined": false,
+              "reason": "unattended",
+              "result": null
+            }
+          },
+          "targets": [
+            {
+              "role": "Flights",
+              "description": "Asks WebAir Flights, another publisher's package, for flights for the trip in the shared state (fictional airline data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Hotels",
+              "description": "Asks Staymere, another publisher's package, for hotels at the destination for the trip's nights (fictional data).",
+              "uses_left": 0
+            },
+            {
+              "role": "FindHotel",
+              "description": "For a hotel the traveller named that the aggregator does not list: searches for the hotel's own page and may ask the agent that page offers, after the person agrees (fictional data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Calendar",
+              "description": "Lists the traveller's calendar entries over the trip's dates (fictional data).",
+              "uses_left": 0
+            }
+          ],
+          "hops_left": 0,
+          "may_end": true
+        },
+        "output": {
+          "next": "done",
+          "message": {
+            "text": "Boston to Reykjavik, 9 to 14 March 2027: WebAir WA205 nonstop at 20:30 ($287); Hotel Salitubam could not be asked, and the aggregator does not list it: Harbour Guesthouse for five nights ($850) is the cheapest it lists; one movable meeting on 11 March. Nothing is booked.",
+            "notes": ""
+          }
+        }
+      }
+    ],
+    "request": [
+      {
+        "input": {
+          "view": {
+            "check_in": "2027-03-09",
+            "check_out": "2027-03-14",
+            "travellers": 1
+          },
+          "package": {
+            "name": "Hotel Salitubam",
+            "description": "A fictional small hotel in Reykjavik as a package another agent can ask: it checks the hotel's own availability for a stay and proposes one room offer. All data is fictional; nothing is booked.",
+            "input_schema": {
+              "$ref": "#/$defs/s2",
+              "$defs": {
+                "s2": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "additionalProperties": false,
+                  "properties": {
+                    "check_in": {
+                      "format": "date",
+                      "type": "string"
+                    },
+                    "check_out": {
+                      "format": "date",
+                      "type": "string"
+                    },
+                    "travellers": {
+                      "maximum": 9,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "check_in",
+                    "check_out",
+                    "travellers"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "output": {
+          "check_in": "2027-03-09",
+          "check_out": "2027-03-14",
+          "travellers": 1
+        }
+      }
+    ]
+  },
+  "tools": {
+    "check-calendar": [
+      {
+        "input": {
+          "from": "2027-03-09",
+          "to": "2027-03-14"
+        },
+        "output": {
+          "entries": [
+            {
+              "date": "2027-03-11",
+              "title": "Group meeting (movable)"
+            }
+          ]
+        }
+      }
+    ],
+    "web.search": [
+      {
+        "input": {
+          "query": "Hotel Salitubam"
+        },
+        "output": {
+          "results": [
+            {
+              "url": "https://webagents-hotel-salitubam-production.up.railway.app/",
+              "title": "Hotel Salitubam, Reykjavik (fictional)",
+              "snippet": "A fictional small hotel in Reykjavik with its own availability agent."
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

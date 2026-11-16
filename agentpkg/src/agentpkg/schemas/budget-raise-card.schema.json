@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "link.v0 budget-raise card facts (spec/link-v0.md L-43)",
+  "description": "What the runtime computed about the one request of a run to raise the person's own run limit. `reason` is the agent's words where the step states one; every other member is a fact.",
+  "type": "object",
+  "properties": {
+    "limit": {
+      "enum": [
+        "tokens",
+        "remote_calls"
+      ]
+    },
+    "from": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "to": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "needed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "used": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "package_cap": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 500
+    }
+  },
+  "required": [
+    "limit",
+    "from",
+    "to",
+    "needed",
+    "used",
+    "package_cap",
+    "node_id",
+    "reason"
+  ],
+  "additionalProperties": false
+}

@@ -82,11 +82,76 @@ class TranscriptConsent:
         return {"accepted": False, "decided_by": "host", "reason": NO_DECISION}
 
 
+#: What a run may ask the person outside a conversation's consent steps (link.v0 §6, §7): to
+#: join a package found during the run, and to raise their own run limit.
+RUN_REQUEST_KINDS = ("link.join", "budget.raise")
+
+
+@dataclass(frozen=True)
+class RunRequest:
+    """One card of a run: its kind, the run and the step that asks, and the facts the runtime
+    computed (`schemas/link-join-card.schema.json`, `schemas/budget-raise-card.schema.json`).
+    Nothing on it is a model's word except the member the facts mark as the agent's."""
+
+    kind: str
+    run_id: str
+    node_id: str
+    facts: Any
+    timeout_seconds: float
+
+
+class RunConsentHost(Protocol):
+    async def ask(self, request: RunRequest) -> dict: ...
+
+
+def check_run_decision(kind: str, value) -> dict:
+    """A host's answer to a run's card against its contract: `accepted` a boolean, `provenance`
+    a code naming where the answer came from (the host's surface, a fixture); for a join that
+    is accepted, the joined package's own `grants` and `approved_tools` (the card is that
+    package's authorization). Anything else is the host's failure, never a yes."""
+    allowed = {"accepted", "provenance"} | (
+        {"grants", "approved_tools"} if kind == "link.join" else set()
+    )
+    provenance = value.get("provenance") if isinstance(value, dict) else None
+    if (
+        not isinstance(value, dict)
+        or not isinstance(value.get("accepted"), bool)
+        or not (isinstance(provenance, str) and REASON_CODE.match(provenance))
+        or set(value) - allowed
+    ):
+        raise ConsentError(
+            "consent_decision_invalid",
+            f"the host answered a {kind} card outside the decision contract "
+            "({accepted: bool, provenance: code, …})",
+        )
+    decision = {"accepted": value["accepted"], "provenance": provenance}
+    if kind == "link.join":
+        grants = value.get("grants", {})
+        approved = value.get("approved_tools", [])
+        if (
+            not isinstance(grants, dict)
+            or not all(isinstance(k, str) and isinstance(v, str) for k, v in grants.items())
+            or not isinstance(approved, list)
+            or not all(isinstance(tool, str) for tool in approved)
+        ):
+            raise ConsentError(
+                "consent_decision_invalid",
+                "a join decision's grants are a map of permission ids to scopes and its "
+                "approved_tools a list of tool ids",
+            )
+        decision |= {"grants": dict(grants), "approved_tools": sorted(set(approved))}
+    return decision
+
+
 __all__ = [
     "DECIDED_BY",
     "NO_DECISION",
+    "RUN_REQUEST_KINDS",
     "ConsentHost",
     "ConsentRequest",
+    "RunConsentHost",
+    "RunRequest",
     "TranscriptConsent",
     "check_decision",
+    "check_run_decision",
 ]

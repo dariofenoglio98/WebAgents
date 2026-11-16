@@ -1,0 +1,29 @@
+{
+  "schema": "agentpkg-join-fixture-v0",
+  "pages": {
+    "https://webagents-hotel-salitubam-production.up.railway.app/": {
+      "content_type": "text/html; charset=utf-8",
+      "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Hotel Salitubam, Reykjavik (fictional)</title>\n<link rel=\"agent-package\" type=\"application/vnd.webagents.agent-package\" href=\"/agent.pkg\">\n</head>\n<body>\n<h1>Hotel Salitubam</h1>\n<p>A fictional small hotel in Reykjavik. All data is fictional; nothing is booked.</p>\n</body>\n</html>\n"
+    }
+  },
+  "packages": {
+    "https://webagents-hotel-salitubam-production.up.railway.app/agent.pkg": "../../dist/hotel-salitubam-0.1.0.agent.pkg"
+  },
+  "decisions": {
+    "joins": {
+      "named-hotel": [
+        {
+          "accepted": true,
+          "grants": {
+            "model.reasoning": "session",
+            "memory.session": "session",
+            "network.salitubam": "session"
+          },
+          "approved_tools": [
+            "check-availability"
+          ]
+        }
+      ]
+    }
+  }
+}

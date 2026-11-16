@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "check_in": {
+      "type": "string",
+      "format": "date"
+    },
+    "check_out": {
+      "type": "string",
+      "format": "date"
+    },
+    "travellers": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9
+    }
+  },
+  "required": [
+    "check_in",
+    "check_out",
+    "travellers"
+  ],
+  "additionalProperties": false
+}

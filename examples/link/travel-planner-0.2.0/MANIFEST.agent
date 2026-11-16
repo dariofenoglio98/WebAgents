@@ -1,0 +1,160 @@
+{
+  "spec_version": "0.1",
+  "package_id": "org.webagents.travel-planner",
+  "name": "Tripwright",
+  "version": "0.2.0",
+  "description": "A travel planner that asks other publishers' agents for help: WebAir Flights for the flights and Staymere for the hotels, each a signed package pinned by digest, its own calendar check, and, for a hotel you name that Staymere does not list, the agent that hotel's own page offers, joined only after you agree on its card. The model chooses whom to consult, within a declared envelope. All data is fictional; nothing is booked.",
+  "publisher": {
+    "id": "tripwright",
+    "name": "Tripwright (fictional travel planner)"
+  },
+  "created_at": "2026-11-15T12:00:00Z",
+  "runtime": {
+    "api": "agentpkg-runtime-v0",
+    "minimum_version": "0.8.0"
+  },
+  "capabilities": [],
+  "entrypoint": "workflow.v0",
+  "graph": "graph.json",
+  "policy": "policy/policy.json",
+  "skills": [
+    {
+      "id": "front-man",
+      "version": "0.1.0",
+      "path": "skills/front-man/SKILL.md"
+    },
+    {
+      "id": "find-hotel",
+      "version": "0.1.0",
+      "path": "skills/find-hotel/SKILL.md"
+    }
+  ],
+  "tools": [
+    {
+      "id": "check-calendar",
+      "path": "tools/check-calendar.tool.json"
+    },
+    {
+      "id": "web.search",
+      "path": "tools/web.search.tool.json"
+    }
+  ],
+  "schemas": [
+    {
+      "id": "request",
+      "path": "schemas/request.schema.json"
+    },
+    {
+      "id": "state",
+      "path": "schemas/state.schema.json"
+    },
+    {
+      "id": "network-state",
+      "path": "schemas/network-state.schema.json"
+    },
+    {
+      "id": "understanding",
+      "path": "schemas/understanding.schema.json"
+    },
+    {
+      "id": "flights-result",
+      "path": "schemas/flights-result.schema.json"
+    },
+    {
+      "id": "hotels-result",
+      "path": "schemas/hotels-result.schema.json"
+    },
+    {
+      "id": "calendar-query",
+      "path": "schemas/calendar-query.schema.json"
+    },
+    {
+      "id": "calendar-entries",
+      "path": "schemas/calendar-entries.schema.json"
+    },
+    {
+      "id": "result",
+      "path": "schemas/result.schema.json"
+    },
+    {
+      "id": "message",
+      "path": "schemas/message.schema.json"
+    },
+    {
+      "id": "search-query",
+      "path": "schemas/search-query.schema.json"
+    },
+    {
+      "id": "search-results",
+      "path": "schemas/search-results.schema.json"
+    },
+    {
+      "id": "stay",
+      "path": "schemas/stay.schema.json"
+    },
+    {
+      "id": "offers-result",
+      "path": "schemas/offers-result.schema.json"
+    },
+    {
+      "id": "join-outcome",
+      "path": "schemas/join-outcome.schema.json"
+    }
+  ],
+  "model_requirements": {
+    "tasks": [
+      {
+        "id": "understand",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "route",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "request",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      }
+    ],
+    "routing": "host",
+    "fallback_policy": "deny",
+    "extensions": {}
+  },
+  "evals": [],
+  "attestations": [],
+  "dependencies": [
+    {
+      "id": "webair-flights",
+      "package_id": "org.webagents.webair-flights",
+      "version": "0.1.0",
+      "digest": "0b360b6ba0692115a7d2e23a021db80816c0050fe1104ba4ecd618c8cc1d7c73",
+      "locator": "https://webagents-webair-production.up.railway.app/packages/webair-flights-0.1.0.agent.pkg",
+      "signer": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"
+    },
+    {
+      "id": "hotel-aggregator",
+      "package_id": "org.webagents.staymere-hotels",
+      "version": "0.1.0",
+      "digest": "5cb9ec65b9c36cb3392e1461e9f3fe4528b651df1833a7c9195ada09579a4005",
+      "locator": "https://webagents-staymere-production.up.railway.app/agent.pkg",
+      "signer": "sha256:b5d38cb824c79b318ae65dda8e65e3fe156299007cc09717eb345b34436c5199"
+    }
+  ],
+  "update": {
+    "channel": "local",
+    "locator": null
+  },
+  "extensions": {}
+}

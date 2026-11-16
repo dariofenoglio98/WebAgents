@@ -23,6 +23,9 @@ from agentpkg.workflow_values import references, tokens
 ROOT = Path(__file__).resolve().parents[2]
 AGENTS = ROOT / "agents"
 LINKED = {"webair-flights": "webair-flights", "hotel-aggregator": "staymere-hotels"}
+#: The planner 0.2.0's source and the join fixture, beside the generator until 0.2.0 is signed.
+STAGED = ROOT / "examples" / "link" / "travel-planner-0.2.0"
+JOIN_FIXTURE = ROOT / "examples" / "link" / "join-fixture.json"
 GRANTS = {"model.reasoning": "session", "memory.session": "session"}
 
 
@@ -237,6 +240,14 @@ def test_every_link_input_of_the_planner_reads_closed_fields_only():
     planner = load_package(AGENTS / "travel-planner")
     assert len(list(link_operations(planner.graph))) == 2
     assert open_sources(planner) == []
+    # 0.2.0: the two planned links and the slot's view (D-683's condition, both versions).
+    staged = load_package(STAGED)
+    assert [step.get("slot") for _, step, _, _ in link_operations(staged.graph)] == [
+        None,
+        None,
+        "named-hotel",
+    ]
+    assert open_sources(staged) == []
 
 
 @pytest.mark.parametrize(
@@ -282,3 +293,186 @@ def test_a_linked_package_runs_alone_and_states_its_worst_case(name):
     assert "1 model call, 1 call of its tool, 3 remote calls, 6,000 tokens" in readme.replace(
         "\n", " "
     ).replace("  ", " ")
+
+
+# -- the planner 0.2.0: FindHotel, the search and the slot (unsigned until the go/no-go) ----------
+
+
+def test_the_staged_planner_and_the_join_fixture_are_the_generator_output(generator):
+    staged = generator.staged()
+    members = staged.pop(generator.STAGED)
+    committed = {
+        path.relative_to(STAGED).as_posix()
+        for path in STAGED.rglob("*")
+        if path.is_file() and path.name != ".DS_Store"
+    }
+    assert committed == set(members)
+    for member, value in members.items():
+        text = (STAGED / member).read_text(encoding="utf-8")
+        assert (text == value) if isinstance(value, str) else (json.loads(text) == value), member
+    for name, value in staged.items():
+        assert json.loads((STAGED.parent / name).read_text(encoding="utf-8")) == value, name
+    # 0.1.0 is untouched by the generator's second version: same sources, same digests pinned.
+    assert (
+        load_package(STAGED).manifest["dependencies"]
+        == (load_package(AGENTS / "travel-planner").manifest["dependencies"])
+    )
+    assert load_package(STAGED).manifest["version"] == "0.2.0"
+
+
+def staged_run(
+    tmp_path, capsys, *, attended=True, input_value=None, fixture=JOIN_FIXTURE, completes=True
+):
+    """The planner 0.2.0 from its source through the CLI, with the two shipped linked archives
+    and, when a person is there, the join fixture (the hotel's recorded page, its shipped
+    archive, the recorded decision)."""
+    from agentpkg.cli import main
+
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    out = tmp_path / "out"
+    link = ROOT / "examples" / "link"
+    argv = ["run", str(STAGED), "--mode", "fixture"]
+    argv += ["--grants", str(link / "travel-planner-0.2.0-grants.json")]
+    for dependency, name in LINKED.items():
+        argv += ["--link", f"{dependency}={ROOT / 'dist' / (name + '-0.1.0.agent.pkg')}"]
+        argv += ["--link-grants", f"{dependency}={link / (name + '-grants.json')}"]
+    for tool in (
+        "check-calendar",
+        "web.search",
+        "webair-flights:search-flights",
+        "hotel-aggregator:search-hotels",
+    ):
+        argv += ["--approve-tool", tool]
+    if attended:
+        argv += ["--join-fixture", str(fixture)]
+    if input_value is not None:
+        path = tmp_path / "input.json"
+        path.write_text(json.dumps(input_value), encoding="utf-8")
+        argv += ["--input", str(path)]
+    status = main(argv + ["--out", str(out)])
+    assert (status == 0) is completes, capsys.readouterr().err
+    capsys.readouterr()
+    return out
+
+
+def read(out, name):
+    return json.loads((out / name).read_text(encoding="utf-8"))
+
+
+def test_the_join_fixture_walk_joins_the_named_hotel_and_attains_the_envelope(tmp_path, capsys):
+    out = staged_run(tmp_path, capsys)
+    audit, record = read(out, "audit.json"), read(out, "links.json")
+    step = "plan-trip/FindHotel/ask"
+    order = [
+        e["action"]
+        for e in audit
+        if e["node_id"] == step
+        and e["action"]
+        in ("link.requested", "link.decided", "model.called", "link.started", "link.completed")
+    ]
+    assert order == [
+        "link.requested",
+        "link.decided",
+        "model.called",
+        "link.started",
+        "link.completed",
+    ]
+    (requested,) = [e for e in audit if e["action"] == "link.requested"]
+    (decided,) = [e for e in audit if e["action"] == "link.decided"]
+    hotel = load_package(ROOT / "dist" / "hotel-salitubam-0.1.0.agent.pkg")
+    assert [(f["kind"], f["status"]) for f in requested["fetches"]] == [
+        ("discovery", "ok"),
+        ("package", "ok"),
+    ]
+    assert requested["candidate"]["digest"] == hotel.digest
+    assert (decided["accepted"], decided["decided_by"], decided["provenance"]) == (
+        True,
+        "person",
+        "fixture",
+    )
+    # The hotel the aggregator does not list, from its own agent.
+    output = read(out, "result.json")["output"]
+    assert output["named_hotel"]["joined"] is True
+    assert output["named_hotel"]["result"]["recommended"] == "SAL-STD-20270309-5N"
+    assert "SAL-STD-20270309-5N" in output["plan"] and "$910" in output["plan"]
+    assert record["joins"][0]["package"]["package_id"] == "org.webagents.hotel-salitubam"
+    # The envelope stated before consent holds the join at its ceiling, and the tour attains
+    # its model calls: 10 of the planner, one of each of the three other publishers' packages,
+    # and the request-building call.
+    planner = load_package(STAGED)
+    usage = read(out, "usage.json")
+    models = sum(1 for e in audit if e["action"] == "model.called") + sum(
+        link["model_calls"] for link in usage["links"].values()
+    )
+    walk = [e["role"] for e in audit if e["action"] == "network.activated"]
+    assert walk.count("FrontMan") == 5 and walk[5] == "FindHotel"
+    readme = (STAGED / "README.md").read_text(encoding="utf-8").replace("\n", " ")
+    assert "at most 8 handoffs; FrontMan at most 5 times" in readme
+    assert "at most 1 model call, 1 tool call, 3 remote calls and 6,000 tokens" in readme
+    slot = next(step for _, step, _, _ in link_operations(planner.graph) if "slot" in step)
+    assert slot["budget"] == {
+        "model_calls": 1,
+        "tool_calls": 1,
+        "compute_calls": 0,
+        "remote_calls": 3,
+        "tokens": 6000,
+    }
+    assert models == 14
+    assert usage["tool_calls"]["named-hotel:check-availability"] == 1
+
+
+def test_without_a_person_the_join_is_refused_and_the_plan_names_the_aggregators_hotel(
+    tmp_path, capsys
+):
+    out = staged_run(tmp_path, capsys, attended=False)
+    audit = read(out, "audit.json")
+    (decided,) = [e for e in audit if e["action"] == "link.decided"]
+    assert (decided["accepted"], decided["decided_by"], decided["reason"]) == (
+        False,
+        "runtime",
+        "unattended",
+    )
+    # Nothing was looked at, no card, no inner run of the hotel, no request-building call.
+    assert not [e for e in audit if e["action"] == "link.requested"]
+    assert not [e for e in audit if e["action"] == "link.started" and "slot" in e]
+    output = read(out, "result.json")["output"]
+    assert output["named_hotel"] == {"joined": False, "reason": "unattended", "result": None}
+    assert "Harbour Guesthouse" in output["plan"] and output["hotel_pick"]["id"] == "H-HAF"
+
+
+def test_the_address_the_person_gave_is_looked_at_before_the_search_results(
+    tmp_path, capsys, generator
+):
+    # The by-URL request: the same trip with the hotel's page in `hotel_url`. The slot looks
+    # at that address; the first search result is not consulted.
+    given = {**generator.NAMED_INPUT, "hotel_url": generator.HOTEL_PAGE + "#rooms"}
+    out = staged_run(tmp_path / "given", capsys, input_value=given)
+    (requested,) = [e for e in read(out, "audit.json") if e["action"] == "link.requested"]
+    assert requested["fetches"][0]["url"] == given["hotel_url"]
+    assert read(out, "result.json")["output"]["named_hotel"]["joined"] is True
+    # An address of the person's that advertises no package: `not_found`, and the search
+    # result's page, which does advertise one, is not looked at in its place.
+    elsewhere = "https://elsewhere.example/hotel"
+    fixture = json.loads(JOIN_FIXTURE.read_text())
+    fixture["pages"][elsewhere] = {"body": "<html><head><title>x</title></head></html>"}
+    fixture["packages"] = {
+        url: str((JOIN_FIXTURE.parent / path).resolve())
+        for url, path in fixture["packages"].items()
+    }
+    (tmp_path / "elsewhere").mkdir()
+    path = tmp_path / "elsewhere" / "join-fixture.json"
+    path.write_text(json.dumps(fixture), encoding="utf-8")
+    # The package's fixture replays two walks (joined, unattended), so this one stops at the
+    # planner's next model call; its record up to there is what is read.
+    out = staged_run(
+        tmp_path / "elsewhere",
+        capsys,
+        input_value={**given, "hotel_url": elsewhere},
+        fixture=path,
+        completes=False,
+    )
+    audit = read(out, "audit.json")
+    (requested,) = [e for e in audit if e["action"] == "link.requested"]
+    assert [(f["url"], f["status"]) for f in requested["fetches"]] == [(elsewhere, "no_candidate")]
+    (decided,) = [e for e in audit if e["action"] == "link.decided"]
+    assert decided["reason"] == "not_found"

@@ -1,0 +1,6 @@
+{
+  "model.reasoning": "session",
+  "memory.session": "session",
+  "network.webair": "session",
+  "network.search": "session"
+}

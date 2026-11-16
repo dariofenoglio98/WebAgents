@@ -1,0 +1,23 @@
+{
+  "spec_version": "0.1",
+  "id": "web.search",
+  "version": "0.1.0",
+  "description": "Search the web: a query in, at most five results out, each with its address, title and snippet. An abstract capability: the host binds an implementation the person approves; the endpoint named here is the planner's own fictional search service.",
+  "execution": "remote",
+  "binding": "web.search",
+  "endpoint": "https://webagents-tripwright-production.up.railway.app/api/v1/search",
+  "method": "POST",
+  "input_schema": "schemas/search-query.schema.json",
+  "output_schema": "schemas/search-results.schema.json",
+  "permissions": [
+    "network.search"
+  ],
+  "domains": [
+    "webagents-tripwright-production.up.railway.app"
+  ],
+  "timeout_seconds": 15,
+  "retries": 0,
+  "side_effects": "read",
+  "approval_required": false,
+  "extensions": {}
+}

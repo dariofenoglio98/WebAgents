@@ -227,6 +227,35 @@ def index_files() -> dict:
     }
 
 
+#: Where the package a slot can join is published, in the recorded web of a join scenario.
+HELPER_PAGE = "https://helper.example/"
+HELPER_ARCHIVE = "https://helper.example/agent.pkg"
+PAGE_WITH_PACKAGE = (
+    '<!doctype html><html><head><title>Helper</title><link rel="agent-package" '
+    'type="application/vnd.webagents.agent-package" href="/agent.pkg"></head>'
+    "<body>A fictional helper.</body></html>"
+)
+PAGE_WITHOUT_PACKAGE = (
+    "<!doctype html><html><head><title>Helper</title></head><body>Nothing here.</body></html>"
+)
+
+
+def helper_files() -> dict:
+    """The package a slot can join: `index` under another publisher's identity, its whole run
+    inside fifteen seconds, so that its worst case fits the probe's slot (0 model calls, 1 tool
+    call, 0 remote calls, 1 token, 15 seconds)."""
+    members = index_files()
+    manifest = members["MANIFEST.agent"]
+    manifest["package_id"] = "org.example.link-probe.helper"
+    manifest["name"] = "Helper"
+    manifest["description"] = "A test package for link.v0: a helper a slot can join."
+    graph = members["graph.json"]
+    graph["deadline_seconds"] = 15
+    graph["nodes"][0]["timeout_seconds"] = 10
+    graph["nodes"][1]["timeout_seconds"] = 5
+    return members
+
+
 def scribe_files() -> dict:
     """The linked package `scribe`: one model step that drafts a reply from the answers."""
     worker = {
@@ -420,6 +449,12 @@ class Scenario:
     extra_records: list = field(default_factory=list)
     #: A map caller's input, and the inner fixture cases its queries need.
     queries: list | None = None
+    #: The run-time half (spec sections 6 and 7), None for a scenario without it: what the
+    #: person put in the request (`url`), the recorded web (`page`, the `candidate`'s members,
+    #: `unsigned`, the key that signs it), and the person's recorded decisions (`decisions`:
+    #: the slot's join cards in order; `raise`: the budget-raise card; a missing key means
+    #: nobody is there to ask). `answer` replaces the request-building call's fixture answer.
+    join: dict | None = None
 
 
 @dataclass
@@ -430,6 +465,9 @@ class Built:
     grants: dict
     limits: dict | None
     public_keys: list
+    join_fixture: Path | None = None
+    #: The archive a slot can join, by slot id: what a verifier is handed beside the links'.
+    joinable: dict = field(default_factory=dict)
 
     def argv(self, directory: Path) -> list[str]:
         """The `agentpkg run` arguments beside the package and `--out`: what a conformance
@@ -452,10 +490,22 @@ class Built:
             path = directory / "limits.json"
             path.write_text(json.dumps(self.limits), encoding="utf-8")
             argv += ["--limits", str(path)]
+        if self.join_fixture is not None:
+            argv += ["--join-fixture", str(self.join_fixture)]
         return argv
 
 
-def _fixtures(scenario: Scenario) -> dict:
+def slot_of(members) -> tuple[str, dict] | None:
+    """The role that holds the caller's slot step, and the step."""
+    network = members["graph.json"].get("network") or {"roles": {}}
+    for role_id, role in network["roles"].items():
+        for step in role["steps"]:
+            if step.get("type") == "link" and "slot" in step:
+                return role_id, step
+    return None
+
+
+def _fixtures(scenario: Scenario, candidate=None) -> dict:
     """The three fixtures of one scripted walk: the caller's `read` and `route` cases (the route
     data as the runtime builds it, a denied link's role left out), `index`'s lookups and
     `scribe`'s drafts."""
@@ -479,6 +529,10 @@ def _fixtures(scenario: Scenario) -> dict:
             for step in role["steps"]
         )
     }
+    # Which of the slot's cards the person accepts, in order (the slot is in `Lookup`).
+    joined = [bool(d.get("accepted")) for d in (scenario.join or {}).get("decisions") or []]
+    if (scenario.join or {}).get("url") is not None:
+        caller["input"]["url"] = scenario.join["url"]
     notes, answers = [], []
     uses, activations = Counter(), Counter({"Desk": 1})
     hop, current, text = 0, "Desk", base.INPUT_TEXT
@@ -514,6 +568,23 @@ def _fixtures(scenario: Scenario) -> dict:
             base._append(index["tools"]["lookup"], {"input": {"query": text}, "output": found})
             answers = answers + [found]
             target, next_text = "Desk", found["answer"]
+            if candidate is not None and joined and joined.pop(0):
+                # The request-building call (L-37): its data is the slot's view and the joined
+                # package's name, description and input schema, exactly; its answer is the
+                # joined package's input.
+                from agentpkg.workflow import bundle_schema
+
+                manifest = candidate.manifest
+                data = {
+                    "view": {"query": text},
+                    "package": {
+                        "name": manifest["name"],
+                        "description": manifest["description"],
+                        "input_schema": bundle_schema(candidate, candidate.graph["input_schema"]),
+                    },
+                }
+                answer = (scenario.join or {}).get("answer", {"query": text})
+                base._append(caller["models"]["read"], {"input": data, "output": answer})
         elif current == "Writer":
             request = {"answers": list(answers), "text": text}
             draft = f"draft:{text}"
@@ -548,7 +619,8 @@ def write(directory: Path, scenario: Scenario, keys: dict) -> Built:
     from agentpkg.signing import _read_key, fingerprint, sign_package
 
     directory.mkdir(parents=True, exist_ok=True)
-    fixtures = _fixtures(scenario)
+    join_fixture, candidate, joinable = _write_join(directory, scenario, keys)
+    fixtures = _fixtures(scenario, candidate)
     archives, records = {}, []
     for name, members in scenario.linked.items():
         private_key, public_key = keys.get(name, keys["default"])
@@ -585,7 +657,76 @@ def write(directory: Path, scenario: Scenario, keys: dict) -> Built:
         grants=dict(scenario.grants),
         limits=scenario.limits,
         public_keys=sorted({public for _, public in keys.values()}),
+        join_fixture=join_fixture,
+        joinable=joinable,
     )
+
+
+def _write_join(directory: Path, scenario: Scenario, keys: dict):
+    """The join fixture of a scenario (`agentpkg run --join-fixture`): the recorded web (the
+    page the person named and the candidate's archive, built and signed here with its own
+    publisher's key) and the person's recorded decisions. Returns the fixture's path and the
+    candidate's package, or `(None, None)` for a scenario without the run-time half."""
+    import json
+
+    from agentpkg.package import build_package, load_package
+    from agentpkg.signing import sign_package
+
+    join = scenario.join
+    if join is None:
+        return None, None, {}
+    document = {"schema": "agentpkg-join-fixture-v0"}
+    candidate, joinable = None, {}
+    if "archive" in join:
+        # A candidate taken as it is: some signed archive the page advertises.
+        import shutil
+
+        archive = directory / "helper.agent.pkg"
+        shutil.copyfile(join["archive"], archive)
+        candidate = load_package(archive)
+        slot = slot_of(scenario.caller)
+        joinable = {slot[1]["slot"] if slot else "helper": archive}
+        document["pages"] = {HELPER_PAGE: {"body": join.get("page", PAGE_WITH_PACKAGE)}}
+        document["packages"] = {HELPER_ARCHIVE: archive.name}
+    elif "candidate" in join:
+        members = copy.deepcopy(join["candidate"])
+        # The joined package replays its own fixture: one lookup per query a walk can send it.
+        queries = [reply for target, reply in scenario.walk if target == "Lookup"] or ["none"]
+        members.setdefault(
+            "fixtures/workflow.json",
+            {
+                "profile": "workflow.fixture.v0",
+                "input": {"query": queries[0]},
+                "models": {},
+                "tools": {
+                    "lookup": [
+                        {"input": {"query": q}, "output": {"query": q, "answer": f"helped:{q}"}}
+                        for q in dict.fromkeys(queries)
+                    ]
+                },
+            },
+        )
+        source = base.write(directory / "candidate", members)
+        archive = build_package(source, directory / "helper.unsigned.agent.pkg")
+        if not join.get("unsigned"):
+            private_key, _ = keys.get(join.get("key", "helper"), keys["default"])
+            archive = sign_package(archive, private_key, directory / "helper.agent.pkg")
+        candidate = load_package(archive)
+        slot = slot_of(scenario.caller)
+        joinable = {slot[1]["slot"] if slot else "helper": Path(archive)}
+        document["pages"] = {HELPER_PAGE: {"body": join.get("page", PAGE_WITH_PACKAGE)}}
+        document["packages"] = {HELPER_ARCHIVE: Path(archive).name}
+    decisions = {}
+    if "decisions" in join:
+        slot = slot_of(scenario.caller)
+        decisions["joins"] = {slot[1]["slot"] if slot else "helper": list(join["decisions"])}
+    if "raise" in join:
+        decisions["raise"] = dict(join["raise"])
+    if decisions:
+        document["decisions"] = decisions
+    path = directory / "join-fixture.json"
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    return path, candidate, joinable
 
 
 def scenario(variant: str | None = None) -> Scenario:
@@ -747,6 +888,12 @@ def _slot_bound(s):
     add_slot(s, budget={"model_calls": 1, "tokens": 100000})
 
 
+def _slot_input(s):
+    # The whole message by reference: the card could name none of the fields that would go to
+    # the request-building call.
+    add_slot(s, input=message())
+
+
 def _digest_mismatch(s):
     s.record_overrides["index"] = {"digest": "0" * 64}
 
@@ -896,14 +1043,11 @@ def _link_in_map(s):
     )
 
 
-def _linked_compute(s):
-    """`index` passes its answer through one WebAssembly module (compute.v0's `echo` case
-    module), so each of its inner runs makes one compute call; the caller declares no module.
-    The caller's usage holds those calls (L-26)."""
+def add_echo(index) -> None:
+    """One WebAssembly step (compute.v0's `echo` case module) after an index-like package's
+    lookup, so that each of its runs makes one compute call."""
     import hashlib
 
-    s.walk = list(FULL_TOUR)
-    index = s.linked["index"]
     module = (ROOT / "examples" / "compute" / "cases" / "modules" / "echo.wasm").read_bytes()
     index["modules/echo.wasm"] = module
     graph = index["graph.json"]
@@ -934,6 +1078,14 @@ def _linked_compute(s):
             "resources": ["echo"],
         }
     )
+
+
+def _linked_compute(s):
+    """`index` passes its answer through one WebAssembly module, so each of its inner runs
+    makes one compute call; the caller declares no module. The caller's usage holds those calls
+    (L-26)."""
+    s.walk = list(FULL_TOUR)
+    add_echo(s.linked["index"])
     s.decisions["index"]["grants"]["compute.modules"] = "session"
 
 
@@ -943,6 +1095,195 @@ def _approval_threshold(s):
     s.walk = list(FULL_TOUR)
     s.caller["policy/policy.json"]["budget"]["approval_threshold_tokens"] = 2000
 
+
+# -- the run-time half: the join (section 6) and the raise (section 7) ---------------------------
+
+HELPER_GRANTS = {"model.reasoning": "session", "memory.session": "session", "desk.read": "session"}
+#: The person accepts the helper's card, with that package's own grants and tool approval.
+ACCEPT = {"accepted": True, "grants": HELPER_GRANTS, "approved_tools": ["lookup"]}
+
+
+def with_join(s, *, role_id="Lookup", slot=None, **join) -> dict:
+    """A slot in one of the caller's roles, the address of the helper's page in the request,
+    and the recorded web that serves the helper. The role's worker gets a token budget: the
+    request-building call is its own."""
+    step = add_slot(s, role_id, **(slot or {}))
+    base.worker(s.caller, role_id)["budget"]["tokens"] = 800
+    # The slot at its ceiling and the worker's budget are inside the caller's own budget (L-21).
+    s.caller["policy/policy.json"]["budget"].update(estimated_tokens=14000, hard_tokens=14000)
+    s.join = {"url": HELPER_PAGE, "candidate": helper_files(), **join}
+    return step
+
+
+def _ceiling(**figures) -> dict:
+    return {"model_calls": 1, "tool_calls": 1, "remote_calls": 0, "tokens": 400} | figures
+
+
+def _unattended_join(s):
+    with_join(s)
+
+
+def _join_declined(s):
+    with_join(s, decisions=[{"accepted": False}])
+
+
+def _join_cap(s):
+    with_join(s, decisions=[ACCEPT])
+    s.walk = list(FULL_TOUR)
+
+
+def _join_not_found(s):
+    with_join(s, decisions=[ACCEPT], page=PAGE_WITHOUT_PACKAGE)
+
+
+def _join_verification(s):
+    with_join(s, decisions=[ACCEPT], unsigned=True)
+
+
+def _join_nested(s):
+    # A candidate that declares a dependency and holds a link step: its run could start a
+    # further run.
+    with_join(s, decisions=[ACCEPT])
+    helper = s.join["candidate"]
+    helper["MANIFEST.agent"]["dependencies"] = [
+        {
+            "id": "deep",
+            "package_id": "org.example.deep",
+            "version": "0.1.0",
+            "digest": "1" * 64,
+            "locator": "https://packages.example/deep.agent.pkg",
+        }
+    ]
+    node = helper["graph.json"]["nodes"][0]
+    node.pop("tool")
+    node.update(type="link", dependency="deep")
+    helper["fixtures/workflow.json"] = {
+        "profile": "workflow.fixture.v0",
+        "input": {"query": "none"},
+        "models": {},
+        "tools": {"lookup": []},
+    }
+
+
+def _join_conversational(s):
+    # The page advertises a signed conversation package: not something a link can run, and
+    # nothing a worst case is computed for.
+    with_join(s, decisions=[ACCEPT])
+    del s.join["candidate"]
+    s.join["archive"] = CONVERSATIONAL
+
+
+def _declined_key_planned_link(s):
+    # `index` is accepted at the review. Writer's slot then finds a package `index`'s key
+    # signed, and the person declines its card: that key is denied for the rest of the run,
+    # so the planned link to `index`, reached afterwards, starts no inner run.
+    with_join(s, role_id="Writer", decisions=[{"accepted": False}], key="index")
+    s.walk = [("Writer", "write it up"), ("Lookup", "look up hello"), ("done", "all done")]
+
+
+def _join_denied_publisher(s):
+    # The person denied `index`'s publisher at the review; the page the slot looks at
+    # advertises a package that key signed.
+    with_join(s, role_id="Writer", decisions=[ACCEPT], key="index")
+    s.decisions["index"] = {"decision": "denied"}
+    s.walk = [("Writer", "write it up"), ("done", "all done")]
+
+
+def _over_model_calls(s):
+    # A candidate with one model step, under a ceiling of none.
+    with_join(s, decisions=[ACCEPT], slot={"budget": _ceiling(model_calls=0)})
+    candidate = scribe_files()
+    candidate["MANIFEST.agent"]["package_id"] = "org.example.link-probe.helper"
+    candidate["fixtures/workflow.json"] = {
+        "profile": "workflow.fixture.v0",
+        "input": {"answers": [], "text": "none"},
+        "models": {"draft": []},
+        "tools": {},
+    }
+    s.join["candidate"] = candidate
+
+
+def _over_tool_calls(s):
+    with_join(s, decisions=[ACCEPT], slot={"budget": _ceiling(tool_calls=0)})
+
+
+def _over_compute_calls(s):
+    with_join(s, decisions=[ACCEPT])
+    add_echo(s.join["candidate"])
+
+
+def _over_remote_calls(s):
+    with_join(s, decisions=[ACCEPT])
+    s.join["candidate"]["policy/policy.json"]["budget"]["max_remote_calls"] = 2
+
+
+def _over_tokens(s):
+    with_join(s, decisions=[ACCEPT], slot={"budget": _ceiling(tokens=0)})
+
+
+def _over_seconds(s):
+    with_join(s, decisions=[ACCEPT], slot={"timeout_seconds": 10})
+
+
+def _join_budget(s):
+    # The candidate's own cap is 900 tokens, inside the slot's ceiling; the host's limit
+    # leaves the run less than that when the slot is reached, and enough for the rest.
+    with_join(s, decisions=[ACCEPT], slot={"budget": _ceiling(tokens=1000)})
+    s.join["candidate"]["policy/policy.json"]["budget"].update(
+        estimated_tokens=900, hard_tokens=900
+    )
+    s.limits = {"hard_tokens": JOIN_BUDGET_LIMIT}
+    s.walk = [("Lookup", "look up hello"), ("done", "all done")]
+
+
+def _join_request_nonconforming(s):
+    with_join(s, decisions=[ACCEPT], answer={"q": "not the joined package's input"})
+
+
+def _join_inner_failed(s):
+    # The person accepts the card and denies the one permission the helper's tool needs.
+    with_join(s, decisions=[{**ACCEPT, "grants": {**HELPER_GRANTS, "desk.read": "deny"}}])
+
+
+def _join_accepted(s):
+    with_join(s, decisions=[ACCEPT])
+
+
+#: The host's token limits of the raise cases: `scribe`'s reservation (1,500 tokens) does not fit
+#: what the run has left under RAISE_LIMIT and fits after a raise of less than half of it;
+#: under SECOND_RAISE_LIMIT Desk's own route call asks the one raise of the run first.
+RAISE_LIMIT = 1700
+SECOND_RAISE_LIMIT = 500
+JOIN_BUDGET_LIMIT = 1200
+
+
+def _raise_accepted(s):
+    s.limits = {"hard_tokens": RAISE_LIMIT}
+    s.join = {"raise": {"accepted": True}}
+
+
+def _raise_denied(s):
+    s.limits = {"hard_tokens": RAISE_LIMIT}
+    s.join = {"raise": {"accepted": False}}
+
+
+def _raise_unattended(s):
+    s.limits = {"hard_tokens": RAISE_LIMIT}
+
+
+def _package_cap_never_raised(s):
+    # Desk's own budget, the package's declaration, is what refuses its route call; the person
+    # is there and would say yes.
+    base.worker(s.caller, "Desk")["budget"]["tokens"] = DESK_BUDGET
+    s.join = {"raise": {"accepted": True}}
+
+
+def _second_raise_refused(s):
+    s.limits = {"hard_tokens": SECOND_RAISE_LIMIT}
+    s.join = {"raise": {"accepted": True}}
+
+
+DESK_BUDGET = 400
 
 VARIANTS = {
     "minimum-version": _minimum_version,
@@ -980,4 +1321,29 @@ VARIANTS = {
     "link-in-map": _link_in_map,
     "linked-compute": _linked_compute,
     "approval-threshold": _approval_threshold,
+    "unattended-join": _unattended_join,
+    "join-declined": _join_declined,
+    "join-cap": _join_cap,
+    "join-not-found": _join_not_found,
+    "join-verification": _join_verification,
+    "join-nested": _join_nested,
+    "join-denied-publisher": _join_denied_publisher,
+    "join-over-ceiling-model-calls": _over_model_calls,
+    "join-over-ceiling-tool-calls": _over_tool_calls,
+    "join-over-ceiling-compute-calls": _over_compute_calls,
+    "join-over-ceiling-remote-calls": _over_remote_calls,
+    "join-over-ceiling-tokens": _over_tokens,
+    "join-over-ceiling-seconds": _over_seconds,
+    "join-budget": _join_budget,
+    "join-request-nonconforming": _join_request_nonconforming,
+    "join-inner-failed": _join_inner_failed,
+    "join-accepted": _join_accepted,
+    "raise-accepted": _raise_accepted,
+    "raise-denied": _raise_denied,
+    "raise-unattended": _raise_unattended,
+    "package-cap-never-raised": _package_cap_never_raised,
+    "second-raise-refused": _second_raise_refused,
+    "slot-input": _slot_input,
+    "join-conversational": _join_conversational,
+    "declined-key-planned-link": _declined_key_planned_link,
 }
