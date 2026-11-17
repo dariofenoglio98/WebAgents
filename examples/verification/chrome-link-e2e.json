@@ -1,6 +1,6 @@
 {
   "profile": "chrome-link-e2e-v0",
-  "recordedAt": "2026-11-17T14:28:02.860Z",
+  "recordedAt": "2026-11-17T14:59:03.857Z",
   "chrome": "Chrome/157.0.8103.51",
   "model": {
     "id": "ollama/link-fixture",
@@ -42,7 +42,7 @@
       ]
     }
   },
-  "outputDirectory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z",
+  "outputDirectory": "examples/my-chrome-link-2026-11-17T14-59-03-857Z",
   "packages": {
     "planner010": {
       "package_id": "org.webagents.travel-planner",
@@ -89,9 +89,9 @@
     "package_id": "org.webagents.travel-planner",
     "version": "0.2.0",
     "digest": "4ff810008db2f9d99ce6210b1118973f0978d61068131cf714dabb836b711a9b",
-    "archiveSha256": "b18fe31f257932c70dec94ca5b203a2af9c8969bcffa6715c3a8927de4d09fea",
+    "archiveSha256": "c0d60cf470f67c9880604f78e664a4b291c4b3389ddba8e6ccf6509caa4c58cc",
     "bytes": 53325,
-    "signer": "sha256:d94a3e96c7bf8bbbe1152541d8a4a7f9d5ea819f507566de8d6b42819c2e493d",
+    "signer": "sha256:c655b89d07767e604bbe6396bba559efeb12b74a4f025eaf750be153da9e530a",
     "of": "org.webagents.travel-planner 0.2.0",
     "change": {
       "worker": "FindHotel",
@@ -103,15 +103,15 @@
     "signedWith": "a throwaway key made for this run; the archive is never written into the repository"
   },
   "fakes": {
-    "ollama": "http://127.0.0.1:58820",
+    "ollama": "http://127.0.0.1:59890",
     "origins": {
-      "webagents-tripwright-production.up.railway.app": "127.0.0.1:58821",
-      "webagents-webair-production.up.railway.app": "127.0.0.1:58822",
-      "webagents-staymere-production.up.railway.app": "127.0.0.1:58823",
-      "webagents-hotel-salitubam-production.up.railway.app": "127.0.0.1:58824"
+      "webagents-tripwright-production.up.railway.app": "127.0.0.1:59891",
+      "webagents-webair-production.up.railway.app": "127.0.0.1:59892",
+      "webagents-staymere-production.up.railway.app": "127.0.0.1:59893",
+      "webagents-hotel-salitubam-production.up.railway.app": "127.0.0.1:59894"
     }
   },
-  "referenceDirectory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/reference",
+  "referenceDirectory": "examples/my-chrome-link-2026-11-17T14-59-03-857Z/reference",
   "scenarios": {
     "planned": {
       "review": {
@@ -170,7 +170,7 @@
         }
       },
       "deniedPlan": {
-        "run_plan_sha256": "be3973a1c86880dc7b641197719ced2a9f09fa05135bf3f2140f106d5910a307",
+        "run_plan_sha256": "2c53c1d6d36ee8c48c79d47f80bf980a7a9e2e4421d73ade8b26c99799874fdb",
         "links": {
           "hotel-aggregator": {
             "package_id": "org.webagents.staymere-hotels",
@@ -190,7 +190,7 @@
             "signer": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
             "trust": "trusted",
             "decision": "accepted",
-            "plan_hash": "76fb43dd4ece4fb3d6e8d853cc703c894dfb6a267cb8b4db4e310b829f9dab72"
+            "plan_hash": "27d56ad0a3eb59ab9a58f100494d936cbae7455e05ef8b33100179620520617d"
           }
         },
         "network": {
@@ -238,7 +238,7 @@
         ]
       },
       "denied": {
-        "runId": "run_c2607e8a0f0441baacf01253ff74b84f",
+        "runId": "run_f9a6d64f2a4941009bef5540bf26c403",
         "status": "completed",
         "errorCode": null,
         "tree": [
@@ -251,17 +251,17 @@
           }
         ],
         "export": {
-          "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-denied",
+          "directory": "examples/my-chrome-link-2026-11-17T14-59-03-857Z/export-denied",
           "entries": [
             {
               "name": "run.json",
               "bytes": 13698,
-              "sha256": "2576af47bb209ffbad719325a3096eb725881235b65c5b760440f74458a2c6fd"
+              "sha256": "ec8a6c5bd9ab7a53bb8c4c1084f9bf81548671fa499bed1e2cf116ea3eb3df8a"
             },
             {
               "name": "run-plan.json",
               "bytes": 14839,
-              "sha256": "9e8d3a903556ebda2a823bae64db589e955b833139ae9e7a83d36d8a6cc0fdc5"
+              "sha256": "a3dfd9d2192026ffafc7eab086d08120550fe55e911cfcacf72a007a6f568a22"
             },
             {
               "name": "input.json",
@@ -271,37 +271,37 @@
             {
               "name": "link-plan-webair-flights.json",
               "bytes": 12623,
-              "sha256": "5bcb9b915ad9de8a91a884bef3f460928cb27c50435c09c319fbc32598914dda"
+              "sha256": "bafb2f2a7f0da06d510350deb6f90c209a9edbe28a445f84bd616cf77819ff59"
             },
             {
               "name": "audit.json",
               "bytes": 75562,
-              "sha256": "65a79b742d3d2b92bf7567b0874c3dc44b122e4b6a78a2a6763b741c4435a703"
+              "sha256": "c0d16132d30d13c0cd8a3ca51922289054a69f2cc871ce216c0c0856c9830be8"
             },
             {
-              "name": "link-6e14822f-42fc-44f6-9e81-f3c01d828945.audit.json",
+              "name": "link-d6a0fa10-14a1-4132-bbc8-3f37d1d1efb7.audit.json",
               "bytes": 26130,
-              "sha256": "ec790ba0f092665c0957ccab50c3077e7dcb02615e42132c63d72c8a29b8d6cb"
+              "sha256": "218becbfce51fec862779e4b560296d0696b576d3caa2d7563479c81e16ec1e7"
             },
             {
-              "name": "link-6e14822f-42fc-44f6-9e81-f3c01d828945.provenance.json",
+              "name": "link-d6a0fa10-14a1-4132-bbc8-3f37d1d1efb7.provenance.json",
               "bytes": 248,
               "sha256": "a77e3511dd1881f25eefc0400ac2652186af84fdb331c99a4e50e00bfd1b9762"
             },
             {
-              "name": "link-6e14822f-42fc-44f6-9e81-f3c01d828945.result.json",
+              "name": "link-d6a0fa10-14a1-4132-bbc8-3f37d1d1efb7.result.json",
               "bytes": 29964,
-              "sha256": "82ff496069002d2b7527537f218fdd8efbcafab8d92eecedcdf3587ed6f2d6f3"
+              "sha256": "a2efa47cb0a838c243526550971e581f066b64b85645187f3f443ec7895fabac"
             },
             {
-              "name": "link-6e14822f-42fc-44f6-9e81-f3c01d828945.usage.json",
+              "name": "link-d6a0fa10-14a1-4132-bbc8-3f37d1d1efb7.usage.json",
               "bytes": 743,
               "sha256": "6051057e200713258b80b034e0533143d301e621ef8f330281af14d4cfa53ea6"
             },
             {
               "name": "links.json",
               "bytes": 5529,
-              "sha256": "30f7834e45aef7b489830adb4ba5598aafc85150ac2215b7f58524ff12c1fa27"
+              "sha256": "e85cab42659d3c44bd008fc047c2fd71dea237df8146dcb560dc6e155db98a08"
             },
             {
               "name": "plan.json",
@@ -321,7 +321,7 @@
             {
               "name": "result.json",
               "bytes": 89209,
-              "sha256": "4e132bf67fe7f5c3470a5604025a7977044d0989957217beba5f53ee2f41f213"
+              "sha256": "cd1f4421bc86d9d192d0941205899f6d5b3ea554cb6ace57dcb0a8c043d62b62"
             },
             {
               "name": "usage.json",
@@ -333,13 +333,13 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 3728
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 3230
             },
             {
@@ -351,19 +351,19 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 2224
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 3945
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 3395
             },
             {
@@ -375,20 +375,20 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4008
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 3434
             }
           ]
         }
       },
       "plan": {
-        "run_plan_sha256": "d5dfbfdd020cfd831377a44068f012184d27bd9c2d953be97db3363822604ed1",
+        "run_plan_sha256": "12fa7eea5ddbc6ad7672d9a32a7d4bc5c1e94c372d1aa3baf8e8e772957579f5",
         "links": {
           "hotel-aggregator": {
             "package_id": "org.webagents.staymere-hotels",
@@ -398,7 +398,7 @@
             "signer": "sha256:b5d38cb824c79b318ae65dda8e65e3fe156299007cc09717eb345b34436c5199",
             "trust": "trusted",
             "decision": "accepted",
-            "plan_hash": "51fd2e621ee7175fc342da34107a7c7506100eab1940834656891ad0acb5852a"
+            "plan_hash": "47430f87dbb88443724804e8df72da70c72343e355ae38112224bce9c86092e5"
           },
           "webair-flights": {
             "package_id": "org.webagents.webair-flights",
@@ -408,7 +408,7 @@
             "signer": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
             "trust": "trusted",
             "decision": "accepted",
-            "plan_hash": "a25cfc88364b61ed3a1b260349e1fe71efd1fa5ce2aea97b4744df7a71dbc882"
+            "plan_hash": "aaed8702f4c0273d8deaf560573e155ec1b4ee087ce77ac492f10c3f12047d62"
           }
         },
         "network": {
@@ -471,7 +471,7 @@
         ]
       },
       "run": {
-        "runId": "run_8baafcdf8f904fbca364838b9d7a0855",
+        "runId": "run_4feff9a1716b471e91ae79a1fba2a116",
         "status": "completed",
         "errorCode": null,
         "usage": {
@@ -545,17 +545,17 @@
           }
         ],
         "export": {
-          "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-planned",
+          "directory": "examples/my-chrome-link-2026-11-17T14-59-03-857Z/export-planned",
           "entries": [
             {
               "name": "run.json",
               "bytes": 15635,
-              "sha256": "fafc4e77e27821f50f2205a09ee3e77acd4d7117e6590100710aea0a401191f3"
+              "sha256": "473e34b249a02af2171cc2dce63522637b7dd529508c666975458293b6e3bbb6"
             },
             {
               "name": "run-plan.json",
               "bytes": 15049,
-              "sha256": "c7d32f892ac3dd703d087d67ecce43ae3ff39e34e90f683661d6b8829a45065a"
+              "sha256": "ca0d4e6ef91521217e2568428a28f1b6ceb19687570e69d604290e7d3104b121"
             },
             {
               "name": "input.json",
@@ -565,62 +565,62 @@
             {
               "name": "link-plan-hotel-aggregator.json",
               "bytes": 12594,
-              "sha256": "af01c9cdcac2e8cbd3ede7b77e5392f8cdc7f0110bf2b7353e546ed96e618399"
+              "sha256": "7e6931f3a1c58c582427d58c5b64e672b8361b3510a02c1716d7020775a1e9b6"
             },
             {
               "name": "link-plan-webair-flights.json",
               "bytes": 12623,
-              "sha256": "0c32f1b1a7eacbac91dcfa1ed92a5075dc8341299d64b1ba17271eaf7135bf4c"
+              "sha256": "a8413f5dab567f8ab7175e403686cbf037a195d56dce8eec0ff14499990f0d2a"
             },
             {
               "name": "audit.json",
               "bytes": 99939,
-              "sha256": "b555567bb974f272b1fdedf9a2cf96705728f69de76dc283740e6ffd5a699b33"
+              "sha256": "e17547bd587068d19fa550b9c2807fe301fd84ba48fd2fcd5ba95e0a9156c6df"
             },
             {
-              "name": "link-76569f92-f2f6-4265-8012-5c8fdfb5d020.audit.json",
-              "bytes": 26129,
-              "sha256": "f85a06fe8c574d839d847a3a20c87ad607848ff14de2b5437af71e272a3ea907"
-            },
-            {
-              "name": "link-76569f92-f2f6-4265-8012-5c8fdfb5d020.provenance.json",
-              "bytes": 249,
-              "sha256": "34e1f33bf88794bb96d9196a77fbf088f2092881dc85c6503c4b2df0980cedac"
-            },
-            {
-              "name": "link-76569f92-f2f6-4265-8012-5c8fdfb5d020.result.json",
-              "bytes": 30223,
-              "sha256": "0d0c066e8f4d0d2876fefac2fb84f0fbc95c6420c747b25f3f1aaef0e59022d8"
-            },
-            {
-              "name": "link-76569f92-f2f6-4265-8012-5c8fdfb5d020.usage.json",
-              "bytes": 740,
-              "sha256": "7b3162b674319aefb04a8aeb5285208ff72af913dfd7699beccfa3c81ae5c0a5"
-            },
-            {
-              "name": "link-8d0f01f7-6ef4-4285-9890-6157b4bacb57.audit.json",
+              "name": "link-85bd3499-0ecc-4845-8fea-0a39a845cb08.audit.json",
               "bytes": 26130,
-              "sha256": "d04a0f63f47dbf06d4c361a9b6cb1be7b15aca27ddc0920268a686e7cf030d67"
+              "sha256": "ee3a567808f342c52f83c409f79e02a4795a6710af43bd40fe00e18fd1b4a9d9"
             },
             {
-              "name": "link-8d0f01f7-6ef4-4285-9890-6157b4bacb57.provenance.json",
+              "name": "link-85bd3499-0ecc-4845-8fea-0a39a845cb08.provenance.json",
               "bytes": 248,
               "sha256": "a77e3511dd1881f25eefc0400ac2652186af84fdb331c99a4e50e00bfd1b9762"
             },
             {
-              "name": "link-8d0f01f7-6ef4-4285-9890-6157b4bacb57.result.json",
+              "name": "link-85bd3499-0ecc-4845-8fea-0a39a845cb08.result.json",
               "bytes": 29964,
-              "sha256": "058432260a6dcb52d16f30a25d80435c4715d39ebded5455a666a0c09c10f091"
+              "sha256": "603a95dd38d3d2dfa71b3430378a9b2cb06f9c80bf9de0707bd36f43597f86a9"
             },
             {
-              "name": "link-8d0f01f7-6ef4-4285-9890-6157b4bacb57.usage.json",
+              "name": "link-85bd3499-0ecc-4845-8fea-0a39a845cb08.usage.json",
               "bytes": 743,
               "sha256": "6051057e200713258b80b034e0533143d301e621ef8f330281af14d4cfa53ea6"
             },
             {
+              "name": "link-d619c985-a750-4599-b970-bc7b35321f8d.audit.json",
+              "bytes": 26129,
+              "sha256": "e1506522e290c58f980314e15cbbbfa4a1bf85a635e2b470998936a8f5daeb2d"
+            },
+            {
+              "name": "link-d619c985-a750-4599-b970-bc7b35321f8d.provenance.json",
+              "bytes": 249,
+              "sha256": "34e1f33bf88794bb96d9196a77fbf088f2092881dc85c6503c4b2df0980cedac"
+            },
+            {
+              "name": "link-d619c985-a750-4599-b970-bc7b35321f8d.result.json",
+              "bytes": 30223,
+              "sha256": "4e1019973000ba3b184c1119bc4666e40c4842b792923c1b541e9d842f02c4b5"
+            },
+            {
+              "name": "link-d619c985-a750-4599-b970-bc7b35321f8d.usage.json",
+              "bytes": 740,
+              "sha256": "7b3162b674319aefb04a8aeb5285208ff72af913dfd7699beccfa3c81ae5c0a5"
+            },
+            {
               "name": "links.json",
               "bytes": 9927,
-              "sha256": "eaf4d5b36912e52ad9c08408a3a224cb90027de58a2f501d5ccf77469f5a8027"
+              "sha256": "5646a4309355e90ffdeaf8963b8ac38195f54b6f37d1c06a21f89bd41bc7c133"
             },
             {
               "name": "plan.json",
@@ -640,7 +640,7 @@
             {
               "name": "result.json",
               "bytes": 121129,
-              "sha256": "ccfd9e8f25f6272821e9d68ddd6b0c38e84d11e34979fc5628a267ffc37b1dcb"
+              "sha256": "d55a205c582f669f29a84059b1ac12ef28bad7caef10c8ff6582aee5f28aaa5d"
             },
             {
               "name": "usage.json",
@@ -652,13 +652,13 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 3728
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 3422
             },
             {
@@ -670,19 +670,19 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 2224
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 3945
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 3587
             },
             {
@@ -694,19 +694,19 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 2264
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4202
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 3844
             },
             {
@@ -718,13 +718,13 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4265
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 3913
             }
           ]
@@ -733,10 +733,10 @@
     },
     "join": {
       "signed": {
-        "sessionId": "d568a4cd39664cea8845e411",
+        "sessionId": "696a7536320f4c0980393b0d",
         "links": 2,
         "plan": {
-          "run_plan_sha256": "ab6ca570fa0a0601bf41729ef038b4a269bbe5125be0e193ca7ecf9a87c20de1",
+          "run_plan_sha256": "ed843587ce5cffbed505612053d303d8f6007121c7d1f6711562326a9d8eaf40",
           "network": {
             "max_hops": 8,
             "max_activations": 9,
@@ -785,7 +785,7 @@
             }
           }
         },
-        "runId": "run_1115738672b94788ad045474a4d2f7a2",
+        "runId": "run_f71d034300c140e483bd69ce33240537",
         "waiting": {
           "status": "running",
           "card": {
@@ -912,7 +912,7 @@
               }
             },
             "timeout_seconds": 298.989,
-            "requested_at": "2026-11-17T14:28:15.709000+00:00",
+            "requested_at": "2026-11-17T14:59:18.714000+00:00",
             "publisher": {
               "public_key": "1OM76N1RWhigHfM/vfgHl6ANEeW6eVrXnWQdWHeVT8I=",
               "claimed_id": "hotel-salitubam",
@@ -974,7 +974,7 @@
             "session",
             "session"
           ],
-          "text": "This run found another agent. Use it?Nothing of it has reached the model or run. This browser fetched its page and its package with a plain request, verified the package, and computed what follows from its signed bytes.Publisher keysha256:8ee8ec08acf1e\u202645ec Signature valid \u00b7 publisher unknownAgentorg.webagents.hotel-salitubam 0.1.0 \u00b7 digest bb69fb7acc02\u2026ce37NamedHotel Salitubam (the publisher's name for it)Described asA fictional small hotel in Reykjavik as a package another agent can ask: it checks the hotel's own availability for a stay and proposes one room offer. All data is fictional; nothing is booked. (the publisher's words)Found onhttps://webagents-hotel-salitubam-production.up.railway.app/ \u00b7 package https://webagents-hotel-salitubam-production.up.railway.app/agent.pkgIts tools check-availability \u2192 POST https://webagents-hotel-salitubam-production.up.railway.app/api/v1/hotel/availability \u00b7 needs network.salitubam \u00b7 readIts permissionsmodel.reasoning (model, required by the package) DenyAllow onceAllow for this session Read messages, decide the next role, draft the answer. (the publisher's words)memory.session (memory, required by the package) DenyAllow onceAllow for this session The run's state and the network's shared state, for this run only. (the publisher's words)network.salitubam (network, required by the package) DenyAllow onceAllow for this session Ask Hotel Salitubam's fictional availability service. (the publisher's words)Your records it asks fornoneModelyour model, for proposeThe agent may send itcheck_in, check_out, travellersWhy the agent asksThe hotel you named is not among the aggregator's; the page found for it offers its own agent. (the agent's words)At most, if you accept1 model call \u00b7 tool calls: check-availability \u00d71 \u00b7 3 remote calls \u00b7 6,000 tokens \u00b7 280 secondsWithin the step's ceiling1 model call \u00b7 1 tool call \u00b7 3 remote calls \u00b7 6,000 tokens \u00b7 300 secondsThe \u201cat most\u201d you acceptedunchanged: it already held this join at the ceilingThis run has left115,455 tokens \u00b7 29 remote callsCards1 of 1 for this step \u00b7 1 of 2 in this runIts key Do not pin its keyTrust this key for this agent only (org.webagents.hotel-salitubam)Trust this key for any agent it signs for this publisherAnswer by 9:33:14 AM. No answer is a no, and a no lasts for this run: this publisher's key is not offered again in it.No, continue without itUse it for this run"
+          "text": "This run found another agent. Use it?Nothing of it has reached the model or run. This browser fetched its page and its package with a plain request, verified the package, and computed what follows from its signed bytes.Publisher keysha256:8ee8ec08acf1e\u202645ec Signature valid \u00b7 publisher unknownAgentorg.webagents.hotel-salitubam 0.1.0 \u00b7 digest bb69fb7acc02\u2026ce37NamedHotel Salitubam (the publisher's name for it)Described asA fictional small hotel in Reykjavik as a package another agent can ask: it checks the hotel's own availability for a stay and proposes one room offer. All data is fictional; nothing is booked. (the publisher's words)Found onhttps://webagents-hotel-salitubam-production.up.railway.app/ \u00b7 package https://webagents-hotel-salitubam-production.up.railway.app/agent.pkgIts tools check-availability \u2192 POST https://webagents-hotel-salitubam-production.up.railway.app/api/v1/hotel/availability \u00b7 needs network.salitubam \u00b7 readIts permissionsmodel.reasoning (model, required by the package) DenyAllow onceAllow for this session Read messages, decide the next role, draft the answer. (the publisher's words)memory.session (memory, required by the package) DenyAllow onceAllow for this session The run's state and the network's shared state, for this run only. (the publisher's words)network.salitubam (network, required by the package) DenyAllow onceAllow for this session Ask Hotel Salitubam's fictional availability service. (the publisher's words)Your records it asks fornoneModelyour model, for proposeThe agent may send itcheck_in, check_out, travellersWhy the agent asksThe hotel you named is not among the aggregator's; the page found for it offers its own agent. (the agent's words)At most, if you accept1 model call \u00b7 tool calls: check-availability \u00d71 \u00b7 3 remote calls \u00b7 6,000 tokens \u00b7 280 secondsWithin the step's ceiling1 model call \u00b7 1 tool call \u00b7 3 remote calls \u00b7 6,000 tokens \u00b7 300 secondsThe \u201cat most\u201d you acceptedunchanged: it already held this join at the ceilingThis run has left115,455 tokens \u00b7 29 remote callsCards1 of 1 for this step \u00b7 1 of 2 in this runIts key Do not pin its keyTrust this key for this agent only (org.webagents.hotel-salitubam)Trust this key for any agent it signs for this publisherAnswer by 10:04:17 AM. No answer is a no, and a no lasts for this run: this publisher's key is not offered again in it.No, continue without itUse it for this run"
         },
         "before": {
           "model": [
@@ -1086,17 +1086,17 @@
           }
         ],
         "export": {
-          "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-signed",
+          "directory": "examples/my-chrome-link-2026-11-17T14-59-03-857Z/export-signed",
           "entries": [
             {
               "name": "run.json",
               "bytes": 16040,
-              "sha256": "2f1d997c4a91f08a45ca7d8d3b431ad8d85ad86fdbf868962b597342756199f2"
+              "sha256": "833da94f2e0f3bf9291f01e703b4fa54dabd9283e67a78089dc7e2724d80c3ab"
             },
             {
               "name": "run-plan.json",
               "bytes": 16949,
-              "sha256": "635456edb3eb4bbfdf97f5ecd53aa67ddbbd942423d5740c62a7fb39027ba40a"
+              "sha256": "ae919a931a94bb8d510b4b7bb1b643d3f835a9c4e85d06ade4ab875d42814a8c"
             },
             {
               "name": "input.json",
@@ -1106,62 +1106,62 @@
             {
               "name": "link-plan-hotel-aggregator.json",
               "bytes": 12594,
-              "sha256": "baa02beb762df56b999610205e3968df3343393dd8d0ed7b683db1d1ba9e87b0"
+              "sha256": "51ffcd17a6a2abb224a3d7120f627b7ff863a8dccb5cb64595c099a2a0e38960"
             },
             {
               "name": "link-plan-webair-flights.json",
               "bytes": 12623,
-              "sha256": "2a3ef6c326fbc7658325169d606a55ab888ded01c37b83f90057bea496fdd5a1"
+              "sha256": "932c70b8102cd577b3f59690c978bd03955407b9f98ea0c7b28a1bb53d10207d"
             },
             {
               "name": "audit.json",
               "bytes": 86746,
-              "sha256": "da32b02aa8f7ab6198ad6a104245ca0a8d1ddc252f73ccd94d564879703a0932"
+              "sha256": "a07367d6d284539e44de4b22784b17bb3e5d9309b21f11d44bd46075a4e02ec7"
             },
             {
-              "name": "link-4e84a96f-df73-41de-9066-ab5a0ff3833a.audit.json",
-              "bytes": 26130,
-              "sha256": "acacf36dfff5a535395a22cc2b6e8560a903212ec26b8d41a1a0bdd305ccb6a0"
-            },
-            {
-              "name": "link-4e84a96f-df73-41de-9066-ab5a0ff3833a.provenance.json",
-              "bytes": 248,
-              "sha256": "a77e3511dd1881f25eefc0400ac2652186af84fdb331c99a4e50e00bfd1b9762"
-            },
-            {
-              "name": "link-4e84a96f-df73-41de-9066-ab5a0ff3833a.result.json",
-              "bytes": 29964,
-              "sha256": "9ab3c65fc1477ca8c332f68a7756b66688223fed6ec024f9df248e93c5b0ccc0"
-            },
-            {
-              "name": "link-4e84a96f-df73-41de-9066-ab5a0ff3833a.usage.json",
-              "bytes": 743,
-              "sha256": "6051057e200713258b80b034e0533143d301e621ef8f330281af14d4cfa53ea6"
-            },
-            {
-              "name": "link-f61d50d0-41fc-4e9a-b70f-a750536ff89e.audit.json",
+              "name": "link-4f31ec3e-0f27-4a33-a26e-5f13b7d3d8d3.audit.json",
               "bytes": 26129,
-              "sha256": "087fa879cefdb67a393c9b3d3eb6972ec51317afe13ead9e7875e677dcfaa4c5"
+              "sha256": "31b4335ade06463a96145d1d3c8f297ffb3055fca5010df7379b7faa83a4f97f"
             },
             {
-              "name": "link-f61d50d0-41fc-4e9a-b70f-a750536ff89e.provenance.json",
+              "name": "link-4f31ec3e-0f27-4a33-a26e-5f13b7d3d8d3.provenance.json",
               "bytes": 249,
               "sha256": "34e1f33bf88794bb96d9196a77fbf088f2092881dc85c6503c4b2df0980cedac"
             },
             {
-              "name": "link-f61d50d0-41fc-4e9a-b70f-a750536ff89e.result.json",
+              "name": "link-4f31ec3e-0f27-4a33-a26e-5f13b7d3d8d3.result.json",
               "bytes": 30223,
-              "sha256": "794fba11204a1e3c54082516d1a413d9f7a513963ed48aef3041775c051dd52a"
+              "sha256": "8b8d73b26864d91dc98440e385d98d32ee9c6455ae723e73205810d2815001ff"
             },
             {
-              "name": "link-f61d50d0-41fc-4e9a-b70f-a750536ff89e.usage.json",
+              "name": "link-4f31ec3e-0f27-4a33-a26e-5f13b7d3d8d3.usage.json",
               "bytes": 740,
               "sha256": "7b3162b674319aefb04a8aeb5285208ff72af913dfd7699beccfa3c81ae5c0a5"
             },
             {
+              "name": "link-d86aaa56-6ece-4098-81c3-22fa15fffa72.audit.json",
+              "bytes": 26130,
+              "sha256": "8f94060c95aff9ddaaacacc1e7d76129666f118efbae68f4d272e80dbccaa462"
+            },
+            {
+              "name": "link-d86aaa56-6ece-4098-81c3-22fa15fffa72.provenance.json",
+              "bytes": 248,
+              "sha256": "a77e3511dd1881f25eefc0400ac2652186af84fdb331c99a4e50e00bfd1b9762"
+            },
+            {
+              "name": "link-d86aaa56-6ece-4098-81c3-22fa15fffa72.result.json",
+              "bytes": 29964,
+              "sha256": "6e42dab51d551576fa56ec871ae705622073ecf510c6945f853378a96e792976"
+            },
+            {
+              "name": "link-d86aaa56-6ece-4098-81c3-22fa15fffa72.usage.json",
+              "bytes": 743,
+              "sha256": "6051057e200713258b80b034e0533143d301e621ef8f330281af14d4cfa53ea6"
+            },
+            {
               "name": "links.json",
               "bytes": 12947,
-              "sha256": "8b3576ef0b279e2a55175b937645fd1cc6d998101999c8404082ca7e7a109c1a"
+              "sha256": "2a6c862311232ac06f6acbbca94ad9afe427ef6515b5278924db014d925cfee3"
             },
             {
               "name": "provenance.json",
@@ -1171,7 +1171,7 @@
             {
               "name": "result.json",
               "bytes": 107612,
-              "sha256": "43a8a0c3d1e2758b702537b530306c29cf21a49326c4a59f94c9aeda0bbc85fd"
+              "sha256": "f7b9321affd0dcc1edb7b02688119e0e0de18236eb9b9873a30ee401deffe5d4"
             },
             {
               "name": "usage.json",
@@ -1183,13 +1183,13 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4455
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4185
             },
             {
@@ -1201,19 +1201,19 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 2224
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4652
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4333
             },
             {
@@ -1225,19 +1225,19 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 2264
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4909
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4608
             },
             {
@@ -1270,10 +1270,10 @@
         }
       },
       "variant": {
-        "sessionId": "c02a9a5467764aed8e11b349",
+        "sessionId": "0fbeb50527db4bf7b7ba9923",
         "links": 2,
         "plan": {
-          "run_plan_sha256": "efbc1b2376aad8c1f882e20cbb46e863fff154e52edfdae63a13347549909bde",
+          "run_plan_sha256": "9d17c13e203e25a6b0195d2a44e28f852fc5cd922370ac5d4ba458b499f4a525",
           "network": {
             "max_hops": 8,
             "max_activations": 9,
@@ -1322,7 +1322,7 @@
             }
           }
         },
-        "runId": "run_4efda54160d54442b2d544d12b080d1a",
+        "runId": "run_c22b1c61982341c3ac071d1732f4a4b9",
         "waiting": {
           "status": "running",
           "card": {
@@ -1448,8 +1448,8 @@
                 }
               }
             },
-            "timeout_seconds": 298.99,
-            "requested_at": "2026-11-17T14:28:17.798000+00:00",
+            "timeout_seconds": 298.991,
+            "requested_at": "2026-11-17T14:59:20.803000+00:00",
             "publisher": {
               "public_key": "1OM76N1RWhigHfM/vfgHl6ANEeW6eVrXnWQdWHeVT8I=",
               "claimed_id": "hotel-salitubam",
@@ -1511,7 +1511,7 @@
             "session",
             "session"
           ],
-          "text": "This run found another agent. Use it?Nothing of it has reached the model or run. This browser fetched its page and its package with a plain request, verified the package, and computed what follows from its signed bytes.Publisher keysha256:8ee8ec08acf1e\u202645ec Signature valid \u00b7 publisher unknownAgentorg.webagents.hotel-salitubam 0.1.0 \u00b7 digest bb69fb7acc02\u2026ce37NamedHotel Salitubam (the publisher's name for it)Described asA fictional small hotel in Reykjavik as a package another agent can ask: it checks the hotel's own availability for a stay and proposes one room offer. All data is fictional; nothing is booked. (the publisher's words)Found onhttps://webagents-hotel-salitubam-production.up.railway.app/ \u00b7 package https://webagents-hotel-salitubam-production.up.railway.app/agent.pkgIts tools check-availability \u2192 POST https://webagents-hotel-salitubam-production.up.railway.app/api/v1/hotel/availability \u00b7 needs network.salitubam \u00b7 readIts permissionsmodel.reasoning (model, required by the package) DenyAllow onceAllow for this session Read messages, decide the next role, draft the answer. (the publisher's words)memory.session (memory, required by the package) DenyAllow onceAllow for this session The run's state and the network's shared state, for this run only. (the publisher's words)network.salitubam (network, required by the package) DenyAllow onceAllow for this session Ask Hotel Salitubam's fictional availability service. (the publisher's words)Your records it asks fornoneModelyour model, for proposeThe agent may send itcheck_in, check_out, travellersWhy the agent asksThe hotel you named is not among the aggregator's; the page found for it offers its own agent. (the agent's words)At most, if you accept1 model call \u00b7 tool calls: check-availability \u00d71 \u00b7 3 remote calls \u00b7 6,000 tokens \u00b7 280 secondsWithin the step's ceiling1 model call \u00b7 1 tool call \u00b7 3 remote calls \u00b7 6,000 tokens \u00b7 300 secondsThe \u201cat most\u201d you acceptedunchanged: it already held this join at the ceilingThis run has left115,455 tokens \u00b7 29 remote callsCards1 of 1 for this step \u00b7 1 of 2 in this runIts key Do not pin its keyTrust this key for this agent only (org.webagents.hotel-salitubam)Trust this key for any agent it signs for this publisherAnswer by 9:33:16 AM. No answer is a no, and a no lasts for this run: this publisher's key is not offered again in it.No, continue without itUse it for this run"
+          "text": "This run found another agent. Use it?Nothing of it has reached the model or run. This browser fetched its page and its package with a plain request, verified the package, and computed what follows from its signed bytes.Publisher keysha256:8ee8ec08acf1e\u202645ec Signature valid \u00b7 publisher unknownAgentorg.webagents.hotel-salitubam 0.1.0 \u00b7 digest bb69fb7acc02\u2026ce37NamedHotel Salitubam (the publisher's name for it)Described asA fictional small hotel in Reykjavik as a package another agent can ask: it checks the hotel's own availability for a stay and proposes one room offer. All data is fictional; nothing is booked. (the publisher's words)Found onhttps://webagents-hotel-salitubam-production.up.railway.app/ \u00b7 package https://webagents-hotel-salitubam-production.up.railway.app/agent.pkgIts tools check-availability \u2192 POST https://webagents-hotel-salitubam-production.up.railway.app/api/v1/hotel/availability \u00b7 needs network.salitubam \u00b7 readIts permissionsmodel.reasoning (model, required by the package) DenyAllow onceAllow for this session Read messages, decide the next role, draft the answer. (the publisher's words)memory.session (memory, required by the package) DenyAllow onceAllow for this session The run's state and the network's shared state, for this run only. (the publisher's words)network.salitubam (network, required by the package) DenyAllow onceAllow for this session Ask Hotel Salitubam's fictional availability service. (the publisher's words)Your records it asks fornoneModelyour model, for proposeThe agent may send itcheck_in, check_out, travellersWhy the agent asksThe hotel you named is not among the aggregator's; the page found for it offers its own agent. (the agent's words)At most, if you accept1 model call \u00b7 tool calls: check-availability \u00d71 \u00b7 3 remote calls \u00b7 6,000 tokens \u00b7 280 secondsWithin the step's ceiling1 model call \u00b7 1 tool call \u00b7 3 remote calls \u00b7 6,000 tokens \u00b7 300 secondsThe \u201cat most\u201d you acceptedunchanged: it already held this join at the ceilingThis run has left115,455 tokens \u00b7 29 remote callsCards1 of 1 for this step \u00b7 1 of 2 in this runIts key Do not pin its keyTrust this key for this agent only (org.webagents.hotel-salitubam)Trust this key for any agent it signs for this publisherAnswer by 10:04:19 AM. No answer is a no, and a no lasts for this run: this publisher's key is not offered again in it.No, continue without itUse it for this run"
         },
         "before": {
           "model": [
@@ -1611,17 +1611,17 @@
           }
         ],
         "export": {
-          "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-variant",
+          "directory": "examples/my-chrome-link-2026-11-17T14-59-03-857Z/export-variant",
           "entries": [
             {
               "name": "run.json",
               "bytes": 18576,
-              "sha256": "a8f470d17eb4a4624e6c0ff26846227960b9fdd46c503d0495aa85f5d5e04d15"
+              "sha256": "e5afd8145a78a285eee992dae0e3c69ce41d6c605c8d4211b48fcfb2f1f77694"
             },
             {
               "name": "run-plan.json",
               "bytes": 16964,
-              "sha256": "3874b2edd164f90c3d00691b314bf526a9f9395db6d6e7b66d81670488784ca1"
+              "sha256": "1d76408f3dd6a4d7da508b6cff8b368d49d77a483de5a5298bb6b6c0881b5ea5"
             },
             {
               "name": "input.json",
@@ -1631,82 +1631,82 @@
             {
               "name": "link-plan-hotel-aggregator.json",
               "bytes": 12594,
-              "sha256": "226e9d884bc73ca4e1847d07c405ecd9ad0a6d755d7117c4ba474a90abbdba48"
+              "sha256": "32ddfdea3613c2b480634b72dee412252cb83b0e63dd4c0620bf227c1c30ea4e"
             },
             {
               "name": "link-plan-webair-flights.json",
               "bytes": 12623,
-              "sha256": "50f0ab8157bbded8b26e99798c9e734aba0a6342b5843b18acdc74512e855a75"
+              "sha256": "0c128010411b1978ac587c392dcaea9aecb35adfb6b5144dc9dd89bf383dcbc7"
             },
             {
               "name": "audit.json",
               "bytes": 138576,
-              "sha256": "b16afafd84132e43880b1dd5a3959681029d0134902e28db76420ae61a71adae"
+              "sha256": "a734efc6c77293e21a6bb4f6d6cdaee35aa59817ef0f2e01448cdc657bdd1ad3"
             },
             {
-              "name": "link-96f49ad5-debb-41b8-a096-25b1d6ccb067.audit.json",
-              "bytes": 26129,
-              "sha256": "a451f01819a5b228a7eea3da9c58752058b3d06d2225c0995b3e1f84a1615749"
-            },
-            {
-              "name": "link-96f49ad5-debb-41b8-a096-25b1d6ccb067.provenance.json",
-              "bytes": 249,
-              "sha256": "34e1f33bf88794bb96d9196a77fbf088f2092881dc85c6503c4b2df0980cedac"
-            },
-            {
-              "name": "link-96f49ad5-debb-41b8-a096-25b1d6ccb067.result.json",
-              "bytes": 30223,
-              "sha256": "e339a653eded3daa8a62254896652667dfc45404f7a49ac149304147630371ba"
-            },
-            {
-              "name": "link-96f49ad5-debb-41b8-a096-25b1d6ccb067.usage.json",
-              "bytes": 740,
-              "sha256": "7b3162b674319aefb04a8aeb5285208ff72af913dfd7699beccfa3c81ae5c0a5"
-            },
-            {
-              "name": "link-cf070b9b-531a-440b-8814-2815aacd1ead.audit.json",
+              "name": "link-5db1ac94-6f83-454a-8ec2-f288cc2eae1f.audit.json",
               "bytes": 26200,
-              "sha256": "e8a0b321dedb889c2a9b9ec670eb95ba596ce067ca6df38ad3f2dbc1961d4c82"
+              "sha256": "e9ac7f7a488c527c206312c4301712357399a46e81eccf3b7acf760bc9a96dd9"
             },
             {
-              "name": "link-cf070b9b-531a-440b-8814-2815aacd1ead.provenance.json",
+              "name": "link-5db1ac94-6f83-454a-8ec2-f288cc2eae1f.provenance.json",
               "bytes": 249,
               "sha256": "db30bfc5665fc8ef1a22e5e68cc666a348821307fdf1f39e262ff23845b52cdf"
             },
             {
-              "name": "link-cf070b9b-531a-440b-8814-2815aacd1ead.result.json",
+              "name": "link-5db1ac94-6f83-454a-8ec2-f288cc2eae1f.result.json",
               "bytes": 31199,
-              "sha256": "3efc312898e42921bce60d7d8db8f7c4d976fb9b2eb093a34a5113fd073fff90"
+              "sha256": "3e05aa1c2ac18eb026c95a274b9fa99a12b96296ea3498522d3860427165c8ff"
             },
             {
-              "name": "link-cf070b9b-531a-440b-8814-2815aacd1ead.usage.json",
+              "name": "link-5db1ac94-6f83-454a-8ec2-f288cc2eae1f.usage.json",
               "bytes": 755,
               "sha256": "c64f9e197fa1564e3c33bbfecddc7fcb8cad77a46d2328b586786ca6648be2ea"
             },
             {
-              "name": "link-f6887d7e-226b-4340-932a-daa26dcaa1f2.audit.json",
-              "bytes": 26130,
-              "sha256": "8428366db711d1ca1d6c3fdee824b770bfddcd9f45debc5e2d90abafe83e2183"
+              "name": "link-6c50f21f-2274-4330-89d5-a1c9694da9c4.audit.json",
+              "bytes": 26129,
+              "sha256": "832ca4167bf8e109636d4e9ba04467f03f03b4914ec5673ce3d7137d58dbe4f8"
             },
             {
-              "name": "link-f6887d7e-226b-4340-932a-daa26dcaa1f2.provenance.json",
+              "name": "link-6c50f21f-2274-4330-89d5-a1c9694da9c4.provenance.json",
+              "bytes": 249,
+              "sha256": "34e1f33bf88794bb96d9196a77fbf088f2092881dc85c6503c4b2df0980cedac"
+            },
+            {
+              "name": "link-6c50f21f-2274-4330-89d5-a1c9694da9c4.result.json",
+              "bytes": 30223,
+              "sha256": "f925c225e4fc6533964ffdb545c1563ca23055e67f42843ffb4e0b2d4c115c2e"
+            },
+            {
+              "name": "link-6c50f21f-2274-4330-89d5-a1c9694da9c4.usage.json",
+              "bytes": 740,
+              "sha256": "7b3162b674319aefb04a8aeb5285208ff72af913dfd7699beccfa3c81ae5c0a5"
+            },
+            {
+              "name": "link-f66732db-7fc8-4e60-9458-8b723a967b4b.audit.json",
+              "bytes": 26130,
+              "sha256": "456c0c8ad9f1687a2cdaf99e67a4663cb94c6cf6f21d5e34f1a8eb978b8e8148"
+            },
+            {
+              "name": "link-f66732db-7fc8-4e60-9458-8b723a967b4b.provenance.json",
               "bytes": 248,
               "sha256": "a77e3511dd1881f25eefc0400ac2652186af84fdb331c99a4e50e00bfd1b9762"
             },
             {
-              "name": "link-f6887d7e-226b-4340-932a-daa26dcaa1f2.result.json",
+              "name": "link-f66732db-7fc8-4e60-9458-8b723a967b4b.result.json",
               "bytes": 29964,
-              "sha256": "d1f2ab741963bc77b3afa187a0dfe49b5075f9308b5ba91e82dfcccf3de8e286"
+              "sha256": "8841865fd8838e5157f5be7137b323a2fbd08a9e32239719d3b1220eab41163f"
             },
             {
-              "name": "link-f6887d7e-226b-4340-932a-daa26dcaa1f2.usage.json",
+              "name": "link-f66732db-7fc8-4e60-9458-8b723a967b4b.usage.json",
               "bytes": 743,
               "sha256": "6051057e200713258b80b034e0533143d301e621ef8f330281af14d4cfa53ea6"
             },
             {
               "name": "links.json",
               "bytes": 13148,
-              "sha256": "2e990ab36841dca28d0ba9ea57ee2ed0128411577bc4e34f51d41cd9a1250d7f"
+              "sha256": "970fefaaea9c1b6090d39856a32ba50768db1aa9c6531948f0433681d2c7d16d"
             },
             {
               "name": "plan.json",
@@ -1726,7 +1726,7 @@
             {
               "name": "result.json",
               "bytes": 167913,
-              "sha256": "51fc0344b4f35fae896c8fb2f0c7691a8320ef76b81649a03cb04075880219d0"
+              "sha256": "ebd65ff647e3a6b1981311284e43ea684ee33189068858efb67e41160988c92b"
             },
             {
               "name": "usage.json",
@@ -1738,13 +1738,13 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4455
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4185
             },
             {
@@ -1756,19 +1756,19 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 2224
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4652
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4333
             },
             {
@@ -1780,19 +1780,19 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 2264
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4909
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 4608
             },
             {
@@ -1816,7 +1816,7 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 2947
             },
             {
@@ -1828,19 +1828,19 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 2530
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 5412
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 5091
             },
             {
@@ -1852,13 +1852,13 @@
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 5475
             },
             {
               "kind": "model",
               "subject": "ollama",
-              "url": "http://127.0.0.1:58820/api/chat",
+              "url": "http://127.0.0.1:59890/api/chat",
               "body_bytes": 5159
             }
           ]
@@ -1869,7 +1869,7 @@
   "requests": {
     "model": [
       {
-        "at": "2026-11-17T14:28:12.410Z",
+        "at": "2026-11-17T14:59:15.428Z",
         "scenario": "A.denied",
         "task": "understand",
         "bytes": 3728,
@@ -1881,7 +1881,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:12.414Z",
+        "at": "2026-11-17T14:59:15.432Z",
         "scenario": "A.denied",
         "task": "route",
         "bytes": 3230,
@@ -1896,7 +1896,7 @@
         "next": "Flights"
       },
       {
-        "at": "2026-11-17T14:28:12.427Z",
+        "at": "2026-11-17T14:59:15.447Z",
         "scenario": "A.denied",
         "task": "propose",
         "bytes": 2224,
@@ -1908,7 +1908,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:12.431Z",
+        "at": "2026-11-17T14:59:15.451Z",
         "scenario": "A.denied",
         "task": "understand",
         "bytes": 3945,
@@ -1920,7 +1920,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:12.433Z",
+        "at": "2026-11-17T14:59:15.454Z",
         "scenario": "A.denied",
         "task": "route",
         "bytes": 3395,
@@ -1935,7 +1935,7 @@
         "next": "Calendar"
       },
       {
-        "at": "2026-11-17T14:28:12.437Z",
+        "at": "2026-11-17T14:59:15.459Z",
         "scenario": "A.denied",
         "task": "understand",
         "bytes": 4008,
@@ -1947,7 +1947,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:12.439Z",
+        "at": "2026-11-17T14:59:15.461Z",
         "scenario": "A.denied",
         "task": "route",
         "bytes": 3434,
@@ -1962,7 +1962,7 @@
         "next": "done"
       },
       {
-        "at": "2026-11-17T14:28:14.033Z",
+        "at": "2026-11-17T14:59:17.018Z",
         "scenario": "A.planned",
         "task": "understand",
         "bytes": 3728,
@@ -1974,7 +1974,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:14.037Z",
+        "at": "2026-11-17T14:59:17.021Z",
         "scenario": "A.planned",
         "task": "route",
         "bytes": 3422,
@@ -1990,7 +1990,7 @@
         "next": "Flights"
       },
       {
-        "at": "2026-11-17T14:28:14.050Z",
+        "at": "2026-11-17T14:59:17.033Z",
         "scenario": "A.planned",
         "task": "propose",
         "bytes": 2224,
@@ -2002,7 +2002,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:14.056Z",
+        "at": "2026-11-17T14:59:17.036Z",
         "scenario": "A.planned",
         "task": "understand",
         "bytes": 3945,
@@ -2014,7 +2014,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:14.058Z",
+        "at": "2026-11-17T14:59:17.038Z",
         "scenario": "A.planned",
         "task": "route",
         "bytes": 3587,
@@ -2030,7 +2030,7 @@
         "next": "Hotels"
       },
       {
-        "at": "2026-11-17T14:28:14.070Z",
+        "at": "2026-11-17T14:59:17.049Z",
         "scenario": "A.planned",
         "task": "propose",
         "bytes": 2264,
@@ -2042,7 +2042,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:14.073Z",
+        "at": "2026-11-17T14:59:17.052Z",
         "scenario": "A.planned",
         "task": "understand",
         "bytes": 4202,
@@ -2054,7 +2054,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:14.075Z",
+        "at": "2026-11-17T14:59:17.054Z",
         "scenario": "A.planned",
         "task": "route",
         "bytes": 3844,
@@ -2070,7 +2070,7 @@
         "next": "Calendar"
       },
       {
-        "at": "2026-11-17T14:28:14.080Z",
+        "at": "2026-11-17T14:59:17.057Z",
         "scenario": "A.planned",
         "task": "understand",
         "bytes": 4265,
@@ -2082,7 +2082,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:14.083Z",
+        "at": "2026-11-17T14:59:17.060Z",
         "scenario": "A.planned",
         "task": "route",
         "bytes": 3913,
@@ -2098,7 +2098,7 @@
         "next": "done"
       },
       {
-        "at": "2026-11-17T14:28:15.651Z",
+        "at": "2026-11-17T14:59:18.656Z",
         "scenario": "B.signed",
         "task": "understand",
         "bytes": 4455,
@@ -2110,7 +2110,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:15.656Z",
+        "at": "2026-11-17T14:59:18.659Z",
         "scenario": "B.signed",
         "task": "route",
         "bytes": 4185,
@@ -2127,7 +2127,7 @@
         "next": "Flights"
       },
       {
-        "at": "2026-11-17T14:28:15.669Z",
+        "at": "2026-11-17T14:59:18.673Z",
         "scenario": "B.signed",
         "task": "propose",
         "bytes": 2224,
@@ -2139,7 +2139,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:15.674Z",
+        "at": "2026-11-17T14:59:18.677Z",
         "scenario": "B.signed",
         "task": "understand",
         "bytes": 4652,
@@ -2151,7 +2151,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:15.676Z",
+        "at": "2026-11-17T14:59:18.680Z",
         "scenario": "B.signed",
         "task": "route",
         "bytes": 4333,
@@ -2168,7 +2168,7 @@
         "next": "Hotels"
       },
       {
-        "at": "2026-11-17T14:28:15.688Z",
+        "at": "2026-11-17T14:59:18.692Z",
         "scenario": "B.signed",
         "task": "propose",
         "bytes": 2264,
@@ -2180,7 +2180,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:15.691Z",
+        "at": "2026-11-17T14:59:18.697Z",
         "scenario": "B.signed",
         "task": "understand",
         "bytes": 4909,
@@ -2192,7 +2192,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:15.694Z",
+        "at": "2026-11-17T14:59:18.699Z",
         "scenario": "B.signed",
         "task": "route",
         "bytes": 4608,
@@ -2209,7 +2209,7 @@
         "next": "FindHotel"
       },
       {
-        "at": "2026-11-17T14:28:17.743Z",
+        "at": "2026-11-17T14:59:20.752Z",
         "scenario": "B.variant",
         "task": "understand",
         "bytes": 4455,
@@ -2221,7 +2221,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:17.747Z",
+        "at": "2026-11-17T14:59:20.756Z",
         "scenario": "B.variant",
         "task": "route",
         "bytes": 4185,
@@ -2238,7 +2238,7 @@
         "next": "Flights"
       },
       {
-        "at": "2026-11-17T14:28:17.761Z",
+        "at": "2026-11-17T14:59:20.768Z",
         "scenario": "B.variant",
         "task": "propose",
         "bytes": 2224,
@@ -2250,7 +2250,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:17.766Z",
+        "at": "2026-11-17T14:59:20.772Z",
         "scenario": "B.variant",
         "task": "understand",
         "bytes": 4652,
@@ -2262,7 +2262,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:17.768Z",
+        "at": "2026-11-17T14:59:20.774Z",
         "scenario": "B.variant",
         "task": "route",
         "bytes": 4333,
@@ -2279,7 +2279,7 @@
         "next": "Hotels"
       },
       {
-        "at": "2026-11-17T14:28:17.779Z",
+        "at": "2026-11-17T14:59:20.785Z",
         "scenario": "B.variant",
         "task": "propose",
         "bytes": 2264,
@@ -2291,7 +2291,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:17.784Z",
+        "at": "2026-11-17T14:59:20.789Z",
         "scenario": "B.variant",
         "task": "understand",
         "bytes": 4909,
@@ -2303,7 +2303,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:17.786Z",
+        "at": "2026-11-17T14:59:20.791Z",
         "scenario": "B.variant",
         "task": "route",
         "bytes": 4608,
@@ -2320,7 +2320,7 @@
         "next": "FindHotel"
       },
       {
-        "at": "2026-11-17T14:28:18.329Z",
+        "at": "2026-11-17T14:59:21.055Z",
         "scenario": "B.variant",
         "task": "request",
         "bytes": 2947,
@@ -2334,7 +2334,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:18.349Z",
+        "at": "2026-11-17T14:59:21.068Z",
         "scenario": "B.variant",
         "task": "propose",
         "bytes": 2530,
@@ -2346,7 +2346,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:18.353Z",
+        "at": "2026-11-17T14:59:21.072Z",
         "scenario": "B.variant",
         "task": "understand",
         "bytes": 5412,
@@ -2358,7 +2358,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:18.356Z",
+        "at": "2026-11-17T14:59:21.075Z",
         "scenario": "B.variant",
         "task": "route",
         "bytes": 5091,
@@ -2375,7 +2375,7 @@
         "next": "Calendar"
       },
       {
-        "at": "2026-11-17T14:28:18.360Z",
+        "at": "2026-11-17T14:59:21.079Z",
         "scenario": "B.variant",
         "task": "understand",
         "bytes": 5475,
@@ -2387,7 +2387,7 @@
         "next": null
       },
       {
-        "at": "2026-11-17T14:28:18.362Z",
+        "at": "2026-11-17T14:59:21.081Z",
         "scenario": "B.variant",
         "task": "route",
         "bytes": 5159,
@@ -2406,7 +2406,7 @@
     ],
     "origins": [
       {
-        "at": "2026-11-17T14:28:12.425Z",
+        "at": "2026-11-17T14:59:15.444Z",
         "scenario": "A.denied",
         "host": "webagents-webair-production.up.railway.app",
         "method": "POST",
@@ -2415,7 +2415,7 @@
         "body_bytes": 71
       },
       {
-        "at": "2026-11-17T14:28:12.435Z",
+        "at": "2026-11-17T14:59:15.457Z",
         "scenario": "A.denied",
         "host": "webagents-webair-production.up.railway.app",
         "method": "POST",
@@ -2424,7 +2424,7 @@
         "body_bytes": 39
       },
       {
-        "at": "2026-11-17T14:28:14.048Z",
+        "at": "2026-11-17T14:59:17.030Z",
         "scenario": "A.planned",
         "host": "webagents-webair-production.up.railway.app",
         "method": "POST",
@@ -2433,7 +2433,7 @@
         "body_bytes": 71
       },
       {
-        "at": "2026-11-17T14:28:14.068Z",
+        "at": "2026-11-17T14:59:17.047Z",
         "scenario": "A.planned",
         "host": "webagents-staymere-production.up.railway.app",
         "method": "POST",
@@ -2442,7 +2442,7 @@
         "body_bytes": 63
       },
       {
-        "at": "2026-11-17T14:28:14.078Z",
+        "at": "2026-11-17T14:59:17.056Z",
         "scenario": "A.planned",
         "host": "webagents-webair-production.up.railway.app",
         "method": "POST",
@@ -2451,7 +2451,7 @@
         "body_bytes": 39
       },
       {
-        "at": "2026-11-17T14:28:15.667Z",
+        "at": "2026-11-17T14:59:18.671Z",
         "scenario": "B.signed",
         "host": "webagents-webair-production.up.railway.app",
         "method": "POST",
@@ -2460,7 +2460,7 @@
         "body_bytes": 71
       },
       {
-        "at": "2026-11-17T14:28:15.685Z",
+        "at": "2026-11-17T14:59:18.690Z",
         "scenario": "B.signed",
         "host": "webagents-staymere-production.up.railway.app",
         "method": "POST",
@@ -2469,7 +2469,7 @@
         "body_bytes": 63
       },
       {
-        "at": "2026-11-17T14:28:15.696Z",
+        "at": "2026-11-17T14:59:18.701Z",
         "scenario": "B.signed",
         "host": "webagents-tripwright-production.up.railway.app",
         "method": "POST",
@@ -2478,7 +2478,7 @@
         "body_bytes": 27
       },
       {
-        "at": "2026-11-17T14:28:17.758Z",
+        "at": "2026-11-17T14:59:20.766Z",
         "scenario": "B.variant",
         "host": "webagents-webair-production.up.railway.app",
         "method": "POST",
@@ -2487,7 +2487,7 @@
         "body_bytes": 71
       },
       {
-        "at": "2026-11-17T14:28:17.777Z",
+        "at": "2026-11-17T14:59:20.782Z",
         "scenario": "B.variant",
         "host": "webagents-staymere-production.up.railway.app",
         "method": "POST",
@@ -2496,7 +2496,7 @@
         "body_bytes": 63
       },
       {
-        "at": "2026-11-17T14:28:17.788Z",
+        "at": "2026-11-17T14:59:20.793Z",
         "scenario": "B.variant",
         "host": "webagents-tripwright-production.up.railway.app",
         "method": "POST",
@@ -2505,7 +2505,7 @@
         "body_bytes": 27
       },
       {
-        "at": "2026-11-17T14:28:18.344Z",
+        "at": "2026-11-17T14:59:21.065Z",
         "scenario": "B.variant",
         "host": "webagents-hotel-salitubam-production.up.railway.app",
         "method": "POST",
@@ -2514,7 +2514,7 @@
         "body_bytes": 65
       },
       {
-        "at": "2026-11-17T14:28:18.358Z",
+        "at": "2026-11-17T14:59:21.077Z",
         "scenario": "B.variant",
         "host": "webagents-webair-production.up.railway.app",
         "method": "POST",
@@ -2580,7 +2580,7 @@
     "schema": "webagents-verify-chrome-link-e2e-v0",
     "exports": {
       "planned": {
-        "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-planned",
+        "directory": "examples/my-chrome-link-2026-11-17T14-59-03-857Z/export-planned",
         "verify_link_run": {
           "passed": true,
           "checks": 55,
@@ -2646,7 +2646,7 @@
         }
       },
       "denied": {
-        "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-denied",
+        "directory": "examples/my-chrome-link-2026-11-17T14-59-03-857Z/export-denied",
         "verify_link_run": {
           "passed": true,
           "checks": 44,
@@ -2701,7 +2701,7 @@
         }
       },
       "signed": {
-        "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-signed",
+        "directory": "examples/my-chrome-link-2026-11-17T14-59-03-857Z/export-signed",
         "verify_link_run": {
           "passed": true,
           "checks": 64,
@@ -2777,7 +2777,7 @@
         }
       },
       "variant": {
-        "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-variant",
+        "directory": "examples/my-chrome-link-2026-11-17T14-59-03-857Z/export-variant",
         "verify_link_run": {
           "passed": true,
           "checks": 76,

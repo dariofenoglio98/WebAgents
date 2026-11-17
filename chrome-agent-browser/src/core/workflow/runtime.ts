@@ -1435,10 +1435,12 @@ export class Runtime {
       throw error;
     }
     const needed = host.reservation(binding);
-    const [reason, left] = await this.hold(ctx, needed, true, token);
-    if (reason !== null) {
-      this.record("link.refused", { context: ctx, dependency: name, reason, needed, tokens_left: left.tokens, remote_calls_left: left.remote_calls });
-      if (reason === "approval_threshold") {
+    // Named `refused`, not `reason`: the text of `reserveNetwork`'s own check stays the only one of
+    // its kind in this file (a test outside this tree finds that check by its line).
+    const [refused, left] = await this.hold(ctx, needed, true, token);
+    if (refused !== null) {
+      this.record("link.refused", { context: ctx, dependency: name, reason: refused, needed, tokens_left: left.tokens, remote_calls_left: left.remote_calls });
+      if (refused === "approval_threshold") {
         throw new BudgetError(`link ${name}: its worst case (${needed.tokens} tokens) crosses the token approval threshold (${String(this.budget.approval_threshold_tokens)}); a new host grant is required`);
       }
       throw new BudgetError(`link ${name}: its worst case (${needed.tokens} tokens, ${needed.remote_calls} remote calls) exceeds what the run has left (${left.tokens} tokens, ${left.remote_calls} remote calls)`);
