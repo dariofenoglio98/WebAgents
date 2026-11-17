@@ -10,6 +10,7 @@ import { PRESETS } from "../../core/authorization.js";
 import { DEFAULT_BASE_URLS, hasEndpoint, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import { DEFAULT_OPENAI_REASONING_EFFORT, OPENAI_REASONING_EFFORTS } from "../../core/models/adapters/openai.js";
 import { DEFAULT_HOST_LIMITS, type HostExecutionLimits } from "../../core/execution/limits.js";
+import { MAX_RUN_CARDS } from "../../core/links/join.js";
 import type { FilesView, IndexesView, IndexView, KeychainView, PermissionsView, PolicyView, ProbeView, Request, SecretsView, SettingsView, StatusInfo } from "../messages.js";
 import { IDLE_LOCK_MINUTES, MIN_PASSPHRASE_LENGTH } from "../../core/secrets.js";
 import type { GrantPurpose } from "../storage/permissions.js";
@@ -511,6 +512,8 @@ function policyCard(policy: PolicyView | null, state: SettingsPageState, actions
           ["Run limits", Object.entries(bundle.budget_caps).map(([field, value]) => `${field} ≤ ${value}`).join(" · ") || "no cap"],
           ["Models", `${bundle.models.local_only ? "local only" : "local or hosted"}${bundle.models.max_cost_usd_per_run !== null ? ` · at most $${bundle.models.max_cost_usd_per_run} per run (a model whose price this browser does not know is excluded)` : ""}`],
           ["Services", bundle.bindings === null ? "any" : bundle.bindings.allow.map((item) => `${item.kind}${item.origins ? ` (${item.origins.join(", ")})` : ""}`).join(" · ")],
+          // link.v0 (T66, D-681, D-682): what the policy says about the two things a run may ask while it runs.
+          ["During a run", `joining an agent found during the run: ${bundle.links?.join === "forbid" ? "forbidden" : "allowed, asked on a card"} · raising your run limit: ${bundle.links?.raise === "forbid" ? "forbidden" : "allowed, asked once"}`],
         ])
       : null,
     el(
@@ -553,7 +556,27 @@ function policiesView(view: SettingsView, actions: SettingsPageActions, state: S
       ]),
     ),
     limitsCard(view, actions),
+    runCardsCard(extras.policy),
   ];
+}
+
+/** link.v0 §6, §7 (T66): what a run may ask while it runs, the caps of this version, and what the subscribed policy forbids. */
+function runCardsCard(policy: PolicyView | null): HTMLElement {
+  const links = policy?.subscribed ? (policy.bundle?.links ?? null) : null;
+  const by = policy?.subscribed && policy.reference ? ` by your policy ${policy.reference.policy_id}@${policy.reference.version}` : "";
+  return el(
+    "div",
+    { attrs: { "data-run-cards": "settings", "data-join": links?.join ?? "allow", "data-raise": links?.raise ?? "allow" } },
+    card(
+      "During a run",
+      el("p", { className: "ab-hint", text: "An agent may ask you two things while it runs, each on a card with facts this browser computed. No answer is a no." }),
+      definition([
+        ["An agent found during the run", links?.join === "forbid" ? `Forbidden${by}: such a step answers “policy”, nothing is looked at and no card is shown.` : `Asked on a join card before anything of it reaches the model or runs: at most ${MAX_RUN_CARDS} cards in a run, and as many per step as the agent's signed package declares. A publisher you decline is not offered again in that run.`],
+        ["Raising your run limit", links?.raise === "forbid" ? `Forbidden${by}: a run that reaches your limit stops there, without asking.` : "Asked at most once in a run, when a step would pass your own token or remote-call limit: by at most half of that limit, and never above the agent's own cap."],
+      ]),
+      el("p", { className: "ab-hint", text: "A signed policy can forbid either; it cannot allow more than this." }),
+    ),
+  );
 }
 
 /** Run limits (B-118, D-084): the host bounds every run is held to; the package's own budget applies beneath them. */

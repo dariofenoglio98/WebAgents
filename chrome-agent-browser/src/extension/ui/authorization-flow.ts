@@ -5,7 +5,7 @@
  * lives and how they re-render; nothing here is computed about authority (D-035).
  */
 import type { Decision, Provenance } from "../../core/types.js";
-import type { AuthorizationView, AuthorizeResult, ModelsView, RunPlanState, SessionView } from "../messages.js";
+import type { AuthorizationView, AuthorizeResult, LinksView, ModelsView, RunPlanState, SessionView } from "../messages.js";
 import { newAuthorizeState, renderAuthorizeView, type AuthorizeState } from "./authorize.js";
 import { describeError, refusedOrigins, requestOrigins, send } from "./client.js";
 import { el } from "./dom.js";
@@ -160,6 +160,19 @@ export function bindAuthorization(host: AuthorizationHost): AuthorizationControl
             }),
           onOpenSettings: host.openSettings,
           onTrust,
+          // link.v0 (T66, D-702): the review's controls.
+          onResolveLinks: () =>
+            void act("Loading the linked agents…", () => send<LinksView>({ type: "links.resolve", sessionId: open.session.id, packageDigest: view.package_digest }), (links) => {
+              state.notice = { text: `Loaded ${links.links.length} linked agent${links.links.length === 1 ? "" : "s"}. Nothing has run, and nothing is granted yet.`, tone: "good" };
+            }),
+          onDecideLink: (dependency, decision) =>
+            void act(decision === "denied" ? "Denying that publisher…" : "Allowing that publisher again…", () => send<LinksView>({ type: "links.decide", sessionId: open.session.id, packageDigest: view.package_digest, dependency, decision }), () => {
+              state.notice = { text: decision === "denied" ? "Denied for this agent's runs. Press “Use this agent” to prepare a plan without it." : "Allowed again. Press “Use this agent” to prepare a plan with it.", tone: "warn" };
+            }),
+          onTrustLink: (sessionId, signerFingerprint, scope) =>
+            void act("Trusting that publisher key…", () => send({ type: "trust.pin", sessionId, signerFingerprint, scope }), () => {
+              state.notice = { text: "That publisher key is now trusted on this device. It grants no permission by itself.", tone: "good" };
+            }),
           requestOrigins: host.requestOrigins ?? (typeof chrome !== "undefined" && chrome.permissions ? requestOrigins : undefined),
           onUnlock: host.unlock ? () => host.unlock?.(() => void load().then(host.rerender)) : undefined,
           rerender: host.rerender,

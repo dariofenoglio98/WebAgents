@@ -25,6 +25,7 @@ import type { InputGatedRead } from "../../core/inputs.js";
 import type { ArtifactChunk, ArtifactContent, AuthorizationView, AuthorizeResult, InputValidationView, Request, RunListView, RunReadiness, RunSummary, RunView, SessionView } from "../messages.js";
 import { button, bytes, chip, clear, definition, el, shortHash, whenText } from "./dom.js";
 import { buildFormModel, hintsFrom, humanize, TaskForm, type FormFile } from "./form.js";
+import { delegationView, runCard } from "./links.js";
 import { renderMarkdown } from "./markdown.js";
 import { loadReview, newReviewState, renderReview, type ReviewState } from "./memory/review.js";
 import { writeZip } from "./zip.js";
@@ -1320,6 +1321,42 @@ export class RunPanel {
     this.runEl.append(isTerminal(record) ? this.renderOutcome(record) : this.renderProgress(record));
   }
 
+  /** The card a run waits on, built once per card: a poll that re-renders the run keeps what the person already chose on it. */
+  private cardNode: { id: string; busy: boolean; node: HTMLElement } | null = null;
+  private cardBusy = false;
+
+  /** link.v0 §6, §7 (T66, D-703): the join card or the budget-raise card of a run in flight, or nothing. */
+  private renderRunCard(record: RunView): HTMLElement | null {
+    const pending = record.runCard ?? null;
+    if (pending === null) {
+      this.cardNode = null;
+      this.cardBusy = false;
+      return null;
+    }
+    if (this.cardNode === null || this.cardNode.id !== pending.card_id || this.cardNode.busy !== this.cardBusy) {
+      this.cardNode = { id: pending.card_id, busy: this.cardBusy, node: runCard(pending, { onDecide: (cardId, answer, origins) => void this.decideCard(record.runId, cardId, answer, origins) }, this.cardBusy) };
+    }
+    return this.cardNode.node;
+  }
+
+  /** The person's answer to a run's card. An accepted join asks Chrome for the approved tools' origins first: the click is the gesture (D-193). */
+  private async decideCard(runId: string, cardId: string, answer: { accepted: boolean; grants?: Record<string, string>; approvedTools?: string[]; pin?: "package" | "publisher" | null }, origins: string[]): Promise<void> {
+    if (this.cardBusy) return;
+    this.cardBusy = true;
+    this.renderRun();
+    try {
+      if (answer.accepted && origins.length > 0 && this.host.requestOrigins) await this.host.requestOrigins(origins).catch(() => false);
+      const record = await this.host.send<RunView>({ type: "run.decide", runId, cardId, accepted: answer.accepted, ...(answer.grants ? { grants: answer.grants } : {}), ...(answer.approvedTools ? { approvedTools: answer.approvedTools } : {}), ...(answer.pin ? { pin: answer.pin } : {}) });
+      if (this.run?.runId === record.runId) this.run = record;
+    } catch {
+      // The card was answered elsewhere, timed out, or the run ended: the poll shows the state.
+    }
+    this.cardBusy = false;
+    if (this.disposed) return;
+    this.renderRun();
+    void this.poll();
+  }
+
   private renderProgress(record: RunView): HTMLElement {
     const presentation = this.presentation();
     const node = el("div", { className: "ab-progress" });
@@ -1334,7 +1371,11 @@ export class RunPanel {
         elapsed,
       ),
     );
+    // link.v0 (T66): the card the run waits on comes first; then the stages, and who was asked so far.
+    const waiting = this.renderRunCard(record);
+    if (waiting) node.append(waiting);
     node.append(this.renderStages(record));
+    if (record.delegation && record.delegation.linked) node.append(delegationView(record.delegation, record.links ?? null));
     node.append(this.renderCounters(record));
     return node;
   }
@@ -1451,6 +1492,8 @@ export class RunPanel {
     const stages = el("details", { className: "ab-details" });
     stages.append(el("summary", { text: "Stages and workers" }), this.renderStages(record), this.renderCounters(record));
     node.append(stages);
+    // link.v0 (T66, D-704): who was asked and who answered, from the run's own audit.
+    if (record.delegation && record.delegation.linked) node.append(delegationView(record.delegation, record.links ?? null));
     node.append(this.renderArtifacts(record));
     node.append(this.renderTechnical(record));
     return node;

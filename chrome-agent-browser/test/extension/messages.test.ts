@@ -70,6 +70,19 @@ describe("requests from extension pages", () => {
     expect(code(() => parseRequest({ type: "package.open", url: "https://a.example/x.pkg", foundVia: { indexId: "i", digest: "forged" } }))).toBe("invalid_request");
   });
 
+  it("links and a run's cards (T66): exactly their fields, a decision from a closed set, bounded grants and tools", () => {
+    expect(parseRequest({ type: "links.resolve", sessionId: "s1", packageDigest: "d1" })).toEqual({ type: "links.resolve", sessionId: "s1", packageDigest: "d1" });
+    expect(parseRequest({ type: "links.decide", sessionId: "s1", packageDigest: "d1", dependency: "webair-flights", decision: "denied" })).toEqual({ type: "links.decide", sessionId: "s1", packageDigest: "d1", dependency: "webair-flights", decision: "denied" });
+    expect(code(() => parseRequest({ type: "links.decide", sessionId: "s1", packageDigest: "d1", dependency: "webair-flights", decision: "accepted" }))).toBe("invalid_request");
+    expect(code(() => parseRequest({ type: "links.resolve", sessionId: "s1", packageDigest: "d1", archives: {} }))).toBe("invalid_request");
+    expect(parseRequest({ type: "run.decide", runId: "r1", cardId: "card_1", accepted: false })).toEqual({ type: "run.decide", runId: "r1", cardId: "card_1", accepted: false, pin: null });
+    expect(parseRequest({ type: "run.decide", runId: "r1", cardId: "card_1", accepted: true, grants: { "model.reasoning": "session" }, approvedTools: ["check-availability"], pin: "package" })).toEqual({ type: "run.decide", runId: "r1", cardId: "card_1", accepted: true, grants: { "model.reasoning": "session" }, approvedTools: ["check-availability"], pin: "package" });
+    expect(code(() => parseRequest({ type: "run.decide", runId: "r1", cardId: "card_1", accepted: "yes" }))).toBe("invalid_request");
+    expect(code(() => parseRequest({ type: "run.decide", runId: "r1", cardId: "card_1", accepted: true, pin: "everyone" }))).toBe("invalid_request");
+    expect(code(() => parseRequest({ type: "run.decide", runId: "r1", cardId: "card_1", accepted: true, grants: { "model.reasoning": 1 } }))).toBe("invalid_request");
+    expect(code(() => parseRequest({ type: "run.decide", runId: "r1", cardId: "card_1", accepted: true, facts: {} }))).toBe("invalid_request");
+  });
+
   it("run.active (T5a, D-076): an optional page URL, bounded, and nothing else", () => {
     expect(parseRequest({ type: "run.active" })).toEqual({ type: "run.active", pageUrl: null });
     expect(parseRequest({ type: "run.active", pageUrl: null })).toEqual({ type: "run.active", pageUrl: null });

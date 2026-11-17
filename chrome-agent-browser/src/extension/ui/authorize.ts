@@ -20,6 +20,7 @@ import type { AuthorizationView, ModelsView, RecallView, SessionView } from "../
 import { lastUseWords } from "../../core/memory/words.js";
 import { fill, STRINGS } from "./memory/strings.js";
 import { estimateLine, pinControls } from "./agent-page.js";
+import { linkOrigins, linksCard } from "./links.js";
 import { button, card, chip, definition, details, el, list, row, shortHash, whenText, type Child } from "./dom.js";
 
 export interface AuthorizeState {
@@ -64,6 +65,14 @@ export interface AuthorizeActions {
   requestOrigins?: (origins: string[]) => Promise<boolean>;
   /** Open the Unlock sheet (T16): the store is locked and a record must be chosen. */
   onUnlock?: () => void;
+  /**
+   * link.v0 (T66, D-702): load the linked agents (after Chrome was asked for their origins in the
+   * click), deny a linked publisher or allow it again, and pin a linked publisher's key from that
+   * package's own session. Absent: the review is shown without its controls.
+   */
+  onResolveLinks?: () => void;
+  onDecideLink?: (dependency: string, decision: "denied" | "undecided") => void;
+  onTrustLink?: (sessionId: string, signerFingerprint: string, scope: "package" | "publisher") => void;
   /** Re-render after a local state change. */
   rerender: () => void;
 }
@@ -281,6 +290,9 @@ function linkButton(text: string, onClick: () => void): HTMLButtonElement {
 export function originsFor(view: AuthorizationView, approvals: Record<string, boolean>, modelId: string | null): string[] {
   const origins = new Set<string>();
   if (view.origins.package) origins.add(view.origins.package);
+  // link.v0 (T66): what the accepted linked agents' approved tools reach, and where each was fetched from.
+  for (const origin of linkOrigins(view.links)) origins.add(origin);
+  for (const item of view.links?.locators ?? []) if (item.origin && view.links?.links.find((link) => link.dependency === item.dependency)?.decision !== "denied") origins.add(item.origin);
   for (const [toolId, toolOrigins] of Object.entries(view.origins.tools)) if (approvals[toolId] === true) for (const origin of toolOrigins) origins.add(origin);
   const model = modelId ?? view.default_model;
   const provider = model?.split("/")[0] ?? null;
@@ -690,6 +702,8 @@ function planCard(input: AuthorizeInput, actions: AuthorizeActions): HTMLElement
           ["Memory", plan.run_plan.resource_grants.map((grant) => grant.permission_id).join(", ") || "none"],
           // network.v0 (R-24, D-291): the envelope this plan froze, which the runner re-derives before the run.
           ...(plan.run_plan.execution.network ? [["Delegation", envelopeText(plan.run_plan.execution.network.worst_case as unknown as Parameters<typeof envelopeText>[0])] as [string, string]] : []),
+          // link.v0 L-15 (T66): what the plan records about each linked agent; a denied one is not asked in a run of this plan.
+          ...(plan.run_plan.links ? [["Linked agents", Object.entries(plan.run_plan.links).map(([dependency, link]) => `${link.package_id} ${link.version} (${dependency}): ${link.decision === "accepted" ? "accepted, on its own inner plan" : "denied by you, not asked"}`).join(" · ") || "none"] as [string, string]] : []),
           ["Decided by", receipt.provenance ? `${receipt.provenance.profile_title ? `profile “${receipt.provenance.profile_title}”` : "your own settings"}, ${PRESET_TITLES[receipt.provenance.preset] ?? receipt.provenance.preset} preset${receipt.provenance.policy ? `, policy ${receipt.provenance.policy.policy_id}@${receipt.provenance.policy.version}` : ""}${receipt.provenance.decisions && Object.values(receipt.provenance.decisions).includes("user") ? "; some items by you" : ""}` : "the receipt states no provenance"],
         ])
       : null,
@@ -789,6 +803,24 @@ export function renderAuthorizeView(input: AuthorizeInput, state: AuthorizeState
     );
   } else if (view.profile_notes.length > 0) {
     children.push(el("p", { className: "ab-hint", text: view.profile_notes.join(" ") }));
+  }
+  // link.v0 L-13 (D-702): the one review lists the caller and every linked publisher, before what is about to be allowed.
+  if (view.links) {
+    children.push(
+      linksCard(
+        view.links,
+        {
+          onResolve: (origins) => {
+            const resolve = () => actions.onResolveLinks?.();
+            if (actions.requestOrigins && origins.length > 0) void actions.requestOrigins(origins).then(resolve, resolve);
+            else resolve();
+          },
+          onDecide: (dependency, decision) => actions.onDecideLink?.(dependency, decision),
+          onTrust: (sessionId, signer, scope) => actions.onTrustLink?.(sessionId, signer, scope),
+        },
+        input.busy !== null,
+      ),
+    );
   }
   children.push(summaryCard(input, state, actions, decided, selected?.profile ?? null));
   if (state.customize && state.draft) children.push(customizeView(input, state, actions));
