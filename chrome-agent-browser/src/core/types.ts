@@ -229,6 +229,18 @@ export interface NetworkPlan extends JsonObject {
   worst_case: JsonObject;
 }
 
+/** link.v0 L-15: what a caller's plan records of one link (`links: {<id>: …}`), hash-bound with the plan. */
+export interface LinkPlanEntry extends JsonObject {
+  package_id: string;
+  version: string;
+  digest: string;
+  archive_sha256: string;
+  signer: string;
+  trust: string | null;
+  decision: "accepted" | "denied";
+  plan_hash: string | null;
+}
+
 export interface RunPlan {
   schema: typeof RUN_PLAN_SCHEMA;
   run_plan_version: typeof RUN_PLAN_VERSION;
@@ -271,7 +283,17 @@ export interface RunPlan {
     conversation: ConversationPlan | null;
     /** network.v0 (R-24): the delegation envelope; absent for a package without a network, so every other plan keeps its shape and hash. */
     network?: NetworkPlan;
+    /** link.v0 L-22: the envelope composed across the links (`package_worst_case` with each accepted link inside it); only a caller's plan carries it. */
+    links?: { worst_case: JsonObject };
   };
+  /**
+   * link.v0 L-14: the caller an inner plan was prepared for, `{package_digest, dependency}` (a
+   * planned link) or `{plan_hash, run_id, slot}` (a join, L-36); only a linked package's plan carries
+   * it, and it is hash-bound with the rest.
+   */
+  parent?: JsonObject;
+  /** link.v0 L-15: each dependency with the person's decision and its inner plan's hash; only a caller's plan carries it. */
+  links?: Record<string, LinkPlanEntry>;
   tool_bindings: ToolBinding[];
   tool_registry: {
     registry_sha256: string;

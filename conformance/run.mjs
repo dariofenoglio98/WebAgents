@@ -549,9 +549,20 @@ function runLinkGrants(testCase) {
   return { checks, notes: [`A recorded difference of the CLIs (D-091, D-707): agentpkg run completes; the Chrome CLI and both execution layers refuse with "${node.message}".`], halves: { python: outcomes[0].outcome === "refused", chromeVersionRefused: versionRefused(node) }, observed: { python: summary(python), node: summary(node), execution_layers: outcomes } };
 }
 
-/** Placeholder until the Run Plan path with inner plans exists in the Chrome core. */
+/**
+ * A case of the stage `host` (L-15): both execution sessions handed a caller's plan with its links,
+ * changed as `test_link_execution.py` changes them (`drivers/link_session.py`, the reference's
+ * control plane and runner; `drivers/link-session.ts`, the Chrome core's local plans and session):
+ * every outcome refused with the case's code, and the two lists identical.
+ */
 function runLinkHost(testCase) {
-  return { checks: [{ name: "host driver", passed: false, detail: ["not built yet"] }], notes: [], observed: null };
+  const checks = [];
+  const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
+  const argv = writeInput(`link-host-${testCase.id}.json`, JSON.stringify(inputs.link[testCase.id].argv.filter((arg) => arg !== "{out}")));
+  const outcomes = [spawn(PYTHON, [join(ROOT, "conformance/drivers/link_session.py"), testCase.id, join(SCRATCH, `link-session-${testCase.id}`)]), spawn(process.execPath, [join(SCRATCH, "drivers", "link-session.js"), testCase.id, argv])].map((result) => (result.status === 0 ? JSON.parse(result.stdout) : [{ outcome: "driver_failed", message: result.stderr.slice(-400) }]));
+  check(`execution sessions: every change refused ${testCase.code}`, outcomes.every((list) => list.length > 0 && list.every((o) => o.outcome === "refused" && o.code === testCase.code)) ? [] : outcomes.map((list) => JSON.stringify(list).slice(0, 400)));
+  check("execution sessions: identical answers", diff(outcomes[0], outcomes[1]));
+  return { checks, notes: [], halves: { python: outcomes[0].every?.((o) => o.code === testCase.code) === true, chromeVersionRefused: false }, observed: { execution_sessions: outcomes } };
 }
 
 const CONVERSATION_CASES = JSON.parse(spawn(PYTHON, [join(ROOT, "conformance/drivers/conversation_probe.py"), "--cases"]).stdout);
@@ -1082,7 +1093,7 @@ let nodeDriver = null;
 async function bundleDrivers() {
   // The Chrome core's TypeScript, bundled with the esbuild its own build uses.
   const esbuild = await import(pathToFileURL(join(ROOT, "chrome-agent-browser/node_modules/esbuild/lib/main.js")).href);
-  const drivers = ["control-plane", "execution-policy", "link-host"].map((name) => join(ROOT, "conformance/drivers", `${name}.ts`));
+  const drivers = ["control-plane", "execution-policy", "link-host", "link-session"].map((name) => join(ROOT, "conformance/drivers", `${name}.ts`));
   await esbuild.build({ entryPoints: drivers, bundle: true, platform: "node", format: "esm", target: "node24", outdir: join(SCRATCH, "drivers"), outExtension: { ".js": ".js" }, logLevel: "warning" });
   // ESM output needs a module scope: name the directory a module package.
   writeFileSync(join(SCRATCH, "drivers", "package.json"), '{"type": "module"}\n');

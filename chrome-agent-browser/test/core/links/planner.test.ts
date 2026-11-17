@@ -21,6 +21,7 @@ import { operatorLinks, operatorPlan, type OperatorDecision } from "../../../src
 import { planHash } from "../../../src/core/links/host.js";
 import { loadPackageBytes, type Package } from "../../../src/core/package.js";
 import type { AuditEvent } from "../../../src/core/types.js";
+import type { Grants } from "../../../src/core/workflow/runtime.js";
 import { runWorkflow, Workflow, type ExecutionReport, type WorkflowOptions } from "../../../src/core/workflow/interpreter.js";
 import { ROOT } from "../../helpers/paths.js";
 
@@ -74,7 +75,7 @@ async function walk(version: "0.1.0" | "0.2.0", options: { joinFixture?: boolean
   }))!;
   let report: ExecutionReport;
   try {
-    report = await runWorkflow(pkg, fixture.input, { grants, handlers: fixture.handlers, router: fixture.router, approvedTools: approved, links, consent, planHash: callerPlan !== null ? planHash(callerPlan) : null });
+    report = await runWorkflow(pkg, fixture.input, { grants: grants as Grants, handlers: fixture.handlers, router: fixture.router, approvedTools: approved, links, consent, planHash: callerPlan !== null ? planHash(callerPlan) : null });
   } catch (error) {
     report = (error as { execution_report: ExecutionReport }).execution_report;
   }

@@ -362,8 +362,11 @@ export function consumptionCounts(pkg: Package): Record<string, number> {
     // activation) that may make its program's calls; the bound on activations is the declaration's
     // (R-20), so the count stays a bound.
     for (const roleId of Object.keys(network.roles as JsonObject)) {
+      // Counted as if no link were denied (this check runs before the links are bound), over the
+      // role's own program: a link's inner run consumes its own package's grants (link.v0 L-28
+      // counts those on its card), and a slot adds only its request-building call.
       const activations = activationBound(network, roleId);
-      const costs = activationCosts(graph, roleId);
+      const costs = activationCosts(graph, roleId, false);
       counts.memory! += activations;
       counts.model! += activations * costs.model_calls;
       for (const [toolId, perActivation] of Object.entries(costs.tool_calls)) toolUse(toolId, activations * perActivation);

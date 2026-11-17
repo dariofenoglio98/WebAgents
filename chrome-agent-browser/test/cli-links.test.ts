@@ -18,6 +18,7 @@ import { fixtureAdapters } from "../src/core/fixtures.js";
 import type { JsonObject, JsonValue } from "../src/core/json.js";
 import type { HttpRequest, HttpResponse, HttpTransport } from "../src/core/models/transport.js";
 import { loadPackageBytes } from "../src/core/package.js";
+import type { Grants } from "../src/core/workflow/runtime.js";
 import { runWorkflow, type ExecutionReport } from "../src/core/workflow/interpreter.js";
 import { ROOT } from "./helpers/paths.js";
 
@@ -88,7 +89,7 @@ describe("fixture mode never dials (L-29)", () => {
     );
     let report: ExecutionReport;
     try {
-      report = await runWorkflow(pkg, fixture.input, { grants, handlers: fixture.handlers, router: fixture.router, approvedTools: linked.approved, links: linked.links, consent: linked.consent, planHash: linked.planHash });
+      report = await runWorkflow(pkg, fixture.input, { grants: grants as Grants, handlers: fixture.handlers, router: fixture.router, approvedTools: linked.approved, links: linked.links, consent: linked.consent, planHash: linked.planHash });
     } catch (error) {
       report = (error as { execution_report: ExecutionReport }).execution_report;
     }

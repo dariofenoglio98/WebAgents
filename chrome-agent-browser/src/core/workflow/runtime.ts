@@ -1425,7 +1425,7 @@ export class Runtime {
       this.record("link.denied", { context: ctx, dependency: name });
       throw new PolicyError(`Link ${name} was denied by the person`);
     }
-    const linked = binding.link.package;
+    const linked = binding.resolved.package;
     try {
       await Runtime.validateLinked(linked, String(linked.graph.input_schema), payload, `link ${name} input`);
     } catch (error) {
@@ -1451,7 +1451,7 @@ export class Runtime {
    */
   private async innerRun(ctx: Context, key: "dependency" | "slot", name: string, binding: LinkBinding, payload: JsonValue, needed: { tokens: number; remote_calls: number }, deadlineSeconds: number, token: CancelToken): Promise<JsonValue> {
     const host = this.links!;
-    const linked = binding.link.package;
+    const linked = binding.resolved.package;
     const named = { [key]: name };
     const nodeId = ctx.operation_id ?? ctx.node_id ?? null;
     // A planned link's package was pinned by the caller's publisher and checked at preparation:

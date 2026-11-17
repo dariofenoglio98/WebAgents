@@ -70,6 +70,19 @@ export function sortedObject<T extends JsonValue>(value: Readonly<Record<string,
  * when accepted, exactly what its inner runs hold. `router` null means the caller's model route
  * (L-14); a fixture host supplies the linked package's own replay (L-29).
  */
+/**
+ * A link the person denied, as an execution host knows it from the caller's plan alone
+ * (`links/host.py::DeniedLink`): no archive reaches a runner for it, so there is no package and no
+ * worst case.
+ */
+export interface DeniedLink {
+  denied: true;
+  dependency: string;
+  signer: string;
+  entry: JsonObject;
+  worst_case: null;
+}
+
 export class LinkBinding {
   grants: Grants;
   approvedTools: string[];
@@ -80,7 +93,7 @@ export class LinkBinding {
   planHash: string | null = null;
 
   constructor(
-    readonly link: ResolvedLink,
+    readonly link: ResolvedLink | DeniedLink,
     public decision: string,
     options: { grants?: Grants; approvedTools?: readonly string[]; handlers?: Record<string, ToolHandler>; router?: ModelRouter | null; limits?: HostLimits | null } = {},
   ) {
@@ -91,10 +104,17 @@ export class LinkBinding {
     this.limits = options.limits ?? null;
   }
 
+  /** The verified package behind an accepted binding. */
+  get resolved(): ResolvedLink {
+    if ("denied" in this.link) throw new LinkRefusal("link_unresolved", `dependency ${pyRepr(this.link.dependency)} has no package in this run`);
+    return this.link;
+  }
+
   record(): JsonObject {
+    const facts = "denied" in this.link ? Object.fromEntries(["package_id", "version", "digest", "archive_sha256", "signer", "trust"].map((key) => [key, (this.link as DeniedLink).entry[key] ?? null])) : linkFacts(this.link);
     return {
       dependency: this.link.dependency,
-      ...linkFacts(this.link),
+      ...facts,
       decision: this.decision,
       worst_case: this.link.worst_case ? worstCaseFigures(this.link.worst_case) : null,
       plan: this.plan === null ? null : deepCopy(this.plan),
@@ -214,7 +234,7 @@ export class LinkHost {
     this.deniedKeys = new Set([...this.bindings.values()].filter((binding) => binding.decision !== ACCEPTED).map((binding) => binding.link.signer));
     for (const binding of this.bindings.values()) {
       if (this.deniedKeys.has(binding.link.signer)) binding.decision = DENIED;
-      else if (binding.plan === null) binding.plan = linkPlan(caller, binding.link, { grants: binding.grants, approvedTools: binding.approvedTools });
+      else if (binding.plan === null) binding.plan = linkPlan(caller, binding.resolved, { grants: binding.grants, approvedTools: binding.approvedTools });
       if (binding.decision === ACCEPTED && binding.planHash === null) binding.planHash = planHash(binding.plan!);
     }
     checkComposition(caller, this.worstCases);
@@ -247,7 +267,7 @@ export class LinkHost {
 
   /** L-24: the linked package's worst case under the effective limits, its own caps as the host lowered them, in the two figures a run reserves. */
   reservation(binding: LinkBinding): { tokens: number; remote_calls: number } {
-    const pkg = binding.link.package;
+    const pkg = binding.resolved.package;
     const caps: JsonObject = { ...(pkg.policy.budget as JsonObject) };
     for (const key of ["hard_tokens", "max_remote_calls"] as const) {
       const lowered = binding.limits?.[key];
@@ -259,7 +279,7 @@ export class LinkHost {
 
   /** Build an inner run over its binding alone (L-25). */
   async start(binding: LinkBinding, options: { router: ModelRouter | null; limits: { tokens: number; remote_calls: number }; deadlineSeconds: number; deadlineAt: number }): Promise<InnerRun> {
-    const workflow = await this.runner.create(binding.link.package, {
+    const workflow = await this.runner.create(binding.resolved.package, {
       grants: { ...binding.grants },
       handlers: { ...binding.handlers },
       router: binding.router ?? options.router,
@@ -324,7 +344,7 @@ export function linkMultiplicity(graph: JsonObject, dependency: string): number 
 export function checkOnce(caller: Package, bindings: ReadonlyMap<string, LinkBinding>): void {
   for (const [name, binding] of bindings) {
     if (binding.decision !== ACCEPTED) continue;
-    const pkg = binding.link.package;
+    const pkg = binding.resolved.package;
     const kinds = new Map((pkg.policy.permissions as JsonObject[]).map((permission) => [String(permission.id), String(permission.kind)]));
     const counts = consumptionCounts(pkg);
     const reached = linkMultiplicity(caller.graph, name);

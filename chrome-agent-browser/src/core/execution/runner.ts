@@ -47,7 +47,12 @@ import { auditSummary, costSummary, failureSummary, modelEvidence } from "./repo
 import { verifyExecutionArtifact } from "./artifact.js";
 
 import type { RunConsentHost } from "../conversation/host.js";
-import { checkOnce, type LinkHost } from "../links/host.js";
+import { checkOnce, LinkHost } from "../links/host.js";
+import { linkOperations } from "../links/analysis.js";
+import type { JoinHost } from "../links/join.js";
+import { bindLinks, LINK_PLAN_MISMATCH, type InnerPlanHandover } from "./links.js";
+import { fixtureAdapters } from "../fixtures.js";
+import type { WorkflowOptions } from "../workflow/interpreter.js";
 
 export const EXECUTION_RESULT_SCHEMA = "agentpkg-execution-result-v0";
 export const EXECUTION_PROTOCOL_VERSION = "chrome-agent-browser-execution-v0";
@@ -88,6 +93,8 @@ export interface BeginRequest {
   host?: HostFacts | null;
   /** conversation.v0: the turn this run is; absent for a one-shot run (a conversational package is then refused, V-28). */
   turn?: TurnStart | null;
+  /** link.v0 L-15: each accepted link's inner plan and authorization, by dependency id; the archives travel in `deps.linkArchives`. */
+  links?: Record<string, InnerPlanHandover> | null;
 }
 
 /** The package's own fixture (`fixtureAdapters`), when the plan says so. */
@@ -123,6 +130,10 @@ export interface SessionDeps {
    * a package with only slots runs without one, and its slots then yield `unattended`.
    */
   links?: LinkHost | null;
+  /** link.v0 L-15: each accepted linked package's archive, by dependency id, verified here against its inner plan. */
+  linkArchives?: Record<string, Uint8Array> | null;
+  /** link.v0 §6: what lets the run's slots look and join (the host's discovery, download, trust store and adapters); absent, a slot yields `unattended`. */
+  joins?: JoinHost | null;
   /** link.v0 §6, §7: the person's surface during the run (a join card, the one budget-raise card); absent, nobody is asked. */
   runConsent?: RunConsentHost | null;
   /** The hash of the plan a decision made during the run names (L-36, L-44): the Run Plan's, or an operator plan's; absent, null. */
@@ -224,6 +235,8 @@ export class ExecutionSession {
   private tracker: ProgressTracker | null = null;
   /** conversation.v0: the turn this session runs, or null. */
   private turnStart: TurnStart | null = null;
+  /** link.v0: the run's links, bound at `begin`. */
+  private links: LinkHost | null = null;
 
   // -- bind --------------------------------------------------------------------------------
   async begin(request: BeginRequest, deps: SessionDeps): Promise<BeginReport> {
@@ -234,6 +247,10 @@ export class ExecutionSession {
     const limits = normalizeHostLimits(request.limits);
     const host = request.host ?? {};
 
+    // link.v0 L-15: an inner plan is authority only inside its caller's run, so one handed over as a
+    // run's own plan is refused before its bytes are read: the linked package would otherwise run
+    // outside the caller's composition, reservation and audit, on the grants of a link's card.
+    if (plan.parent !== null) throw new ExecutionError(LINK_PLAN_MISMATCH, "This is a linked package's inner plan: it runs only inside its caller's run, handed over with the caller's plan.", { detail: { dependency: (plan.parent.dependency as string | undefined) ?? null } });
     // 1. The bytes. Verified here, independently, against the plan's identity.
     const { package: pkg, evidence } = await verifyExecutionArtifact(deps.archive, {
       archive_sha256: plan.package.archive_sha256,
@@ -252,12 +269,39 @@ export class ExecutionSession {
     if (turn !== null && !conversational) throw new ExecutionError(PLAN_INVALID, "A turn was given for a package that declares no conversation");
     if (turn !== null && !deps.consent) throw new ExecutionError(PLAN_INVALID, "A turn needs the host's consent host");
     if (turn !== null && (plan.execution.conversation ?? null) === null) throw new ExecutionError(PLAN_INVALID, "A turn needs a plan that records the conversation");
-    // link.v0 (L-10, L-17): every dependency resolved and decided before the run, by the host that
-    // holds the caller's plan; the links handed over are this caller's.
-    const links = deps.links ?? null;
+    // link.v0 (L-10, L-15, L-17): every dependency resolved and decided before the run. An inner
+    // plan is authority only inside its caller's run; a host that holds no Run Plan (the CLI) hands
+    // the run its operator's links, a host that does hands the inner plans and their archives,
+    // verified here.
+    let links = deps.links ?? null;
+    if (links === null && (plan.links !== null || ((pkg.manifest.dependencies as unknown[] | undefined) ?? []).length > 0 || (request.links ?? null) !== null)) {
+      links = await bindLinks({
+        plan,
+        pkg,
+        limits,
+        router: fixture ? deps.fixture!.router : (deps.router ?? null),
+        supplied: (request.links ?? null) as Record<string, InnerPlanHandover> | null,
+        archives: deps.linkArchives ?? null,
+        tools: deps.tools ?? null,
+        fixture: fixture
+          ? (linked) => {
+              const replay = fixtureAdapters(linked);
+              return { router: replay.router, handlers: replay.handlers };
+            }
+          : null,
+        runner: { create: (linked, options) => Workflow.create(linked, options as WorkflowOptions) },
+        compute: deps.compute ?? null,
+        joins: deps.joins ?? null,
+      });
+    }
+    // A package with slots and no dependency: the host's join surface, if it gives one.
+    if (links === null && (deps.joins ?? null) !== null && linkOperations(pkg.graph).some(([, step]) => "slot" in step)) {
+      links = new LinkHost(pkg, new Map(), { runner: { create: (linked, options) => Workflow.create(linked, options as WorkflowOptions) }, compute: deps.compute ?? null, joins: deps.joins ?? null });
+    }
     const dependencies = pkg.manifest.dependencies;
     if (Array.isArray(dependencies) && dependencies.length > 0 && links === null) throw new ExecutionError(PLAN_INVALID, "This package declares dependencies and the host handed the run no links for them");
     if (links !== null && links.caller.digest !== pkg.digest) throw new ExecutionError(PLAN_INVALID, "The links handed to this run belong to another package");
+    this.links = links;
     // network.v0 (R-24): the envelope the person agreed to is the one the signed declaration gives,
     // re-derived here (composed with the links, link.v0 L-22); a plan that describes it
     // differently, or omits it, is refused, not believed.
@@ -277,7 +321,7 @@ export class ExecutionSession {
       }
     }
     // 3a. link.v0 L-28: a `once` grant on a linked package's card the composition could consume more than once.
-    if (links !== null) checkOnce(pkg, links.bindings);
+    if (links !== null && deps.links) checkOnce(pkg, links.bindings);
     // 3b. Every tool binding, re-derived from the verified package and compared with the plan,
     //     then matched against the approvals the person actually gave.
     const tools = fixture
@@ -433,7 +477,7 @@ export class ExecutionSession {
           observer,
           compute: this.deps.compute ?? null,
           turn: this.turnContext(now),
-          links: this.deps.links ?? null,
+          links: this.links,
           consent: this.deps.runConsent ?? null,
           planHash: this.deps.planHash ?? null,
         });
