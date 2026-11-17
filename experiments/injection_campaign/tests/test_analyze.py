@@ -106,7 +106,14 @@ def directory(tmp_path):
             _run(root, side=side, arm="twin", useful=True, exposed=True, **common)
     _run(root, side="Py", task="W1-01", phrasing=1)
     _run(root, side="FW", task="W1-01", phrasing=1, useful=False)
+    _units(root)
     return root
+
+
+def _units(root):
+    """The unit list the driver writes before the first run: here, every run made."""
+    units = [{"id": p.name} for p in sorted((root / "runs").iterdir())]
+    (root / "units.json").write_text(json.dumps(units))
 
 
 def test_the_boundary_rates_with_wilson_and_the_rule_of_three(directory):
@@ -198,3 +205,111 @@ def test_a_packed_directory_whose_archive_changed_is_refused(directory, tmp_path
     (packed / "runs.tar.gz").write_bytes(b"\x1f\x8b" + b"0" * 64)
     with pytest.raises(SystemExit, match="SHA-256"):
         analyze.tables([packed])
+
+
+# -- T32 review 1, findings 2, 3 and 7; nit 12 -------------------------------------------------------
+def test_a_directory_short_of_its_unit_list_is_refused_or_its_shortfall_printed(
+    directory,
+):
+    import shutil
+
+    victim = sorted((directory / "runs").iterdir())[0]
+    shutil.rmtree(victim)
+    with pytest.raises(SystemExit, match="1 of 42 units have no outcome"):
+        analyze.tables([directory], resamples=50)
+    data = analyze.tables([directory], allow_incomplete=True, resamples=50)
+    assert data["shortfalls"] == {directory.name: [victim.name]}
+    assert "INCOMPLETE" in analyze.render(data)
+
+
+def test_a_unit_given_twice_is_refused(directory):
+    with pytest.raises(SystemExit, match="given twice"):
+        analyze.tables([directory, directory], resamples=50)
+
+
+def _memory_runs(root, *, exposed, rung="L9", task_suffix=""):
+    for i in range(4):
+        common = {
+            "task": f"W1-{i:02d}{task_suffix}",
+            "phrasing": 0,
+            "family": "F-MEMORY",
+            "payload": "memory-01",
+            "placement": "record.profile_body",
+            "rung": rung,
+        }
+        for side in ("Py", "FW"):
+            _run(root, side=side, arm="injected", exposed=exposed, **common)
+            _run(root, side=side, arm="twin", exposed=exposed, **common)
+
+
+def test_a_cell_no_run_reached_is_printed_not_reached_and_never_a_bound(tmp_path):
+    root = tmp_path / "2026-11-06T00-00-00Z_paper-L9"
+    root.mkdir()
+    (root / "manifest.json").write_text(json.dumps(MANIFEST))
+    _memory_runs(root, exposed=False)
+    _units(root)
+    data = analyze.tables([root], resamples=50)
+    cell = data["tab4_e3"]["F-MEMORY|Py|L9"]
+    assert cell["reached"] is False and cell["exposed"]["k"] == 0
+    line = next(
+        x for x in analyze.render(data).splitlines() if x.startswith("F-MEMORY|Py|L9")
+    )
+    assert "not reached" in line and "≤" not in line.split(" | ", 3)[3]
+
+
+def test_a_supplement_replaces_its_familys_units_on_the_sides_and_rungs_it_covers(
+    directory, tmp_path
+):
+    _memory_runs(directory, exposed=False)
+    _units(directory)
+    supplement = tmp_path / "2026-11-17T00-00-00Z_e3-memory-L9"
+    supplement.mkdir()
+    (supplement / "manifest.json").write_text(
+        json.dumps({**MANIFEST, "commit": "f00d", "preset": "e3-memory"})
+    )
+    _memory_runs(supplement, exposed=True, task_suffix="-home")
+    _units(supplement)
+    data = analyze.tables([directory], supplements=[supplement], resamples=50)
+    assert data["superseded"] == {f"{directory.name}|F-MEMORY": 16}
+    cell = data["tab4_e3"]["F-MEMORY|Py|L9"]
+    assert cell["n"] == 4 and cell["reached"] and cell["exposed"]["k"] == 4
+    pooled = data["tab4_e3"]["all eight families|Py|L9"]
+    assert (
+        pooled["n"] == 10 + 4
+    )  # F-UPLOAD's ten and the supplement's four, never the old four
+    assert "supplement" in analyze.render(data) and "superseded 16" in analyze.render(
+        data
+    )
+
+
+def test_a_supplement_of_another_catalog_or_preset_is_refused(directory, tmp_path):
+    other = tmp_path / "2026-11-17T00-00-00Z_e3-memory-L9"
+    other.mkdir()
+    (other / "manifest.json").write_text(
+        json.dumps({**MANIFEST, "preset": "e3-memory", "payloads": {"sha256": "y"}})
+    )
+    (other / "units.json").write_text("[]")
+    with pytest.raises(SystemExit, match="payloads"):
+        analyze.tables([directory], supplements=[other], resamples=50)
+    (other / "manifest.json").write_text(json.dumps({**MANIFEST, "preset": "paper"}))
+    with pytest.raises(SystemExit, match="no supplement"):
+        analyze.tables([directory], supplements=[other], resamples=50)
+
+
+def test_the_archive_leaves_out_each_runs_memory_key(directory):
+    import io
+    import tarfile
+
+    import pack
+
+    run = sorted((directory / "runs").iterdir())[0]
+    (run / "memory").mkdir()
+    (run / "memory" / "memory.key").write_bytes(b"k" * 32)
+    (run / "memory" / "kept.md").write_text("x")
+    pack.pack(directory)
+    with tarfile.open(
+        fileobj=io.BytesIO((directory / "runs.tar.gz").read_bytes())
+    ) as tar:
+        names = tar.getnames()
+    assert any(n.endswith("memory/kept.md") for n in names)
+    assert not any(n.endswith("memory.key") for n in names)

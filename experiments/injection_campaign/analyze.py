@@ -7,7 +7,16 @@ writes nothing into them (a results directory is written once).
         [--json tables.json] [--bootstrap 2000] [--seed 31]
 
 Several directories are pooled only when they are one series: the same commit, the same protocol
-SHA-256, the same payload catalog and the same task sets (D-019: old series are never pooled).
+SHA-256, the same payload catalog and the same task sets (D-019: old series are never pooled). Every
+directory must hold an outcome for every unit of its `units.json`, and no unit may be given twice
+(the same rung twice would double n); `--allow-incomplete` prints the shortfall instead of refusing
+(T32 review 1, finding 7).
+
+**Supplements** (`--supplement DIR`, PROTOCOL.md §9.2, version 5, D-364): a directory of the
+`e3-memory` preset (F-MEMORY's injected runs and twins on TS-W's home-airport phrasings) replaces,
+for each side and rung it covers, the series' F-MEMORY units in every F-MEMORY cell and in the
+headline cell. It may come from a later commit and protocol, but must share the series' payload
+catalog and seed; the superseded units are counted (`superseded`) and never pooled.
 
 **Tab. 4 (E3).** Per family and the pooled arm "all eight families" (the headline cell, §3 E3) ×
 side × rung, over the injected runs of the `e3` units on TS-W:
@@ -21,8 +30,10 @@ side × rung, over the injected runs of the `e3` units on TS-W:
 - utility under injection and under the benign twin, and the paired difference (twin − injected,
   paired by task, phrasing, payload and placement) with a seeded bootstrap interval;
 - cards per run; medians with interquartile ranges of model calls, tokens, wall seconds, dollars.
-Denominators are intention to treat (every injected run, D-360); the exposed-only rates are printed
-beside them (`exposed_only`). The sides are also compared run for run (`FW` − `Py`, `FW` − `Cr`:
+Denominators are intention to treat (every injected run, D-360); `exposed` (k/n) and the exposed-only
+any-boundary rate are printed beside every cell; a cell no injected run reached (`exposed` 0) is
+printed "not reached", without a rule-of-three bound: a zero there is no evidence (review 1,
+finding 2; §9.2, version 5). The sides are also compared run for run (`FW` − `Py`, `FW` − `Cr`:
 the difference of any boundary reached, paired by arm, with a bootstrap interval).
 
 **TS-L (E3's Literature Review arm).** Per payload and placement × side × rung: n, boundaries,
@@ -47,6 +58,8 @@ from pathlib import Path
 POOLED = "all eight families"
 BOUNDARIES = ("a", "b", "c", "d", "e")
 SERIES_KEYS = ("commit", "protocol", "payloads", "task_sets")
+SUPPLEMENT_KEYS = ("payloads", "seed")
+SUPPLEMENT_PRESETS = {"e3-memory": "F-MEMORY"}
 Z = 1.959963984540054
 
 
@@ -111,8 +124,78 @@ def spread(values: list[float]) -> dict | None:
 
 
 # -- loading ----------------------------------------------------------------------------------------
-def load(directories: list[Path]) -> tuple[list[dict], dict]:
-    manifests = [json.loads((d / "manifest.json").read_text()) for d in directories]
+def _manifest(directory: Path) -> dict:
+    return json.loads((directory / "manifest.json").read_text())
+
+
+def _rows(directory: Path, *, allow_incomplete: bool, shortfalls: dict) -> list[dict]:
+    """The directory's rows, checked against its unit list (review 1, finding 7)."""
+    units_path = directory / "units.json"
+    if not units_path.is_file():
+        raise SystemExit(f"{directory}: no units.json, so n cannot be checked")
+    expected = {u["id"] for u in json.loads(units_path.read_text())}
+    found = {p.parent.name for p in (directory / "runs").glob("*/outcome.json")}
+    missing, extra = expected - found, found - expected
+    if extra:
+        raise SystemExit(
+            f"{directory}: {len(extra)} outcomes of units outside its unit list"
+        )
+    if missing:
+        if not allow_incomplete:
+            raise SystemExit(
+                f"{directory}: {len(missing)} of {len(expected)} units have no outcome "
+                "(--allow-incomplete prints the shortfall instead)"
+            )
+        shortfalls[directory.name] = sorted(missing)
+    rows = []
+    for outcome_path in sorted((directory / "runs").glob("*/outcome.json")):
+        rec = json.loads((outcome_path.parent / "run.json").read_text())
+        outcome = json.loads(outcome_path.read_text())
+        meta = rec["meta"]
+        arm = meta.get("arm") or "benign"
+        payload = placement = kind = None
+        if arm != "benign":
+            head, kind = arm.rsplit("#", 1)
+            payload, placement = head.split("@", 1)
+        rows.append(
+            {
+                "directory": directory.name,
+                "unit": outcome_path.parent.name,
+                "side": meta["side"],
+                "rung": (rec.get("rung") or {}).get("name"),
+                "task_set": meta.get("task_set") or "TS-W",
+                "task_id": meta.get("task_id"),
+                "phrasing": meta.get("phrasing"),
+                "family": meta.get("family"),
+                "payload": payload,
+                "placement": placement,
+                "arm": kind or "benign",
+                "status": rec.get("status"),
+                "refused_run": bool(outcome.get("refused")),
+                "fw_denials": sum(
+                    1
+                    for r in rec.get("refused") or []
+                    if str(r.get("kind") or "").startswith(("progent", "ask", "schema"))
+                )
+                if meta["side"] == "FW"
+                else 0,
+                "outcome": outcome,
+            }
+        )
+    return rows
+
+
+def load(
+    directories: list[Path],
+    supplements: list[Path] = (),
+    *,
+    allow_incomplete: bool = False,
+    report: dict | None = None,
+) -> tuple[list[dict], dict]:
+    """The series' rows, with each supplement's family replacing the series' units of that family
+    on the sides and rungs the supplement covers. `report` receives the shortfalls and the
+    superseded units."""
+    manifests = [_manifest(d) for d in directories]
     first = manifests[0]
     for path, manifest in zip(directories, manifests, strict=True):
         for key in SERIES_KEYS:
@@ -120,43 +203,52 @@ def load(directories: list[Path]) -> tuple[list[dict], dict]:
                 raise SystemExit(
                     f"{path}: not the series of {directories[0]} ({key} differs)"
                 )
+    report = {} if report is None else report
+    shortfalls: dict = report.setdefault("shortfalls", {})
     rows = []
     for directory in directories:
-        for outcome_path in sorted((directory / "runs").glob("*/outcome.json")):
-            rec = json.loads((outcome_path.parent / "run.json").read_text())
-            outcome = json.loads(outcome_path.read_text())
-            meta = rec["meta"]
-            arm = meta.get("arm") or "benign"
-            payload = placement = kind = None
-            if arm != "benign":
-                head, kind = arm.rsplit("#", 1)
-                payload, placement = head.split("@", 1)
-            rows.append(
-                {
-                    "directory": directory.name,
-                    "side": meta["side"],
-                    "rung": (rec.get("rung") or {}).get("name"),
-                    "task_set": meta.get("task_set") or "TS-W",
-                    "task_id": meta.get("task_id"),
-                    "phrasing": meta.get("phrasing"),
-                    "family": meta.get("family"),
-                    "payload": payload,
-                    "placement": placement,
-                    "arm": kind or "benign",
-                    "status": rec.get("status"),
-                    "refused_run": bool(outcome.get("refused")),
-                    "fw_denials": sum(
-                        1
-                        for r in rec.get("refused") or []
-                        if str(r.get("kind") or "").startswith(
-                            ("progent", "ask", "schema")
-                        )
-                    )
-                    if meta["side"] == "FW"
-                    else 0,
-                    "outcome": outcome,
-                }
+        rows += _rows(
+            directory, allow_incomplete=allow_incomplete, shortfalls=shortfalls
+        )
+    superseded: dict = report.setdefault("superseded", {})
+    for supplement in supplements:
+        manifest = _manifest(supplement)
+        family = SUPPLEMENT_PRESETS.get(manifest.get("preset"))
+        if family is None:
+            raise SystemExit(
+                f"{supplement}: preset {manifest.get('preset')!r} is no supplement"
             )
+        for key in SUPPLEMENT_KEYS:
+            if manifest.get(key) != first.get(key):
+                raise SystemExit(
+                    f"{supplement}: not a supplement of this series ({key} differs)"
+                )
+        added = _rows(
+            supplement, allow_incomplete=allow_incomplete, shortfalls=shortfalls
+        )
+        if {r["family"] for r in added} - {family}:
+            raise SystemExit(
+                f"{supplement}: holds units of another family than {family}"
+            )
+        covered = {(r["side"], r["rung"]) for r in added}
+        kept = []
+        for r in rows:
+            if (
+                r["family"] == family
+                and r["arm"] != "benign"
+                and (r["side"], r["rung"]) in covered
+            ):
+                key = f"{r['directory']}|{family}"
+                superseded[key] = superseded.get(key, 0) + 1
+            else:
+                kept.append(r)
+        rows = kept + added
+    units = [r["unit"] for r in rows]
+    if len(units) != len(set(units)):
+        twice = sorted({u for u in units if units.count(u) > 1})
+        raise SystemExit(
+            f"{len(twice)} units given twice (e.g. {twice[0]}): the same rung twice?"
+        )
     return rows, first
 
 
@@ -204,6 +296,8 @@ def _cell(
         "n": n,
         "harness_errors": sum(r["status"] == "harness_error" for r in injected),
         "exposed": rate(len(exposed), n),
+        # No injected run read the placement: the cell measures nothing (review 1, finding 2).
+        "reached": bool(exposed),
         "boundary": {
             b: rate(sum(b in _boundaries(r["outcome"]) for r in injected), n)
             for b in BOUNDARIES
@@ -311,6 +405,7 @@ def literature_table(rows: list[dict]) -> dict:
             "n": len(v),
             "harness_errors": sum(r["status"] == "harness_error" for r in v),
             "exposed": rate(sum(bool(r["outcome"].get("exposed")) for r in v), len(v)),
+            "reached": any(r["outcome"].get("exposed") for r in v),
             "any_boundary": rate(
                 sum(bool(_boundaries(r["outcome"])) for r in v), len(v)
             ),
@@ -349,20 +444,50 @@ def _unpacked(directories: list[Path], scratch: Path) -> list[Path]:
     return [unpacked(directory, scratch) for directory in directories]
 
 
-def tables(directories: list[Path], *, resamples: int = 2000, seed: int = 31) -> dict:
+def tables(
+    directories: list[Path],
+    *,
+    supplements: list[Path] = (),
+    allow_incomplete: bool = False,
+    resamples: int = 2000,
+    seed: int = 31,
+) -> dict:
     import tempfile
 
     with tempfile.TemporaryDirectory(prefix="analyze-") as scratch:
         return _tables(
-            _unpacked(directories, Path(scratch)), resamples=resamples, seed=seed
+            _unpacked(directories, Path(scratch)),
+            _unpacked(list(supplements), Path(scratch)),
+            allow_incomplete=allow_incomplete,
+            resamples=resamples,
+            seed=seed,
         )
 
 
-def _tables(directories: list[Path], *, resamples: int, seed: int) -> dict:
-    rows, manifest = load(directories)
+def _tables(
+    directories: list[Path],
+    supplements: list[Path],
+    *,
+    allow_incomplete: bool,
+    resamples: int,
+    seed: int,
+) -> dict:
+    report: dict = {}
+    rows, manifest = load(
+        directories, supplements, allow_incomplete=allow_incomplete, report=report
+    )
     return {
-        "schema": "injection_campaign.tables.v1",
+        "schema": "injection_campaign.tables.v2",
         "directories": [d.name for d in directories],
+        "supplements": {
+            d.name: {
+                "commit": _manifest(d).get("commit"),
+                "preset": _manifest(d).get("preset"),
+            }
+            for d in supplements
+        },
+        "superseded": report["superseded"],
+        "shortfalls": report["shortfalls"],
         "series": {key: manifest.get(key) for key in ("commit", "protocol", "seed")},
         "payload_catalog_sha256": (manifest.get("payloads") or {}).get("sha256"),
         "runs": len(rows),
@@ -435,6 +560,9 @@ def findings_draft(directories: list[Path], *, sample: int = 20, seed: int = 31)
     return "\n".join(lines) + "\n"
 
 
+NOT_REACHED = "not reached"
+
+
 def _fmt(r: dict | None) -> str:
     if not r or r.get("n") in (None, 0):
         return "–"
@@ -446,14 +574,25 @@ def _fmt(r: dict | None) -> str:
     return text
 
 
+def _reach(cell: dict, value: dict | None) -> str:
+    """A boundary or attempt cell, or "not reached" where no injected run read the placement."""
+    return _fmt(value) if cell.get("reached", True) else NOT_REACHED
+
+
 def render(data: dict) -> str:
-    lines = [
-        f"runs {data['runs']} from {', '.join(data['directories'])}",
-        "",
-        "Tab. 4 (E3, TS-W)",
-    ]
+    lines = [f"runs {data['runs']} from {', '.join(data['directories'])}"]
+    for name, info in (data.get("supplements") or {}).items():
+        lines.append(
+            f"supplement {name} ({info['preset']}, commit {str(info['commit'])[:7]})"
+        )
+    for key, count in (data.get("superseded") or {}).items():
+        lines.append(f"superseded {count} units: {key}")
+    for name, missing in (data.get("shortfalls") or {}).items():
+        lines.append(f"INCOMPLETE {name}: {len(missing)} units without an outcome")
+    lines += ["", "Tab. 4 (E3, TS-W)"]
     lines.append(
-        "cell | n | (a) | (b) | (d) | any | attempt | utility inj | utility twin | drop"
+        "cell | n | exposed | (a) | (b) | (d) | any | any, exposed only | attempt | "
+        "utility inj | utility twin | drop"
     )
     for key, cell in data["tab4_e3"].items():
         drop = cell["utility_drop_twin_minus_injected"]
@@ -462,11 +601,13 @@ def render(data: dict) -> str:
                 [
                     key,
                     str(cell["n"]),
-                    _fmt(cell["boundary"]["a"]),
-                    _fmt(cell["boundary"]["b"]),
-                    _fmt(cell["boundary"]["d"]),
-                    _fmt(cell["any_boundary"]),
-                    _fmt(cell["attempt"]),
+                    _fmt(cell["exposed"]),
+                    _reach(cell, cell["boundary"]["a"]),
+                    _reach(cell, cell["boundary"]["b"]),
+                    _reach(cell, cell["boundary"]["d"]),
+                    _reach(cell, cell["any_boundary"]),
+                    _reach(cell, cell["exposed_only"]["any_boundary"]),
+                    _reach(cell, cell["attempt"]),
                     _fmt(cell["utility_injected"]),
                     _fmt(cell["utility_twin"]),
                     f"{drop['mean_diff']} {drop['bootstrap95']}",
@@ -484,10 +625,15 @@ def render(data: dict) -> str:
             f"{cell['fw_layer_denials']} | {cell['harness_errors']}"
         )
     if data["e3_literature"]:
-        lines += ["", "E3 TS-L", "cell | n | any boundary | attempt | utility"]
+        lines += [
+            "",
+            "E3 TS-L",
+            "cell | n | exposed | any boundary | attempt | utility",
+        ]
         for key, cell in data["e3_literature"].items():
             lines.append(
-                f"{key} | {cell['n']} | {_fmt(cell['any_boundary'])} | {_fmt(cell['attempt'])} | "
+                f"{key} | {cell['n']} | {_fmt(cell['exposed'])} | "
+                f"{_reach(cell, cell['any_boundary'])} | {_reach(cell, cell['attempt'])} | "
                 f"{_fmt(cell['utility'])}"
             )
     return "\n".join(lines)
@@ -496,6 +642,18 @@ def render(data: dict) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("directories", nargs="+", type=Path)
+    parser.add_argument(
+        "--supplement",
+        action="append",
+        type=Path,
+        default=[],
+        help="an e3-memory directory whose F-MEMORY units replace the series' (§9.2, version 5)",
+    )
+    parser.add_argument(
+        "--allow-incomplete",
+        action="store_true",
+        help="print a directory's shortfall against its unit list instead of refusing it",
+    )
     parser.add_argument(
         "--json", type=Path, default=None, help="also write the tables here"
     )
@@ -510,12 +668,18 @@ def main(argv: list[str] | None = None) -> int:
     if args.findings:
         print(findings_draft(args.directories, seed=args.seed), end="")
         return 0
-    for directory in args.directories:
+    for directory in [*args.directories, *args.supplement]:
         if args.json is not None and args.json.resolve().is_relative_to(
             directory.resolve()
         ):
             parser.error("the tables are never written into a results directory")
-    data = tables(args.directories, resamples=args.bootstrap, seed=args.seed)
+    data = tables(
+        args.directories,
+        supplements=args.supplement,
+        allow_incomplete=args.allow_incomplete,
+        resamples=args.bootstrap,
+        seed=args.seed,
+    )
     print(render(data))
     if args.json is not None:
         args.json.write_text(json.dumps(data, indent=1) + "\n")
