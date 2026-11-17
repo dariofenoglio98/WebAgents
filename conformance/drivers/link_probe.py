@@ -67,9 +67,13 @@ def write_case(out: Path, case: dict) -> dict:
     """`test_link_cases.py::build`: the composition for one case, with its files beside it."""
     out = out.resolve()
     made = probe.scenario(case.get("variant"))
-    made.caller["MANIFEST.agent"]["package_id"] = (
-        f"org.webagents.conformance.link-{case['id']}"
-    )
+    manifest = made.caller["MANIFEST.agent"]
+    original = manifest["package_id"]
+    manifest["package_id"] = f"org.webagents.conformance.link-{case['id']}"
+    # A record that names the caller itself (N-6, `cycle`) keeps naming it under its new id.
+    for override in made.record_overrides.values():
+        if override.get("package_id") == original:
+            override["package_id"] = manifest["package_id"]
     built = probe.write(out, made, _keys(out / "keys"))
     grants = out / "caller.grants.json"
     grants.write_text(json.dumps(built.grants), encoding="utf-8")

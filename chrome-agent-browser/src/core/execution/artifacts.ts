@@ -38,8 +38,10 @@ export const LINK_RUN_PREFIX = "link-";
 export function artifactRecords(result: JsonObject, pkg: Package | null = null): ArtifactRecord[] {
   // link.v0 L-30: each inner run's report is written beside the caller's under flat names (a run's
   // artifact directory holds no subdirectory), and `result.json` does not repeat them.
+  // As the reference's `artifact_records`: the member is dropped when it holds a report, so a run
+  // whose links started no inner run keeps an empty `inner_runs` in its `result.json` (D-707).
   const innerRuns = (result.inner_runs as Record<string, JsonObject> | undefined) ?? {};
-  if (Object.hasOwn(result, "inner_runs")) {
+  if (Object.keys(innerRuns).length > 0) {
     const { inner_runs: _inner, ...rest } = result;
     result = rest;
   }

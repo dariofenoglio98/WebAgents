@@ -251,6 +251,23 @@ export async function bindLive(pkg: Package, parsed: ReturnType<typeof parseArgu
   return { binding, definitions, toolBindings, resourceGrants, store, deps, linkAdapters: null };
 }
 
+/**
+ * The keys `agentpkg run --limits` takes (the runtime's own: `Runtime(limits=…)`), and the host
+ * execution limit each one is. A document in that form is read as the permissive host document
+ * with those figures lowered, so that one limits file means the same run on both CLIs (the link
+ * family's probe writes it, D-709); any other document is the host execution limits document.
+ */
+const RUNTIME_LIMIT_KEYS: Readonly<Record<string, string>> = { hard_tokens: "total_tokens", max_remote_calls: "max_remote_calls", max_parallel_workers: "max_parallel_workers", max_calls_per_tool: "max_calls_per_tool" };
+
+function hostLimitsDocument(raw: JsonValue): JsonValue {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const keys = Object.keys(raw);
+  if (keys.length === 0 || !keys.includes("hard_tokens") || keys.some((key) => !Object.hasOwn(RUNTIME_LIMIT_KEYS, key))) return raw;
+  const document: JsonObject = { ...PERMISSIVE_HOST_LIMITS };
+  for (const key of keys) document[RUNTIME_LIMIT_KEYS[key]!] = raw[key]!;
+  return document;
+}
+
 export async function runCommand(args: string[]): Promise<number> {
   const parsed = parseArguments("run", args, RUN);
   const mode = parsed.value("--mode") as "fixture" | "live";
@@ -274,7 +291,7 @@ export async function runCommand(args: string[]): Promise<number> {
   // As `agentpkg run`: without `--limits` the host lowers nothing, and the package's own budget
   // and deadline apply; `--limits` is the host execution limits document (D-064).
   const limitsRaw: JsonValue = parsed.value("--limits") ? jsonFile(parsed.value("--limits")!, "object") : { ...PERMISSIVE_HOST_LIMITS };
-  const limits = normalizeHostLimits(limitsRaw);
+  const limits = normalizeHostLimits(hostLimitsDocument(limitsRaw));
   const inputPath = parsed.value("--input");
   const archiveSha256 = await sha256Hex(bytes);
   // memory.v0 M-16, M-64 N6: a memory read whose output is not the type's view is not bound, so
@@ -321,7 +338,7 @@ export async function runCommand(args: string[]): Promise<number> {
   const session = new ExecutionSession();
   const runId = `run_${randomBytes(16).toString("hex")}`;
   const created = new Date();
-  const begin: BeginReport = await session.begin({ run_id: runId, run_plan: plan, authorization, input, limits: limitsRaw, host: { runtime: HOST_RUNTIME, runtime_version: CORE_VERSION, verified_version: CORE_VERSION } }, deps);
+  const begin: BeginReport = await session.begin({ run_id: runId, run_plan: plan, authorization, input, limits: hostLimitsDocument(limitsRaw), host: { runtime: HOST_RUNTIME, runtime_version: CORE_VERSION, verified_version: CORE_VERSION } }, deps);
   const onSignal = () => {
     process.stderr.write("agent-browser: cancelling the run\n");
     session.cancel();
