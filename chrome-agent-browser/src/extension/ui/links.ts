@@ -162,6 +162,7 @@ export function linksCard(view: LinksView, actions: LinksCardActions, busy: bool
         forbidden
           ? el("p", { text: `Your policy ${view.run_cards.policy ?? ""} forbids joining an agent found during a run: this step answers “policy”, nothing is looked at and no card is shown.` })
           : el("p", { text: `Step ${slot.step} may look at up to three pages (an address you give it, or one its search returns) and fetch one package from the first that offers one. You are asked on a card before anything of that package reaches the model or runs; no answer is a no. At most ${plural(slot.max_joins, "card")} for this step and ${view.run_cards.max_join_cards} in a run.` }),
+        forbidden ? null : el("p", { className: "ab-hint ab-link-slot-origins", text: "This browser reads only sites you allowed it to read (Settings → Permissions). A page it may not read is listed in the run as not read, and the step then finds nothing." }),
         row("It may send that agent", slot.view.length > 0 ? slot.view.join(", ") : "nothing"),
         row("At most, for this step", figuresText(slot.ceiling)),
         el("p", { className: "ab-hint", text: `One of those model calls is this agent's own, to write its request; the rest is the most the joined agent may use, and “${slot.slot}:*” stands for its tools, whose names are not known before the join. The “at most” above already holds this, so it does not change when you accept a join.` }),

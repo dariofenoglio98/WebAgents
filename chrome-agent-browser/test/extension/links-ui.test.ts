@@ -169,6 +169,7 @@ describe("the review's Linked agents card (D-702)", () => {
     expect(slot.textContent).toContain("may look at up to three pages");
     expect(slot.textContent).toContain("You are asked on a card before anything of that package reaches the model or runs; no answer is a no. At most 1 card for this step and 2 in a run.");
     expect(slot.textContent).toContain("check_in, check_out, travellers");
+    expect(slot.querySelector(".ab-link-slot-origins")!.textContent).toContain("This browser reads only sites you allowed it to read");
     expect(slot.textContent).toContain("At most, for this step2 model calls · tool calls: named-hotel:* ×1 · 3 remote calls · 6,000 tokens · 300 seconds");
     expect(slot.textContent).toContain("One of those model calls is this agent's own, to write its request");
     expect(root.querySelector<HTMLElement>('[data-at-most="composed"]')!.textContent).toContain("14 model calls");
