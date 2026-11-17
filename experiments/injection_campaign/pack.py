@@ -20,6 +20,9 @@ from pathlib import Path
 
 PACKED = ("runs", "selected", "progress.jsonl")
 ARCHIVE = "runs.tar.gz"
+# What `.gitignore` keeps out of the tree stays out of the archive too (T32 review 1, nit 12): each
+# run's throwaway memory key (memory.v0). Archives packed before this rule hold theirs.
+EXCLUDED_NAMES = frozenset({"memory.key"})
 
 
 def _members(directory: Path) -> list[Path]:
@@ -29,7 +32,7 @@ def _members(directory: Path) -> list[Path]:
         if path.is_file():
             out.append(path)
         elif path.is_dir():
-            out += sorted(p for p in path.rglob("*"))
+            out += sorted(p for p in path.rglob("*") if p.name not in EXCLUDED_NAMES)
     return sorted(out, key=lambda p: p.relative_to(directory).as_posix())
 
 

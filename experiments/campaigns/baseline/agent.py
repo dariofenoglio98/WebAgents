@@ -25,6 +25,7 @@ import time
 from pathlib import Path
 
 import httpx
+import openai
 from agents import (
     Agent,
     AgentOutputSchemaBase,
@@ -272,10 +273,21 @@ def ollama_context(rung: Rung) -> int | None:
     return None
 
 
-RUN_OUTCOMES = ("max_turns", "output_not_conforming", "budget_exhausted", "deadline")
+# A model call that timed out (the OpenAI client's `APITimeoutError`, a subclass of
+# `APIConnectionError` and not of `TimeoutError`) is the run's own failure, as `Py`'s `ReadTimeout`
+# and `Cr`'s `model_call_timeout` are (D-361; T32 review 1, finding 4): never a harness error.
+RUN_OUTCOMES = (
+    "max_turns",
+    "output_not_conforming",
+    "budget_exhausted",
+    "deadline",
+    "model_call_timeout",
+)
 
 
 def _error_code(exc: BaseException) -> str:
+    if isinstance(exc, openai.APITimeoutError):  # before any connection-error check
+        return "model_call_timeout"
     if isinstance(exc, MaxTurnsExceeded):
         return "max_turns"
     if isinstance(exc, ModelBehaviorError):

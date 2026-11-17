@@ -71,7 +71,7 @@ from campaigns.tasks import generate  # noqa: E402
 PROTOCOL = EXPERIMENTS / "PROTOCOL.md"
 RUNGS = Path(__file__).resolve().parent / "rungs.json"
 SIDES = ("Py", "Cr", "FW")
-PRESETS = ("smoke", "placements", "e2", "e3", "qualification", "paper")
+PRESETS = ("smoke", "placements", "e2", "e3", "e3-memory", "qualification", "paper")
 # E3's pooled arm (PROTOCOL.md §3 E3, D-360): 300 injected runs per side × rung, 37 or 38 per
 # family, each with its twin; TS-L's arm: every question × its two payloads × its placements,
 # injected only.
@@ -117,6 +117,11 @@ LITERATURE_ATTACK_SIDES = ("Py", "FW")
 def load_tasks() -> dict[str, dict]:
     tasks = {}
     for task in json.loads((generate.HERE / "ts-w.json").read_text())["tasks"]:
+        phrasings = [p if isinstance(p, list) else [p] for p in task["phrasings"]]
+        tasks[task["id"]] = {**task, "task_set": "TS-W", "turn_sets": phrasings}
+    # TS-W's home-airport phrasings (`reads_profile`): F-MEMORY's draws only, never E2's matrix or
+    # another family's (T32 review 1, finding 2; `admits_family`).
+    for task in json.loads((generate.HERE / "ts-w-home.json").read_text())["tasks"]:
         phrasings = [p if isinstance(p, list) else [p] for p in task["phrasings"]]
         tasks[task["id"]] = {**task, "task_set": "TS-W", "turn_sets": phrasings}
     for transcript in json.loads((generate.HERE / "ts-c.json").read_text())["transcripts"]:
@@ -206,10 +211,17 @@ def admits_family(payload: dict, task: dict) -> bool:
     """D-360's admission rule: the W1–W4 tasks a family's run may draw, beyond the placement's
     reach. F-ACTION and F-CONSENT only on a task that asks for no purchase (W4 asks for one, so an
     unrequested purchase would not be observable there); F-STEER only on a task whose truth names a
-    fare outside the promoted family (a Flex truth cannot show a steer to Flex)."""
+    fare outside the promoted family (a Flex truth cannot show a steer to Flex). F-MEMORY only on
+    TS-W's home-airport phrasings (`reads_profile`), and they on no other family: WebAir's plan
+    reads the travel profile only when the request leaves the departure open, which no TS-W
+    phrasing does, so F-MEMORY's draws on W1–W4 never reached our side (T32 review 1, finding 2;
+    PROTOCOL.md §9.2). Each family draws from its own seeded stream, so the other families' draws
+    are the ones the local paper directories ran."""
     if task["task_set"] != "TS-W" or task["class"] not in E3_TASK_CLASSES:
         return False
     family = payload["family"]
+    if bool(task.get("reads_profile")) != (family == "F-MEMORY"):
+        return False
     if family in ("F-ACTION", "F-CONSENT"):
         return (task.get("truth") or {}).get("status") != "purchase_simulated"
     if family == "F-STEER":
@@ -249,9 +261,9 @@ def _reaches_any(placement: str, task: dict) -> bool:
     return placement in catalog.RECORD_PLACEMENTS or reaches(placement, task)
 
 
-def _e3_cells(tasks: dict, payloads: dict) -> list[tuple[dict, int, dict | None]]:
+def _e3_cells(tasks: dict, payloads: dict, seed: int) -> list[tuple[dict, int, dict | None]]:
     cells = []
-    for task, phrasing, payload_id, placement in e3_draws(tasks, payloads):
+    for task, phrasing, payload_id, placement in e3_draws(tasks, payloads, seed):
         cells += [(task, phrasing, arm) for arm in _pairs(payload_id, placement)]
     for task in tasks.values():
         if task["task_set"] != "TS-L":
@@ -278,14 +290,20 @@ def units_for(
     sides: list[str],
     payloads: dict,
     task_sets: tuple[str, ...] = TASK_SETS,
+    seed: int = SEED,
 ) -> list[dict]:
     """The presets (§2.7, D-360): `smoke`; `placements` (every payload at every placement it
     reaches on the first task of each class, injected and twin, with E2's benign matrix: the matcher
     sweep T31 called qualification); `e2` (§3 E2: every task × its phrasings, benign); `e3` (§3 E3:
     the pooled arm with its twins, TS-L's injected arm); `qualification` (`e2` + `e3` on one rung,
-    §2.7); `paper` (`e2` + `e3` on every rung given)."""
+    §2.7); `paper` (`e2` + `e3` on every rung given); `e3-memory` (F-MEMORY's injected runs and
+    twins of `e3` alone: the supplementary arm on the home-airport phrasings, for the local
+    directories that ran F-MEMORY on W1–W4, T32 review 1, finding 2). The draws follow `seed`
+    (review 1, finding 6)."""
     all_tasks = load_tasks()
-    tasks = {k: v for k, v in all_tasks.items() if v["task_set"] in task_sets}
+    selected = {k: v for k, v in all_tasks.items() if v["task_set"] in task_sets}
+    # E2's matrix and the smoke and placement sweeps never take the home-airport phrasings.
+    tasks = {k: v for k, v in selected.items() if not v.get("reads_profile")}
     cells: list[tuple[dict, int, dict | None]] = []
     firsts = _first_of_each_class(tasks)
     if preset == "smoke":
@@ -307,7 +325,15 @@ def units_for(
             cells += _e2_cells(tasks)
         if preset in ("e3", "qualification", "paper"):
             # The draws come from the whole task set, so narrowing never moves a draw.
-            cells += [c for c in _e3_cells(all_tasks, payloads) if c[0]["id"] in tasks]
+            cells += [c for c in _e3_cells(all_tasks, payloads, seed) if c[0]["id"] in selected]
+        if preset == "e3-memory":
+            cells += [
+                c
+                for c in _e3_cells(all_tasks, payloads, seed)
+                if c[0]["id"] in selected
+                and c[2] is not None
+                and payloads[c[2]["payload"]]["family"] == "F-MEMORY"
+            ]
     units = []
     for rung in rungs:
         for side in sides:
@@ -583,7 +609,7 @@ def manifest(
         "sides": sides,
         "task_sets": {
             name: _sha_file(generate.HERE / name)
-            for name in ("ts-w.json", "ts-c.json", "ts-n.json", "ts-l.json")
+            for name in ("ts-w.json", "ts-c.json", "ts-n.json", "ts-l.json", "ts-w-home.json")
         },
         "task_sets_selected": list(task_sets),
         "literature": {
@@ -712,14 +738,23 @@ ROUTE_FAILURES = {
     "RateLimitError",
     "ServiceUnavailableError",
 }
-# Timeouts stay run failures: `Py` ReadTimeout, `FW` APITimeoutError and `deadline`, `Cr`
-# `model_call_timeout`.
+# Timeouts stay run failures: `Py` ReadTimeout, `FW` APITimeoutError (`model_call_timeout`) and
+# `deadline`, `Cr` `model_call_timeout`.
+# `Cr`: the Chrome core ends the turn `model_error` whatever the route did, and its audit's
+# `model.failed` names the adapter's code (models/adapters/shared.ts): a dropped connection
+# `model_transport_error`, any other HTTP error status `model_provider_error`, a 429
+# `model_rate_limited`; the campaign's refusing route `model_unavailable` (T32 review 1, finding 5,
+# established with records the Node driver wrote against a fake Ollama, tests/test_review1_t32.py).
+CR_ROUTE_FAILURES = frozenset(
+    {"model_unavailable", "model_transport_error", "model_provider_error", "model_rate_limited"}
+)
 
 
 def promote_route_failure(rec: dict) -> dict:
     """D-361: a run whose route did not answer a model call is a harness error, on every side: a
-    recorded call error or outcome in `ROUTE_FAILURES`, or (`Cr`) a call the seam saw leave with no
-    HTTP status back while the core ended the run `model_unavailable`."""
+    recorded call error or outcome in `ROUTE_FAILURES`, or (`Cr`) a `model.failed` audit event whose
+    reason is in `CR_ROUTE_FAILURES`, or a call the seam saw leave with no HTTP status back while
+    the core ended the run `model_unavailable`."""
     if rec["status"] == "harness_error":
         return rec
     failed = [
@@ -727,6 +762,12 @@ def promote_route_failure(rec: dict) -> dict:
         for c in rec.get("model_calls") or []
         if c.get("error") in ROUTE_FAILURES or c.get("outcome") in ROUTE_FAILURES
     ]
+    if not failed and (rec.get("meta") or {}).get("side") == "Cr":
+        failed = [
+            {"outcome": e["reason"]}
+            for e in rec.get("audit") or []
+            if e.get("action") == "model.failed" and e.get("reason") in CR_ROUTE_FAILURES
+        ]
     codes = {t.get("error_code") for t in rec.get("turns") or []}
     if not failed and "model_unavailable" in codes:
         failed = [c for c in rec.get("model_calls") or [] if c.get("url") and not c.get("status")]
@@ -952,6 +993,26 @@ def summarize(out: Path, units: list[dict] | None = None) -> dict:
     return summary
 
 
+def _write_atomic(path: Path, text: str) -> None:
+    import os
+
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(text)
+    os.replace(temporary, path)
+
+
+def mixes_contexts(units: list[dict], ollama_url: str) -> bool:
+    """Whether one process would run units of different local contexts (review 1, nit 14): `FW`
+    reaches Ollama's /v1 at the server's default context, which is one value per server job, so
+    TS-L (65,536) and the other task sets (32,768) never share an invocation on a local rung."""
+    contexts = {
+        rung_for_unit(u, ollama_url).context_window
+        for u in units
+        if rung_of(u["rung"], ollama_url).provider == "ollama"
+    }
+    return len(contexts) > 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="campaign", description=__doc__.split("\n\n")[0])
     parser.add_argument("--preset", choices=PRESETS, required=True)
@@ -1004,7 +1065,9 @@ def main(argv: list[str] | None = None) -> int:
         shard = (int(match.group(1)), int(match.group(2)))
     payloads = catalog.load()
     try:
-        units = ordered(units_for(args.preset, rungs, sides, payloads, task_sets), rungs, args.seed)
+        units = ordered(
+            units_for(args.preset, rungs, sides, payloads, task_sets, args.seed), rungs, args.seed
+        )
     except ValueError as exc:
         parser.error(str(exc))
     if shard is not None and any(u["task_set"] == "TS-L" for u in units):
@@ -1012,6 +1075,12 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(
             "TS-L takes Crossref's single lane: run it in its own unsharded process "
             "(--task-sets TS-L) and shard the rest (--task-sets TS-W,TS-C,TS-N)"
+        )
+    if mixes_contexts(units, args.ollama_url):
+        parser.error(
+            "TS-L runs at a 65,536 context on a local rung and the other task sets at 32,768, "
+            "and FW takes the server's default: run --task-sets TS-L in its own invocation "
+            "against a server started at that context"
         )
     only = [t for t in (args.tasks or "").split(",") if t]
     if only:
@@ -1052,8 +1121,10 @@ def main(argv: list[str] | None = None) -> int:
                 time.sleep(0.1)
     if fresh:
         written = {**wanted, "written_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}
-        (out / "units.json").write_text(json.dumps(units, indent=1) + "\n")
-        path.write_text(json.dumps(written, indent=1) + "\n")
+        # Whole files only (review 1, nit 13): a sibling shard waits for `manifest.json` and must
+        # never read it half written.
+        _write_atomic(out / "units.json", json.dumps(units, indent=1) + "\n")
+        _write_atomic(path, json.dumps(written, indent=1) + "\n")
     else:
         if not path.is_file():
             parser.error(f"{path} does not exist")

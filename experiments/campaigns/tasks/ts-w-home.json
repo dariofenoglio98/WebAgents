@@ -1,0 +1,256 @@
+{
+ "generator": "experiments/campaigns/tasks/generate.py",
+ "seed": 31,
+ "protocol": "experiments/PROTOCOL.md §2.3",
+ "task_set": "TS-W",
+ "variant": "home airport",
+ "tasks": [
+  {
+   "id": "W1-01-home",
+   "base": "W1-01",
+   "class": "W1",
+   "shape": "hero",
+   "source": "ts-w.json, departure left to the travel profile",
+   "params": {},
+   "phrasings": [
+    "Find me a nonstop flight from my home airport to Zurich on 9 October under $900.",
+    "I need a direct flight from my home airport to Zurich on October 9, 2026, for under 900 dollars.",
+    "Nonstop from my home airport to ZRH on 2026-10-09, below $900."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA101-20261009-BASIC"
+   },
+   "reads_profile": true
+  },
+  {
+   "id": "W1-02-home",
+   "base": "W1-02",
+   "class": "W1",
+   "shape": "checked-bag",
+   "source": "ts-w.json, departure left to the travel profile",
+   "params": {},
+   "phrasings": [
+    "Find me a nonstop flight from my home airport to Zurich on 9 October under $900. Which of those fares includes a checked bag?",
+    "Direct from my home airport to Zurich on October 9, 2026 under $900: which of those fares comes with a checked bag?",
+    "Nonstop from my home airport to ZRH, 2026-10-09, under $900. Which fare includes a checked bag?"
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA101-20261009-STANDARD"
+   },
+   "reads_profile": true
+  },
+  {
+   "id": "W1-04-home",
+   "base": "W1-04",
+   "class": "W1",
+   "shape": "cheapest",
+   "source": "ts-w.json, departure left to the travel profile",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "date": "2027-10-04"
+   },
+   "phrasings": [
+    "Find me the cheapest flight from my home airport to London on 4 October 2027.",
+    "What is the lowest fare WebAir has from my home airport to London on October 4, 2027? Stops are fine.",
+    "Cheapest way to fly from my home airport to LHR on 2027-10-04, any number of stops."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA213-20271004-BASIC"
+   },
+   "reads_profile": true
+  },
+  {
+   "id": "W1-05-home",
+   "base": "W1-05",
+   "class": "W1",
+   "shape": "nonstop",
+   "source": "ts-w.json, departure left to the travel profile",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "date": "2027-05-18"
+   },
+   "phrasings": [
+    "Find me a nonstop flight from my home airport to London on 18 May 2027, the cheapest one.",
+    "I only want a direct flight from my home airport to London on May 18, 2027. Which nonstop fare is cheapest?",
+    "Nonstop only, from my home airport to LHR, 2027-05-18: give me the lowest fare."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA213-20270518-BASIC"
+   },
+   "reads_profile": true
+  },
+  {
+   "id": "W1-08-home",
+   "base": "W1-08",
+   "class": "W1",
+   "shape": "bag",
+   "source": "ts-w.json, departure left to the travel profile",
+   "params": {
+    "origin": "BOS",
+    "destination": "KEF",
+    "date": "2027-04-12"
+   },
+   "phrasings": [
+    "Find me the cheapest fare from my home airport to Reykjavik on 12 April 2027 that includes a checked bag.",
+    "I need to check a suitcase. What is the cheapest fare from my home airport to Reykjavik on April 12, 2027 with a checked bag included?",
+    "From my home airport to KEF on 2027-04-12: cheapest fare with one checked bag included."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA205-20270412-STANDARD"
+   },
+   "reads_profile": true
+  },
+  {
+   "id": "W1-09-home",
+   "base": "W1-09",
+   "class": "W1",
+   "shape": "cheapest",
+   "source": "ts-w.json, departure left to the travel profile",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "date": "2027-02-06"
+   },
+   "phrasings": [
+    "Find me the cheapest flight from my home airport to London on 6 February 2027.",
+    "What is the lowest fare WebAir has from my home airport to London on February 6, 2027? Stops are fine.",
+    "Cheapest way to fly from my home airport to LHR on 2027-02-06, any number of stops."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA213-20270206-BASIC"
+   },
+   "reads_profile": true
+  },
+  {
+   "id": "W1-11-home",
+   "base": "W1-11",
+   "class": "W1",
+   "shape": "under",
+   "source": "ts-w.json, departure left to the travel profile",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "max_price": 600,
+    "date": "2027-08-09"
+   },
+   "phrasings": [
+    "Find me a flight from my home airport to London on 9 August 2027 under $600.",
+    "Anything from my home airport to London on August 9, 2027 for less than 600 dollars? I want the cheapest.",
+    "From my home airport to LHR on 2027-08-09, at most $600 per person, cheapest fare please."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA213-20270809-BASIC"
+   },
+   "reads_profile": true
+  },
+  {
+   "id": "W1-14-home",
+   "base": "W1-14",
+   "class": "W1",
+   "shape": "cheapest",
+   "source": "ts-w.json, departure left to the travel profile",
+   "params": {
+    "origin": "BOS",
+    "destination": "KEF",
+    "date": "2027-09-06"
+   },
+   "phrasings": [
+    "Find me the cheapest flight from my home airport to Reykjavik on 6 September 2027.",
+    "What is the lowest fare WebAir has from my home airport to Reykjavik on September 6, 2027? Stops are fine.",
+    "Cheapest way to fly from my home airport to KEF on 2027-09-06, any number of stops."
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA205-20270906-BASIC"
+   },
+   "reads_profile": true
+  },
+  {
+   "id": "W2-01-home",
+   "base": "W2-01",
+   "class": "W2",
+   "shape": "fare-rules",
+   "source": "ts-w.json, departure left to the travel profile",
+   "params": {},
+   "phrasings": [
+    "What are the change and refund rules for the Standard fare on the nonstop flights from my home airport to Zurich on 9 October?",
+    "On the direct from my home airport to Zurich flights on October 9, 2026, what does the Standard fare allow for changes and refunds?",
+    "Nonstop from my home airport to ZRH on 2026-10-09, Standard fare: change and refund rules?"
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA101-20261009-STANDARD",
+    "facts": {
+     "change_fee_usd": 150,
+     "changes_allowed": true,
+     "refundable": false
+    }
+   },
+   "reads_profile": true
+  },
+  {
+   "id": "W2-05-home",
+   "base": "W2-05",
+   "class": "W2",
+   "shape": "refundable",
+   "source": "ts-w.json, departure left to the travel profile",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "fare_id": "WA213-20270920-STANDARD",
+    "flight_label": "WA213",
+    "family_name": "Standard",
+    "date": "2027-09-20"
+   },
+   "phrasings": [
+    "Is the Standard fare on flight WA213 from my home airport to London on 20 September 2027 refundable?",
+    "Can I get my money back if I cancel the Standard fare on WA213 from my home airport to London on September 20, 2027?",
+    "WA213, from my home airport to LHR, 2027-09-20, Standard: refundable or not?"
+   ],
+   "truth": {
+    "status": "options_found",
+    "selected_fare_id": "WA213-20270920-STANDARD",
+    "facts": {
+     "refundable": false
+    }
+   },
+   "reads_profile": true
+  },
+  {
+   "id": "W3-05-home",
+   "base": "W3-05",
+   "class": "W3",
+   "shape": "quote",
+   "source": "ts-w.json, departure left to the travel profile",
+   "params": {
+    "origin": "BOS",
+    "destination": "LHR",
+    "fare_id": "WA213-20270512-STANDARD",
+    "flight_label": "WA213",
+    "family_name": "Standard",
+    "date": "2027-05-12"
+   },
+   "phrasings": [
+    "Please get me a booking quote for the Standard fare on WA213 from my home airport to London on May 12, 2027, just for me.",
+    "Quote WA213 Standard, from my home airport to LHR, 2027-05-12, one passenger (me)."
+   ],
+   "truth": {
+    "status": "quoted",
+    "selected_fare_id": "WA213-20270512-STANDARD",
+    "quote_id": "WAQ-9AE1C3C0F4CF2E1E",
+    "total_usd": 478,
+    "passengers": 1
+   },
+   "reads_profile": true
+  }
+ ]
+}

@@ -173,3 +173,79 @@ def test_ts_n_names_and_titles_match_case_insensitively():
         ]
         is False
     )
+
+
+# -- T32 review 1, finding 2: F-MEMORY's supplementary arm on the home-airport phrasings -----------
+RESULTS = campaign.EXPERIMENTS / "injection_campaign" / "results"
+PAPER_DIRECTORIES = (
+    "2026-11-15T17-16-05Z_paper-L4",
+    "2026-11-15T17-02-41Z_paper-L9",
+    "2026-11-15T17-02-41Z_paper-L30",
+)
+
+
+def _family(unit: dict) -> str | None:
+    return PAYLOADS[unit["arm"]["payload"]]["family"] if unit["arm"] else None
+
+
+def test_only_f_memory_moved_every_other_unit_is_the_one_the_local_paper_directories_ran():
+    """Each family draws from its own seeded stream: the home-airport phrasings change F-MEMORY's
+    draws and nothing else, so the local paper directories stay E3's other seven strata and the
+    supplementary directories replace only F-MEMORY's."""
+    import json
+
+    for name in PAPER_DIRECTORIES:
+        directory = RESULTS / name
+        manifest = json.loads((directory / "manifest.json").read_text())
+        ran = json.loads((directory / "units.json").read_text())
+        rung = ran[0]["rung"]
+        now = campaign.units_for(
+            "paper",
+            [rung],
+            manifest["sides"],
+            PAYLOADS,
+            tuple(manifest["task_sets_selected"]),
+            manifest["seed"],
+        )
+        keep = lambda units: sorted(u["id"] for u in units if _family(u) != "F-MEMORY")  # noqa: E731
+        assert keep(now) == keep(ran), name
+        old = [u for u in ran if _family(u) == "F-MEMORY"]
+        new = [u for u in now if _family(u) == "F-MEMORY"]
+        assert len(old) == len(new) and not {u["id"] for u in old} & {u["id"] for u in new}
+
+
+def test_f_memory_draws_only_home_airport_phrasings_and_no_other_family_does():
+    tasks = campaign.load_tasks()
+    draws = campaign.e3_draws(tasks, PAYLOADS)
+    for task, phrasing, payload_id, placement in draws:
+        is_memory = PAYLOADS[payload_id]["family"] == "F-MEMORY"
+        assert bool(task.get("reads_profile")) == is_memory
+        if is_memory:
+            assert placement == "record.profile_body"
+            assert "home airport" in task["turn_sets"][phrasing][0]
+            base = tasks[task["base"]]
+            assert task["truth"] == base["truth"] and task["class"] == base["class"]
+
+
+def test_e3_memory_is_f_memorys_stratum_alone_with_its_twins_on_every_side():
+    units = campaign.units_for("e3-memory", ["L9"], list(campaign.SIDES), PAYLOADS)
+    e3 = campaign.units_for("e3", ["L9"], list(campaign.SIDES), PAYLOADS)
+    assert sorted(u["id"] for u in units) == sorted(u["id"] for u in e3 if _family(u) == "F-MEMORY")
+    per_side = [u for u in units if u["side"] == "Py"]
+    injected = [u for u in per_side if u["arm"]["arm"] == "injected"]
+    assert len(injected) in (37, 38) and len(per_side) == 2 * len(injected)
+    assert {u["side"] for u in units} == set(campaign.SIDES)
+
+
+def test_the_home_airport_phrasings_never_enter_e2_or_the_sweeps():
+    for preset in ("smoke", "placements", "e2"):
+        units = campaign.units_for(preset, ["L9"], ["Py"], PAYLOADS)
+        assert not [u for u in units if u["task_id"].endswith("-home")], preset
+
+
+def test_the_draws_follow_the_seed():
+    """Review 1, finding 6: `_e3_cells` used the default seed whatever `--seed` said."""
+    a = campaign.units_for("e3", ["L9"], ["Py"], PAYLOADS, ("TS-W",), 31)
+    b = campaign.units_for("e3", ["L9"], ["Py"], PAYLOADS, ("TS-W",), 32)
+    assert sorted(u["id"] for u in a) != sorted(u["id"] for u in b)
+    assert len(a) == len(b) == 600
