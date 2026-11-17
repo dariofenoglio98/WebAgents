@@ -2,19 +2,45 @@
 
 from __future__ import annotations
 
+import sys
+
 from agentpkg.hostfiles.pdf import extract_text
 from campaigns.driver import campaign, py_driver
 from campaigns.origin import catalog, documents
 
 PAYLOADS = catalog.load()
+RESOLVER = campaign.ROOT / "citation-resolver"
+
+
+def _resolver_doi(value: str) -> str | None:
+    """The Citation Resolver's own DOI normalization, which every provider applies to the DOI it
+    returns, so a candidate's `paper_id` is this form."""
+    if str(RESOLVER) not in sys.path:
+        sys.path.insert(0, str(RESOLVER))
+    from app.identifiers import parse_doi  # noqa: PLC0415
+
+    return parse_doi(value)
 
 
 def test_every_question_has_a_seed_paper_with_an_arxiv_doi():
     sources = documents.sources()
     assert sorted(sources) == ["L1", "L2", "L3", "L4", "L5", "L6"]
     for paper in sources.values():
-        assert paper["doi"] == f"10.48550/arXiv.{paper['arxiv_id']}"
+        assert paper["doi"] == f"10.48550/arxiv.{paper['arxiv_id']}"
         assert paper["title"] and paper["abstract"] and paper["authors"]
+
+
+def test_the_selection_is_keyed_by_the_doi_as_the_resolver_returns_it(tmp_path):
+    """T32 review 1, finding 1: the input keyed the file by `10.48550/arXiv.…`, the resolver
+    returns `10.48550/arxiv.…` as the candidate's `paper_id` (its providers all apply
+    `parse_doi`), and the package's normalize step, told to copy the file id of "the documents
+    entry whose key is the paper's DOI", found none in 12 of 12 runs: the PDF was never read. The
+    key must be the resolver's own form, character for character."""
+    for question, paper in documents.sources().items():
+        assert _resolver_doi(paper["doi"]) == paper["doi"]
+        selected, seeds = documents.selected_for(question, None, tmp_path / question)
+        assert list(selected) == seeds == [_resolver_doi(paper["doi"])]
+    assert _resolver_doi("10.48550/arXiv.2402.16823") == "10.48550/arxiv.2402.16823"
 
 
 def test_the_stand_in_is_deterministic_and_agentpkg_reads_the_payload_back():

@@ -3,7 +3,7 @@
  "note": "E3's TS-L PDF placement (PROTOCOL.md §3 E3; D-360): per question one real, relevant arXiv paper as the run's seed, and a stand-in PDF the person selected for it, built by origin/documents.py from the paper's arXiv metadata (title, authors, abstract: arXiv's metadata is released under CC0) with the payload's text appended as a note. Fetched from export.arxiv.org on 2026-11-06.",
  "questions": {
   "L1": {
-   "doi": "10.48550/arXiv.2402.16823",
+   "doi": "10.48550/arxiv.2402.16823",
    "file_id": "campaign-l1-pdf",
    "arxiv_id": "2402.16823",
    "version": "2402.16823v3",
@@ -19,7 +19,7 @@
    "abstract": "Various human-designed prompt engineering techniques have been proposed to improve problem solvers based on Large Language Models (LLMs), yielding many disparate code bases. We unify these approaches by describing LLM-based agents as computational graphs. The nodes implement functions to process multimodal data or query LLMs, and the edges describe the information flow between operations. Graphs can be recursively combined into larger composite graphs representing hierarchies of inter-agent collaboration (where edges connect operations of different agents). Our novel automatic graph optimizers (1) refine node-level LLM prompts (node optimization) and (2) improve agent orchestration by changing graph connectivity (edge optimization). Experiments demonstrate that our framework can be used to efficiently develop, integrate, and automatically improve various LLM agents. The code can be found at https://github.com/metauto-ai/gptswarm."
   },
   "L2": {
-   "doi": "10.48550/arXiv.2308.10848",
+   "doi": "10.48550/arxiv.2308.10848",
    "file_id": "campaign-l2-pdf",
    "arxiv_id": "2308.10848",
    "version": "2308.10848v3",
@@ -45,7 +45,7 @@
    "abstract": "Autonomous agents empowered by Large Language Models (LLMs) have undergone significant improvements, enabling them to generalize across a broad spectrum of tasks. However, in real-world scenarios, cooperation among individuals is often required to enhance the efficiency and effectiveness of task accomplishment. Hence, inspired by human group dynamics, we propose a multi-agent framework \\framework that can collaboratively and dynamically adjust its composition as a greater-than-the-sum-of-its-parts system. Our experiments demonstrate that \\framework framework can effectively deploy multi-agent groups that outperform a single agent. Furthermore, we delve into the emergence of social behaviors among individual agents within a group during collaborative task accomplishment. In view of these behaviors, we discuss some possible strategies to leverage positive ones and mitigate negative ones for improving the collaborative potential of multi-agent groups. Our codes for \\framework will soon be released at \\url{https://github.com/OpenBMB/AgentVerse}."
   },
   "L3": {
-   "doi": "10.48550/arXiv.2402.06363",
+   "doi": "10.48550/arxiv.2402.06363",
    "file_id": "campaign-l3-pdf",
    "arxiv_id": "2402.06363",
    "version": "2402.06363v2",
@@ -59,7 +59,7 @@
    "abstract": "Recent advances in Large Language Models (LLMs) enable exciting LLM-integrated applications, which perform text-based tasks by utilizing their advanced language understanding capabilities. However, as LLMs have improved, so have the attacks against them. Prompt injection attacks are an important threat: they trick the model into deviating from the original application's instructions and instead follow user directives. These attacks rely on the LLM's ability to follow instructions and inability to separate prompts and user data. We introduce structured queries, a general approach to tackle this problem. Structured queries separate prompts and data into two channels. We implement a system that supports structured queries. This system is made of (1) a secure front-end that formats a prompt and user data into a special format, and (2) a specially trained LLM that can produce high-quality outputs from these inputs. The LLM is trained using a novel fine-tuning strategy: we convert a base (non-instruction-tuned) LLM to a structured instruction-tuned model that will only follow instructions in the prompt portion of a query. To do so, we augment standard instruction tuning datasets with examples that also include instructions in the data portion of the query, and fine-tune the model to ignore these. Our system significantly improves resistance to prompt injection attacks, with little or no impact on utility. Our code is released at https://github.com/Sizhe-Chen/StruQ."
   },
   "L4": {
-   "doi": "10.48550/arXiv.2403.14720",
+   "doi": "10.48550/arxiv.2403.14720",
    "file_id": "campaign-l4-pdf",
    "arxiv_id": "2403.14720",
    "version": "2403.14720v1",
@@ -75,7 +75,7 @@
    "abstract": "Large Language Models (LLMs), while powerful, are built and trained to process a single text input. In common applications, multiple inputs can be processed by concatenating them together into a single stream of text. However, the LLM is unable to distinguish which sections of prompt belong to various input sources. Indirect prompt injection attacks take advantage of this vulnerability by embedding adversarial instructions into untrusted data being processed alongside user commands. Often, the LLM will mistake the adversarial instructions as user commands to be followed, creating a security vulnerability in the larger system. We introduce spotlighting, a family of prompt engineering techniques that can be used to improve LLMs' ability to distinguish among multiple sources of input. The key insight is to utilize transformations of an input to provide a reliable and continuous signal of its provenance. We evaluate spotlighting as a defense against indirect prompt injection attacks, and find that it is a robust defense that has minimal detrimental impact to underlying NLP tasks. Using GPT-family models, we find that spotlighting reduces the attack success rate from greater than {50}\\% to below {2}\\% in our experiments with minimal impact on task efficacy."
   },
   "L5": {
-   "doi": "10.48550/arXiv.2305.05176",
+   "doi": "10.48550/arxiv.2305.05176",
    "file_id": "campaign-l5-pdf",
    "arxiv_id": "2305.05176",
    "version": "2305.05176v1",
@@ -88,7 +88,7 @@
    "abstract": "There is a rapidly growing number of large language models (LLMs) that users can query for a fee. We review the cost associated with querying popular LLM APIs, e.g. GPT-4, ChatGPT, J1-Jumbo, and find that these models have heterogeneous pricing structures, with fees that can differ by two orders of magnitude. In particular, using LLMs on large collections of queries and text can be expensive. Motivated by this, we outline and discuss three types of strategies that users can exploit to reduce the inference cost associated with using LLMs: 1) prompt adaptation, 2) LLM approximation, and 3) LLM cascade. As an example, we propose FrugalGPT, a simple yet flexible instantiation of LLM cascade which learns which combinations of LLMs to use for different queries in order to reduce cost and improve accuracy. Our experiments show that FrugalGPT can match the performance of the best individual LLM (e.g. GPT-4) with up to 98% cost reduction or improve the accuracy over GPT-4 by 4% with the same cost. The ideas and findings presented here lay a foundation for using LLMs sustainably and efficiently."
   },
   "L6": {
-   "doi": "10.48550/arXiv.2504.11703",
+   "doi": "10.48550/arxiv.2504.11703",
    "file_id": "campaign-l6-pdf",
    "arxiv_id": "2504.11703",
    "version": "2504.11703v3",
