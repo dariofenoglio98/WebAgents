@@ -105,6 +105,8 @@ describe("the review of a package's links (link.v0 §3, D-702)", () => {
       { dependency: "hotel-aggregator", package_id: "org.webagents.staymere-hotels", version: "0.1.0", locator: LOCATORS["hotel-aggregator"], origin: STAYMERE },
     ]);
     expect(links.composed.resolved).toBe(false);
+    // The summary says what a dependency is, in the reference's words (`browser/summary.py`).
+    expect((w.session.summary.warnings as Array<{ code: string; severity: string; message: string }>).find((warning) => warning.code === "links_declared")).toEqual({ code: "links_declared", severity: "info", message: "This package asks 2 other package(s) for help (Agent Links). Each is fetched and verified first, is shown with its own publisher and requirements, and runs under what you grant it, never under this package's grants; you can deny one." });
     // Opening fetched the planner and nothing else: a dependency is fetched only when the person asks.
     expect(w.h.fetchLog.map((entry) => entry.url)).toEqual([PLANNER_URL]);
     const caller = (await w.h.controller.handle({ type: "package.get", sessionId: w.session.session.id }, PAGE)) as SessionView;
@@ -428,6 +430,9 @@ describe("a link made during a run: the join card (link.v0 §6, D-703)", () => {
     // The run is named as its audit names it (the runtime's own id, on every event of the chain).
     expect(record.joins[0]!.package.plan.parent).toEqual({ plan_hash: result.run_plan!.run_plan.run_plan_sha256, run_id: after[0]!.run_id, slot: "named-hotel" });
     expect(record.joins[0]!.package.plan).toMatchObject({ decisions: HOTEL_GRANTS, tool_approvals: ["check-availability"] });
+    // The record states which plan that is: the caller's Run Plan, by its hash (L-30); the plan itself is the run's own record.
+    expect(record).toMatchObject({ caller_plan_hash: result.run_plan!.run_plan.run_plan_sha256 });
+    expect(record).not.toHaveProperty("caller_plan");
     // The pin made from the card is on the trust page, with where it came from.
     const trust = (await w.h.controller.handle({ type: "trust.list" }, PAGE)) as TrustList;
     const pinned = trust.entries.find((entry) => entry.fingerprint === (facts.publisher.signer as string))!;

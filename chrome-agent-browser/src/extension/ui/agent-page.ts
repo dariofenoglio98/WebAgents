@@ -177,6 +177,7 @@ export function renderAgentPage(view: SessionView, actions: AgentPageActions = {
 
   // network.v0 (R-24, D-291): the envelope before any run, in words and in figures.
   const delegation = model.delegation;
+  const linked = Array.isArray(view.summary.package.dependencies) ? view.summary.package.dependencies.length : 0;
   const delegates =
     delegation === null
       ? null
@@ -184,7 +185,9 @@ export function renderAgentPage(view: SessionView, actions: AgentPageActions = {
           "div",
           { className: "ab-delegation", attrs: { "data-entry": delegation.entry } },
           el("p", { className: "ab-delegation-sentence", text: delegation.sentence }),
-          el("h4", { text: "At most, in any run" }),
+          el("h4", { text: linked > 0 ? "At most, in any run, for its own part" : "At most, in any run" }),
+          // link.v0 (T66): a linked agent's cost is not in the declaration alone; the composed figure is the review's, once the linked agents are loaded.
+          linked > 0 ? el("p", { className: "ab-hint ab-delegation-links-note", text: `These figures are this agent's own part. It also asks ${linked} other agent${linked === 1 ? "" : "s"} for help: with them, the “at most” is stated under Linked agents once they are loaded.` }) : null,
           definition([
             ["Handoffs", String(delegation.at_most.handoffs)],
             ["Model calls", String(delegation.at_most.model_calls)],

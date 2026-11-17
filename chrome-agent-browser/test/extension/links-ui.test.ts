@@ -13,6 +13,7 @@ import { delegationTree } from "../../src/core/links/delegation.js";
 import type { PolicyBundle } from "../../src/core/policies/bundle.js";
 import type { AuthorizationView, AuthorizeResult, LinksView, PolicyView, Request, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
 import type { RunCardPending } from "../../src/extension/storage/runs.js";
+import { renderAgentPage } from "../../src/extension/ui/agent-page.js";
 import { newAuthorizeState, originsFor, renderAuthorizeView, type AuthorizeActions } from "../../src/extension/ui/authorize.js";
 import { delegationView, figuresText, raiseCard } from "../../src/extension/ui/links.js";
 import { RunPanel } from "../../src/extension/ui/run.js";
@@ -87,6 +88,10 @@ describe("the review's Linked agents card (D-702)", () => {
     expect([...card.querySelectorAll<HTMLElement>("[data-locator]")].map((node) => node.textContent)).toEqual([`org.webagents.webair-flights 0.1.0 from ${WEBAIR}`, `org.webagents.staymere-hotels 0.1.0 from ${STAYMERE}`]);
     expect(card.textContent).toContain("with no cookie and no referrer. Nothing runs, and nothing is granted.");
     expect(w.h.fetchLog.map((entry) => entry.url)).toEqual([PLANNER_URL]);
+    // The agent page says its envelope is the planner's own part until the linked agents are loaded.
+    const page = renderAgentPage(await sessionOf(w));
+    expect(page.querySelector(".ab-delegation")!.textContent).toContain("At most, in any run, for its own part");
+    expect(page.querySelector(".ab-delegation-links-note")!.textContent).toBe("These figures are this agent's own part. It also asks 2 other agents for help: with them, the “at most” is stated under Linked agents once they are loaded.");
     card.querySelector<HTMLButtonElement>('button[data-links="resolve"]')!.click();
     await Promise.resolve();
     await Promise.resolve();

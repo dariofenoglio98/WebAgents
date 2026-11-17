@@ -219,7 +219,8 @@ export class LinkHost {
   readonly joined = new Map<string, LinkBinding>();
   /** The plan the run was decided under, where the host states one a decision made during the run can name (L-36, L-44). */
   readonly callerPlan: JsonObject | null;
-  readonly callerPlanHash: string | null;
+  /** The operator plan's hash; on a host that holds a Run Plan, that plan's own hash, set by the execution session (the plan is the run's own record). */
+  callerPlanHash: string | null;
   readonly runs: JsonObject[] = [];
   readonly reports = new Map<string, ExecutionReport>();
   readonly runner: InnerRunner;
@@ -318,7 +319,9 @@ export class LinkHost {
       runs: deepCopy(this.runs),
       // Present exactly when the caller's graph holds a slot: every slot step's outcome, in order.
       ...(slots ? { joins } : {}),
-      ...(this.callerPlan !== null ? { caller_plan: deepCopy(this.callerPlan), caller_plan_hash: this.callerPlanHash! } : {}),
+      // An operator host states its plan and the hash; a host with a Run Plan states that plan's hash
+      // alone, where a decision made during the run can name it (a slot): the plan is the run's own record.
+      ...(this.callerPlan !== null ? { caller_plan: deepCopy(this.callerPlan), caller_plan_hash: this.callerPlanHash! } : slots && this.callerPlanHash !== null ? { caller_plan_hash: this.callerPlanHash } : {}),
     };
   }
 }

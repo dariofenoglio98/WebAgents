@@ -124,7 +124,7 @@ a { color: var(--ab-accent); }
 .ab-link-publisher[data-denied="true"] { opacity: 0.75; }
 .ab-link-publisher-head { margin-bottom: 6px; }
 .ab-link-item { border-top: 1px dashed var(--ab-border); padding-top: 8px; margin-top: 8px; }
-.ab-link-name { margin: 0 0 4px; font-size: 1rem; }
+.ab-link-name { margin: 0 0 4px; font-size: 1rem; text-transform: none; letter-spacing: normal; }
 .ab-link-at-most, .ab-link-slot { border-top: 1px solid var(--ab-border); padding-top: 8px; margin-top: 10px; }
 .ab-quoted q { font-style: italic; }
 .ab-run-card { border: 2px solid var(--ab-warn-text); border-radius: var(--ab-radius); padding: 12px 14px; margin: 10px 0; background: var(--ab-surface); }

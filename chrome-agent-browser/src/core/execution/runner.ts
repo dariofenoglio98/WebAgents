@@ -304,6 +304,9 @@ export class ExecutionSession {
     const dependencies = pkg.manifest.dependencies;
     if (Array.isArray(dependencies) && dependencies.length > 0 && links === null) throw new ExecutionError(PLAN_INVALID, "This package declares dependencies and the host handed the run no links for them");
     if (links !== null && links.caller.digest !== pkg.digest) throw new ExecutionError(PLAN_INVALID, "The links handed to this run belong to another package");
+    // L-30, L-36: the plan a decision made during the run names. An operator host stated its plan with the links; a host
+    // that holds a Run Plan names that plan by the hash it hands the run.
+    if (links !== null && links.callerPlanHash === null && (deps.planHash ?? null) !== null) links.callerPlanHash = deps.planHash!;
     this.links = links;
     // network.v0 (R-24): the envelope the person agreed to is the one the signed declaration gives,
     // re-derived here (composed with the links, link.v0 L-22); a plan that describes it

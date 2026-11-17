@@ -1,0 +1,3058 @@
+{
+  "profile": "chrome-link-e2e-v0",
+  "recordedAt": "2026-11-17T14:28:02.860Z",
+  "chrome": "Chrome/157.0.8103.51",
+  "model": {
+    "id": "ollama/link-fixture",
+    "provider_id": "ollama",
+    "model_id": "link-fixture",
+    "display_name": "link-fixture",
+    "available": true,
+    "availability_reason": null,
+    "selectable": true,
+    "capabilities": {
+      "structured_output": {
+        "value": true,
+        "basis": "derived",
+        "detail": "The adapter requests a constrained response and validates every answer against the schema, failing closed. This is the adapter's guarantee, not a provider declaration."
+      },
+      "reasoning": {
+        "value": false,
+        "basis": "declared",
+        "detail": "Ollama /api/show capabilities: completion."
+      },
+      "tool_use": {
+        "value": false,
+        "basis": "declared",
+        "detail": "Ollama /api/show capabilities: completion."
+      }
+    },
+    "limits": {
+      "context_tokens": 32768,
+      "native_context_window": 32768,
+      "max_output_tokens": null
+    },
+    "properties": {
+      "local": true,
+      "privacy_class": "local",
+      "cost_class": "free",
+      "status": null,
+      "tags": [
+        "local"
+      ]
+    }
+  },
+  "outputDirectory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z",
+  "packages": {
+    "planner010": {
+      "package_id": "org.webagents.travel-planner",
+      "version": "0.1.0",
+      "digest": "e1870af31121b3083172bbcfcea2e1ff00c5c5acc61d1fe6b8c0ba6507553d5e",
+      "archiveSha256": "950b8075ee9e759c0c5bf29daf3043597fca5d982d377d83470de3c2944e520a",
+      "bytes": 31639,
+      "signer": "sha256:e41f5d09f76431b4f7055d8b211a60a8ee26eeb9384ea7c1b705f3daafa49f08"
+    },
+    "planner020": {
+      "package_id": "org.webagents.travel-planner",
+      "version": "0.2.0",
+      "digest": "bfd3ea19b28e26c7d953a2a8dc23091fa7864cd1de35eef6a2b7191c22a89011",
+      "archiveSha256": "73265f3ed2ba5b6ffb1fc5ee39b9ff5280810e9e5db8e2a245bf4547ab117c27",
+      "bytes": 53325,
+      "signer": "sha256:e41f5d09f76431b4f7055d8b211a60a8ee26eeb9384ea7c1b705f3daafa49f08"
+    },
+    "flights": {
+      "package_id": "org.webagents.webair-flights",
+      "version": "0.1.0",
+      "digest": "0b360b6ba0692115a7d2e23a021db80816c0050fe1104ba4ecd618c8cc1d7c73",
+      "archiveSha256": "4cc62fbbb02e6f01f59212de6880fdfc139355332a2c013004fc82230124502a",
+      "bytes": 12424,
+      "signer": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"
+    },
+    "staymere": {
+      "package_id": "org.webagents.staymere-hotels",
+      "version": "0.1.0",
+      "digest": "5cb9ec65b9c36cb3392e1461e9f3fe4528b651df1833a7c9195ada09579a4005",
+      "archiveSha256": "d80a3052d7c1cda24b0695a77951d8edc663063e2a2c012e52fdcb72ed175b53",
+      "bytes": 12266,
+      "signer": "sha256:b5d38cb824c79b318ae65dda8e65e3fe156299007cc09717eb345b34436c5199"
+    },
+    "salitubam": {
+      "package_id": "org.webagents.hotel-salitubam",
+      "version": "0.1.0",
+      "digest": "bb69fb7acc020cd239d030895d0d7e9e7b7ad47d4ab7feba31ead038a836ce37",
+      "archiveSha256": "d695af9328367432e9e25cb04ccea69f45205f9cc4524731d6bc63b16d34dbc7",
+      "bytes": 13136,
+      "signer": "sha256:8ee8ec08acf1e665b0d831acc42516efc83e6eceb099c9351df0ec7ecc5445ec"
+    }
+  },
+  "variant": {
+    "package_id": "org.webagents.travel-planner",
+    "version": "0.2.0",
+    "digest": "4ff810008db2f9d99ce6210b1118973f0978d61068131cf714dabb836b711a9b",
+    "archiveSha256": "b18fe31f257932c70dec94ca5b203a2af9c8969bcffa6715c3a8927de4d09fea",
+    "bytes": 53325,
+    "signer": "sha256:d94a3e96c7bf8bbbe1152541d8a4a7f9d5ea819f507566de8d6b42819c2e493d",
+    "of": "org.webagents.travel-planner 0.2.0",
+    "change": {
+      "worker": "FindHotel",
+      "tokens": {
+        "signed": 4000,
+        "variant": 6000
+      }
+    },
+    "signedWith": "a throwaway key made for this run; the archive is never written into the repository"
+  },
+  "fakes": {
+    "ollama": "http://127.0.0.1:58820",
+    "origins": {
+      "webagents-tripwright-production.up.railway.app": "127.0.0.1:58821",
+      "webagents-webair-production.up.railway.app": "127.0.0.1:58822",
+      "webagents-staymere-production.up.railway.app": "127.0.0.1:58823",
+      "webagents-hotel-salitubam-production.up.railway.app": "127.0.0.1:58824"
+    }
+  },
+  "referenceDirectory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/reference",
+  "scenarios": {
+    "planned": {
+      "review": {
+        "resolved": true,
+        "links": [
+          {
+            "dependency": "hotel-aggregator",
+            "package_id": "org.webagents.staymere-hotels",
+            "version": "0.1.0",
+            "digest": "5cb9ec65b9c36cb3392e1461e9f3fe4528b651df1833a7c9195ada09579a4005",
+            "signer": "sha256:b5d38cb824c79b318ae65dda8e65e3fe156299007cc09717eb345b34436c5199",
+            "trust": "unknown",
+            "signature": "valid",
+            "worst_case": {
+              "model_calls": 1,
+              "tool_calls": {
+                "search-hotels": 1
+              },
+              "compute_calls": 0,
+              "remote_calls": 3,
+              "tokens": 6000,
+              "seconds": 280
+            }
+          },
+          {
+            "dependency": "webair-flights",
+            "package_id": "org.webagents.webair-flights",
+            "version": "0.1.0",
+            "digest": "0b360b6ba0692115a7d2e23a021db80816c0050fe1104ba4ecd618c8cc1d7c73",
+            "signer": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+            "trust": "unknown",
+            "signature": "valid",
+            "worst_case": {
+              "model_calls": 1,
+              "tool_calls": {
+                "search-flights": 1
+              },
+              "compute_calls": 0,
+              "remote_calls": 3,
+              "tokens": 6000,
+              "seconds": 280
+            }
+          }
+        ],
+        "composed": {
+          "model_calls": 10,
+          "tool_calls": {
+            "check-calendar": 1,
+            "hotel-aggregator:search-hotels": 1,
+            "webair-flights:search-flights": 1
+          },
+          "compute_calls": 0,
+          "remote_calls": 23,
+          "tokens": 92000,
+          "seconds": 2800
+        }
+      },
+      "deniedPlan": {
+        "run_plan_sha256": "be3973a1c86880dc7b641197719ced2a9f09fa05135bf3f2140f106d5910a307",
+        "links": {
+          "hotel-aggregator": {
+            "package_id": "org.webagents.staymere-hotels",
+            "version": "0.1.0",
+            "digest": "5cb9ec65b9c36cb3392e1461e9f3fe4528b651df1833a7c9195ada09579a4005",
+            "archive_sha256": "d80a3052d7c1cda24b0695a77951d8edc663063e2a2c012e52fdcb72ed175b53",
+            "signer": "sha256:b5d38cb824c79b318ae65dda8e65e3fe156299007cc09717eb345b34436c5199",
+            "trust": "trusted",
+            "decision": "denied",
+            "plan_hash": null
+          },
+          "webair-flights": {
+            "package_id": "org.webagents.webair-flights",
+            "version": "0.1.0",
+            "digest": "0b360b6ba0692115a7d2e23a021db80816c0050fe1104ba4ecd618c8cc1d7c73",
+            "archive_sha256": "4cc62fbbb02e6f01f59212de6880fdfc139355332a2c013004fc82230124502a",
+            "signer": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+            "trust": "trusted",
+            "decision": "accepted",
+            "plan_hash": "76fb43dd4ece4fb3d6e8d853cc703c894dfb6a267cb8b4db4e310b829f9dab72"
+          }
+        },
+        "network": {
+          "max_hops": 6,
+          "max_activations": 5,
+          "activations": {
+            "Calendar": 1,
+            "Flights": 1,
+            "FrontMan": 3,
+            "Hotels": 0
+          },
+          "model_calls": 7,
+          "tool_calls": {
+            "check-calendar": 1,
+            "webair-flights:search-flights": 1
+          },
+          "compute_calls": 0,
+          "remote_calls": 16,
+          "tokens": 66000,
+          "seconds": 1850,
+          "relaxation": {
+            "model_calls": 7,
+            "compute_calls": 0,
+            "remote_calls": 16,
+            "tokens": 66000,
+            "seconds": 1850,
+            "tool_calls": {
+              "check-calendar": 1,
+              "webair-flights:search-flights": 1
+            }
+          },
+          "caps": {
+            "hard_tokens": 96000,
+            "max_remote_calls": 24,
+            "max_calls_per_tool": {
+              "check-calendar": 1
+            },
+            "timeout_seconds": 2700,
+            "deadline_seconds": 2800
+          }
+        },
+        "origins": [
+          "https://webagents-tripwright-production.up.railway.app",
+          "https://webagents-webair-production.up.railway.app"
+        ]
+      },
+      "denied": {
+        "runId": "run_c2607e8a0f0441baacf01253ff74b84f",
+        "status": "completed",
+        "errorCode": null,
+        "tree": [
+          {
+            "role": "Flights",
+            "kind": "link",
+            "name": "webair-flights",
+            "state": "answered",
+            "package_id": "org.webagents.webair-flights"
+          }
+        ],
+        "export": {
+          "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-denied",
+          "entries": [
+            {
+              "name": "run.json",
+              "bytes": 13698,
+              "sha256": "2576af47bb209ffbad719325a3096eb725881235b65c5b760440f74458a2c6fd"
+            },
+            {
+              "name": "run-plan.json",
+              "bytes": 14839,
+              "sha256": "9e8d3a903556ebda2a823bae64db589e955b833139ae9e7a83d36d8a6cc0fdc5"
+            },
+            {
+              "name": "input.json",
+              "bytes": 168,
+              "sha256": "fc6d29ac32afcb88139b9a537b122852ec4e12c66c02e246c65e1c35797f1972"
+            },
+            {
+              "name": "link-plan-webair-flights.json",
+              "bytes": 12623,
+              "sha256": "5bcb9b915ad9de8a91a884bef3f460928cb27c50435c09c319fbc32598914dda"
+            },
+            {
+              "name": "audit.json",
+              "bytes": 75562,
+              "sha256": "65a79b742d3d2b92bf7567b0874c3dc44b122e4b6a78a2a6763b741c4435a703"
+            },
+            {
+              "name": "link-6e14822f-42fc-44f6-9e81-f3c01d828945.audit.json",
+              "bytes": 26130,
+              "sha256": "ec790ba0f092665c0957ccab50c3077e7dcb02615e42132c63d72c8a29b8d6cb"
+            },
+            {
+              "name": "link-6e14822f-42fc-44f6-9e81-f3c01d828945.provenance.json",
+              "bytes": 248,
+              "sha256": "a77e3511dd1881f25eefc0400ac2652186af84fdb331c99a4e50e00bfd1b9762"
+            },
+            {
+              "name": "link-6e14822f-42fc-44f6-9e81-f3c01d828945.result.json",
+              "bytes": 29964,
+              "sha256": "82ff496069002d2b7527537f218fdd8efbcafab8d92eecedcdf3587ed6f2d6f3"
+            },
+            {
+              "name": "link-6e14822f-42fc-44f6-9e81-f3c01d828945.usage.json",
+              "bytes": 743,
+              "sha256": "6051057e200713258b80b034e0533143d301e621ef8f330281af14d4cfa53ea6"
+            },
+            {
+              "name": "links.json",
+              "bytes": 5529,
+              "sha256": "30f7834e45aef7b489830adb4ba5598aafc85150ac2215b7f58524ff12c1fa27"
+            },
+            {
+              "name": "plan.json",
+              "bytes": 624,
+              "sha256": "2d73e1baba532d1afed5719f8ac0e6fa46ce8817c0303cd606270264591ef830"
+            },
+            {
+              "name": "plan.txt",
+              "bytes": 31,
+              "sha256": "d9761bd8696ae1ea9568348d30154dcda094b277934e08b2c623c47386573558"
+            },
+            {
+              "name": "provenance.json",
+              "bytes": 248,
+              "sha256": "ddda171f02ccfcdc8539cd96c6e0f69c2aab90800afbc5c7a3b73a1e3f2f4ed4"
+            },
+            {
+              "name": "result.json",
+              "bytes": 89209,
+              "sha256": "4e132bf67fe7f5c3470a5604025a7977044d0989957217beba5f53ee2f41f213"
+            },
+            {
+              "name": "usage.json",
+              "bytes": 1316,
+              "sha256": "37af4eb3785c3c2c0e173dbd8707babb5ac949158cfe32faa51990c7d4d38af4"
+            }
+          ],
+          "observations": [
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 3728
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 3230
+            },
+            {
+              "kind": "tool",
+              "subject": "webair-flights:search-flights",
+              "url": "https://webagents-webair-production.up.railway.app/api/v1/travel/flights",
+              "body_bytes": 71
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 2224
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 3945
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 3395
+            },
+            {
+              "kind": "tool",
+              "subject": "check-calendar",
+              "url": "https://webagents-webair-production.up.railway.app/api/v1/travel/calendar",
+              "body_bytes": 39
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4008
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 3434
+            }
+          ]
+        }
+      },
+      "plan": {
+        "run_plan_sha256": "d5dfbfdd020cfd831377a44068f012184d27bd9c2d953be97db3363822604ed1",
+        "links": {
+          "hotel-aggregator": {
+            "package_id": "org.webagents.staymere-hotels",
+            "version": "0.1.0",
+            "digest": "5cb9ec65b9c36cb3392e1461e9f3fe4528b651df1833a7c9195ada09579a4005",
+            "archive_sha256": "d80a3052d7c1cda24b0695a77951d8edc663063e2a2c012e52fdcb72ed175b53",
+            "signer": "sha256:b5d38cb824c79b318ae65dda8e65e3fe156299007cc09717eb345b34436c5199",
+            "trust": "trusted",
+            "decision": "accepted",
+            "plan_hash": "51fd2e621ee7175fc342da34107a7c7506100eab1940834656891ad0acb5852a"
+          },
+          "webair-flights": {
+            "package_id": "org.webagents.webair-flights",
+            "version": "0.1.0",
+            "digest": "0b360b6ba0692115a7d2e23a021db80816c0050fe1104ba4ecd618c8cc1d7c73",
+            "archive_sha256": "4cc62fbbb02e6f01f59212de6880fdfc139355332a2c013004fc82230124502a",
+            "signer": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+            "trust": "trusted",
+            "decision": "accepted",
+            "plan_hash": "a25cfc88364b61ed3a1b260349e1fe71efd1fa5ce2aea97b4744df7a71dbc882"
+          }
+        },
+        "network": {
+          "max_hops": 6,
+          "max_activations": 7,
+          "activations": {
+            "Calendar": 1,
+            "Flights": 1,
+            "FrontMan": 4,
+            "Hotels": 1
+          },
+          "model_calls": 10,
+          "tool_calls": {
+            "check-calendar": 1,
+            "hotel-aggregator:search-hotels": 1,
+            "webair-flights:search-flights": 1
+          },
+          "compute_calls": 0,
+          "remote_calls": 23,
+          "tokens": 92000,
+          "seconds": 2670,
+          "relaxation": {
+            "model_calls": 10,
+            "compute_calls": 0,
+            "remote_calls": 23,
+            "tokens": 92000,
+            "seconds": 2670,
+            "tool_calls": {
+              "check-calendar": 1,
+              "hotel-aggregator:search-hotels": 1,
+              "webair-flights:search-flights": 1
+            }
+          },
+          "caps": {
+            "hard_tokens": 96000,
+            "max_remote_calls": 24,
+            "max_calls_per_tool": {
+              "check-calendar": 1
+            },
+            "timeout_seconds": 2700,
+            "deadline_seconds": 2800
+          }
+        },
+        "composed": {
+          "model_calls": 10,
+          "tool_calls": {
+            "check-calendar": 1,
+            "hotel-aggregator:search-hotels": 1,
+            "webair-flights:search-flights": 1
+          },
+          "compute_calls": 0,
+          "remote_calls": 23,
+          "tokens": 92000,
+          "seconds": 2800
+        },
+        "origins": [
+          "https://webagents-staymere-production.up.railway.app",
+          "https://webagents-tripwright-production.up.railway.app",
+          "https://webagents-webair-production.up.railway.app"
+        ]
+      },
+      "run": {
+        "runId": "run_8baafcdf8f904fbca364838b9d7a0855",
+        "status": "completed",
+        "errorCode": null,
+        "usage": {
+          "tokens": 4881,
+          "remoteCalls": 3,
+          "peakParallelWorkers": 1,
+          "toolCalls": 3,
+          "computeCalls": 0,
+          "limits": {
+            "hardTokens": 96000,
+            "maxRemoteCalls": 24,
+            "maxParallelWorkers": 2
+          },
+          "workers": [
+            {
+              "worker": "coordinator",
+              "tokens": 0,
+              "remoteCalls": 0
+            },
+            {
+              "worker": "FrontMan:1",
+              "tokens": 1048,
+              "remoteCalls": 0
+            },
+            {
+              "worker": "Flights:2",
+              "tokens": 0,
+              "remoteCalls": 0
+            },
+            {
+              "worker": "FrontMan:3",
+              "tokens": 1038,
+              "remoteCalls": 0
+            },
+            {
+              "worker": "Hotels:4",
+              "tokens": 0,
+              "remoteCalls": 0
+            },
+            {
+              "worker": "FrontMan:5",
+              "tokens": 1037,
+              "remoteCalls": 0
+            },
+            {
+              "worker": "Calendar:6",
+              "tokens": 0,
+              "remoteCalls": 1
+            },
+            {
+              "worker": "FrontMan:7",
+              "tokens": 1068,
+              "remoteCalls": 0
+            }
+          ]
+        },
+        "tree": [
+          {
+            "role": "Flights",
+            "kind": "link",
+            "name": "webair-flights",
+            "state": "answered",
+            "package_id": "org.webagents.webair-flights"
+          },
+          {
+            "role": "Hotels",
+            "kind": "link",
+            "name": "hotel-aggregator",
+            "state": "answered",
+            "package_id": "org.webagents.staymere-hotels"
+          }
+        ],
+        "export": {
+          "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-planned",
+          "entries": [
+            {
+              "name": "run.json",
+              "bytes": 15635,
+              "sha256": "fafc4e77e27821f50f2205a09ee3e77acd4d7117e6590100710aea0a401191f3"
+            },
+            {
+              "name": "run-plan.json",
+              "bytes": 15049,
+              "sha256": "c7d32f892ac3dd703d087d67ecce43ae3ff39e34e90f683661d6b8829a45065a"
+            },
+            {
+              "name": "input.json",
+              "bytes": 168,
+              "sha256": "fc6d29ac32afcb88139b9a537b122852ec4e12c66c02e246c65e1c35797f1972"
+            },
+            {
+              "name": "link-plan-hotel-aggregator.json",
+              "bytes": 12594,
+              "sha256": "af01c9cdcac2e8cbd3ede7b77e5392f8cdc7f0110bf2b7353e546ed96e618399"
+            },
+            {
+              "name": "link-plan-webair-flights.json",
+              "bytes": 12623,
+              "sha256": "0c32f1b1a7eacbac91dcfa1ed92a5075dc8341299d64b1ba17271eaf7135bf4c"
+            },
+            {
+              "name": "audit.json",
+              "bytes": 99939,
+              "sha256": "b555567bb974f272b1fdedf9a2cf96705728f69de76dc283740e6ffd5a699b33"
+            },
+            {
+              "name": "link-76569f92-f2f6-4265-8012-5c8fdfb5d020.audit.json",
+              "bytes": 26129,
+              "sha256": "f85a06fe8c574d839d847a3a20c87ad607848ff14de2b5437af71e272a3ea907"
+            },
+            {
+              "name": "link-76569f92-f2f6-4265-8012-5c8fdfb5d020.provenance.json",
+              "bytes": 249,
+              "sha256": "34e1f33bf88794bb96d9196a77fbf088f2092881dc85c6503c4b2df0980cedac"
+            },
+            {
+              "name": "link-76569f92-f2f6-4265-8012-5c8fdfb5d020.result.json",
+              "bytes": 30223,
+              "sha256": "0d0c066e8f4d0d2876fefac2fb84f0fbc95c6420c747b25f3f1aaef0e59022d8"
+            },
+            {
+              "name": "link-76569f92-f2f6-4265-8012-5c8fdfb5d020.usage.json",
+              "bytes": 740,
+              "sha256": "7b3162b674319aefb04a8aeb5285208ff72af913dfd7699beccfa3c81ae5c0a5"
+            },
+            {
+              "name": "link-8d0f01f7-6ef4-4285-9890-6157b4bacb57.audit.json",
+              "bytes": 26130,
+              "sha256": "d04a0f63f47dbf06d4c361a9b6cb1be7b15aca27ddc0920268a686e7cf030d67"
+            },
+            {
+              "name": "link-8d0f01f7-6ef4-4285-9890-6157b4bacb57.provenance.json",
+              "bytes": 248,
+              "sha256": "a77e3511dd1881f25eefc0400ac2652186af84fdb331c99a4e50e00bfd1b9762"
+            },
+            {
+              "name": "link-8d0f01f7-6ef4-4285-9890-6157b4bacb57.result.json",
+              "bytes": 29964,
+              "sha256": "058432260a6dcb52d16f30a25d80435c4715d39ebded5455a666a0c09c10f091"
+            },
+            {
+              "name": "link-8d0f01f7-6ef4-4285-9890-6157b4bacb57.usage.json",
+              "bytes": 743,
+              "sha256": "6051057e200713258b80b034e0533143d301e621ef8f330281af14d4cfa53ea6"
+            },
+            {
+              "name": "links.json",
+              "bytes": 9927,
+              "sha256": "eaf4d5b36912e52ad9c08408a3a224cb90027de58a2f501d5ccf77469f5a8027"
+            },
+            {
+              "name": "plan.json",
+              "bytes": 1093,
+              "sha256": "f4738b58fb40ef4c33d65c1b781b65cf52cab8c93aa54f1da5a6d897d5465ecb"
+            },
+            {
+              "name": "plan.txt",
+              "bytes": 173,
+              "sha256": "e5d88e6385d7405e09538f4e79e604f98f5eb5b755171c1accb5c652d644ad26"
+            },
+            {
+              "name": "provenance.json",
+              "bytes": 248,
+              "sha256": "ddda171f02ccfcdc8539cd96c6e0f69c2aab90800afbc5c7a3b73a1e3f2f4ed4"
+            },
+            {
+              "name": "result.json",
+              "bytes": 121129,
+              "sha256": "ccfd9e8f25f6272821e9d68ddd6b0c38e84d11e34979fc5628a267ffc37b1dcb"
+            },
+            {
+              "name": "usage.json",
+              "bytes": 1749,
+              "sha256": "1cab3cc582a7d88402f0f0040727a0998956b11d0917d6d649525ca7bc855e91"
+            }
+          ],
+          "observations": [
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 3728
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 3422
+            },
+            {
+              "kind": "tool",
+              "subject": "webair-flights:search-flights",
+              "url": "https://webagents-webair-production.up.railway.app/api/v1/travel/flights",
+              "body_bytes": 71
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 2224
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 3945
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 3587
+            },
+            {
+              "kind": "tool",
+              "subject": "hotel-aggregator:search-hotels",
+              "url": "https://webagents-staymere-production.up.railway.app/api/v1/travel/hotels",
+              "body_bytes": 63
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 2264
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4202
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 3844
+            },
+            {
+              "kind": "tool",
+              "subject": "check-calendar",
+              "url": "https://webagents-webair-production.up.railway.app/api/v1/travel/calendar",
+              "body_bytes": 39
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4265
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 3913
+            }
+          ]
+        }
+      }
+    },
+    "join": {
+      "signed": {
+        "sessionId": "d568a4cd39664cea8845e411",
+        "links": 2,
+        "plan": {
+          "run_plan_sha256": "ab6ca570fa0a0601bf41729ef038b4a269bbe5125be0e193ca7ecf9a87c20de1",
+          "network": {
+            "max_hops": 8,
+            "max_activations": 9,
+            "activations": {
+              "Calendar": 1,
+              "FindHotel": 1,
+              "Flights": 1,
+              "FrontMan": 5,
+              "Hotels": 1
+            },
+            "model_calls": 14,
+            "tool_calls": {
+              "check-calendar": 1,
+              "hotel-aggregator:search-hotels": 1,
+              "named-hotel:*": 1,
+              "web.search": 1,
+              "webair-flights:search-flights": 1
+            },
+            "compute_calls": 0,
+            "remote_calls": 33,
+            "tokens": 122000,
+            "seconds": 3500,
+            "relaxation": {
+              "model_calls": 14,
+              "compute_calls": 0,
+              "remote_calls": 33,
+              "tokens": 122000,
+              "seconds": 3510,
+              "tool_calls": {
+                "check-calendar": 1,
+                "hotel-aggregator:search-hotels": 1,
+                "named-hotel:*": 1,
+                "web.search": 1,
+                "webair-flights:search-flights": 1
+              }
+            },
+            "caps": {
+              "hard_tokens": 128000,
+              "max_remote_calls": 36,
+              "max_calls_per_tool": {
+                "check-calendar": 1,
+                "web.search": 1
+              },
+              "timeout_seconds": 3500,
+              "deadline_seconds": 3600
+            }
+          }
+        },
+        "runId": "run_1115738672b94788ad045474a4d2f7a2",
+        "waiting": {
+          "status": "running",
+          "card": {
+            "card_id": "card_1",
+            "kind": "link.join",
+            "node_id": "plan-trip/FindHotel/ask",
+            "facts": {
+              "slot": "named-hotel",
+              "publisher": {
+                "signer": "sha256:8ee8ec08acf1e665b0d831acc42516efc83e6eceb099c9351df0ec7ecc5445ec",
+                "trust": "unknown"
+              },
+              "package": {
+                "package_id": "org.webagents.hotel-salitubam",
+                "version": "0.1.0",
+                "digest": "bb69fb7acc020cd239d030895d0d7e9e7b7ad47d4ab7feba31ead038a836ce37",
+                "archive_sha256": "d695af9328367432e9e25cb04ccea69f45205f9cc4524731d6bc63b16d34dbc7",
+                "name": "Hotel Salitubam",
+                "description": "A fictional small hotel in Reykjavik as a package another agent can ask: it checks the hotel's own availability for a stay and proposes one room offer. All data is fictional; nothing is booked."
+              },
+              "source": {
+                "page_url": "https://webagents-hotel-salitubam-production.up.railway.app/",
+                "package_url": "https://webagents-hotel-salitubam-production.up.railway.app/agent.pkg"
+              },
+              "requirements": {
+                "permissions": [
+                  {
+                    "id": "model.reasoning",
+                    "kind": "model",
+                    "description": "Read messages, decide the next role, draft the answer.",
+                    "required": true,
+                    "resources": [
+                      "host-router"
+                    ]
+                  },
+                  {
+                    "id": "memory.session",
+                    "kind": "memory",
+                    "description": "The run's state and the network's shared state, for this run only.",
+                    "required": true,
+                    "resources": [
+                      "session"
+                    ]
+                  },
+                  {
+                    "id": "network.salitubam",
+                    "kind": "network",
+                    "description": "Ask Hotel Salitubam's fictional availability service.",
+                    "required": true,
+                    "resources": [
+                      "webagents-hotel-salitubam-production.up.railway.app"
+                    ]
+                  }
+                ],
+                "tools": [
+                  {
+                    "id": "check-availability",
+                    "execution": "remote",
+                    "endpoint": "https://webagents-hotel-salitubam-production.up.railway.app/api/v1/hotel/availability",
+                    "method": "POST",
+                    "domains": [
+                      "webagents-hotel-salitubam-production.up.railway.app"
+                    ],
+                    "permissions": [
+                      "network.salitubam"
+                    ],
+                    "side_effects": "read"
+                  }
+                ],
+                "allowed_domains": [
+                  "webagents-hotel-salitubam-production.up.railway.app"
+                ],
+                "model": {
+                  "tasks": [
+                    {
+                      "id": "propose",
+                      "capabilities": [
+                        "structured_output"
+                      ],
+                      "context_window": 16000
+                    }
+                  ],
+                  "privacy": null
+                }
+              },
+              "view": [
+                "check_in",
+                "check_out",
+                "travellers"
+              ],
+              "worst_case": {
+                "model_calls": 1,
+                "tool_calls": {
+                  "check-availability": 1
+                },
+                "compute_calls": 0,
+                "remote_calls": 3,
+                "tokens": 6000,
+                "seconds": 280
+              },
+              "ceiling": {
+                "model_calls": 1,
+                "tool_calls": 1,
+                "compute_calls": 0,
+                "remote_calls": 3,
+                "tokens": 6000,
+                "seconds": 300
+              },
+              "at_most_unchanged": true,
+              "left": {
+                "tokens": 115455,
+                "remote_calls": 29
+              },
+              "reason": "The hotel you named is not among the aggregator's; the page found for it offers its own agent.",
+              "cards": {
+                "slot": {
+                  "shown": 1,
+                  "max": 1
+                },
+                "run": {
+                  "shown": 1,
+                  "max": 2
+                }
+              }
+            },
+            "timeout_seconds": 298.989,
+            "requested_at": "2026-11-17T14:28:15.709000+00:00",
+            "publisher": {
+              "public_key": "1OM76N1RWhigHfM/vfgHl6ANEeW6eVrXnWQdWHeVT8I=",
+              "claimed_id": "hotel-salitubam",
+              "claimed_name": "Hotel Salitubam (fictional hotel)",
+              "package_id": "org.webagents.hotel-salitubam"
+            }
+          }
+        },
+        "card": {
+          "slot": "named-hotel",
+          "terms": [
+            "Publisher key",
+            "Agent",
+            "Named",
+            "Described as",
+            "Found on",
+            "Its tools",
+            "Its permissions",
+            "Your records it asks for",
+            "Model",
+            "The agent may send it",
+            "Why the agent asks",
+            "At most, if you accept",
+            "Within the step's ceiling",
+            "The \u201cat most\u201d you accepted",
+            "This run has left",
+            "Cards"
+          ],
+          "words": [
+            [
+              "the publisher's name for it",
+              "Hotel Salitubam"
+            ],
+            [
+              "the publisher's words",
+              "A fictional small hotel in Reykjavik as a package another agent can ask: it checks the hotel's own availability for a stay and proposes one room offer. All data is fictional; nothing is booked."
+            ],
+            [
+              "the publisher's words",
+              "Read messages, decide the next role, draft the answer."
+            ],
+            [
+              "the publisher's words",
+              "The run's state and the network's shared state, for this run only."
+            ],
+            [
+              "the publisher's words",
+              "Ask Hotel Salitubam's fictional availability service."
+            ],
+            [
+              "the agent's words",
+              "The hotel you named is not among the aggregator's; the page found for it offers its own agent."
+            ]
+          ],
+          "decline": "ab-button ab-button-primary",
+          "accept": "ab-button ab-button-ghost",
+          "grants": [
+            "session",
+            "session",
+            "session"
+          ],
+          "text": "This run found another agent. Use it?Nothing of it has reached the model or run. This browser fetched its page and its package with a plain request, verified the package, and computed what follows from its signed bytes.Publisher keysha256:8ee8ec08acf1e\u202645ec Signature valid \u00b7 publisher unknownAgentorg.webagents.hotel-salitubam 0.1.0 \u00b7 digest bb69fb7acc02\u2026ce37NamedHotel Salitubam (the publisher's name for it)Described asA fictional small hotel in Reykjavik as a package another agent can ask: it checks the hotel's own availability for a stay and proposes one room offer. All data is fictional; nothing is booked. (the publisher's words)Found onhttps://webagents-hotel-salitubam-production.up.railway.app/ \u00b7 package https://webagents-hotel-salitubam-production.up.railway.app/agent.pkgIts tools check-availability \u2192 POST https://webagents-hotel-salitubam-production.up.railway.app/api/v1/hotel/availability \u00b7 needs network.salitubam \u00b7 readIts permissionsmodel.reasoning (model, required by the package) DenyAllow onceAllow for this session Read messages, decide the next role, draft the answer. (the publisher's words)memory.session (memory, required by the package) DenyAllow onceAllow for this session The run's state and the network's shared state, for this run only. (the publisher's words)network.salitubam (network, required by the package) DenyAllow onceAllow for this session Ask Hotel Salitubam's fictional availability service. (the publisher's words)Your records it asks fornoneModelyour model, for proposeThe agent may send itcheck_in, check_out, travellersWhy the agent asksThe hotel you named is not among the aggregator's; the page found for it offers its own agent. (the agent's words)At most, if you accept1 model call \u00b7 tool calls: check-availability \u00d71 \u00b7 3 remote calls \u00b7 6,000 tokens \u00b7 280 secondsWithin the step's ceiling1 model call \u00b7 1 tool call \u00b7 3 remote calls \u00b7 6,000 tokens \u00b7 300 secondsThe \u201cat most\u201d you acceptedunchanged: it already held this join at the ceilingThis run has left115,455 tokens \u00b7 29 remote callsCards1 of 1 for this step \u00b7 1 of 2 in this runIts key Do not pin its keyTrust this key for this agent only (org.webagents.hotel-salitubam)Trust this key for any agent it signs for this publisherAnswer by 9:33:14 AM. No answer is a no, and a no lasts for this run: this publisher's key is not offered again in it.No, continue without itUse it for this run"
+        },
+        "before": {
+          "model": [
+            {
+              "task": "understand",
+              "matched": true,
+              "mentions": []
+            },
+            {
+              "task": "route",
+              "matched": true,
+              "mentions": []
+            },
+            {
+              "task": "propose",
+              "matched": true,
+              "mentions": []
+            },
+            {
+              "task": "understand",
+              "matched": true,
+              "mentions": []
+            },
+            {
+              "task": "route",
+              "matched": true,
+              "mentions": []
+            },
+            {
+              "task": "propose",
+              "matched": true,
+              "mentions": []
+            },
+            {
+              "task": "understand",
+              "matched": true,
+              "mentions": []
+            },
+            {
+              "task": "route",
+              "matched": true,
+              "mentions": []
+            }
+          ],
+          "salitubam": [
+            "GET /",
+            "GET /agent.pkg"
+          ],
+          "looking": [
+            {
+              "role": "Flights",
+              "kind": "link",
+              "name": "webair-flights",
+              "state": "answered",
+              "package_id": "org.webagents.webair-flights"
+            },
+            {
+              "role": "Hotels",
+              "kind": "link",
+              "name": "hotel-aggregator",
+              "state": "answered",
+              "package_id": "org.webagents.staymere-hotels"
+            },
+            {
+              "role": "FindHotel",
+              "kind": "join",
+              "name": "named-hotel",
+              "state": "looking",
+              "package_id": "org.webagents.hotel-salitubam"
+            }
+          ]
+        },
+        "status": "failed",
+        "errorCode": "budget_exhausted",
+        "failure": {
+          "nodeId": "plan-trip",
+          "stepId": "FindHotel/ask",
+          "errorCode": "budget_exhausted",
+          "failedCheck": null,
+          "call": {
+            "kind": "model",
+            "action": "model.refused",
+            "tool": null,
+            "task": "request",
+            "reason": "worker_token_budget"
+          }
+        },
+        "tree": [
+          {
+            "role": "Flights",
+            "kind": "link",
+            "name": "webair-flights",
+            "state": "answered",
+            "package_id": "org.webagents.webair-flights"
+          },
+          {
+            "role": "Hotels",
+            "kind": "link",
+            "name": "hotel-aggregator",
+            "state": "answered",
+            "package_id": "org.webagents.staymere-hotels"
+          },
+          {
+            "role": "FindHotel",
+            "kind": "join",
+            "name": "named-hotel",
+            "state": "working",
+            "package_id": "org.webagents.hotel-salitubam"
+          }
+        ],
+        "export": {
+          "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-signed",
+          "entries": [
+            {
+              "name": "run.json",
+              "bytes": 16040,
+              "sha256": "2f1d997c4a91f08a45ca7d8d3b431ad8d85ad86fdbf868962b597342756199f2"
+            },
+            {
+              "name": "run-plan.json",
+              "bytes": 16949,
+              "sha256": "635456edb3eb4bbfdf97f5ecd53aa67ddbbd942423d5740c62a7fb39027ba40a"
+            },
+            {
+              "name": "input.json",
+              "bytes": 224,
+              "sha256": "eaf221eb97e795cc526801ce421dbdaf575b8d8030dbfecf1955d1c2820b552e"
+            },
+            {
+              "name": "link-plan-hotel-aggregator.json",
+              "bytes": 12594,
+              "sha256": "baa02beb762df56b999610205e3968df3343393dd8d0ed7b683db1d1ba9e87b0"
+            },
+            {
+              "name": "link-plan-webair-flights.json",
+              "bytes": 12623,
+              "sha256": "2a3ef6c326fbc7658325169d606a55ab888ded01c37b83f90057bea496fdd5a1"
+            },
+            {
+              "name": "audit.json",
+              "bytes": 86746,
+              "sha256": "da32b02aa8f7ab6198ad6a104245ca0a8d1ddc252f73ccd94d564879703a0932"
+            },
+            {
+              "name": "link-4e84a96f-df73-41de-9066-ab5a0ff3833a.audit.json",
+              "bytes": 26130,
+              "sha256": "acacf36dfff5a535395a22cc2b6e8560a903212ec26b8d41a1a0bdd305ccb6a0"
+            },
+            {
+              "name": "link-4e84a96f-df73-41de-9066-ab5a0ff3833a.provenance.json",
+              "bytes": 248,
+              "sha256": "a77e3511dd1881f25eefc0400ac2652186af84fdb331c99a4e50e00bfd1b9762"
+            },
+            {
+              "name": "link-4e84a96f-df73-41de-9066-ab5a0ff3833a.result.json",
+              "bytes": 29964,
+              "sha256": "9ab3c65fc1477ca8c332f68a7756b66688223fed6ec024f9df248e93c5b0ccc0"
+            },
+            {
+              "name": "link-4e84a96f-df73-41de-9066-ab5a0ff3833a.usage.json",
+              "bytes": 743,
+              "sha256": "6051057e200713258b80b034e0533143d301e621ef8f330281af14d4cfa53ea6"
+            },
+            {
+              "name": "link-f61d50d0-41fc-4e9a-b70f-a750536ff89e.audit.json",
+              "bytes": 26129,
+              "sha256": "087fa879cefdb67a393c9b3d3eb6972ec51317afe13ead9e7875e677dcfaa4c5"
+            },
+            {
+              "name": "link-f61d50d0-41fc-4e9a-b70f-a750536ff89e.provenance.json",
+              "bytes": 249,
+              "sha256": "34e1f33bf88794bb96d9196a77fbf088f2092881dc85c6503c4b2df0980cedac"
+            },
+            {
+              "name": "link-f61d50d0-41fc-4e9a-b70f-a750536ff89e.result.json",
+              "bytes": 30223,
+              "sha256": "794fba11204a1e3c54082516d1a413d9f7a513963ed48aef3041775c051dd52a"
+            },
+            {
+              "name": "link-f61d50d0-41fc-4e9a-b70f-a750536ff89e.usage.json",
+              "bytes": 740,
+              "sha256": "7b3162b674319aefb04a8aeb5285208ff72af913dfd7699beccfa3c81ae5c0a5"
+            },
+            {
+              "name": "links.json",
+              "bytes": 12947,
+              "sha256": "8b3576ef0b279e2a55175b937645fd1cc6d998101999c8404082ca7e7a109c1a"
+            },
+            {
+              "name": "provenance.json",
+              "bytes": 248,
+              "sha256": "47cbf1a8ca0cd5c9a8be1c7a03d603a25b90037562f4410f9eb5bb1e8a30780c"
+            },
+            {
+              "name": "result.json",
+              "bytes": 107612,
+              "sha256": "43a8a0c3d1e2758b702537b530306c29cf21a49326c4a59f94c9aeda0bbc85fd"
+            },
+            {
+              "name": "usage.json",
+              "bytes": 1669,
+              "sha256": "cb08763d59d346e7bc3282e17539c8146af0854ac2458e4b3a561cc36eee8d70"
+            }
+          ],
+          "observations": [
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4455
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4185
+            },
+            {
+              "kind": "tool",
+              "subject": "webair-flights:search-flights",
+              "url": "https://webagents-webair-production.up.railway.app/api/v1/travel/flights",
+              "body_bytes": 71
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 2224
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4652
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4333
+            },
+            {
+              "kind": "tool",
+              "subject": "hotel-aggregator:search-hotels",
+              "url": "https://webagents-staymere-production.up.railway.app/api/v1/travel/hotels",
+              "body_bytes": 63
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 2264
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4909
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4608
+            },
+            {
+              "kind": "tool",
+              "subject": "web.search",
+              "url": "https://webagents-tripwright-production.up.railway.app/api/v1/search",
+              "body_bytes": 27
+            },
+            {
+              "kind": "tool",
+              "subject": "link.join:look",
+              "url": "https://webagents-hotel-salitubam-production.up.railway.app/",
+              "body_bytes": 0
+            },
+            {
+              "kind": "tool",
+              "subject": "link.join:package",
+              "url": "https://webagents-hotel-salitubam-production.up.railway.app/agent.pkg",
+              "body_bytes": 0
+            }
+          ]
+        },
+        "refusal": {
+          "task": "request",
+          "reason": "worker_token_budget",
+          "input_bound": 2886,
+          "max_output_tokens": 1500,
+          "reserved_tokens": 4386,
+          "limit": 4000
+        }
+      },
+      "variant": {
+        "sessionId": "c02a9a5467764aed8e11b349",
+        "links": 2,
+        "plan": {
+          "run_plan_sha256": "efbc1b2376aad8c1f882e20cbb46e863fff154e52edfdae63a13347549909bde",
+          "network": {
+            "max_hops": 8,
+            "max_activations": 9,
+            "activations": {
+              "Calendar": 1,
+              "FindHotel": 1,
+              "Flights": 1,
+              "FrontMan": 5,
+              "Hotels": 1
+            },
+            "model_calls": 14,
+            "tool_calls": {
+              "check-calendar": 1,
+              "hotel-aggregator:search-hotels": 1,
+              "named-hotel:*": 1,
+              "web.search": 1,
+              "webair-flights:search-flights": 1
+            },
+            "compute_calls": 0,
+            "remote_calls": 33,
+            "tokens": 124000,
+            "seconds": 3500,
+            "relaxation": {
+              "model_calls": 14,
+              "compute_calls": 0,
+              "remote_calls": 33,
+              "tokens": 124000,
+              "seconds": 3510,
+              "tool_calls": {
+                "check-calendar": 1,
+                "hotel-aggregator:search-hotels": 1,
+                "named-hotel:*": 1,
+                "web.search": 1,
+                "webair-flights:search-flights": 1
+              }
+            },
+            "caps": {
+              "hard_tokens": 128000,
+              "max_remote_calls": 36,
+              "max_calls_per_tool": {
+                "check-calendar": 1,
+                "web.search": 1
+              },
+              "timeout_seconds": 3500,
+              "deadline_seconds": 3600
+            }
+          }
+        },
+        "runId": "run_4efda54160d54442b2d544d12b080d1a",
+        "waiting": {
+          "status": "running",
+          "card": {
+            "card_id": "card_1",
+            "kind": "link.join",
+            "node_id": "plan-trip/FindHotel/ask",
+            "facts": {
+              "slot": "named-hotel",
+              "publisher": {
+                "signer": "sha256:8ee8ec08acf1e665b0d831acc42516efc83e6eceb099c9351df0ec7ecc5445ec",
+                "trust": "unknown"
+              },
+              "package": {
+                "package_id": "org.webagents.hotel-salitubam",
+                "version": "0.1.0",
+                "digest": "bb69fb7acc020cd239d030895d0d7e9e7b7ad47d4ab7feba31ead038a836ce37",
+                "archive_sha256": "d695af9328367432e9e25cb04ccea69f45205f9cc4524731d6bc63b16d34dbc7",
+                "name": "Hotel Salitubam",
+                "description": "A fictional small hotel in Reykjavik as a package another agent can ask: it checks the hotel's own availability for a stay and proposes one room offer. All data is fictional; nothing is booked."
+              },
+              "source": {
+                "page_url": "https://webagents-hotel-salitubam-production.up.railway.app/",
+                "package_url": "https://webagents-hotel-salitubam-production.up.railway.app/agent.pkg"
+              },
+              "requirements": {
+                "permissions": [
+                  {
+                    "id": "model.reasoning",
+                    "kind": "model",
+                    "description": "Read messages, decide the next role, draft the answer.",
+                    "required": true,
+                    "resources": [
+                      "host-router"
+                    ]
+                  },
+                  {
+                    "id": "memory.session",
+                    "kind": "memory",
+                    "description": "The run's state and the network's shared state, for this run only.",
+                    "required": true,
+                    "resources": [
+                      "session"
+                    ]
+                  },
+                  {
+                    "id": "network.salitubam",
+                    "kind": "network",
+                    "description": "Ask Hotel Salitubam's fictional availability service.",
+                    "required": true,
+                    "resources": [
+                      "webagents-hotel-salitubam-production.up.railway.app"
+                    ]
+                  }
+                ],
+                "tools": [
+                  {
+                    "id": "check-availability",
+                    "execution": "remote",
+                    "endpoint": "https://webagents-hotel-salitubam-production.up.railway.app/api/v1/hotel/availability",
+                    "method": "POST",
+                    "domains": [
+                      "webagents-hotel-salitubam-production.up.railway.app"
+                    ],
+                    "permissions": [
+                      "network.salitubam"
+                    ],
+                    "side_effects": "read"
+                  }
+                ],
+                "allowed_domains": [
+                  "webagents-hotel-salitubam-production.up.railway.app"
+                ],
+                "model": {
+                  "tasks": [
+                    {
+                      "id": "propose",
+                      "capabilities": [
+                        "structured_output"
+                      ],
+                      "context_window": 16000
+                    }
+                  ],
+                  "privacy": null
+                }
+              },
+              "view": [
+                "check_in",
+                "check_out",
+                "travellers"
+              ],
+              "worst_case": {
+                "model_calls": 1,
+                "tool_calls": {
+                  "check-availability": 1
+                },
+                "compute_calls": 0,
+                "remote_calls": 3,
+                "tokens": 6000,
+                "seconds": 280
+              },
+              "ceiling": {
+                "model_calls": 1,
+                "tool_calls": 1,
+                "compute_calls": 0,
+                "remote_calls": 3,
+                "tokens": 6000,
+                "seconds": 300
+              },
+              "at_most_unchanged": true,
+              "left": {
+                "tokens": 115455,
+                "remote_calls": 29
+              },
+              "reason": "The hotel you named is not among the aggregator's; the page found for it offers its own agent.",
+              "cards": {
+                "slot": {
+                  "shown": 1,
+                  "max": 1
+                },
+                "run": {
+                  "shown": 1,
+                  "max": 2
+                }
+              }
+            },
+            "timeout_seconds": 298.99,
+            "requested_at": "2026-11-17T14:28:17.798000+00:00",
+            "publisher": {
+              "public_key": "1OM76N1RWhigHfM/vfgHl6ANEeW6eVrXnWQdWHeVT8I=",
+              "claimed_id": "hotel-salitubam",
+              "claimed_name": "Hotel Salitubam (fictional hotel)",
+              "package_id": "org.webagents.hotel-salitubam"
+            }
+          }
+        },
+        "card": {
+          "slot": "named-hotel",
+          "terms": [
+            "Publisher key",
+            "Agent",
+            "Named",
+            "Described as",
+            "Found on",
+            "Its tools",
+            "Its permissions",
+            "Your records it asks for",
+            "Model",
+            "The agent may send it",
+            "Why the agent asks",
+            "At most, if you accept",
+            "Within the step's ceiling",
+            "The \u201cat most\u201d you accepted",
+            "This run has left",
+            "Cards"
+          ],
+          "words": [
+            [
+              "the publisher's name for it",
+              "Hotel Salitubam"
+            ],
+            [
+              "the publisher's words",
+              "A fictional small hotel in Reykjavik as a package another agent can ask: it checks the hotel's own availability for a stay and proposes one room offer. All data is fictional; nothing is booked."
+            ],
+            [
+              "the publisher's words",
+              "Read messages, decide the next role, draft the answer."
+            ],
+            [
+              "the publisher's words",
+              "The run's state and the network's shared state, for this run only."
+            ],
+            [
+              "the publisher's words",
+              "Ask Hotel Salitubam's fictional availability service."
+            ],
+            [
+              "the agent's words",
+              "The hotel you named is not among the aggregator's; the page found for it offers its own agent."
+            ]
+          ],
+          "decline": "ab-button ab-button-primary",
+          "accept": "ab-button ab-button-ghost",
+          "grants": [
+            "session",
+            "session",
+            "session"
+          ],
+          "text": "This run found another agent. Use it?Nothing of it has reached the model or run. This browser fetched its page and its package with a plain request, verified the package, and computed what follows from its signed bytes.Publisher keysha256:8ee8ec08acf1e\u202645ec Signature valid \u00b7 publisher unknownAgentorg.webagents.hotel-salitubam 0.1.0 \u00b7 digest bb69fb7acc02\u2026ce37NamedHotel Salitubam (the publisher's name for it)Described asA fictional small hotel in Reykjavik as a package another agent can ask: it checks the hotel's own availability for a stay and proposes one room offer. All data is fictional; nothing is booked. (the publisher's words)Found onhttps://webagents-hotel-salitubam-production.up.railway.app/ \u00b7 package https://webagents-hotel-salitubam-production.up.railway.app/agent.pkgIts tools check-availability \u2192 POST https://webagents-hotel-salitubam-production.up.railway.app/api/v1/hotel/availability \u00b7 needs network.salitubam \u00b7 readIts permissionsmodel.reasoning (model, required by the package) DenyAllow onceAllow for this session Read messages, decide the next role, draft the answer. (the publisher's words)memory.session (memory, required by the package) DenyAllow onceAllow for this session The run's state and the network's shared state, for this run only. (the publisher's words)network.salitubam (network, required by the package) DenyAllow onceAllow for this session Ask Hotel Salitubam's fictional availability service. (the publisher's words)Your records it asks fornoneModelyour model, for proposeThe agent may send itcheck_in, check_out, travellersWhy the agent asksThe hotel you named is not among the aggregator's; the page found for it offers its own agent. (the agent's words)At most, if you accept1 model call \u00b7 tool calls: check-availability \u00d71 \u00b7 3 remote calls \u00b7 6,000 tokens \u00b7 280 secondsWithin the step's ceiling1 model call \u00b7 1 tool call \u00b7 3 remote calls \u00b7 6,000 tokens \u00b7 300 secondsThe \u201cat most\u201d you acceptedunchanged: it already held this join at the ceilingThis run has left115,455 tokens \u00b7 29 remote callsCards1 of 1 for this step \u00b7 1 of 2 in this runIts key Do not pin its keyTrust this key for this agent only (org.webagents.hotel-salitubam)Trust this key for any agent it signs for this publisherAnswer by 9:33:16 AM. No answer is a no, and a no lasts for this run: this publisher's key is not offered again in it.No, continue without itUse it for this run"
+        },
+        "before": {
+          "model": [
+            {
+              "task": "understand",
+              "matched": true,
+              "mentions": []
+            },
+            {
+              "task": "route",
+              "matched": true,
+              "mentions": []
+            },
+            {
+              "task": "propose",
+              "matched": true,
+              "mentions": []
+            },
+            {
+              "task": "understand",
+              "matched": true,
+              "mentions": []
+            },
+            {
+              "task": "route",
+              "matched": true,
+              "mentions": []
+            },
+            {
+              "task": "propose",
+              "matched": true,
+              "mentions": []
+            },
+            {
+              "task": "understand",
+              "matched": true,
+              "mentions": []
+            },
+            {
+              "task": "route",
+              "matched": true,
+              "mentions": []
+            }
+          ],
+          "salitubam": [
+            "GET /",
+            "GET /agent.pkg"
+          ],
+          "looking": [
+            {
+              "role": "Flights",
+              "kind": "link",
+              "name": "webair-flights",
+              "state": "answered",
+              "package_id": "org.webagents.webair-flights"
+            },
+            {
+              "role": "Hotels",
+              "kind": "link",
+              "name": "hotel-aggregator",
+              "state": "answered",
+              "package_id": "org.webagents.staymere-hotels"
+            },
+            {
+              "role": "FindHotel",
+              "kind": "join",
+              "name": "named-hotel",
+              "state": "looking",
+              "package_id": "org.webagents.hotel-salitubam"
+            }
+          ]
+        },
+        "status": "completed",
+        "errorCode": null,
+        "failure": null,
+        "tree": [
+          {
+            "role": "Flights",
+            "kind": "link",
+            "name": "webair-flights",
+            "state": "answered",
+            "package_id": "org.webagents.webair-flights"
+          },
+          {
+            "role": "Hotels",
+            "kind": "link",
+            "name": "hotel-aggregator",
+            "state": "answered",
+            "package_id": "org.webagents.staymere-hotels"
+          },
+          {
+            "role": "FindHotel",
+            "kind": "join",
+            "name": "named-hotel",
+            "state": "answered",
+            "package_id": "org.webagents.hotel-salitubam"
+          }
+        ],
+        "export": {
+          "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-variant",
+          "entries": [
+            {
+              "name": "run.json",
+              "bytes": 18576,
+              "sha256": "a8f470d17eb4a4624e6c0ff26846227960b9fdd46c503d0495aa85f5d5e04d15"
+            },
+            {
+              "name": "run-plan.json",
+              "bytes": 16964,
+              "sha256": "3874b2edd164f90c3d00691b314bf526a9f9395db6d6e7b66d81670488784ca1"
+            },
+            {
+              "name": "input.json",
+              "bytes": 224,
+              "sha256": "eaf221eb97e795cc526801ce421dbdaf575b8d8030dbfecf1955d1c2820b552e"
+            },
+            {
+              "name": "link-plan-hotel-aggregator.json",
+              "bytes": 12594,
+              "sha256": "226e9d884bc73ca4e1847d07c405ecd9ad0a6d755d7117c4ba474a90abbdba48"
+            },
+            {
+              "name": "link-plan-webair-flights.json",
+              "bytes": 12623,
+              "sha256": "50f0ab8157bbded8b26e99798c9e734aba0a6342b5843b18acdc74512e855a75"
+            },
+            {
+              "name": "audit.json",
+              "bytes": 138576,
+              "sha256": "b16afafd84132e43880b1dd5a3959681029d0134902e28db76420ae61a71adae"
+            },
+            {
+              "name": "link-96f49ad5-debb-41b8-a096-25b1d6ccb067.audit.json",
+              "bytes": 26129,
+              "sha256": "a451f01819a5b228a7eea3da9c58752058b3d06d2225c0995b3e1f84a1615749"
+            },
+            {
+              "name": "link-96f49ad5-debb-41b8-a096-25b1d6ccb067.provenance.json",
+              "bytes": 249,
+              "sha256": "34e1f33bf88794bb96d9196a77fbf088f2092881dc85c6503c4b2df0980cedac"
+            },
+            {
+              "name": "link-96f49ad5-debb-41b8-a096-25b1d6ccb067.result.json",
+              "bytes": 30223,
+              "sha256": "e339a653eded3daa8a62254896652667dfc45404f7a49ac149304147630371ba"
+            },
+            {
+              "name": "link-96f49ad5-debb-41b8-a096-25b1d6ccb067.usage.json",
+              "bytes": 740,
+              "sha256": "7b3162b674319aefb04a8aeb5285208ff72af913dfd7699beccfa3c81ae5c0a5"
+            },
+            {
+              "name": "link-cf070b9b-531a-440b-8814-2815aacd1ead.audit.json",
+              "bytes": 26200,
+              "sha256": "e8a0b321dedb889c2a9b9ec670eb95ba596ce067ca6df38ad3f2dbc1961d4c82"
+            },
+            {
+              "name": "link-cf070b9b-531a-440b-8814-2815aacd1ead.provenance.json",
+              "bytes": 249,
+              "sha256": "db30bfc5665fc8ef1a22e5e68cc666a348821307fdf1f39e262ff23845b52cdf"
+            },
+            {
+              "name": "link-cf070b9b-531a-440b-8814-2815aacd1ead.result.json",
+              "bytes": 31199,
+              "sha256": "3efc312898e42921bce60d7d8db8f7c4d976fb9b2eb093a34a5113fd073fff90"
+            },
+            {
+              "name": "link-cf070b9b-531a-440b-8814-2815aacd1ead.usage.json",
+              "bytes": 755,
+              "sha256": "c64f9e197fa1564e3c33bbfecddc7fcb8cad77a46d2328b586786ca6648be2ea"
+            },
+            {
+              "name": "link-f6887d7e-226b-4340-932a-daa26dcaa1f2.audit.json",
+              "bytes": 26130,
+              "sha256": "8428366db711d1ca1d6c3fdee824b770bfddcd9f45debc5e2d90abafe83e2183"
+            },
+            {
+              "name": "link-f6887d7e-226b-4340-932a-daa26dcaa1f2.provenance.json",
+              "bytes": 248,
+              "sha256": "a77e3511dd1881f25eefc0400ac2652186af84fdb331c99a4e50e00bfd1b9762"
+            },
+            {
+              "name": "link-f6887d7e-226b-4340-932a-daa26dcaa1f2.result.json",
+              "bytes": 29964,
+              "sha256": "d1f2ab741963bc77b3afa187a0dfe49b5075f9308b5ba91e82dfcccf3de8e286"
+            },
+            {
+              "name": "link-f6887d7e-226b-4340-932a-daa26dcaa1f2.usage.json",
+              "bytes": 743,
+              "sha256": "6051057e200713258b80b034e0533143d301e621ef8f330281af14d4cfa53ea6"
+            },
+            {
+              "name": "links.json",
+              "bytes": 13148,
+              "sha256": "2e990ab36841dca28d0ba9ea57ee2ed0128411577bc4e34f51d41cd9a1250d7f"
+            },
+            {
+              "name": "plan.json",
+              "bytes": 1949,
+              "sha256": "8745c382df808fc9bbdf5e66263dac6ddf46cb78ed71e16f2cf090ce337a9921"
+            },
+            {
+              "name": "plan.txt",
+              "bytes": 235,
+              "sha256": "c441017d40473e58fa5b09f8e26e89d1105c1c0668caa84418a1fa37189044a9"
+            },
+            {
+              "name": "provenance.json",
+              "bytes": 248,
+              "sha256": "91f17ece8acc8a6b26bb0bbdd4b1dd581c3338c1f87434c890d542e38b4e5776"
+            },
+            {
+              "name": "result.json",
+              "bytes": 167913,
+              "sha256": "51fc0344b4f35fae896c8fb2f0c7691a8320ef76b81649a03cb04075880219d0"
+            },
+            {
+              "name": "usage.json",
+              "bytes": 2263,
+              "sha256": "71916f057162c8d5a80fa83fcabb6ad30aed39b83a7c51125d9148a526188a33"
+            }
+          ],
+          "observations": [
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4455
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4185
+            },
+            {
+              "kind": "tool",
+              "subject": "webair-flights:search-flights",
+              "url": "https://webagents-webair-production.up.railway.app/api/v1/travel/flights",
+              "body_bytes": 71
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 2224
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4652
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4333
+            },
+            {
+              "kind": "tool",
+              "subject": "hotel-aggregator:search-hotels",
+              "url": "https://webagents-staymere-production.up.railway.app/api/v1/travel/hotels",
+              "body_bytes": 63
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 2264
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4909
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 4608
+            },
+            {
+              "kind": "tool",
+              "subject": "web.search",
+              "url": "https://webagents-tripwright-production.up.railway.app/api/v1/search",
+              "body_bytes": 27
+            },
+            {
+              "kind": "tool",
+              "subject": "link.join:look",
+              "url": "https://webagents-hotel-salitubam-production.up.railway.app/",
+              "body_bytes": 0
+            },
+            {
+              "kind": "tool",
+              "subject": "link.join:package",
+              "url": "https://webagents-hotel-salitubam-production.up.railway.app/agent.pkg",
+              "body_bytes": 0
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 2947
+            },
+            {
+              "kind": "tool",
+              "subject": "join:org.webagents.hotel-salitubam:check-availability",
+              "url": "https://webagents-hotel-salitubam-production.up.railway.app/api/v1/hotel/availability",
+              "body_bytes": 65
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 2530
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 5412
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 5091
+            },
+            {
+              "kind": "tool",
+              "subject": "check-calendar",
+              "url": "https://webagents-webair-production.up.railway.app/api/v1/travel/calendar",
+              "body_bytes": 39
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 5475
+            },
+            {
+              "kind": "model",
+              "subject": "ollama",
+              "url": "http://127.0.0.1:58820/api/chat",
+              "body_bytes": 5159
+            }
+          ]
+        }
+      }
+    }
+  },
+  "requests": {
+    "model": [
+      {
+        "at": "2026-11-17T14:28:12.410Z",
+        "scenario": "A.denied",
+        "task": "understand",
+        "bytes": 3728,
+        "body_sha256": "6de40d2b3b61e2862f5b36725f0053d915e8fb24b3d608bf4d87974c11e50217",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:12.414Z",
+        "scenario": "A.denied",
+        "task": "route",
+        "bytes": 3230,
+        "body_sha256": "1fc33ece6e1c10830be648f198c84e91b8735282656ab1938a66798fc6a893f4",
+        "matched": false,
+        "improvised": true,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Calendar"
+        ],
+        "next": "Flights"
+      },
+      {
+        "at": "2026-11-17T14:28:12.427Z",
+        "scenario": "A.denied",
+        "task": "propose",
+        "bytes": 2224,
+        "body_sha256": "5e05150549188fdfaf26f2d35b0b6c6cd85887cab3dad47c9c6ece73278d8bb3",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:12.431Z",
+        "scenario": "A.denied",
+        "task": "understand",
+        "bytes": 3945,
+        "body_sha256": "8421e42ec4ac2574921955fe913bc56735bd204aa65ffea805f2fe6b624026c8",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:12.433Z",
+        "scenario": "A.denied",
+        "task": "route",
+        "bytes": 3395,
+        "body_sha256": "7e606b4779c13eedc7c8c2349f1cf15d8081fe03c793538b24ad06ec97a0c3fa",
+        "matched": false,
+        "improvised": true,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Calendar"
+        ],
+        "next": "Calendar"
+      },
+      {
+        "at": "2026-11-17T14:28:12.437Z",
+        "scenario": "A.denied",
+        "task": "understand",
+        "bytes": 4008,
+        "body_sha256": "66a45a5c5cc5798acf7d26043177466539f426f466e308f2a30cb70ba5a4869c",
+        "matched": false,
+        "improvised": true,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:12.439Z",
+        "scenario": "A.denied",
+        "task": "route",
+        "bytes": 3434,
+        "body_sha256": "d86d0e60c8d80d9833ec1106cd5a287cf6c2bc678439d6b4b89829a140d02a64",
+        "matched": false,
+        "improvised": true,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Calendar"
+        ],
+        "next": "done"
+      },
+      {
+        "at": "2026-11-17T14:28:14.033Z",
+        "scenario": "A.planned",
+        "task": "understand",
+        "bytes": 3728,
+        "body_sha256": "6de40d2b3b61e2862f5b36725f0053d915e8fb24b3d608bf4d87974c11e50217",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:14.037Z",
+        "scenario": "A.planned",
+        "task": "route",
+        "bytes": 3422,
+        "body_sha256": "167666996586204026ce59aa7a8ce3136a3772afabb0a8e0ad6f7c7d50700125",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Hotels",
+          "Calendar"
+        ],
+        "next": "Flights"
+      },
+      {
+        "at": "2026-11-17T14:28:14.050Z",
+        "scenario": "A.planned",
+        "task": "propose",
+        "bytes": 2224,
+        "body_sha256": "5e05150549188fdfaf26f2d35b0b6c6cd85887cab3dad47c9c6ece73278d8bb3",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:14.056Z",
+        "scenario": "A.planned",
+        "task": "understand",
+        "bytes": 3945,
+        "body_sha256": "8421e42ec4ac2574921955fe913bc56735bd204aa65ffea805f2fe6b624026c8",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:14.058Z",
+        "scenario": "A.planned",
+        "task": "route",
+        "bytes": 3587,
+        "body_sha256": "709aefa57aeaba1aa546a12861404a09fbc8e0a301d4e8db7b279a7e9f667245",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Hotels",
+          "Calendar"
+        ],
+        "next": "Hotels"
+      },
+      {
+        "at": "2026-11-17T14:28:14.070Z",
+        "scenario": "A.planned",
+        "task": "propose",
+        "bytes": 2264,
+        "body_sha256": "26e922ba94b7e6e1610ea8f96545a4fdc5d866dfdcf8ca21ea646355e64762f1",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:14.073Z",
+        "scenario": "A.planned",
+        "task": "understand",
+        "bytes": 4202,
+        "body_sha256": "a2fa3baa897f78aa4ab8eaf736297153ed415f8fb114d1b6653c8bc036ca7caf",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:14.075Z",
+        "scenario": "A.planned",
+        "task": "route",
+        "bytes": 3844,
+        "body_sha256": "8a3e51063bb2f93d865642f69c8303a34d49b9606cf1cf89a36f5a8010bcbd98",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Hotels",
+          "Calendar"
+        ],
+        "next": "Calendar"
+      },
+      {
+        "at": "2026-11-17T14:28:14.080Z",
+        "scenario": "A.planned",
+        "task": "understand",
+        "bytes": 4265,
+        "body_sha256": "25a68ba656b10fbf27e0d93701ce36aa864e5f9d12e22bfc59e1b269ace1b88a",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:14.083Z",
+        "scenario": "A.planned",
+        "task": "route",
+        "bytes": 3913,
+        "body_sha256": "6f7cd9849089d69d4970c22e1937bef98d2dece273911b44e57e074937ab0f89",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Hotels",
+          "Calendar"
+        ],
+        "next": "done"
+      },
+      {
+        "at": "2026-11-17T14:28:15.651Z",
+        "scenario": "B.signed",
+        "task": "understand",
+        "bytes": 4455,
+        "body_sha256": "16d3cf2f80f67faf152fc8ad05539528688724d62269df5de689af911dd71128",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:15.656Z",
+        "scenario": "B.signed",
+        "task": "route",
+        "bytes": 4185,
+        "body_sha256": "7dff80d03283846801a7c510c83936d791e74ae9febeb5f4d8e6bfc516d28ce6",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Hotels",
+          "FindHotel",
+          "Calendar"
+        ],
+        "next": "Flights"
+      },
+      {
+        "at": "2026-11-17T14:28:15.669Z",
+        "scenario": "B.signed",
+        "task": "propose",
+        "bytes": 2224,
+        "body_sha256": "5e05150549188fdfaf26f2d35b0b6c6cd85887cab3dad47c9c6ece73278d8bb3",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:15.674Z",
+        "scenario": "B.signed",
+        "task": "understand",
+        "bytes": 4652,
+        "body_sha256": "e33900000fc20d05c5b62204e46e61ac2f076b614eebfe92f5e8384fce77820e",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:15.676Z",
+        "scenario": "B.signed",
+        "task": "route",
+        "bytes": 4333,
+        "body_sha256": "e16c9844366395b317a9a37bd58a3ecdcbe355818cbfd370c10137a93a2281c1",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Hotels",
+          "FindHotel",
+          "Calendar"
+        ],
+        "next": "Hotels"
+      },
+      {
+        "at": "2026-11-17T14:28:15.688Z",
+        "scenario": "B.signed",
+        "task": "propose",
+        "bytes": 2264,
+        "body_sha256": "26e922ba94b7e6e1610ea8f96545a4fdc5d866dfdcf8ca21ea646355e64762f1",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:15.691Z",
+        "scenario": "B.signed",
+        "task": "understand",
+        "bytes": 4909,
+        "body_sha256": "41d837a75bc19797e658de5f4adc00a417da63ee94578edadb1910e1685b6e35",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:15.694Z",
+        "scenario": "B.signed",
+        "task": "route",
+        "bytes": 4608,
+        "body_sha256": "43e883cb9fd2aeb85a6d7d32ebcc0bf878f2fd5fad4e4103068861789c663f8b",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Hotels",
+          "FindHotel",
+          "Calendar"
+        ],
+        "next": "FindHotel"
+      },
+      {
+        "at": "2026-11-17T14:28:17.743Z",
+        "scenario": "B.variant",
+        "task": "understand",
+        "bytes": 4455,
+        "body_sha256": "16d3cf2f80f67faf152fc8ad05539528688724d62269df5de689af911dd71128",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:17.747Z",
+        "scenario": "B.variant",
+        "task": "route",
+        "bytes": 4185,
+        "body_sha256": "7dff80d03283846801a7c510c83936d791e74ae9febeb5f4d8e6bfc516d28ce6",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Hotels",
+          "FindHotel",
+          "Calendar"
+        ],
+        "next": "Flights"
+      },
+      {
+        "at": "2026-11-17T14:28:17.761Z",
+        "scenario": "B.variant",
+        "task": "propose",
+        "bytes": 2224,
+        "body_sha256": "5e05150549188fdfaf26f2d35b0b6c6cd85887cab3dad47c9c6ece73278d8bb3",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:17.766Z",
+        "scenario": "B.variant",
+        "task": "understand",
+        "bytes": 4652,
+        "body_sha256": "e33900000fc20d05c5b62204e46e61ac2f076b614eebfe92f5e8384fce77820e",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:17.768Z",
+        "scenario": "B.variant",
+        "task": "route",
+        "bytes": 4333,
+        "body_sha256": "e16c9844366395b317a9a37bd58a3ecdcbe355818cbfd370c10137a93a2281c1",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Hotels",
+          "FindHotel",
+          "Calendar"
+        ],
+        "next": "Hotels"
+      },
+      {
+        "at": "2026-11-17T14:28:17.779Z",
+        "scenario": "B.variant",
+        "task": "propose",
+        "bytes": 2264,
+        "body_sha256": "26e922ba94b7e6e1610ea8f96545a4fdc5d866dfdcf8ca21ea646355e64762f1",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:17.784Z",
+        "scenario": "B.variant",
+        "task": "understand",
+        "bytes": 4909,
+        "body_sha256": "41d837a75bc19797e658de5f4adc00a417da63ee94578edadb1910e1685b6e35",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:17.786Z",
+        "scenario": "B.variant",
+        "task": "route",
+        "bytes": 4608,
+        "body_sha256": "43e883cb9fd2aeb85a6d7d32ebcc0bf878f2fd5fad4e4103068861789c663f8b",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Hotels",
+          "FindHotel",
+          "Calendar"
+        ],
+        "next": "FindHotel"
+      },
+      {
+        "at": "2026-11-17T14:28:18.329Z",
+        "scenario": "B.variant",
+        "task": "request",
+        "bytes": 2947,
+        "body_sha256": "5b0d486e91a175ef9fee6c9d3eff06924ed731b352b9f66d53d17f3ec106d322",
+        "matched": true,
+        "improvised": false,
+        "mentions": [
+          "A fictional small hotel in Reykjavik as a package another agent can ask: it checks the hotel's own availability for a stay and proposes one room offer. All data is fictional; nothing is booked."
+        ],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:18.349Z",
+        "scenario": "B.variant",
+        "task": "propose",
+        "bytes": 2530,
+        "body_sha256": "f15df3a01a89a28c52a200d206fe42d9133241c54284f353a295a540a560773a",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:18.353Z",
+        "scenario": "B.variant",
+        "task": "understand",
+        "bytes": 5412,
+        "body_sha256": "93b84cb358a2cd1767508ac3d1fb5ce6871ae18a07aa0c8d27aa5459758cc9f4",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:18.356Z",
+        "scenario": "B.variant",
+        "task": "route",
+        "bytes": 5091,
+        "body_sha256": "5bb58aab165af0c8145f71332d08ed390c650d25e4d618aaf470d256ba6ab161",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Hotels",
+          "FindHotel",
+          "Calendar"
+        ],
+        "next": "Calendar"
+      },
+      {
+        "at": "2026-11-17T14:28:18.360Z",
+        "scenario": "B.variant",
+        "task": "understand",
+        "bytes": 5475,
+        "body_sha256": "060367243bcfcd34518e35d0e5a209b06421a4ad9702aa914f491aae3943f890",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": null,
+        "next": null
+      },
+      {
+        "at": "2026-11-17T14:28:18.362Z",
+        "scenario": "B.variant",
+        "task": "route",
+        "bytes": 5159,
+        "body_sha256": "cba5c4cabf356566514fc0fe7c4d7b5a3a31647f81374c848ac95cfb66f537b5",
+        "matched": true,
+        "improvised": false,
+        "mentions": [],
+        "offered": [
+          "Flights",
+          "Hotels",
+          "FindHotel",
+          "Calendar"
+        ],
+        "next": "done"
+      }
+    ],
+    "origins": [
+      {
+        "at": "2026-11-17T14:28:12.425Z",
+        "scenario": "A.denied",
+        "host": "webagents-webair-production.up.railway.app",
+        "method": "POST",
+        "path": "/api/v1/travel/flights",
+        "tool": "search-flights",
+        "body_bytes": 71
+      },
+      {
+        "at": "2026-11-17T14:28:12.435Z",
+        "scenario": "A.denied",
+        "host": "webagents-webair-production.up.railway.app",
+        "method": "POST",
+        "path": "/api/v1/travel/calendar",
+        "tool": "check-calendar",
+        "body_bytes": 39
+      },
+      {
+        "at": "2026-11-17T14:28:14.048Z",
+        "scenario": "A.planned",
+        "host": "webagents-webair-production.up.railway.app",
+        "method": "POST",
+        "path": "/api/v1/travel/flights",
+        "tool": "search-flights",
+        "body_bytes": 71
+      },
+      {
+        "at": "2026-11-17T14:28:14.068Z",
+        "scenario": "A.planned",
+        "host": "webagents-staymere-production.up.railway.app",
+        "method": "POST",
+        "path": "/api/v1/travel/hotels",
+        "tool": "search-hotels",
+        "body_bytes": 63
+      },
+      {
+        "at": "2026-11-17T14:28:14.078Z",
+        "scenario": "A.planned",
+        "host": "webagents-webair-production.up.railway.app",
+        "method": "POST",
+        "path": "/api/v1/travel/calendar",
+        "tool": "check-calendar",
+        "body_bytes": 39
+      },
+      {
+        "at": "2026-11-17T14:28:15.667Z",
+        "scenario": "B.signed",
+        "host": "webagents-webair-production.up.railway.app",
+        "method": "POST",
+        "path": "/api/v1/travel/flights",
+        "tool": "search-flights",
+        "body_bytes": 71
+      },
+      {
+        "at": "2026-11-17T14:28:15.685Z",
+        "scenario": "B.signed",
+        "host": "webagents-staymere-production.up.railway.app",
+        "method": "POST",
+        "path": "/api/v1/travel/hotels",
+        "tool": "search-hotels",
+        "body_bytes": 63
+      },
+      {
+        "at": "2026-11-17T14:28:15.696Z",
+        "scenario": "B.signed",
+        "host": "webagents-tripwright-production.up.railway.app",
+        "method": "POST",
+        "path": "/api/v1/search",
+        "tool": "web.search",
+        "body_bytes": 27
+      },
+      {
+        "at": "2026-11-17T14:28:17.758Z",
+        "scenario": "B.variant",
+        "host": "webagents-webair-production.up.railway.app",
+        "method": "POST",
+        "path": "/api/v1/travel/flights",
+        "tool": "search-flights",
+        "body_bytes": 71
+      },
+      {
+        "at": "2026-11-17T14:28:17.777Z",
+        "scenario": "B.variant",
+        "host": "webagents-staymere-production.up.railway.app",
+        "method": "POST",
+        "path": "/api/v1/travel/hotels",
+        "tool": "search-hotels",
+        "body_bytes": 63
+      },
+      {
+        "at": "2026-11-17T14:28:17.788Z",
+        "scenario": "B.variant",
+        "host": "webagents-tripwright-production.up.railway.app",
+        "method": "POST",
+        "path": "/api/v1/search",
+        "tool": "web.search",
+        "body_bytes": 27
+      },
+      {
+        "at": "2026-11-17T14:28:18.344Z",
+        "scenario": "B.variant",
+        "host": "webagents-hotel-salitubam-production.up.railway.app",
+        "method": "POST",
+        "path": "/api/v1/hotel/availability",
+        "tool": "check-availability",
+        "body_bytes": 65
+      },
+      {
+        "at": "2026-11-17T14:28:18.358Z",
+        "scenario": "B.variant",
+        "host": "webagents-webair-production.up.railway.app",
+        "method": "POST",
+        "path": "/api/v1/travel/calendar",
+        "tool": "check-calendar",
+        "body_bytes": 39
+      }
+    ]
+  },
+  "checks": {
+    "the scripted Ollama is offered as a local model": "ok",
+    "opening the planner fetched only the planner: no linked origin was contacted": "ok",
+    "the review names the two linked packages and where each is published, before loading them": "ok",
+    "loading fetched each linked package from its locator with one GET": "ok",
+    "the review shows three publishers: the planner's own and one group per linked key, each signature valid and publisher unknown": "ok",
+    "the linked packages are the pinned ones: their digests are the manifest's": "ok",
+    "a linked package's name and description are shown as the publisher's words, quoted": "ok",
+    "the review states the composed at most, naming each linked agent's tool: 10 model calls, 23 remote calls, 92,000 tokens": "ok",
+    "pinning the planner's key does not extend to a linked publisher: the plan is refused link_undecided for both": "ok",
+    "three keys are pinned, each by its own decision; a linked key's pin is scoped to its package": "ok",
+    "the review says what a denial means: not asked, its steps unbound": "ok",
+    "the plan records the denial: Staymere denied with no inner plan, WebAir Flights accepted with its inner plan's hash": "ok",
+    "the denied publisher's part is out of the envelope and its origin is not among the plan's": "ok",
+    "with Staymere denied the run completes": "ok",
+    "no route request of that run offered the denied publisher's role": "ok",
+    "the denied run reached Staymere's origin not at all, and WebAir Flights' service once": "ok",
+    "the delegation view of the denied run shows one link, WebAir Flights answered, and names the denied publisher as not asked": "ok",
+    "the denied run's rendered tree equals its audit's link events": "ok",
+    "the plan records both links accepted, each with its inner plan's hash, and the composed envelope of 92,000 tokens and 23 remote calls": "ok",
+    "the plan card names each linked agent with the decision": "ok",
+    "the planned run completes": "ok",
+    "every model request of the planned run matched a fixture case exactly: 10 calls, none improvised": "ok",
+    "each linked agent's service was called once at its own origin, and the planner's calendar once": "ok",
+    "the delegation view shows two links, each answered, under the role that asked": "ok",
+    "the rendered tree equals the audit's link events": "ok",
+    "the view shows what crossed as hashes and none of the trip's words": "ok",
+    "the export carries the links record, each inner Run Plan and each inner run's files": "ok",
+    "the same link events, in the same order, as the reference's fixture run of the same archive": "ok",
+    "the privacy observer, recording, saw only the scripted Ollama and the three origins of the plan's tools": "ok",
+    "the signed planner 0.2.0: the run reached the join card with the core's facts: the slot, the candidate's key (unknown), its package, where it was found, its worst case inside the ceiling": "ok",
+    "the signed planner 0.2.0: the card in the page states the facts in their order, the publisher's and the agent's words quoted and attributed, declining the default": "ok",
+    "the signed planner 0.2.0: before the decision the hotel was sent two plain GETs (its page, its package) and nothing else": "ok",
+    "the signed planner 0.2.0: before the decision no model request was a request-building call and none held the candidate's description": "ok",
+    "the signed planner 0.2.0: before the decision the delegation view already shows the two planned links answered and the join found, not yet running": "ok",
+    "the signed planner 0.2.0's plan states the slot at its ceiling: 14 model calls, 33 remote calls, 122,000 tokens": "ok",
+    "the signed planner 0.2.0: the acceptance is recorded as the person's, and the request-building call is then refused by FindHotel's own token budget under this host's UTF-8 input bound (a finding, D-707)": "ok",
+    "the signed planner 0.2.0: nothing was sent to the hotel beyond the look and the download": "ok",
+    "the variant: the run reached the join card with the core's facts: the slot, the candidate's key (unknown), its package, where it was found, its worst case inside the ceiling": "ok",
+    "the variant: the card in the page states the facts in their order, the publisher's and the agent's words quoted and attributed, declining the default": "ok",
+    "the variant: before the decision the hotel was sent two plain GETs (its page, its package) and nothing else": "ok",
+    "the variant: before the decision no model request was a request-building call and none held the candidate's description": "ok",
+    "the variant: before the decision the delegation view already shows the two planned links answered and the join found, not yet running": "ok",
+    "the variant: the run completes after the card was accepted in the page": "ok",
+    "the variant: every model request matched a fixture case exactly, and exactly one was the request-building call, after the decision": "ok",
+    "the variant: at the slot's step the audit holds requested, decided (accepted by the person), started, completed, in that order": "ok",
+    "the variant: the hotel's own service was called once, after the decision, and nothing else was sent to it": "ok",
+    "the variant: the delegation view shows three links answered, the third a join of Hotel Salitubam, and equals the audit's link events": "ok",
+    "the variant: the record's join names the caller's Run Plan, this run and the slot, and the card's grants": "ok"
+  },
+  "failures": [],
+  "passed": true,
+  "link_verification": {
+    "schema": "webagents-verify-chrome-link-e2e-v0",
+    "exports": {
+      "planned": {
+        "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-planned",
+        "verify_link_run": {
+          "passed": true,
+          "checks": 55,
+          "status": "completed",
+          "at_most": {
+            "model_calls": 10,
+            "compute_calls": 0,
+            "remote_calls": 23,
+            "tokens": 92000,
+            "tool_calls": {
+              "check-calendar": 1,
+              "hotel-aggregator:search-hotels": 1,
+              "webair-flights:search-flights": 1
+            },
+            "max_hops": 6,
+            "activations": {
+              "Calendar": 1,
+              "Flights": 1,
+              "FrontMan": 4,
+              "Hotels": 1
+            }
+          },
+          "observed": {
+            "model_calls": 10,
+            "compute_calls": 0,
+            "remote_calls": 3,
+            "tokens": 4881,
+            "tool_calls": {
+              "check-calendar": 1,
+              "hotel-aggregator:search-hotels": 1,
+              "webair-flights:search-flights": 1
+            },
+            "activations": {
+              "FrontMan": 4,
+              "Flights": 1,
+              "Hotels": 1,
+              "Calendar": 1
+            },
+            "hops": 6
+          }
+        },
+        "link_events": [
+          [
+            "link.started",
+            "webair-flights"
+          ],
+          [
+            "link.completed",
+            "webair-flights"
+          ],
+          [
+            "link.started",
+            "hotel-aggregator"
+          ],
+          [
+            "link.completed",
+            "hotel-aggregator"
+          ]
+        ],
+        "decisions": {
+          "hotel-aggregator": "accepted",
+          "webair-flights": "accepted"
+        }
+      },
+      "denied": {
+        "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-denied",
+        "verify_link_run": {
+          "passed": true,
+          "checks": 44,
+          "status": "completed",
+          "at_most": {
+            "model_calls": 7,
+            "compute_calls": 0,
+            "remote_calls": 16,
+            "tokens": 66000,
+            "tool_calls": {
+              "check-calendar": 1,
+              "webair-flights:search-flights": 1
+            },
+            "max_hops": 6,
+            "activations": {
+              "Calendar": 1,
+              "Flights": 1,
+              "FrontMan": 3,
+              "Hotels": 0
+            }
+          },
+          "observed": {
+            "model_calls": 7,
+            "compute_calls": 0,
+            "remote_calls": 2,
+            "tokens": 3434,
+            "tool_calls": {
+              "check-calendar": 1,
+              "webair-flights:search-flights": 1
+            },
+            "activations": {
+              "FrontMan": 3,
+              "Flights": 1,
+              "Calendar": 1
+            },
+            "hops": 4
+          }
+        },
+        "link_events": [
+          [
+            "link.started",
+            "webair-flights"
+          ],
+          [
+            "link.completed",
+            "webair-flights"
+          ]
+        ],
+        "decisions": {
+          "hotel-aggregator": "denied",
+          "webair-flights": "accepted"
+        }
+      },
+      "signed": {
+        "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-signed",
+        "verify_link_run": {
+          "passed": true,
+          "checks": 64,
+          "status": "failed",
+          "at_most": {
+            "model_calls": 14,
+            "compute_calls": 0,
+            "remote_calls": 33,
+            "tokens": 122000,
+            "tool_calls": {
+              "check-calendar": 1,
+              "hotel-aggregator:search-hotels": 1,
+              "named-hotel:*": 1,
+              "web.search": 1,
+              "webair-flights:search-flights": 1
+            },
+            "max_hops": 8,
+            "activations": {
+              "Calendar": 1,
+              "FindHotel": 1,
+              "Flights": 1,
+              "FrontMan": 5,
+              "Hotels": 1
+            }
+          },
+          "observed": {
+            "model_calls": 8,
+            "compute_calls": 0,
+            "remote_calls": 3,
+            "tokens": 4545,
+            "tool_calls": {
+              "hotel-aggregator:search-hotels": 1,
+              "web.search": 1,
+              "webair-flights:search-flights": 1
+            },
+            "activations": {
+              "FrontMan": 3,
+              "Flights": 1,
+              "Hotels": 1,
+              "FindHotel": 1
+            }
+          }
+        },
+        "link_events": [
+          [
+            "link.started",
+            "webair-flights"
+          ],
+          [
+            "link.completed",
+            "webair-flights"
+          ],
+          [
+            "link.started",
+            "hotel-aggregator"
+          ],
+          [
+            "link.completed",
+            "hotel-aggregator"
+          ],
+          [
+            "link.requested",
+            "named-hotel"
+          ],
+          [
+            "link.decided",
+            "named-hotel"
+          ]
+        ],
+        "decisions": {
+          "hotel-aggregator": "accepted",
+          "webair-flights": "accepted"
+        }
+      },
+      "variant": {
+        "directory": "examples/my-chrome-link-2026-11-17T14-28-02-860Z/export-variant",
+        "verify_link_run": {
+          "passed": true,
+          "checks": 76,
+          "status": "completed",
+          "at_most": {
+            "model_calls": 14,
+            "compute_calls": 0,
+            "remote_calls": 33,
+            "tokens": 124000,
+            "tool_calls": {
+              "check-calendar": 1,
+              "hotel-aggregator:search-hotels": 1,
+              "named-hotel:*": 1,
+              "web.search": 1,
+              "webair-flights:search-flights": 1
+            },
+            "max_hops": 8,
+            "activations": {
+              "Calendar": 1,
+              "FindHotel": 1,
+              "Flights": 1,
+              "FrontMan": 5,
+              "Hotels": 1
+            }
+          },
+          "observed": {
+            "model_calls": 14,
+            "compute_calls": 0,
+            "remote_calls": 5,
+            "tokens": 7861,
+            "tool_calls": {
+              "check-calendar": 1,
+              "hotel-aggregator:search-hotels": 1,
+              "named-hotel:check-availability": 1,
+              "web.search": 1,
+              "webair-flights:search-flights": 1
+            },
+            "activations": {
+              "FrontMan": 5,
+              "Flights": 1,
+              "Hotels": 1,
+              "FindHotel": 1,
+              "Calendar": 1
+            },
+            "hops": 8
+          }
+        },
+        "link_events": [
+          [
+            "link.started",
+            "webair-flights"
+          ],
+          [
+            "link.completed",
+            "webair-flights"
+          ],
+          [
+            "link.started",
+            "hotel-aggregator"
+          ],
+          [
+            "link.completed",
+            "hotel-aggregator"
+          ],
+          [
+            "link.requested",
+            "named-hotel"
+          ],
+          [
+            "link.decided",
+            "named-hotel"
+          ],
+          [
+            "link.started",
+            "named-hotel"
+          ],
+          [
+            "link.completed",
+            "named-hotel"
+          ]
+        ],
+        "decisions": {
+          "hotel-aggregator": "accepted",
+          "webair-flights": "accepted"
+        }
+      }
+    },
+    "checks": 46,
+    "failed": [],
+    "results": [
+      {
+        "name": "the harness passed and reports no failure",
+        "passed": true
+      },
+      {
+        "name": "the planned run: the export holds the run's files",
+        "passed": true
+      },
+      {
+        "name": "the planned run: the audit is one valid hash chain",
+        "passed": true
+      },
+      {
+        "name": "the planned run: scripts/verify_link_run.py passes on the Chrome export",
+        "passed": true
+      },
+      {
+        "name": "the planned run: the plan states the composed bound agentpkg computes from the signed declarations and the plan's decisions",
+        "passed": true
+      },
+      {
+        "name": "the planned run: the plan is the caller's and records a decision for every dependency",
+        "passed": true
+      },
+      {
+        "name": "the planned run: each accepted link's inner Run Plan names this caller and that dependency, is on the caller's model, and has the hash the plan and the record state; a denied link has none",
+        "passed": true
+      },
+      {
+        "name": "the denied run: the export holds the run's files",
+        "passed": true
+      },
+      {
+        "name": "the denied run: the audit is one valid hash chain",
+        "passed": true
+      },
+      {
+        "name": "the denied run: scripts/verify_link_run.py passes on the Chrome export",
+        "passed": true
+      },
+      {
+        "name": "the denied run: the plan states the composed bound agentpkg computes from the signed declarations and the plan's decisions",
+        "passed": true
+      },
+      {
+        "name": "the denied run: the plan is the caller's and records a decision for every dependency",
+        "passed": true
+      },
+      {
+        "name": "the denied run: each accepted link's inner Run Plan names this caller and that dependency, is on the caller's model, and has the hash the plan and the record state; a denied link has none",
+        "passed": true
+      },
+      {
+        "name": "the signed 0.2.0: the export holds the run's files",
+        "passed": true
+      },
+      {
+        "name": "the signed 0.2.0: the audit is one valid hash chain",
+        "passed": true
+      },
+      {
+        "name": "the signed 0.2.0: scripts/verify_link_run.py passes on the Chrome export",
+        "passed": true
+      },
+      {
+        "name": "the signed 0.2.0: the plan states the composed bound agentpkg computes from the signed declarations and the plan's decisions",
+        "passed": true
+      },
+      {
+        "name": "the signed 0.2.0: the plan is the caller's and records a decision for every dependency",
+        "passed": true
+      },
+      {
+        "name": "the signed 0.2.0: each accepted link's inner Run Plan names this caller and that dependency, is on the caller's model, and has the hash the plan and the record state; a denied link has none",
+        "passed": true
+      },
+      {
+        "name": "the variant: the export holds the run's files",
+        "passed": true
+      },
+      {
+        "name": "the variant: the audit is one valid hash chain",
+        "passed": true
+      },
+      {
+        "name": "the variant: scripts/verify_link_run.py passes on the Chrome export",
+        "passed": true
+      },
+      {
+        "name": "the variant: the plan states the composed bound agentpkg computes from the signed declarations and the plan's decisions",
+        "passed": true
+      },
+      {
+        "name": "the variant: the plan is the caller's and records a decision for every dependency",
+        "passed": true
+      },
+      {
+        "name": "the variant: each accepted link's inner Run Plan names this caller and that dependency, is on the caller's model, and has the hash the plan and the record state; a denied link has none",
+        "passed": true
+      },
+      {
+        "name": "the planned run holds the reference's link events, in the reference's order",
+        "passed": true
+      },
+      {
+        "name": "the planned run's stated bound is the reference's in every figure, within a deadline no longer than the declared one",
+        "passed": true
+      },
+      {
+        "name": "every model request of the planned run matched a fixture case exactly",
+        "passed": true
+      },
+      {
+        "name": "the page's delegation view of the planned run is the fold of its audit: two links, each answered",
+        "passed": true
+      },
+      {
+        "name": "the denied run started an inner run of WebAir Flights only",
+        "passed": true
+      },
+      {
+        "name": "no request of the denied run reached the denied publisher's origin",
+        "passed": true
+      },
+      {
+        "name": "no route request of the denied run offered the denied publisher's role",
+        "passed": true
+      },
+      {
+        "name": "the page's delegation view of the denied run is the fold of its audit: one link",
+        "passed": true
+      },
+      {
+        "name": "signed: before the decision the hotel was sent two plain GETs and nothing else",
+        "passed": true
+      },
+      {
+        "name": "signed: before the decision no model request was a request-building call or held the candidate's description",
+        "passed": true
+      },
+      {
+        "name": "signed: the decision is the person's, on the card of the candidate the audit names",
+        "passed": true
+      },
+      {
+        "name": "signed: the page's delegation view is the fold of the audit",
+        "passed": true
+      },
+      {
+        "name": "variant: before the decision the hotel was sent two plain GETs and nothing else",
+        "passed": true
+      },
+      {
+        "name": "variant: before the decision no model request was a request-building call or held the candidate's description",
+        "passed": true
+      },
+      {
+        "name": "variant: the decision is the person's, on the card of the candidate the audit names",
+        "passed": true
+      },
+      {
+        "name": "variant: the page's delegation view is the fold of the audit",
+        "passed": true
+      },
+      {
+        "name": "the signed planner 0.2.0: the request-building call's reservation is above FindHotel's own budget, the run fails budget_exhausted, and no raise is asked",
+        "passed": true
+      },
+      {
+        "name": "the variant: at the slot the audit holds requested, decided, started, completed, in that order, and the run completed",
+        "passed": true
+      },
+      {
+        "name": "the variant: every model request matched a fixture case exactly, one of them the request-building call",
+        "passed": true
+      },
+      {
+        "name": "the variant: the hotel's own service was called once, after the decision",
+        "passed": true
+      },
+      {
+        "name": "the variant differs from the signed planner 0.2.0 in FindHotel's token budget and in nothing else of its program",
+        "passed": true
+      }
+    ],
+    "passed": true
+  }
+}

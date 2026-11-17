@@ -347,7 +347,13 @@ export function warnings(pkg: Package, evaluation: EvaluationLayers, publisher: 
   }
   if ((policy.delegation as JsonObject).allow_remote) warn("remote_delegation_requested", "critical", "Remote delegation is not implemented.");
   if ((pkg.manifest.dependencies as JsonValue[]).length > 0) {
-    warn("dependencies_declared", "warning", "Pinned dependencies are declared; no dependency resolver is installed.");
+    // link.v0: a dependency is a linked package. The host resolves each one (fetched, verified,
+    // shown with its own publisher) before the person agrees to anything (`summary.py`).
+    warn(
+      "links_declared",
+      "info",
+      `This package asks ${(pkg.manifest.dependencies as JsonValue[]).length} other package(s) for help (Agent Links). Each is fetched and verified first, is shown with its own publisher and requirements, and runs under what you grant it, never under this package's grants; you can deny one.`,
+    );
   }
   if ((pkg.manifest.update as JsonObject).locator) {
     warn("update_locator_declared", "info", "An update locator is declared. Updates are never fetched automatically.");

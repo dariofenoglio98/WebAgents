@@ -358,7 +358,9 @@ L-30. **The record.** A run that holds links writes, beside its own `result.json
   package as a link's entry states it, with the inner plan of L-36. `caller_plan` and
   `caller_plan_hash` are present where the host states the plan a decision made during the run
   names (L-36): a host without a control plane states its operator plan there when a person can
-  be asked during the run, and a record without either is what a planned-link run writes.
+  be asked during the run, and a record without either is what a planned-link run writes. A host
+  that holds the caller's Run Plan states `caller_plan_hash` alone, that plan's hash, when the
+  caller's graph holds a slot: the plan is the run's own record, kept beside this one.
 
   `links` is ordered by dependency id, one entry per declared dependency; `runs` is in the
   order the inner runs ended, one entry per inner run that started. `plan` is the inner plan
