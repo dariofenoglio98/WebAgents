@@ -221,6 +221,32 @@ the default host limits (`network/execution-layer-envelope`: the whole capabilit
 runtimes agree on all 49 since [`results/2026-10-25T02-53-07-223Z/`](results/2026-10-25T02-53-07-223Z/report.md)
 (224/224 cases in all).
 
+**link.v0** (66 cases, T66; [`spec/link-v0.md`](../spec/link-v0.md) §10): the planner Tripwright 0.1.0
+(`dist/`, its development key) through both links, Tripwright 0.2.0 joined from
+[`examples/link/join-fixture.json`](../examples/link/join-fixture.json) and the same walk with nobody there to
+ask, and every case of [`examples/link/cases/cases.json`](../examples/link/cases/cases.json). Each case is
+agentpkg's own probe ([`agentpkg/tests/link_probe.py`](../agentpkg/tests/link_probe.py)) with one change, written
+by [`drivers/link_probe.py`](drivers/link_probe.py) `--all` with the linked packages signed by its throwaway
+publisher keys; the runner signs the caller with its own and passes it first among the `--trust-key`s (link.v0
+§12). Expected in both:
+
+| Case | Expected |
+|---|---|
+| the planner's three walks | fixture parity under the link rules below, and `scripts/verify_link_run.py` passing on each runtime's record with the same checks and figures |
+| N-1…N-13, N-55 (validation) | `run` refuses at validation with the spec's code, identical message |
+| N-14…N-23 (preparation) | `run` refuses while the links are resolved or the composed bound is checked, identical message |
+| N-24 (the once rule across a link) | a recorded difference of the CLIs (D-091, D-707 (a)): `agentpkg run` makes no `once` check across a link and completes; the Chrome CLI refuses before the run; both execution layers' link hosts refuse `execution_grant_unsupported` with identical answers ([`drivers/link_host.py`](drivers/link_host.py), [`drivers/link-host.ts`](drivers/link-host.ts)) |
+| N-25…N-33, N-35…N-53, N-56, N-57 (run) | the outcome the list names in both (exit 0, or exit 2 with the code at the node named), the records equal under the link rules, and every expectation of `test_link_cases.py` that needs no Python object held by each runtime's record |
+| N-34, N-54 (host) | both execution sessions, handed a caller's plan with its inner plans changed as `test_link_execution.py` changes them, refuse each change `link_plan_parent_mismatch` with identical answers ([`drivers/link_session.py`](drivers/link_session.py) over the reference's control plane and runner, [`drivers/link-session.ts`](drivers/link-session.ts) over the Chrome core's local plans and session) |
+
+The link rules (D-706): the ids each runtime draws are mapped to placeholders (the caller's run id, each inner run's
+id in a canonical order, a join's inner plan hash, which names the caller's run), and the rest is compared exactly:
+`links.json` (its `runs` as a set: concurrent inner runs end in the scheduler's order), the caller's files and each
+inner run's files as any run's, a network's link events in audit order and every link event's facts in its wave's
+multiset. A run case that fails inside a wave with siblings is compared by the race rule (D-092). The Chrome CLI reads
+the probe's `--limits` (agentpkg's form, `hard_tokens`) as the same lowered limits (D-709). Every link case carries
+`requires: 0.8.0`.
+
 ## Recorded differences
 
 Each is checked against what its decision says each runtime does, so the case fails if either
