@@ -129,28 +129,37 @@ from the answer and the recorded tool answers (`score.literature_checks`).
 
 ## The local rungs on the piz cluster (D-363)
 
-`cluster/ollama-server.sbatch` runs one Ollama 0.40.8 (the Mac's version) in one SLURM job on a
-`blas` 2g MIG slice (48 GB) with `OLLAMA_NUM_PARALLEL=4`, context 32,768, one model loaded and kept
-loaded, models under `~/webagents-ollama/models` (mind the home quota: the three rungs take about
-29 GB). `qwen3.5:4b` and `qwen3.5:9b` must be the Mac's blobs (the registry's `qwen3.5:9b` changed
-after the Mac pulled it); `qwen3:30b` is pulled there (same manifest digest). The job writes
-`~/webagents-ollama/server-<job>.json`. The cluster refuses inbound connections to compute nodes,
-so the job dials out: `cluster/tunnel.sh` (a step of the server job, started from the login node)
-keeps a reverse tunnel to the login node with a key restricted to listening on 127.0.0.1:<port>.
-Then, on the Mac:
+`cluster/ollama-server.sbatch` runs one Ollama 0.40.8 (the Mac's version) in one SLURM job (a `blas`
+2g MIG slice of 48 GB, or an `adula` RTX A6000 under `--qos=filler`) with `OLLAMA_NUM_PARALLEL=4`,
+context 32,768, one model loaded and kept loaded, models under `~/webagents-ollama/models` (mind the
+home quota: the three rungs take about 29 GB). `qwen3.5:4b` and `qwen3.5:9b` must be the Mac's blobs
+(the registry's `qwen3.5:9b` changed after the Mac pulled it); `qwen3:30b` is pulled there (same
+manifest digest). A job named `<name>` takes its context and slots from `~/webagents-ollama/env-<name>`
+(TS-L: `OLLAMA_CONTEXT_LENGTH=65536`, `OLLAMA_NUM_PARALLEL=1`) and a continuation job its port from
+`port-<name>`. The job writes `~/webagents-ollama/server-<job>.json`.
+
+The drivers run on the job's node, next to Ollama (the cluster refuses inbound connections to compute
+nodes and the NFS home is too slow for a venv), from a node-local repository at the campaign's commit:
 
 ```sh
-ssh -f -N -L 11500:127.0.0.1:<port> piz                    # the login node's end of the tunnel
-scp piz:webagents-ollama/server-<job>.json /tmp/server.json
-../agentpkg/.venv/bin/python -m campaigns.driver.campaign --preset paper --rungs L9 \
-    --ollama-url http://127.0.0.1:11500 --server-info /tmp/server.json \
-    --out injection_campaign/results/<UTC>_paper-L9 --shard 0/4 &    # and 1/4, 2/4, 3/4
+git bundle create t32.bundle task/T32 && scp t32.bundle piz:webagents-campaign/      # on the Mac
+sbatch --container-mounts="$HOME/webagents-ollama/models:/models" \
+    --output="$HOME/webagents-ollama/logs/%j.log" --job-name=<name> ollama-server.sbatch   # on piz
+srun --jobid=<job> --overlap -n1 env WEBAGENTS_ROOT=/tmp/$USER-wa-<job> \
+    bash ~/webagents-campaign/setup-node-local.sh ~/webagents-campaign/t32.bundle <commit>
+setsid nohup srun --jobid=<job> --overlap -n1 env WEBAGENTS_ROOT=/tmp/$USER-wa-<job> \
+    bash ~/webagents-campaign/run-shards.sh <port> ~/webagents-ollama/server-<job>.json 4 \
+    <UTC>_paper-L9 --preset paper --rungs L9 --sides Py,Cr,FW > /dev/null 2>&1 < /dev/null &
 ```
 
-The manifest records the server's version, environment and model digests (`served`), and each
-process appends the job, node, port and GPU to `server.jsonl`. TS-L (L30, H) is never sharded: Crossref's lane is
-one per process, so its units run in their own unsharded directory (`--task-sets TS-L`) beside the
-sharded rest (`--task-sets TS-W,TS-C,TS-N`); `analyze.py` pools the two directories of one series.
+`run-shards.sh` copies the directory to `~/webagents-campaign/results/<name>` every 10 minutes; the Mac
+copies it from there, packs it (`injection_campaign/pack.py`) and commits it. The manifest records the
+server's version, environment and model digests (`served`), and each process appends the job, node, port
+and GPU to `server.jsonl`. TS-L (L30, H) is never sharded and never shares an invocation with the
+other task sets on a local rung (its 65,536 context, `FW`'s server default): it runs in its own
+unsharded directory (`--task-sets TS-L`, one shard) beside the sharded rest (`--task-sets
+TS-W,TS-C,TS-N`). An earlier route kept the drivers on the Mac over a reverse tunnel
+(`cluster/tunnel.sh`, a key restricted to listening on 127.0.0.1:<port>); the user's VPN dropped it.
 
 ## Not built here (open, with the task that builds it)
 

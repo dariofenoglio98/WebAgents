@@ -4,11 +4,14 @@
 # from the Mac, or pulled where the registry still serves the Mac's digest), reached from the Mac over
 # an SSH tunnel. The drivers, the campaign stack and the oracle stay on the Mac; only inference runs here.
 #
-#   sbatch experiments/campaigns/cluster/ollama-server.sbatch          # from a checkout on piz, or:
-#   ssh piz 'sbatch -' < experiments/campaigns/cluster/ollama-server.sbatch
+#   sbatch --container-mounts="$HOME/webagents-ollama/models:/models" \
+#       --output="$HOME/webagents-ollama/logs/%j.log" [--partition=adula --gres=gpu:rtx_a6000:1] \
+#       [--qos=filler] [--job-name=<name>] ollama-server.sbatch
 #
-# The job writes ~/webagents-ollama/server-<jobid>.json (node, port, versions, digests) once the server
-# answers; `cluster/README.md` has the tunnel and the campaign's --ollama-url.
+# (#SBATCH lines expand no variable, so the two paths under the home directory are given when
+# submitting.) The job writes ~/webagents-ollama/server-<jobid>.json (node, port, versions, digests)
+# once the server answers; experiments/campaigns/README.md ("The local rungs on the piz cluster") has
+# the drivers' route.
 #SBATCH --job-name=webagents-ollama
 #SBATCH --partition=blas
 #SBATCH --gres=gpu:2g:1
@@ -16,16 +19,14 @@
 #SBATCH --mem=40G
 #SBATCH --time=2-00:00:00
 #SBATCH --container-image=docker://ollama/ollama:0.40.8
-#SBATCH --container-mounts=/home/fenogd/webagents-ollama/models:/models
-#SBATCH --output=/home/fenogd/webagents-ollama/logs/%j.log
 
 set -euo pipefail
-STATE=/home/fenogd/webagents-ollama
+STATE=$HOME/webagents-ollama
 # A continuation job reuses its campaign's port (the rung's route, recorded in the manifest, must not
 # change across a --resume): `echo <port> > ~/webagents-ollama/port-<job name>` before submitting with the
 # same --job-name (or sbatch --export=ALL,WEBAGENTS_PORT=<port>, which fails on adula: the node cannot
 # fetch the user's environment).
-PORT_FILE=/home/fenogd/webagents-ollama/port-${SLURM_JOB_NAME}
+PORT_FILE=${STATE}/port-${SLURM_JOB_NAME}
 if [ -z "${WEBAGENTS_PORT:-}" ] && [ -f "${PORT_FILE}" ]; then WEBAGENTS_PORT=$(cat "${PORT_FILE}"); fi
 PORT=${WEBAGENTS_PORT:-$((20000 + SLURM_JOB_ID % 10000))}
 export OLLAMA_MODELS=/models
@@ -36,7 +37,7 @@ export OLLAMA_HOST=0.0.0.0:${PORT}
 # A job may override the context and the slots with `~/webagents-ollama/env-<job name>` (shell lines,
 # e.g. OLLAMA_CONTEXT_LENGTH=65536 and OLLAMA_NUM_PARALLEL=1 for Literature Review, whose `FW` side
 # reaches /v1 and so gets the server's default context; T32, D-363).
-ENV_FILE=/home/fenogd/webagents-ollama/env-${SLURM_JOB_NAME}
+ENV_FILE=${STATE}/env-${SLURM_JOB_NAME}
 if [ -f "${ENV_FILE}" ]; then set -a; . "${ENV_FILE}"; set +a; fi
 export OLLAMA_MAX_LOADED_MODELS=1
 export OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH:-32768}
