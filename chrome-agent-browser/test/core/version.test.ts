@@ -15,10 +15,11 @@ describe("the two runtimes accept the same packages (D-031)", () => {
     // Chrome port lands (as (0.6.0, 0.5.0) did between T23 and T24), never the other way round. The
     // reference's patch releases (0.6.1, the T23 nits) leave the gate at the format's minor version.
     // T25 opened network.v0 at agentpkg 0.7.0; T26 ported it (core 0.5.0), closing the pair
-    // (0.7.0, 0.6.0); agentpkg 0.7.1 is T25 review 2's nits.
+    // (0.7.0, 0.6.0); agentpkg 0.7.1 is T25 review 2's nits. T65 opened link.v0 at agentpkg 0.8.0; T66
+    // ported it (core 0.7.0), closing the pair (0.8.0, 0.7.0).
     const expected = match![1].split(".").slice(0, 2).join(".");
     expect(SUPPORTED_RUNTIME_VERSION.startsWith(`${expected}.`), `${SUPPORTED_RUNTIME_VERSION} vs agentpkg ${match![1]}`).toBe(true);
-    expect(SUPPORTED_RUNTIME_VERSION).toBe("0.7.0");
+    expect(SUPPORTED_RUNTIME_VERSION).toBe("0.8.0");
     expect(RUNTIME_API).toBe("agentpkg-runtime-v0");
   });
 

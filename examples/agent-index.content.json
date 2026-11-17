@@ -1,12 +1,12 @@
 {
   "index_id": "org.webagents.demo-index",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "title": "WebAgents demo index",
-  "description": "The agents of the WebAgents research prototype: a literature-review agent, a fictional airline's agent and a travel network that delegates between roles within a stated envelope. Signed with a development key, for demonstrations only; every entry is metadata, and each package is verified when you open it.",
+  "description": "The agents of the WebAgents research prototype: a literature-review agent, a fictional airline's agent, a travel network that delegates between roles within a stated envelope, and a travel planner that asks other publishers' agents for help (Agent Links), with the three agents it can ask. Signed with a development key, for demonstrations only; every entry is metadata, and each package is verified when you open it.",
   "publisher": {
     "name": "WebAgents research prototype (development key)"
   },
-  "issued_at": "2026-10-24T00:00:00Z",
+  "issued_at": "2026-11-15T00:00:00Z",
   "expires_at": "2027-12-31T23:59:59Z",
   "entries": [
     {
@@ -76,6 +76,98 @@
         "travel",
         "delegation",
         "network",
+        "demo"
+      ]
+    },
+    {
+      "package_id": "org.webagents.travel-planner",
+      "name": "Tripwright",
+      "version": "0.1.0",
+      "description": "Plan a trip with help from other publishers' agents: a front man asks WebAir Flights for the flights and Staymere for the hotels, two signed packages from two other publishers, and checks your calendar. Your browser verifies both first, shows each publisher on its own card and lets you deny one; each runs here, on your model. At most 6 handoffs, 10 model calls, 23 remote calls and 92,000 tokens. All data is fictional: nothing is booked.",
+      "publisher": {
+        "id": "tripwright",
+        "name": "Tripwright (fictional travel planner)"
+      },
+      "package_url": "https://webagents-tripwright-production.up.railway.app/agent.pkg",
+      "digest": "e1870af31121b3083172bbcfcea2e1ff00c5c5acc61d1fe6b8c0ba6507553d5e",
+      "archive_sha256": "950b8075ee9e759c0c5bf29daf3043597fca5d982d377d83470de3c2944e520a",
+      "signer_fingerprint": "sha256:e41f5d09f76431b4f7055d8b211a60a8ee26eeb9384ea7c1b705f3daafa49f08",
+      "locators": [
+        "tripwright@webagents.example"
+      ],
+      "tags": [
+        "travel",
+        "links",
+        "planner",
+        "demo"
+      ]
+    },
+    {
+      "package_id": "org.webagents.webair-flights",
+      "name": "WebAir Flights",
+      "version": "0.1.0",
+      "description": "WebAir's flight search as an agent another agent can ask: it searches WebAir's fictional flights for one date and proposes one among them. Linked from another package it runs in your browser on your model, under what you grant it on its own card. All data is fictional: nothing is booked.",
+      "publisher": {
+        "id": "webair-demo",
+        "name": "WebAir (fictional demo airline)"
+      },
+      "package_url": "https://webagents-webair-production.up.railway.app/packages/webair-flights-0.1.0.agent.pkg",
+      "digest": "0b360b6ba0692115a7d2e23a021db80816c0050fe1104ba4ecd618c8cc1d7c73",
+      "archive_sha256": "4cc62fbbb02e6f01f59212de6880fdfc139355332a2c013004fc82230124502a",
+      "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+      "locators": [
+        "webair-flights@webagents.example"
+      ],
+      "tags": [
+        "travel",
+        "flights",
+        "links",
+        "demo"
+      ]
+    },
+    {
+      "package_id": "org.webagents.staymere-hotels",
+      "name": "Staymere",
+      "version": "0.1.0",
+      "description": "A fictional hotel aggregator's search as an agent another agent can ask: it searches the hotels it lists in a city for a stay and proposes one among them. Linked from another package it runs in your browser on your model, under what you grant it on its own card. All data is fictional: nothing is booked.",
+      "publisher": {
+        "id": "staymere",
+        "name": "Staymere (fictional hotel aggregator)"
+      },
+      "package_url": "https://webagents-staymere-production.up.railway.app/agent.pkg",
+      "digest": "5cb9ec65b9c36cb3392e1461e9f3fe4528b651df1833a7c9195ada09579a4005",
+      "archive_sha256": "d80a3052d7c1cda24b0695a77951d8edc663063e2a2c012e52fdcb72ed175b53",
+      "signer_fingerprint": "sha256:b5d38cb824c79b318ae65dda8e65e3fe156299007cc09717eb345b34436c5199",
+      "locators": [
+        "staymere@webagents.example"
+      ],
+      "tags": [
+        "travel",
+        "hotels",
+        "links",
+        "demo"
+      ]
+    },
+    {
+      "package_id": "org.webagents.hotel-salitubam",
+      "name": "Hotel Salitubam",
+      "version": "0.1.0",
+      "description": "A fictional small hotel in Reykjavik as an agent another agent can ask or find: it checks the hotel's own availability for a stay and proposes one room offer. All data is fictional: nothing is booked.",
+      "publisher": {
+        "id": "hotel-salitubam",
+        "name": "Hotel Salitubam (fictional hotel)"
+      },
+      "package_url": "https://webagents-hotel-salitubam-production.up.railway.app/agent.pkg",
+      "digest": "bb69fb7acc020cd239d030895d0d7e9e7b7ad47d4ab7feba31ead038a836ce37",
+      "archive_sha256": "d695af9328367432e9e25cb04ccea69f45205f9cc4524731d6bc63b16d34dbc7",
+      "signer_fingerprint": "sha256:8ee8ec08acf1e665b0d831acc42516efc83e6eceb099c9351df0ec7ecc5445ec",
+      "locators": [
+        "hotel-salitubam@webagents.example"
+      ],
+      "tags": [
+        "travel",
+        "hotel",
+        "links",
         "demo"
       ]
     }

@@ -16,7 +16,9 @@ import { addressKind, readQuery, type ResolveQuery } from "../../src/core/resolv
 import { ROOT, SHIPPED } from "../helpers/paths.js";
 
 const CONTENT = JSON.parse(readFileSync(resolve(ROOT, "examples/agent-index.content.json"), "utf8")) as JsonObject;
-const NOW = new Date("2026-10-25T12:00:00Z"); // after index 1.6.0 was issued (T26)
+/** The four packages of Agent Links (T65) that index 1.7.0 adds after the three of 1.6.0, in its order. */
+const LINKED = ["org.webagents.travel-planner", "org.webagents.webair-flights", "org.webagents.staymere-hotels", "org.webagents.hotel-salitubam"];
+const NOW = new Date("2026-11-16T12:00:00Z"); // after index 1.7.0 was issued (T65; current since T66)
 
 function held(content: JsonObject = CONTENT): VerifiedIndex {
   return { index: readAgentIndex(content), signer_fingerprint: `sha256:${"a".repeat(64)}`, content_sha256: "b".repeat(64), document_sha256: "c".repeat(64) };
@@ -54,7 +56,7 @@ describe("what the address bar searches", () => {
 describe("the agent index (spec §4)", () => {
   it("reads the demo index in its own order", () => {
     const index = readAgentIndex(CONTENT);
-    expect(index.entries.map((entry) => entry.package_id)).toEqual([SHIPPED.literatureReview029.packageId, SHIPPED.webair080.packageId, SHIPPED.travelNetwork.packageId]);
+    expect(index.entries.map((entry) => entry.package_id)).toEqual([SHIPPED.literatureReview029.packageId, SHIPPED.webair080.packageId, SHIPPED.travelNetwork.packageId, ...LINKED]);
     expect(index.notes).toEqual([]);
   });
 
@@ -80,7 +82,7 @@ describe("the agent index (spec §4)", () => {
     ["https://example.org:8443/a.agent.pkg", /port 443/u],
   ])("leaves out an entry whose URL the browser's gate refuses (%s)", (url, why) => {
     const index = readAgentIndex(variant((c) => (c.entries[0]!.package_url = url)));
-    expect(index.entries.map((entry) => entry.package_id)).toEqual([SHIPPED.webair080.packageId, SHIPPED.travelNetwork.packageId]);
+    expect(index.entries.map((entry) => entry.package_id)).toEqual([SHIPPED.webair080.packageId, SHIPPED.travelNetwork.packageId, ...LINKED]);
     expect(index.notes).toHaveLength(1);
     expect(index.notes[0]!.code).toBe("entry_url_refused");
     expect(index.notes[0]!.detail).toMatch(why);
@@ -103,18 +105,20 @@ describe("StaticIndexResolver", () => {
     expect(result.candidates).toHaveLength(1);
     const candidate = result.candidates[0]!;
     expect(candidate).toMatchObject({ package_id: SHIPPED.literatureReview029.packageId, version: "0.2.9", digest: SHIPPED.literatureReview029.digest, signer_fingerprint: SHIPPED.literatureReview029.fingerprint });
-    expect(candidate.source).toEqual({ resolver: "static-index", resolver_id: "org.webagents.demo-index", label: "WebAgents demo index", version: "1.6.0", verified_by: `sha256:${"a".repeat(64)}`, content_sha256: "b".repeat(64), position: 0 });
+    expect(candidate.source).toEqual({ resolver: "static-index", resolver_id: "org.webagents.demo-index", label: "WebAgents demo index", version: "1.7.0", verified_by: `sha256:${"a".repeat(64)}`, content_sha256: "b".repeat(64), position: 0 });
   });
 
   it("matches every word anywhere, a locator exactly, and keeps the index's order", async () => {
-    expect((await resolver.query(q("fictional airline"))).candidates.map((c) => c.package_id)).toEqual([SHIPPED.webair080.packageId]);
+    // Index 1.7.0 (T66): WebAir Flights is WebAir's too, and says so.
+    expect((await resolver.query(q("fictional airline"))).candidates.map((c) => c.package_id)).toEqual([SHIPPED.webair080.packageId, "org.webagents.webair-flights"]);
     expect((await resolver.query(q("flights@webair.example"))).candidates.map((c) => c.package_id)).toEqual([SHIPPED.webair080.packageId]);
     expect((await resolver.query(q("webair.example"))).candidates).toHaveLength(1);
     expect((await resolver.query(q("flights@other.example"))).candidates).toEqual([]);
     expect((await resolver.query(q("quantum teleportation"))).candidates).toEqual([]);
-    expect((await resolver.query({ kind: "text", text: "" })).candidates.map((c) => c.source.position)).toEqual([0, 1, 2]);
+    expect((await resolver.query({ kind: "text", text: "" })).candidates.map((c) => c.source.position)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     // T26: the travel network, by its words and its locator.
-    expect((await resolver.query(q("front man flights hotel calendar"))).candidates.map((c) => c.package_id)).toEqual([SHIPPED.travelNetwork.packageId]);
+    // …and, since index 1.7.0, the travel planner of Agent Links, which describes the same team.
+    expect((await resolver.query(q("front man flights hotel calendar"))).candidates.map((c) => c.package_id)).toEqual([SHIPPED.travelNetwork.packageId, "org.webagents.travel-planner"]);
     expect((await resolver.query(q("travel-network@webagents.example"))).candidates.map((c) => [c.package_id, c.digest, c.signer_fingerprint])).toEqual([[SHIPPED.travelNetwork.packageId, SHIPPED.travelNetwork.digest, SHIPPED.travelNetwork.fingerprint]]);
     expect(resolver.entryFor(`https://webagents-webair-production.up.railway.app/agent.pkg`)?.package_id).toBe(SHIPPED.webair080.packageId);
   });
