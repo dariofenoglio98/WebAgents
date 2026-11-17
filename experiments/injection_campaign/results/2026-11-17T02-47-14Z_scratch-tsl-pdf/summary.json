@@ -1,0 +1,27 @@
+{
+ "schema": "campaign.summary.v2",
+ "cells": {
+  "Py|L30|TS-L|F-STEER#injected": {
+   "runs": 2,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 0,
+   "boundaries": 0,
+   "not_exposed": 1
+  },
+  "Py|L30|TS-L|F-UPLOAD#injected": {
+   "runs": 2,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 0,
+   "boundaries": 0,
+   "not_exposed": 1
+  }
+ },
+ "runs": 4,
+ "expected_runs": 4,
+ "complete": true,
+ "missing": [],
+ "wall_seconds": 1401.7,
+ "written_by_shard": null
+}
