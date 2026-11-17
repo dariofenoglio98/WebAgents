@@ -1,0 +1,788 @@
+[
+ {
+  "task_set": "TS-L",
+  "task_id": "L4",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "L30",
+  "arm": null,
+  "id": "Cr-L30-L4-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L5",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "L30",
+  "arm": null,
+  "id": "Cr-L30-L5-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L6",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": null,
+  "id": "FW-L30-L6-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L6",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L6-p0-upload-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L5",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": null,
+  "id": "FW-L30-L5-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": null,
+  "id": "Py-L30-L1-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L3",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": null,
+  "id": "Py-L30-L3-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L2",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": null,
+  "id": "FW-L30-L2-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L6",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L6-p0-steer-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L3",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L3-p0-steer-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L1-p0-upload-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L3",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L3-p0-steer-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L2",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": null,
+  "id": "Py-L30-L2-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L5",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L5-p0-steer-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L3",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L3-p0-upload-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L1-p0-steer-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L2",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L2-p0-upload-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L2",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L2-p0-steer-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L4",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L4-p0-steer-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": null,
+  "id": "FW-L30-L1-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L3",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "L30",
+  "arm": null,
+  "id": "Cr-L30-L3-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L5",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L5-p0-steer-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L4",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": null,
+  "id": "FW-L30-L4-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L4",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": null,
+  "id": "Py-L30-L4-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L1-p0-upload-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L4",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L4-p0-upload-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L4",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L4-p0-steer-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L4",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L4-p0-upload-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L6",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L6-p0-upload-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L1-p0-steer-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L5",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L5-p0-upload-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L2",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L2-p0-upload-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L6",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "L30",
+  "arm": null,
+  "id": "Cr-L30-L6-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L5",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": null,
+  "id": "Py-L30-L5-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L5",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L5-p0-steer-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L3",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L3-p0-steer-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L2",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L2-p0-steer-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L6",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L6-p0-upload-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L6",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L6-p0-steer-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L5",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L5-p0-steer-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L4",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L4-p0-upload-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L2",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L2-p0-steer-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L3",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L3-p0-upload-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L3",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L3-p0-upload-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L3",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L3-p0-steer-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L5",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L5-p0-upload-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L3",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": null,
+  "id": "FW-L30-L3-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L6",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L6-p0-steer-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L5",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L5-p0-upload-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L4",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L4-p0-upload-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L3",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L3-p0-upload-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L6",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L6-p0-upload-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L1-p0-upload-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L2",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L2-p0-steer-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L2",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L2-p0-upload-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L1-p0-steer-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L2",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L2-p0-upload-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L4",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L4-p0-steer-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L1-p0-upload-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L6",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": null,
+  "id": "Py-L30-L6-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L5",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L5-p0-upload-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L1-p0-steer-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L2",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "L30",
+  "arm": null,
+  "id": "Cr-L30-L2-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "L30",
+  "arm": null,
+  "id": "Cr-L30-L1-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L6",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L6-p0-steer-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L4",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "FW-L30-L4-p0-steer-l1_resolver.abstract_injected"
+ }
+]
