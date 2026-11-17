@@ -27,6 +27,7 @@ import { nodeComputeEngine } from "./cli-compute.js";
 import { catalogHttp, nodeTransport } from "./cli-net.js";
 import { cliLinks } from "./cli-links.js";
 import { splitToolApprovals, type LinkAdapters } from "./core/links/operator.js";
+import { linkedToolHandlers as linkedHandlers } from "./core/links/tools.js";
 import { toolHandlers, type BrokerDeps } from "./core/tools/broker.js";
 import type { ToolHandler } from "./core/tools/handler.js";
 import { AgentPkgError, ValidationError } from "./core/errors.js";
@@ -163,16 +164,13 @@ export interface LiveBinding {
 }
 
 /**
- * link.v0, live: a linked or joined package's tool handlers, bound as the caller's are (the Chrome
- * host's own registry: one generic HTTPS JSON binding per declared remote tool), each one its card
- * approved and nothing else (D-022), over the caller's transport, credentials and pacer.
+ * link.v0, live: a linked or joined package's tool handlers (`core/links/tools.ts`): its own
+ * registry, each tool its card approved and nothing else (D-022), over the caller's transport,
+ * credentials and pacer; the caller's files, resources and memory are not handed over (L-25).
  */
-export async function linkedToolHandlers(linkedPackage: Package, decision: { grants: Readonly<Record<string, string>>; approvedTools: readonly string[] }, tools: BrokerDeps, now: Date): Promise<Record<string, ToolHandler>> {
-  const registry = await buildHostToolRegistry(linkedPackage, { resourceTypes: [], runtimeVersion: CORE_VERSION, now });
-  const approvals = Object.fromEntries(Object.keys(linkedPackage.tools).map((toolId) => [toolId, decision.approvedTools.includes(toolId)]));
-  const evaluation = await evaluateRegistry(linkedPackage, registry, { decisions: decision.grants as Record<string, "deny" | "once" | "session">, toolApprovals: approvals, now });
-  const bindings = normalizeToolBindings(planToolBindings(evaluation).filter((item) => item.approved));
-  return toolHandlers(bindings, { ...tools, definitions: definitionsFromRegistry(registry) }).handlers;
+export function linkedToolHandlers(linkedPackage: Package, decision: { grants: Readonly<Record<string, string>>; approvedTools: readonly string[] }, tools: BrokerDeps, now: Date): Promise<Record<string, ToolHandler>> {
+  const { definitions: _definitions, files: _files, resources: _resources, memory: _memory, ...shared } = tools;
+  return linkedHandlers(linkedPackage, decision, shared, { runtimeVersion: CORE_VERSION, now });
 }
 
 export async function bindLive(pkg: Package, parsed: ReturnType<typeof parseArguments>, bytes: Uint8Array, grants: Record<string, string>, approved: string[], modelCallTimeout: number): Promise<LiveBinding> {

@@ -48,6 +48,13 @@ export interface BindLinksInputs {
   archives: Record<string, Uint8Array> | null;
   /** The host's tool deps (a model-backed plan), to bind an inner plan's tools as the caller's are bound. */
   tools: BrokerDeps | null;
+  /**
+   * The tool deps of one linked package, on a host whose implementations are derived per package
+   * (the Chrome hosts): that package's own definitions over the host's transport, and nothing of the
+   * caller's files, resources or memory (L-25). Absent, `tools` serves every inner plan, as on a host
+   * whose implementations are its own (the reference).
+   */
+  linkTools?: ((linked: Package, dependency: string) => BrokerDeps | Promise<BrokerDeps>) | null;
   /** A fixture plan: each linked package answers from its own fixture (L-29). */
   fixture: ((pkg: Package) => { router: ModelRouter; handlers: Record<string, ToolHandler> }) | null;
   runner: InnerRunner;
@@ -139,7 +146,8 @@ export async function bindLinks(input: BindLinksInputs): Promise<LinkHost | null
       router = replay.router;
       approved = Object.keys(authorization.tool_approvals).filter((toolId) => authorization.tool_approvals[toolId] === true && Object.hasOwn(linked.tools, toolId)).sort();
     } else {
-      handlers = toolHandlers(inner.tool_bindings, { ...(input.tools ?? { definitions: [] }) }).handlers;
+      const tools = input.linkTools ? await input.linkTools(linked, name) : (input.tools ?? { definitions: [] });
+      handlers = toolHandlers(inner.tool_bindings, { ...tools }).handlers;
       approved = inner.tool_bindings.map((binding) => binding.tool_id);
     }
     const route = router ?? input.router;

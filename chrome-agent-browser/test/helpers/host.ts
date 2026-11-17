@@ -17,7 +17,7 @@ import { TransportError, type HttpRequest, type HttpTransport } from "../../src/
 import type { ExecutionHostBridge, HostCancelAnswer } from "../../src/extension/background/runs.js";
 import { executeRun, type ExecutionHandle } from "../../src/extension/execution/execute.js";
 import type { HostStartMessage, HostStatusReply } from "../../src/extension/execution/protocol.js";
-import type { RunStore } from "../../src/extension/storage/runs.js";
+import type { RunCardAnswer, RunStore } from "../../src/extension/storage/runs.js";
 import type { SnapshotStore } from "../../src/extension/storage/snapshots.js";
 import { PROJECT } from "./paths.js";
 import type { ComputeEngine } from "../../src/core/compute/engine.js";
@@ -235,6 +235,15 @@ export class InProcessHost implements ExecutionHostBridge {
     const handle = this.handles.get(runId);
     if (!handle || this.decideLost) return false;
     handle.decide(step, accepted);
+    return true;
+  }
+
+  /** link.v0 §6, §7: the person's answer to a run's card, as `host.card` reaches the Worker; `cardLost` keeps it from the Worker so the poll of the record must find it. */
+  cardLost = false;
+  async card(runId: string, cardId: string, answer: RunCardAnswer): Promise<boolean> {
+    const handle = this.handles.get(runId);
+    if (!handle || this.cardLost) return false;
+    handle.card(cardId, answer);
     return true;
   }
 

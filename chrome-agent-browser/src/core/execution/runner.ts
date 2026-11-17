@@ -132,6 +132,8 @@ export interface SessionDeps {
   links?: LinkHost | null;
   /** link.v0 L-15: each accepted linked package's archive, by dependency id, verified here against its inner plan. */
   linkArchives?: Record<string, Uint8Array> | null;
+  /** link.v0 L-25: the tool deps of one linked package, on a host whose implementations are derived per package (`execution/links.ts::BindLinksInputs.linkTools`). */
+  linkTools?: ((linked: Package, dependency: string) => BrokerDeps | Promise<BrokerDeps>) | null;
   /** link.v0 §6: what lets the run's slots look and join (the host's discovery, download, trust store and adapters); absent, a slot yields `unattended`. */
   joins?: JoinHost | null;
   /** link.v0 §6, §7: the person's surface during the run (a join card, the one budget-raise card); absent, nobody is asked. */
@@ -283,6 +285,7 @@ export class ExecutionSession {
         supplied: (request.links ?? null) as Record<string, InnerPlanHandover> | null,
         archives: deps.linkArchives ?? null,
         tools: deps.tools ?? null,
+        linkTools: deps.linkTools ?? null,
         fixture: fixture
           ? (linked) => {
               const replay = fixtureAdapters(linked);

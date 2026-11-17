@@ -39,10 +39,12 @@ import type { SecretStoreState } from "../../core/secrets.js";
 import { HOST_UNLOADED } from "../execution/execute.js";
 import type { HostEngineMessage, HostModelsMessage, HostStartMessage, HostStatusReply, InBrowserStart } from "../execution/protocol.js";
 import type { TurnStart } from "../../core/execution/runner.js";
+import { delegationTree } from "../../core/links/delegation.js";
+import type { PinScope, TrustEntry } from "../../core/trust.js";
 import type { ArtifactChunk, ArtifactContent, Event, ExportBundle, ObservationsView, RunListView, RunReadiness, RunSummary, RunView } from "../messages.js";
 import { connectionsFor, type Settings, type SettingsStorage } from "../storage/settings.js";
 import type { StoredSession } from "../storage/snapshots.js";
-import type { RunStore, StoredRun } from "../storage/runs.js";
+import type { RunCardAnswer, RunStore, StoredRun } from "../storage/runs.js";
 import { attachmentOf, type FileView } from "../storage/files.js";
 
 /** The reference plugin's `RECEIPT_MARGIN_SECONDS`: an authorization must outlast the run deadline by this much. */
@@ -118,6 +120,20 @@ export interface RunHooks {
   missingOrigins(origins: readonly string[]): Promise<string[]>;
   /** The secret store's state (T16): a plan that needs a key or a record cannot run while it is locked (D-195). */
   secretsState(): Promise<SecretStoreState>;
+  /** link.v0 L-15 (T66): each accepted link's inner Run Plan and the hash of its archive, for the plan this session holds; null for a plan without links. */
+  links?(sessionId: string): Promise<Record<string, { run_plan: RunPlan; archive_sha256: string }> | null>;
+  /** link.v0 §6, §7: what a run's slots evaluate a candidate's key against (the person's store, then the subscribed policy's anchors), and the policy's word on joins and the raise. */
+  runCards?(): Promise<RunCardContext>;
+  /** A pin the person made from a join card: the candidate's own verified key, scoped as they chose. */
+  pinFromCard?(input: { publicKey: string; signer: string; displayName: string; publisherId: string; packageIdPrefix: string | null; notes: string }): Promise<void>;
+}
+
+/** What a run is handed for its cards (link.v0 §6, §7): the trust entries a candidate's signer is evaluated against, and whether the policy forbids joins or the raise. */
+export interface RunCardContext {
+  trust: TrustEntry[];
+  anchors: TrustEntry[];
+  join: "allow" | "forbid";
+  raise: "allow" | "forbid";
 }
 
 /** The execution host as the worker sees it: an offscreen document in the extension, an in-process host in tests. */
@@ -138,6 +154,8 @@ export interface ExecutionHostBridge {
   engine?(message: HostModelsMessage | HostEngineMessage): Promise<unknown>;
   /** conversation.v0 (D-270): the person's answer to the card a turn waits on; false when no Worker holds the run. */
   decide(runId: string, step: string, accepted: boolean): Promise<boolean>;
+  /** link.v0 §6, §7 (T66): the person's answer to a run's card (a join, the budget raise); false when no Worker holds the run. The record carries it too. */
+  card?(runId: string, cardId: string, answer: RunCardAnswer): Promise<boolean>;
 }
 
 export type HostCancelAnswer = "taken" | "not_held" | "no_host";
@@ -343,7 +361,7 @@ export class RunManager {
     this.deps.broadcast({ type: "event.run", runId: run.run_id, sessionId: run.session_id, status: "interrupted" });
     // The conversation first: its end rule may read the snapshot that runSettled can drop.
     if (updated.invocation.turn) await this.onTurnSettled?.(updated).catch(() => undefined);
-    await this.deps.hooks.runSettled?.(run.invocation.archive_sha256);
+    await this.settledArchives(run);
     return true;
   }
 
@@ -518,6 +536,9 @@ export class RunManager {
       const created = this.clock();
       const executionPlan = executionPlanFromRunPlan(plan);
       const authorization = authorizationFromRunPlan(plan);
+      // link.v0 L-15: each accepted link's inner plan and authorization, as the host is handed them; it reads and verifies the archives itself.
+      const inner = (await this.deps.hooks.links?.(sessionId)) ?? null;
+      const links = inner === null ? null : Object.fromEntries(Object.entries(inner).map(([name, link]) => [name, { run_plan: executionPlanFromRunPlan(link.run_plan), authorization: authorizationFromRunPlan(link.run_plan), full_plan: link.run_plan, archive_sha256: link.archive_sha256 }]));
       const inputBytes = new TextEncoder().encode(JSON.stringify(input.input)).length;
       const stored: StoredRun = {
         run_id: runId,
@@ -525,7 +546,7 @@ export class RunManager {
         created_at: created.toISOString(),
         updated_at: created.toISOString(),
         record: preparingRunRecord({ runId, sessionId, plan: executionPlan, runPlan: plan, createdAt: created, limits, revalidated: [...lease.revalidated], inputBytes, runtimeVersion: this.deps.runtimeVersion, attachments, conversation: options.turn ? { conversationId: options.turn.conversation_id, turn: options.turn.turn } : null }),
-        invocation: { plan: executionPlan, authorization, run_plan: plan, input: input.input as JsonValue, attachments, limits, archive_sha256: lease.archive_sha256, profile_id: plan.authorization.provenance?.profile_id ?? null, turn: options.turn },
+        invocation: { plan: executionPlan, authorization, run_plan: plan, input: input.input as JsonValue, attachments, limits, archive_sha256: lease.archive_sha256, profile_id: plan.authorization.provenance?.profile_id ?? null, turn: options.turn, ...(links !== null ? { links } : {}) },
         task_text: taskText(input.input),
         checkpoints: 0,
         progress: null,
@@ -559,7 +580,7 @@ export class RunManager {
         this.deps.broadcast({ type: "event.run", runId, sessionId, status: failed?.record.status ?? "failed" });
         // The conversation first: its end rule may read the snapshot that runSettled can drop.
         if (failed) await this.onTurnSettled?.(failed).catch(() => undefined);
-        await this.deps.hooks.runSettled?.(stored.invocation.archive_sha256);
+        await this.settledArchives(stored);
         throw reject(code, detail, modelRefusal ? 409 : 503);
       }
       return this.view(stored);
@@ -656,6 +677,8 @@ export class RunManager {
         crossrefContact: settings.services.crossref_contact,
       },
       allowedOrigins: (await this.deps.hooks.planOrigins(sessionId)).map((item) => item.origin),
+      // link.v0 §6, §7: what the run's slots and its one raise are handed; a run without a card surface asks nobody.
+      cards: (await this.deps.hooks.runCards?.()) ?? null,
       inBrowser: (await this.deps.hooks.inBrowserStart?.(plan)) ?? null,
     };
   }
@@ -665,6 +688,12 @@ export class RunManager {
     const run = await this.deps.runs.getRun(runId);
     if (run !== null) this.deps.broadcast({ type: "event.run", runId, sessionId: run.session_id, status: run.record.status });
     return { received: true };
+  }
+
+  /** A run settled: the snapshots it read (its own and its accepted links') may be dropped if nothing else refers to them. */
+  private async settledArchives(run: StoredRun): Promise<void> {
+    await this.deps.hooks.runSettled?.(run.invocation.archive_sha256);
+    for (const link of Object.values(run.invocation.links ?? {})) await this.deps.hooks.runSettled?.(link.archive_sha256);
   }
 
   /** The lease a run in flight holds, if this worker issued it: released once, idempotent. */
@@ -698,7 +727,7 @@ export class RunManager {
     // conversation.v0 (D-270): a turn's run settled; the conversation charges it, before the
     // snapshot may be dropped (its end rule may read it when the session has closed).
     if (run.invocation.turn) await this.onTurnSettled?.(run).catch(() => undefined);
-    await this.deps.hooks.runSettled?.(run.invocation.archive_sha256);
+    await this.settledArchives(run);
     return { received: true };
   }
 
@@ -745,7 +774,11 @@ export class RunManager {
 
   // -- reads -----------------------------------------------------------------------------------
   private view(run: StoredRun): RunView {
-    return { ...run.record, taskText: run.task_text, sessionOpen: this.deps.hooks.isSessionOpen(run.session_id), profileId: run.invocation.profile_id, consentPending: run.consent_pending ?? null };
+    // link.v0 (T66, D-704): the delegation view is a fold over the run's own audit, redrawn at every checkpoint.
+    const tree = delegationTree(run.audit);
+    const planned = run.invocation.run_plan.links ?? null;
+    const links = planned === null ? null : Object.keys(planned).sort().map((dependency) => ({ dependency, package_id: planned[dependency]!.package_id, name: run.invocation.links?.[dependency]?.full_plan.package.name ?? null, version: planned[dependency]!.version, signer: planned[dependency]!.signer, trust: planned[dependency]!.trust, decision: planned[dependency]!.decision }));
+    return { ...run.record, taskText: run.task_text, sessionOpen: this.deps.hooks.isSessionOpen(run.session_id), profileId: run.invocation.profile_id, consentPending: run.consent_pending ?? null, runCard: run.run_card_pending ?? null, delegation: tree.linked || tree.activations.length > 0 ? tree : null, links };
   }
 
   private summary(run: StoredRun): RunSummary {
@@ -840,12 +873,14 @@ export class RunManager {
     return this.view(updated);
   }
 
-  /** The host-written files plus the record itself, the plan and the input as the export names them (D-073). */
+  /** The host-written files plus the record itself, the plan and the input as the export names them (D-073); with links, each accepted link's inner Run Plan (D-705). */
   private async bytesOf(run: StoredRun, name: string): Promise<Uint8Array | null> {
     const encode = (value: unknown) => new TextEncoder().encode(`${JSON.stringify(value, null, 2)}\n`);
     if (name === "run.json") return encode(run.record);
     if (name === "run-plan.json") return encode(run.invocation.run_plan);
     if (name === "input.json") return encode(run.invocation.input);
+    const inner = INNER_PLAN_NAME.exec(name)?.[1];
+    if (inner !== undefined && run.invocation.links && Object.hasOwn(run.invocation.links, inner)) return encode(run.invocation.links[inner]!.full_plan);
     const artifact = await this.deps.runs.getArtifact(run.run_id, name);
     return artifact?.bytes ?? null;
   }
@@ -879,7 +914,7 @@ export class RunManager {
 
   async exportBundle(runId: string): Promise<ExportBundle> {
     const run = await this.require(runId);
-    const names = ["run.json", "run-plan.json", "input.json", ...(await this.deps.runs.listArtifacts(runId)).map((artifact) => artifact.name).sort()];
+    const names = ["run.json", "run-plan.json", "input.json", ...Object.keys(run.invocation.links ?? {}).sort().map(innerPlanName), ...(await this.deps.runs.listArtifacts(runId)).map((artifact) => artifact.name).sort()];
     const entries: ExportBundle["entries"] = [];
     let total = 0;
     for (const name of names) {
@@ -890,6 +925,58 @@ export class RunManager {
       entries.push({ name, bytes: bytes.length, sha256: sha256HexSync(bytes), base64: encodeBase64(bytes) });
     }
     return { run_id: runId, entries };
+  }
+
+  /**
+   * link.v0 §6, §7 (T66, D-703): the person's answer to the card a run waits on. The answer is
+   * checked against the card the host wrote (its id, and for a join only permissions and tools the
+   * card lists), written to the record first and then delivered, so a lost message never hangs the
+   * step (the host reads the record every second). A pin asked on a join card is made from the
+   * candidate's own verified key, after the answer is recorded.
+   */
+  async decideCard(runId: string, input: { cardId: string; accepted: boolean; grants?: Record<string, string>; approvedTools?: string[]; pin?: PinScope | null }): Promise<RunView> {
+    await this.restore();
+    const run = await this.require(runId);
+    const card = run.run_card_pending ?? null;
+    if (isTerminal(run.record.status) || card === null || card.card_id !== input.cardId) throw reject("card_unknown", "This run is not waiting on that card (it was answered, it timed out, or the run ended).", 409);
+    const answer: RunCardAnswer = { accepted: input.accepted, decided_at: this.clock().toISOString() };
+    if (card.kind === "link.join" && input.accepted) {
+      const requirements = (card.facts.requirements ?? {}) as { permissions?: Array<{ id?: unknown }>; tools?: Array<{ id?: unknown }> };
+      const permissions = new Set((requirements.permissions ?? []).map((permission) => String(permission.id)));
+      const tools = new Set((requirements.tools ?? []).map((tool) => String(tool.id)));
+      const grants = input.grants ?? {};
+      for (const [permission, scope] of Object.entries(grants)) {
+        if (!permissions.has(permission)) throw reject("invalid_request", `The card lists no permission ${JSON.stringify(permission)}.`);
+        if (scope !== "once" && scope !== "session") throw reject("invalid_request", "A join grants a permission once or for the session.");
+      }
+      const approved = [...new Set(input.approvedTools ?? [])].sort();
+      for (const tool of approved) if (!tools.has(tool)) throw reject("invalid_request", `The card lists no tool ${JSON.stringify(tool)}.`);
+      answer.grants = grants;
+      answer.approved_tools = approved;
+    } else if ((input.grants && Object.keys(input.grants).length > 0) || (input.approvedTools && input.approvedTools.length > 0)) {
+      throw reject("invalid_request", "Only an accepted join carries grants and approved tools.");
+    }
+    const now = this.clock().toISOString();
+    const updated = await this.deps.runs.updateRun(runId, (current) => {
+      if (isTerminal(current.record.status) || current.run_card_pending?.card_id !== input.cardId) return null;
+      return { ...current, run_card_answers: { ...(current.run_card_answers ?? {}), [input.cardId]: answer }, updated_at: now };
+    });
+    if (updated === null) throw reject("card_unknown", "This run is not waiting on that card (it was answered, it timed out, or the run ended).", 409);
+    await this.deps.host.card?.(runId, input.cardId, answer).catch(() => false);
+    if (card.kind === "link.join" && input.accepted && input.pin && card.publisher) {
+      const signer = String((card.facts.publisher as { signer?: unknown } | undefined)?.signer ?? "");
+      const slot = String(card.facts.slot ?? "");
+      await this.deps.hooks.pinFromCard?.({
+        publicKey: card.publisher.public_key,
+        signer,
+        displayName: card.publisher.claimed_name,
+        publisherId: card.publisher.claimed_id,
+        packageIdPrefix: input.pin === "package" ? card.publisher.package_id : null,
+        notes: `Pinned from a join card (run ${runId}, slot ${slot}).`,
+      });
+    }
+    this.deps.broadcast({ type: "event.run", runId, sessionId: run.session_id, status: updated.record.status });
+    return this.view((await this.deps.runs.getRun(runId)) ?? updated);
   }
 
   async clear(runId: string): Promise<{ cleared: boolean; run_id: string }> {
@@ -905,6 +992,12 @@ export class RunManager {
     const settings = await this.deps.settings.settings();
     return { run_id: runId, recording: settings.developer.record_requests, observations: await this.deps.runs.listObservations(runId) };
   }
+}
+
+/** The export's name of an accepted link's inner Run Plan (D-705): `link-plan-<dependency>.json`. */
+const INNER_PLAN_NAME = /^link-plan-(.+)\.json$/u;
+function innerPlanName(dependency: string): string {
+  return `link-plan-${dependency}.json`;
 }
 
 /** The OpenAI connection's stated reasoning effort for a run's settings, when one is stated (D-123). */

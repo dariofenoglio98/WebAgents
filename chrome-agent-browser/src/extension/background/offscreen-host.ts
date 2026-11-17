@@ -5,6 +5,7 @@
  * them and reports back with `host.progress` / `host.finished`.
  */
 import type { ExecutionHostBridge, HostCancelAnswer } from "./runs.js";
+import type { RunCardAnswer } from "../storage/runs.js";
 import type { HostCommand, HostEngineMessage, HostModelsMessage, HostStartMessage, HostStatusReply } from "../execution/protocol.js";
 
 const DOCUMENT = "execution.html";
@@ -100,6 +101,13 @@ export class OffscreenHostBridge implements ExecutionHostBridge {
   async decide(runId: string, step: string, accepted: boolean): Promise<boolean> {
     if (!(await chrome.offscreen.hasDocument())) return false;
     const reply = await this.send<{ delivered: boolean }>({ type: "host.decide", runId, step, accepted });
+    return reply.delivered;
+  }
+
+  /** link.v0 §6, §7 (T66): the person's answer to a run's card, to the Worker that waits on it (the record carries it too). */
+  async card(runId: string, cardId: string, answer: RunCardAnswer): Promise<boolean> {
+    if (!(await chrome.offscreen.hasDocument())) return false;
+    const reply = await this.send<{ delivered: boolean }>({ type: "host.card", runId, cardId, answer });
     return reply.delivered;
   }
 }

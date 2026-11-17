@@ -126,6 +126,12 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
       sendResponse({ ok: true, result: { delivered: active.has(message.runId) } });
       return false;
     }
+    case "host.card": {
+      // link.v0 §6, §7: the person's answer to a run's card; the Worker also reads it from the record.
+      active.get(message.runId)?.worker.postMessage({ kind: "card", cardId: message.cardId, answer: message.answer });
+      sendResponse({ ok: true, result: { delivered: active.has(message.runId) } });
+      return false;
+    }
     case "host.models":
     case "host.engine": {
       (message.type === "host.models" ? modelsCommand(message) : engineCommand(message)).then((result) => sendResponse({ ok: true, result }), (error: unknown) => sendResponse(failed(error)));

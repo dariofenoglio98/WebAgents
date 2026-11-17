@@ -46,9 +46,15 @@ import { httpsOrigin } from "../../core/origins.js";
 import { TransportError, type HttpTransport } from "../../core/models/transport.js";
 import type { FileStore } from "../storage/files.js";
 import type { SnapshotStore } from "../storage/snapshots.js";
-import { artifactKey, type ConsentAnswer, type RunStore, type StoredRun } from "../storage/runs.js";
+import { artifactKey, type ConsentAnswer, type RunCardAnswer, type RunCardPending, type RunStore, type StoredRun } from "../storage/runs.js";
 import type { HostStartMessage } from "./protocol.js";
-import { NO_DECISION, type ConsentHost, type ConsentRequest } from "../../core/conversation/host.js";
+import { NO_DECISION, type ConsentHost, type ConsentRequest, type RunConsentHost, type RunRequest } from "../../core/conversation/host.js";
+import type { JoinHost } from "../../core/links/join.js";
+import { linkedDefinitions, linkedToolHandlers } from "../../core/links/tools.js";
+import { downloadPackage, lookAtPage } from "../../core/links/web.js";
+import { fingerprint, rawBase64 } from "../../core/keys.js";
+import { embeddedPublicKey } from "../../core/signature.js";
+import { evaluateTrust } from "../../core/trust.js";
 import { pyIsoTimestamp } from "../../core/pyjson.js";
 
 export const HOST_UNLOADED = "host_unloaded";
@@ -82,7 +88,12 @@ export interface ExecutionHandle {
   cancel(): void;
   /** conversation.v0 (D-270): the person's answer to the card the turn waits on (`host.decide`). */
   decide(step: string, accepted: boolean): void;
+  /** link.v0 §6, §7 (T66): the person's answer to a run's card (`host.card`). */
+  card(cardId: string, answer: RunCardAnswer): void;
 }
+
+/** The audit events the delegation view folds (`core/links/delegation.ts`): the host checkpoints at each, so the view follows the run. */
+const DELEGATION_EVENTS = new Set(["network.activated", "route.decided", "link.requested", "link.decided", "link.started", "link.completed", "link.failed", "link.refused", "link.denied", "budget.requested", "budget.raised"]);
 
 /** How often the consent host re-reads the stored run while it waits for an answer (D-270). */
 export const CONSENT_POLL_MS = 1000;
@@ -185,6 +196,8 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       // conversation.v0 (D-270): the person's answers are the service worker's writes, merged the
       // same way, so a host checkpoint never drops an answer the record already carries.
       if (current.consent_decisions) run.consent_decisions = { ...(current.consent_decisions ?? {}), ...(run.consent_decisions ?? {}) };
+      // link.v0 §6, §7 (T66): the answers to a run's cards, the service worker's writes too.
+      if (current.run_card_answers) run.run_card_answers = { ...(current.run_card_answers ?? {}), ...(run.run_card_answers ?? {}) };
       return run;
     });
     if (flagged && !cancelRequested) requestCancel();
@@ -271,6 +284,72 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
         }, CONSENT_POLL_MS);
       }),
   };
+
+  /**
+   * link.v0 §6, §7 (T66, D-703): the run's card surface over the stored run, the consent host's
+   * pattern. A card is written into the record with the facts the core computed and validated, and
+   * the service worker told (the run page shows it); the answer arrives as `host.card` or, should
+   * that message be lost, is read from the record every second; the core's own wait ends through
+   * the signal (an unanswered card is a no, L-35, L-43). `publishers` holds, by signer, what a pin
+   * made from a join card would record: the candidate's own verified key.
+   */
+  let cardCount = 0;
+  const cardDelivered = new Map<string, RunCardAnswer>();
+  const cardWaiting = new Map<string, (answer: RunCardAnswer) => void>();
+  const card = (cardId: string, answer: RunCardAnswer): void => {
+    cardDelivered.set(cardId, answer);
+    cardWaiting.get(cardId)?.(answer);
+  };
+  const publishers = new Map<string, NonNullable<RunCardPending["publisher"]>>();
+  const runConsent = (kinds: RunConsentHost["kinds"]): RunConsentHost => ({
+    ...(kinds !== undefined ? { kinds } : {}),
+    ask: (request: RunRequest, signal: AbortSignal): Promise<unknown> =>
+      new Promise((resolve, reject) => {
+        const cardId = `card_${(cardCount += 1)}`;
+        let timer: ReturnType<typeof setInterval> | null = null;
+        const clear = (): Promise<void> => {
+          if (timer !== null) clearInterval(timer);
+          cardWaiting.delete(cardId);
+          signal.removeEventListener("abort", onAbort);
+          return checkpoint((run) => {
+            if (run.run_card_pending?.card_id === cardId) run.run_card_pending = null;
+          });
+        };
+        const finish = (answer: RunCardAnswer | null) => {
+          // The decision contract of `checkRunDecision`: a join's grants and approved tools are the joined package's own.
+          const decision = answer === null ? { accepted: false, provenance: NO_DECISION } : request.kind === "link.join" && answer.accepted ? { accepted: true, provenance: "person", grants: { ...(answer.grants ?? {}) }, approved_tools: [...(answer.approved_tools ?? [])] } : { accepted: answer.accepted, provenance: "person" };
+          void clear().finally(() => resolve(decision));
+        };
+        const onAbort = () => void clear().finally(() => reject(signal.reason));
+        if (signal.aborted) {
+          onAbort();
+          return;
+        }
+        signal.addEventListener("abort", onAbort, { once: true });
+        cardWaiting.set(cardId, finish);
+        const signer = request.kind === "link.join" ? String((request.facts.publisher as { signer?: unknown } | undefined)?.signer ?? "") : "";
+        const pending: RunCardPending = { card_id: cardId, kind: request.kind, node_id: request.node_id, facts: request.facts, timeout_seconds: request.timeout_seconds, requested_at: pyIsoTimestamp(now()), ...(request.kind === "link.join" ? { publisher: publishers.get(signer) ?? null } : {}) };
+        void checkpoint((run) => {
+          run.run_card_pending = pending;
+        });
+        timer = setInterval(() => {
+          void deps.runs.getRun(runId).then(
+            (current) => {
+              if (!cardWaiting.has(cardId)) return;
+              if (current === null) {
+                // The record is gone: the service worker cleared the run; nobody can answer.
+                finish(null);
+                return;
+              }
+              const answer = current.run_card_answers?.[cardId];
+              if (answer !== undefined) finish(answer);
+            },
+            // A failed read is retried at the next tick; the core's wait still bounds it.
+            () => undefined,
+          );
+        }, CONSENT_POLL_MS);
+      }),
+  });
 
   const settle = async (final: (run: StoredRun) => void, outcome: ExecutionOutcome | null): Promise<RunRecord["status"]> => {
     await queue.run(async () => {
@@ -400,6 +479,64 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
         policyRefusesProposals: memoryMessage?.policy_refuses_proposals ?? false,
         memoryFull: memoryMessage?.memory_full ?? false,
       });
+      // link.v0 L-15 (T66, D-701): each accepted link's archive, read from the snapshot store by the hash the
+      // invocation names and verified by the session against its inner plan; the inner plans beside them.
+      const planned = run.invocation.links ?? null;
+      const linkArchives: Record<string, Uint8Array> = {};
+      for (const [name, link] of Object.entries(planned ?? {})) {
+        const linked = await deps.snapshots.getSnapshot(link.archive_sha256);
+        if (linked === null) throw new ExecutionError("execution_artifact_mismatch", `The snapshot of linked package ${JSON.stringify(name)} is no longer stored`);
+        linkArchives[name] = linked.bytes;
+      }
+      // What every inner run's tools share with this run: how requests leave and are paced and
+      // observed. Never the caller's files, resources or memory (L-25).
+      const pacer = new Pacer();
+      const linkedDeps = (subject: string, transport: HttpTransport) => ({
+        transport,
+        credentials: optional,
+        describe: { credentialConfigured: (credential: CredentialSource) => optional(credential) !== null },
+        pacer,
+        observe: (request: { tool_id: string; url: string; body: string | null }) => record("tool", `${subject}:${request.tool_id}`, request.url, request.body),
+      });
+      // link.v0 §6 (D-703): what lets this run's slots look and join. A look and a candidate's
+      // download go to an address the plan could not record (the person's, or a search result's):
+      // one GET each under the discovery and package-URL rules, no body, cookie or referrer, over
+      // the raw transport; Chrome reads only origins the person granted it. A joined package's tools
+      // reach only the origins of the tools its card approved.
+      const cards = message.cards ?? null;
+      const trustOf: JoinHost["trust"] = async (signer, candidate) => {
+        const claimed = candidate.manifest.publisher as { id?: unknown; name?: unknown };
+        if (candidate.signature !== null) {
+          const key = await embeddedPublicKey(candidate.signature);
+          if ((await fingerprint(key)) === signer) publishers.set(signer, { public_key: rawBase64(key), claimed_id: String(claimed.id), claimed_name: String(claimed.name), package_id: String(candidate.manifest.package_id) });
+        }
+        const subject = { signerFingerprint: signer, claimedPublisherId: String(claimed.id), packageId: String(candidate.manifest.package_id) };
+        const own = evaluateTrust(cards?.trust ?? [], subject);
+        // The person's store decides whenever it has an opinion; the policy's anchors answer only for a signer it has never heard of.
+        if (own.trust_status !== "unknown" || own.trust_reason !== "signer_key_not_pinned" || (cards?.anchors ?? []).length === 0) return own.trust_status;
+        return evaluateTrust(cards!.anchors, subject).trust_status;
+      };
+      const joins: JoinHost | null =
+        cards === null
+          ? null
+          : {
+              policy: cards.join,
+              look: (url) => {
+                record("tool", "link.join:look", url, null);
+                return lookAtPage(url, deps.transports.tool);
+              },
+              download: (url) => {
+                record("tool", "link.join:package", url, null);
+                return downloadPackage(url, deps.transports.tool);
+              },
+              trust: trustOf,
+              adapters: async (joined, decision) => {
+                const approved = new Set(decision.approvedTools);
+                const origins = Object.entries(joined.tools).flatMap(([toolId, tool]) => (approved.has(toolId) && typeof tool.endpoint === "string" ? [httpsOrigin(tool.endpoint)] : [])).filter((origin): origin is string => origin !== null);
+                const subject = `join:${String(joined.manifest.package_id)}`;
+                return { router: null, handlers: await linkedToolHandlers(joined, decision, linkedDeps(subject, originGuard(deps.transports.tool, origins, { allowLoopback: false })), { runtimeVersion: message.settings.runtimeVersion, now: now(), contactConfigured: contact !== null }) };
+              },
+            };
       const sessionDeps: SessionDeps = {
         archive,
         consent: run.invocation.turn ? consentHost : null,
@@ -410,21 +547,30 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
           credentials: optional,
           describe: { credentialConfigured: (credential) => optional(credential) !== null },
           files,
-          pacer: new Pacer(),
+          pacer,
           observe: (request) => record("tool", request.tool_id, request.url, request.body),
         },
+        linkArchives: planned === null ? null : linkArchives,
+        // The inner plan's bindings were frozen from the linked package's own registry (`core/links/tools.ts`), over this run's guarded transport.
+        linkTools: async (linked, dependency) => ({ ...linkedDeps(dependency, transports.tool), definitions: (await linkedDefinitions(linked, { runtimeVersion: message.settings.runtimeVersion, now: now(), contactConfigured: contact !== null })).definitions }),
+        joins,
+        // A policy that forbids the raise leaves that card out of the surface: the request is never made (D-682).
+        runConsent: cards === null ? null : runConsent(cards.raise === "forbid" ? ["link.join"] : undefined),
+        // L-36, L-44: the plan a decision made during the run names.
+        planHash: plan.run_plan_sha256,
         resolver: memoryStore,
         memory: memoryRun,
         compute: deps.compute ?? null,
         onProgress: () => void checkpoint(),
         // D-071: a checkpoint after every wave, the moment its patches are committed.
+        // The delegation view (D-704) redraws from the stored audit: a checkpoint too at every event it folds.
         onAudit: (event) => {
-          if (event.action === "state.committed") void checkpoint();
+          if (event.action === "state.committed" || DELEGATION_EVENTS.has(String(event.action))) void checkpoint();
         },
         now,
       };
       const begin: BeginReport = await session.begin(
-        { run_id: runId, run_plan: plan, authorization: run.invocation.authorization, input: run.invocation.input, attachments, limits: run.invocation.limits, host: { runtime: HOST_RUNTIME, runtime_version: message.settings.runtimeVersion, verified_version: message.settings.verifiedVersion }, turn: run.invocation.turn ?? null },
+        { run_id: runId, run_plan: plan, authorization: run.invocation.authorization, input: run.invocation.input, attachments, limits: run.invocation.limits, host: { runtime: HOST_RUNTIME, runtime_version: message.settings.runtimeVersion, verified_version: message.settings.verifiedVersion }, turn: run.invocation.turn ?? null, links: planned === null ? null : Object.fromEntries(Object.entries(planned).map(([name, link]) => [name, { run_plan: link.run_plan, authorization: link.authorization }])) },
         sessionDeps,
       );
       const started = now();
@@ -489,5 +635,6 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
     done,
     cancel: requestCancel,
     decide,
+    card,
   };
 }

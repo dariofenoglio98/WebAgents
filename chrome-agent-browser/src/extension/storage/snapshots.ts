@@ -30,6 +30,14 @@ export interface StoredSession {
   once_spent?: boolean;
   /** The index search result it was opened from, with the index's claims compared with the bytes (T8). */
   found_via?: FoundVia | null;
+  /**
+   * link.v0 (T66, D-701): a linked package is a session of its own. A caller holds its children by
+   * dependency id and the dependencies the person denied; a child names the caller it was resolved
+   * for and lives and dies with it.
+   */
+  links?: Record<string, string>;
+  link_denials?: string[];
+  parent?: { session_id: string; dependency: string } | null;
 }
 
 export interface SnapshotStore {
