@@ -107,8 +107,19 @@ from the answer and the recorded tool answers (`score.literature_checks`).
   task × its phrasings, benign); `e3` (§3 E3: 300 injected runs per side × rung stratified 37 or 38 per
   family, each with its twin, drawn from the seed only so every side and rung runs the same arms; TS-L's
   24 injected runs on L30 and H, `Py` and `FW`); `qualification` (`e2` + `e3` on one rung); `paper`
-  (`e2` + `e3` on every rung given). `--tasks` narrows any preset but `paper` (scratch checks);
-  `--shard i/n` runs every n-th unit, so n processes share one directory and its manifest.
+  (`e2` + `e3` on every rung given); `e3-memory` (F-MEMORY's injected runs and twins of `e3` alone:
+  the supplementary directories of the local rungs, below). `--tasks` narrows any preset but `paper`
+  (scratch checks); `--shard i/n` runs every n-th unit, so n processes share one directory and its
+  manifest; `--seed` moves the draws. TS-L never shares an invocation with the other task sets on a
+  local rung (their contexts differ, and `FW` takes the server's).
+- **F-MEMORY on the home-airport phrasings** (§9.2 version 5, D-364): WebAir's plan reads the travel
+  profile only when the request leaves the departure open, which no TS-W phrasing does. F-MEMORY
+  draws from `tasks/ts-w-home.json` instead (TS-W's BOS-departing W1–W4 tasks with a nonstop economy
+  truth, "from Boston" replaced by "from my home airport", the truth unchanged; the profile's home
+  airport is BOS), and no other family draws from them. Each family draws from its own seeded stream,
+  so the other seven strata are unchanged. The local paper directories ran F-MEMORY on W1–W4 (never
+  read on our side): their F-MEMORY units are superseded by an `e3-memory` directory per rung,
+  analysed with `analyze.py … --supplement <dir>`.
 - **Payloads** (`origin/payloads/`, frozen, D-360): three per E3 family (T31's draft, AgentDojo's
   `important_instructions` template, a contextual notice), twins of equal length; `upload-l1` and
   `steer-l1` for TS-L at the resolver's abstract and **a selected PDF's text** (`pdf.text`:
@@ -117,11 +128,16 @@ from the answer and the recorded tool answers (`score.literature_checks`).
   both sides). F-TERMINATE and F-PEER stay drafts (E5's, T34).
 - **Attempts** read `model_output` as well (what the model wrote on every side, never its reasoning;
   `Cr`'s model seam records the answer text), so a refused attempt is visible on our side too.
-- **Route failures** (D-361): a model route that did not answer is a harness error on every side; a
-  timeout is the run's failure; before each unit on a local rung the driver waits up to 30 minutes for
-  the route, so an outage delays units instead of spending them.
-- **Analysis**: `../injection_campaign/analyze.py <directories>` prints Tab. 4 and E2's utility
-  columns (and `--json` writes them outside the directories; `--findings` drafts `findings.md`).
+- **Route failures** (D-361): a model route that did not answer is a harness error on every side (on
+  `Cr` read from the audit's `model.failed` reason, since the core ends the turn `model_error` whatever
+  the route did); a timeout is the run's failure (`FW`'s `APITimeoutError` included); before each unit
+  on a local rung the driver waits up to 30 minutes for the route, so an outage delays units instead of
+  spending them.
+- **Analysis**: `../injection_campaign/analyze.py <directories> [--supplement <e3-memory dir>]`
+  prints Tab. 4 (with `exposed` and the exposed-only rate in every cell, "not reached" where no
+  injected run read the placement) and E2's utility columns (`--json` writes them outside the
+  directories; `--findings` drafts `findings.md`). It refuses a directory short of its unit list and a
+  unit given twice (`--allow-incomplete` prints the shortfall).
 - **Committed form** (the user, 2026-11-15): `../injection_campaign/pack.py <directory>` packs the run
   tree into a deterministic `runs.tar.gz` with its SHA-256; the manifest, summary, units, server log and
   findings stay beside it; `analyze.py` reads a packed directory as an unpacked one (it verifies the
