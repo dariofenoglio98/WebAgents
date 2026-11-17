@@ -1,0 +1,19 @@
+[
+  {
+    "op": "add",
+    "path": "/properties/links",
+    "value": {
+      "type": "object",
+      "description": "link.v0 (D-681, D-682): what a policy says about the two things a run may ask the person while it runs. `join: forbid` makes every slot yield `joined: false` with the reason `policy` (L-33): nothing is looked at and no card is shown. `raise: forbid` means the budget-raise request is never asked (L-41): the refusal of before stands. A policy only lowers; planned links, decided at the review, are not its subject here.",
+      "properties": {
+        "join": {
+          "enum": ["allow", "forbid"]
+        },
+        "raise": {
+          "enum": ["allow", "forbid"]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+]

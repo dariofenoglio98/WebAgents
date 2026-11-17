@@ -1338,6 +1338,8 @@ export class Runtime {
    */
   private async askRaise(ctx: Context, limit: "hard_tokens" | "max_remote_calls", amount: number, token: CancelToken, options: { admittedOtherwise?: boolean } = {}): Promise<boolean> {
     if (this.consent === null || this.raiseAsked) return false;
+    // A host's policy that forbids the raise (D-682): the surface does not take that card, so nobody is asked.
+    if (this.consent.kinds !== undefined && !this.consent.kinds.includes("budget.raise")) return false;
     const name = limit === "hard_tokens" ? "tokens" : "remote_calls";
     const used = limit === "hard_tokens" ? this.global.tokens + this.global.reserved_tokens : this.global.remote_calls + this.global.reserved_remote_calls;
     const current = this.budget[limit] as number;

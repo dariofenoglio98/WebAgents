@@ -106,6 +106,7 @@ export function browserTransport(options: { allowLoopbackHttp: boolean; fetch?: 
       joined.set(chunk, offset);
       offset += chunk.length;
     }
-    return { status: response.status, headers, body: new TextDecoder().decode(joined) };
+    // The bytes as received beside the text: a linked package's archive is binary (link.v0 L-10).
+    return { status: response.status, headers, body: new TextDecoder().decode(joined), bytes: joined };
   };
 }

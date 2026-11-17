@@ -16,25 +16,22 @@ import type { ParsedArguments } from "./cli-arguments.js";
 import { nodeTransport } from "./cli-net.js";
 import { MAX_ARCHIVE_BYTES } from "./core/archive.js";
 import type { ComputeEngine } from "./core/compute/engine.js";
-import { DEFAULT_LIMITS, discoverFromPage, mediaType, type DiscoveryResult } from "./core/discovery.js";
-import { AgentPkgError, CoreError } from "./core/errors.js";
+import type { DiscoveryResult } from "./core/discovery.js";
+import { AgentPkgError } from "./core/errors.js";
 import { fixtureAdapters } from "./core/fixtures.js";
 import type { JsonObject, JsonValue } from "./core/json.js";
 import { fingerprint, publicKeyFromPem } from "./core/keys.js";
 import { LinkRefusal } from "./core/links/errors.js";
 import { planHash, type LinkHost } from "./core/links/host.js";
 import { loadJoinFixture, RecordedWeb, type JoinHost } from "./core/links/join.js";
+import { downloadPackage, lookAtPage as lookAtCorePage } from "./core/links/web.js";
 import { operatorLinks, operatorPlan, splitToolApprovals, type LinkAdapters, type OperatorDecision } from "./core/links/operator.js";
 import type { ModelRouter } from "./core/models/contract.js";
-import { TransportError, type HttpTransport } from "./core/models/transport.js";
+import type { HttpTransport } from "./core/models/transport.js";
 import type { Package } from "./core/package.js";
-import { validatePackageUrl } from "./core/policy.js";
 import { pyRepr } from "./core/repr.js";
 import type { RunConsentHost } from "./core/conversation/host.js";
 import { Workflow, type WorkflowOptions } from "./core/workflow/interpreter.js";
-
-/** Seconds a dependency's or a candidate's download, and a slot's look at one page, may take. */
-const FETCH_TIMEOUT_MS = 60_000;
 
 /** Repeatable `ID=VALUE` arguments as a map; an id named twice is refused (`cli.py::_pairs`). */
 export function pairs(values: readonly string[], flag: string): Map<string, string> {
@@ -65,44 +62,14 @@ function readArchive(path: string): Uint8Array {
   return new Uint8Array(readFileSync(path));
 }
 
-function transportCode(error: unknown, operation: "download" | "discovery"): string {
-  if (error instanceof TransportError && error.facts.stage === "body_size") return operation === "download" ? "download_too_large" : "discovery_too_large";
-  if (error instanceof Error && error.name === "TimeoutError") return `${operation}_timeout`;
-  return `${operation}_failed`;
+/** A package's bytes at a URL under the package-URL policy, over the Node transport (`core/links/web.ts`). */
+export function fetchPackageBytes(url: string, transport: HttpTransport = nodeTransport({ allowLoopbackHttp: false })): Promise<Uint8Array> {
+  return downloadPackage(url, transport);
 }
 
-/** A package's bytes at a URL under the package-URL policy, over the Node transport: no redirect, a byte cap, nothing sent but the request line. */
-export async function fetchPackageBytes(url: string, transport: HttpTransport = nodeTransport({ allowLoopbackHttp: false })): Promise<Uint8Array> {
-  validatePackageUrl(url);
-  let response;
-  try {
-    response = await transport({ url, method: "GET", headers: { accept: "application/octet-stream" }, body: null, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), maxResponseBytes: MAX_ARCHIVE_BYTES });
-  } catch (error) {
-    if (error instanceof CoreError) throw error;
-    throw new CoreError(transportCode(error, "download"), `Cannot download the package: ${error instanceof Error ? error.name : "error"}`, { status: 502 });
-  }
-  if (response.status >= 300 && response.status < 400) throw new CoreError("download_redirect_denied", "Package host returned a redirect; redirects are disabled", { status: 502 });
-  if (response.status !== 200) throw new CoreError("download_failed", `Package host returned HTTP ${response.status}`, { status: 502 });
-  return response.bytes ?? new TextEncoder().encode(response.body);
-}
-
-/** Website discovery of one page over the Node transport (`browser/discovery.py`'s rules: one page, a byte cap, no script, no redirect followed). */
-export async function lookAtPage(url: string, transport: HttpTransport = nodeTransport({ allowLoopbackHttp: false })): Promise<DiscoveryResult> {
-  const hash = url.indexOf("#");
-  const document = hash >= 0 ? url.slice(0, hash) : url;
-  validatePackageUrl(document, "Website");
-  let response;
-  try {
-    response = await transport({ url: document, method: "GET", headers: { accept: "text/html, application/xhtml+xml" }, body: null, signal: AbortSignal.timeout(DEFAULT_LIMITS.timeoutSeconds * 1000), maxResponseBytes: DEFAULT_LIMITS.maxHtmlBytes });
-  } catch (error) {
-    if (error instanceof CoreError) throw error;
-    throw new CoreError(transportCode(error, "discovery"), `Cannot read the website: ${error instanceof Error ? error.name : "error"}`, { status: 502 });
-  }
-  if (response.status >= 300 && response.status < 400) throw new CoreError("discovery_redirect_refused", "The website answered with a redirect, which discovery does not follow", { status: 502 });
-  if (response.status !== 200) throw new CoreError("discovery_http_status", `The website answered HTTP ${response.status} instead of a page`, { status: 502, details: { status: response.status } });
-  const contentType = response.headers["content-type"] ?? "";
-  const [, parameters] = mediaType(contentType);
-  return discoverFromPage({ requested_url: url, final_url: document, redirects: [], content_type: contentType, charset: parameters.charset ?? null, content_coding: "identity", body: response.bytes ?? new TextEncoder().encode(response.body), truncated: false });
+/** Website discovery of one page over the Node transport (`core/links/web.ts`). */
+export function lookAtPage(url: string, transport: HttpTransport = nodeTransport({ allowLoopbackHttp: false })): Promise<DiscoveryResult> {
+  return lookAtCorePage(url, transport);
 }
 
 /** What `run` hands the execution session for a package with links: the links, the person's recorded surface and the plan a decision names. */

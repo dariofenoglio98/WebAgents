@@ -102,6 +102,12 @@ export interface RunRequest {
 /** The person's surface during a run (`RunConsentHost`): one `ask` per card; the signal ends the wait. */
 export interface RunConsentHost {
   ask(request: RunRequest, signal: AbortSignal): Promise<unknown>;
+  /**
+   * The kinds of card this surface puts to the person; absent, both. A host whose signed policy
+   * forbids the budget-raise request (D-682) leaves `budget.raise` out: the request is then never
+   * made, as where nobody is there to ask (L-41), and nothing is recorded as asked.
+   */
+  readonly kinds?: readonly RunRequestKind[];
 }
 
 export interface RunDecision {
