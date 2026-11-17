@@ -177,6 +177,23 @@
         "additionalProperties": false
       },
       "maxItems": 64
+    },
+    "hotel_name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 120
+    },
+    "named_hotel": {
+      "anyOf": [
+        {
+          "$ref": "join-outcome.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "required": [
@@ -185,7 +202,9 @@
     "flight_pick",
     "hotels",
     "hotel_pick",
-    "calendar"
+    "calendar",
+    "hotel_name",
+    "named_hotel"
   ],
   "additionalProperties": false
 }

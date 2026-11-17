@@ -2,8 +2,8 @@
   "spec_version": "0.1",
   "package_id": "org.webagents.travel-planner",
   "name": "Tripwright",
-  "version": "0.1.0",
-  "description": "A travel planner that asks other publishers' agents for help: WebAir Flights for the flights and Staymere for the hotels, each a signed package pinned by digest, and its own calendar check. The model chooses whom to consult, within a declared envelope. All data is fictional; nothing is booked.",
+  "version": "0.2.0",
+  "description": "A travel planner that asks other publishers' agents for help: WebAir Flights for the flights and Staymere for the hotels, each a signed package pinned by digest, its own calendar check, and, for a hotel you name that Staymere does not list, the agent that hotel's own page offers, joined only after you agree on its card. The model chooses whom to consult, within a declared envelope. All data is fictional; nothing is booked.",
   "publisher": {
     "id": "tripwright",
     "name": "Tripwright (fictional travel planner)"
@@ -22,12 +22,21 @@
       "id": "front-man",
       "version": "0.1.0",
       "path": "skills/front-man/SKILL.md"
+    },
+    {
+      "id": "find-hotel",
+      "version": "0.1.0",
+      "path": "skills/find-hotel/SKILL.md"
     }
   ],
   "tools": [
     {
       "id": "check-calendar",
       "path": "tools/check-calendar.tool.json"
+    },
+    {
+      "id": "web.search",
+      "path": "tools/web.search.tool.json"
     }
   ],
   "schemas": [
@@ -66,6 +75,30 @@
     {
       "id": "result",
       "path": "schemas/result.schema.json"
+    },
+    {
+      "id": "message",
+      "path": "schemas/message.schema.json"
+    },
+    {
+      "id": "search-query",
+      "path": "schemas/search-query.schema.json"
+    },
+    {
+      "id": "search-results",
+      "path": "schemas/search-results.schema.json"
+    },
+    {
+      "id": "stay",
+      "path": "schemas/stay.schema.json"
+    },
+    {
+      "id": "offers-result",
+      "path": "schemas/offers-result.schema.json"
+    },
+    {
+      "id": "join-outcome",
+      "path": "schemas/join-outcome.schema.json"
     }
   ],
   "model_requirements": {
@@ -80,6 +113,14 @@
       },
       {
         "id": "route",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "request",
         "capabilities": [
           "structured_output"
         ],

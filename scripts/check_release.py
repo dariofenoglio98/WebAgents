@@ -161,6 +161,19 @@ CURRENT_PACKAGES = {
         "fingerprint": "sha256:e41f5d09f76431b4f7055d8b211a60a8ee26eeb9384ea7c1b705f3daafa49f08",
         "tools": ["check-calendar"],
     },
+    # The planner 0.2.0 (T65 part 2, signed at the user's "go" of 2026-11-16, D-683): 0.1.0 plus
+    # `FindHotel`, the `web.search` step and the slot that may join a named hotel's package.
+    "travel-planner-0.2.0": {
+        "stem": "travel-planner",
+        "alias": False,
+        "package_id": "org.webagents.travel-planner",
+        "version": "0.2.0",
+        "digest": "bfd3ea19b28e26c7d953a2a8dc23091fa7864cd1de35eef6a2b7191c22a89011",
+        "archive_sha256": "73265f3ed2ba5b6ffb1fc5ee39b9ff5280810e9e5db8e2a245bf4547ab117c27",
+        "key": "examples/keys/travel-planner-publisher.pub.pem",
+        "fingerprint": "sha256:e41f5d09f76431b4f7055d8b211a60a8ee26eeb9384ea7c1b705f3daafa49f08",
+        "tools": ["check-calendar", "web.search"],
+    },
     "webair-flights-0.1.0": {
         "stem": "webair-flights",
         "alias": False,
