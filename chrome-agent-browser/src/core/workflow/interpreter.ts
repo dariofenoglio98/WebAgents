@@ -27,6 +27,8 @@ import { computeHostLimits, Context, digest, prepareCompute, Runtime, type Conse
 import { ConsentError } from "../conversation/errors.js";
 import { deferredFailure, runNetwork } from "../network/runner.js";
 import { evaluate, pyEqual, type Environment } from "./values.js";
+import { bundleSchema } from "./bundle.js";
+import { locateUrls } from "../links/join.js";
 
 export const PROFILE = "workflow.v0";
 /** `provenance.interpreter`: which interpreter ran (the reference says `agentpkg.workflow.Workflow`). */
@@ -62,6 +64,10 @@ export interface ExecutionReport {
   consents?: ConsentRecord[];
   /** conversation.v0 (V-5): the persistent keys of the final state, validated; present on a completed turn only. */
   conversation_state?: JsonObject;
+  /** link.v0 L-30: the run's links record; present exactly when the run holds links. */
+  links?: JsonObject;
+  /** link.v0 L-30: each inner run's own report by its run id, written beside the caller's as `link-<id>.*.json`. */
+  inner_runs?: Record<string, ExecutionReport>;
 }
 
 export interface WorkflowResult extends ExecutionReport {
@@ -82,6 +88,8 @@ export class Workflow {
   private cancelRequested = false;
   private readonly root: CancelToken;
   private output: JsonValue = null;
+  /** link.v0 L-7: the run's input, for a slot's `locate`. */
+  private input: JsonValue | undefined = undefined;
   /** conversation.v0 (V-5): the persistent keys of the final state, once validated. */
   private persisted: JsonObject | null = null;
   /** Bundled model schemas by path: the package is immutable for the run, so one bundle per schema (review 1, nit 13). */
@@ -220,6 +228,22 @@ export class Workflow {
         if (error instanceof ConsentError) throw new WorkflowError("worker_error", String(node.id), { cause: error });
         throw error;
       }
+    } else if (kind === "link") {
+      // link.v0: another publisher's package, run as an inner run from its own plan (§5). The
+      // mediator validates the input against the linked package's schema, reserves, starts,
+      // settles and records; a failed inner run is `link_error`, and the result is checked against
+      // this step's own schema below (L-5, L-27).
+      const limit = Math.min(node.timeout_seconds as number, this.deadlineSeconds);
+      if ("slot" in node) {
+        // A slot (§6): `value` is the view, what the request to a joined package may draw from;
+        // `locate` reads the run's input and this role's earlier tool results (L-7); the stated
+        // reason is the agent's words on the card. The outcome is data whatever the candidate does (L-8).
+        const urls = locateUrls(node.locate!, { input: this.input, steps: env.steps });
+        const reason = Object.hasOwn(node, "reason") ? evaluate(node.reason!, env) : null;
+        result = await ctx.join(node, value, urls, reason, limit, token);
+      } else {
+        result = await ctx.link(node, value, limit, token);
+      }
     } else if (kind === "network") {
       // network.v0: the graph's delegation network, run by the coordinator's one node: activations
       // as worker instances, the model's route decisions checked against the declared edges and
@@ -289,53 +313,18 @@ export class Workflow {
       await this.validate(String(node.output_schema), result, `node ${node.id} output`);
     } catch (error) {
       if (error instanceof ValidationError) {
-        Object.assign(error, { failed_check: { check: "output_schema", schema: node.output_schema } });
+        Object.assign(error, { failed_check: { check: kind === "link" ? "link_result" : "output_schema", schema: node.output_schema } });
       }
       throw error;
     }
     return result;
   }
 
-  /** `_model_schema`: bundle package-relative references into one local `$defs` namespace. */
+  /** `_model_schema`: bundle package-relative references into one local `$defs` namespace (`bundleSchema`), one bundle per schema. */
   modelSchema(path: string): JsonValue {
     const cached = this.modelSchemas.get(path);
     if (cached !== undefined) return cached;
-    const docs = new Map<string, JsonValue>();
-    for (const entry of this.package.manifest.schemas as JsonObject[]) {
-      const schemaPath = String(entry.path);
-      docs.set(schemaPath, parseJson(this.package.files.get(schemaPath)!, schemaPath));
-    }
-    const names = new Map([...docs.keys()].sort().map((name, index) => [name, `s${index}`] as const));
-    const bundle = (value: JsonValue, base: string): JsonValue => {
-      if (Array.isArray(value)) return value.map((item) => bundle(item, base));
-      if (!isJsonObject(value)) return value;
-      const out: JsonObject = {};
-      for (const [key, item] of Object.entries(value)) out[key] = bundle(item, base);
-      if ("$ref" in value) {
-        const [target, fragment] = schemaReference(base, String(value.$ref));
-        out.$ref = `#/$defs/${names.get(target)!}${fragment}`;
-      }
-      return out;
-    };
-    const included: JsonObject = {};
-    const pending: string[] = [path];
-    const discover = (value: JsonValue, base: string): void => {
-      if (isJsonObject(value)) {
-        if ("$ref" in value) {
-          const [target] = schemaReference(base, String(value.$ref));
-          if (!(names.get(target)! in included) && !pending.includes(target)) pending.push(target);
-        }
-        for (const child of Object.values(value)) discover(child, base);
-      } else if (Array.isArray(value)) {
-        for (const child of value) discover(child, base);
-      }
-    };
-    while (pending.length > 0) {
-      const current = pending.pop()!;
-      included[names.get(current)!] = bundle(docs.get(current)!, current);
-      discover(docs.get(current)!, current);
-    }
-    const bundled: JsonValue = { $ref: `#/$defs/${names.get(path)!}`, $defs: included };
+    const bundled = bundleSchema(this.package, path);
     this.modelSchemas.set(path, bundled);
     return bundled;
   }
@@ -474,6 +463,8 @@ export class Workflow {
     try {
       if (this.cancelRequested) throw new CancelledError();
       await this.validate(String(this.graph.input_schema), input, "workflow input");
+      // link.v0 L-7: the run's own input as the person supplied it, which a slot's `locate` reads and nothing else of a role's program does.
+      this.input = deepCopy(input);
       const sources: Environment = { input };
       // The turn starts from the persisted state (conversation.v0 V-4).
       if (rt.turn !== null) sources.conversation = deepCopy(rt.turn.state);
@@ -592,6 +583,9 @@ export class Workflow {
       ...(turn !== null ? { consents: deepCopy(this.runtime.consentDecisions as unknown as JsonValue) as unknown as ConsentRecord[] } : {}),
       audit: this.runtime.audit,
       usage: this.runtime.usage,
+      // link.v0 L-30: the run's links (publisher, decision, inner plan, the inner runs made) and
+      // each inner run's own report, which a host writes beside this one.
+      ...(this.runtime.links !== null ? { links: this.runtime.links.record(), inner_runs: Object.fromEntries(this.runtime.links.reports) as unknown as Record<string, ExecutionReport> } : {}),
       provenance: {
         profile: PROFILE,
         interpreter: INTERPRETER,

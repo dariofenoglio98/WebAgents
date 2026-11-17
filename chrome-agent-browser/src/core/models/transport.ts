@@ -20,6 +20,8 @@ export interface HttpResponse {
   /** Lower-cased header names. */
   headers: Record<string, string>;
   body: string;
+  /** The body's bytes as received, where the transport keeps them (the Node transport does): a package archive is binary (link.v0 L-10). */
+  bytes?: Uint8Array;
 }
 
 export type HttpTransport = (request: HttpRequest) => Promise<HttpResponse>;

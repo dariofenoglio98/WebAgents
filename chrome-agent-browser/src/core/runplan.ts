@@ -18,6 +18,7 @@ import { DEFAULT_PRESET } from "./authorization.js";
 import { canonicalJson } from "./canonical.js";
 import { conversationRecords } from "./conversation/declarations.js";
 import { networkRecords } from "./network/declarations.js";
+import type { LinkCosts } from "./network/analysis.js";
 import { consentPlan, type ConsentPolicy } from "./policies/consent.js";
 import { CoreError } from "./errors.js";
 import type { EvaluationLayers, PublisherReport } from "./evaluation.js";
@@ -508,8 +509,9 @@ export function grantsOnce(receipt: Pick<AuthorizationReceipt, "decisions">): bo
 }
 
 /** network.v0 (R-24, `runplan.py`): the envelope the person agreed to, computed from the signed declaration; null for a package without a network. */
-export function networkPlan(pkg: Package): NetworkPlan | null {
-  const records = networkRecords(pkg);
+export function networkPlan(pkg: Package, links: LinkCosts | null = null): NetworkPlan | null {
+  // link.v0 L-22: with the links resolved and decided, the composed envelope.
+  const records = networkRecords(pkg, links);
   if (records === null) return null;
   return { node: records.node, entry: records.entry, roles: records.roles.map((role) => role.id), worst_case: JSON.parse(JSON.stringify(records.worst_case)) as JsonObject };
 }

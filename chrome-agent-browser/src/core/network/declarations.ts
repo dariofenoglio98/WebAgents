@@ -13,7 +13,7 @@ import { references, tokens } from "../references.js";
 import { pyRepr } from "../repr.js";
 import { PackageSchemas } from "../schema.js";
 import { compareRelease } from "../version.js";
-import { activationBound, activationCosts, DONE, networkNodes, networkOf, rolesOf, worstCase, type ActivationCosts, type WorstCase } from "./analysis.js";
+import { activationBound, activationCosts, DONE, networkNodes, networkOf, rolesOf, worstCase, type ActivationCosts, type LinkCosts, type WorstCase } from "./analysis.js";
 
 export const NETWORK_MINIMUM_VERSION = "0.7.0";
 export const MAX_ROLES = 16;
@@ -57,6 +57,9 @@ function constructors(role: JsonObject): Array<[label: string, value: JsonValue,
       found.push([`${label}/when/right`, when.right!, ROLE_SOURCES]);
       found.push([`${label}/otherwise`, step.otherwise!, ROLE_SOURCES]);
     }
+    // link.v0 L-6: a slot's stated reason is constructed like its input. Its `locate` has its own
+    // two sources and is checked with the slot (L-7, `links/declarations.ts`).
+    if ("reason" in step) found.push([`${label}/reason`, step.reason!, ROLE_SOURCES]);
     for (const [key, sources] of [["assertions", ROLE_SOURCES], ["checks", CHECK_SOURCES]] as const) {
       ((step[key] as JsonObject[] | undefined) ?? []).forEach((rule, index) => {
         for (const field of ["left", "right", "rows", "targets", "equals"]) {
@@ -228,8 +231,9 @@ export async function checkNetworkDeclarations(manifest: JsonObject, graph: Json
   }
   hooks.expression(network.result!, { state: [stateSchema, statePath], message: [hooks.documents.get(messagePath)!, messagePath] }, "network.result");
   // The bound against the package's own budgets (R-22): what the page says the network can spend at
-  // most must be what the package lets it spend.
-  const bound = worstCase(graph, policy);
+  // most must be what the package lets it spend. The network's own program here; its links are
+  // composed in and checked by link.v0 (L-20, L-21), under their own code.
+  const bound = worstCase(graph, policy, { links: false });
   const budget = policy.budget as JsonObject;
   if (bound.relaxation.tokens > (budget.hard_tokens as number)) {
     throw refuse("network_bound_exceeds_budget", `the network's worst case is ${bound.relaxation.tokens} tokens, above the package's hard_tokens of ${budget.hard_tokens}`);
@@ -272,9 +276,10 @@ export interface NetworkRecords extends JsonObject {
 /**
  * The network as `inspect` and the agent page list it (R-24): the entry, the hop cap, the schemas,
  * each role with its program's shape, its edges and its activation bound, and the worst case under
- * the package's own budgets.
+ * the package's own budgets. `links` (`linkCost`'s map) composes the resolved links in (link.v0
+ * L-22).
  */
-export function networkRecords(pkg: Package): NetworkRecords | null {
+export function networkRecords(pkg: Package, links?: LinkCosts | null): NetworkRecords | null {
   const graph = pkg.graph;
   const network = networkOf(graph);
   if (network === null) return null;
@@ -299,7 +304,7 @@ export function networkRecords(pkg: Package): NetworkRecords | null {
       budget: { ...(worker.budget as JsonObject) } as { tokens: number; remote_calls: number },
       state_read: (worker.state_read as JsonValue[]).map(String),
       state_write: (worker.state_write as JsonValue[]).map(String),
-      per_activation: activationCosts(graph, roleId) as ActivationCosts & JsonObject,
+      per_activation: activationCosts(graph, roleId, links) as ActivationCosts & JsonObject,
     };
   });
   const stateDocument = packageJson(pkg, String(network.state_schema));
@@ -311,6 +316,6 @@ export function networkRecords(pkg: Package): NetworkRecords | null {
     state_keys: Object.keys(isJsonObject(stateDocument) && isJsonObject(stateDocument.properties) ? stateDocument.properties : {}),
     message_schema: String(network.message_schema),
     roles,
-    worst_case: worstCase(graph, pkg.policy),
+    worst_case: worstCase(graph, pkg.policy, { links }),
   };
 }

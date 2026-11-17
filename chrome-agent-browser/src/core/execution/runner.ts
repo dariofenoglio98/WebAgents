@@ -46,6 +46,9 @@ import { ProgressTracker, type ProgressListener, type ProgressSnapshot } from ".
 import { auditSummary, costSummary, failureSummary, modelEvidence } from "./report.js";
 import { verifyExecutionArtifact } from "./artifact.js";
 
+import type { RunConsentHost } from "../conversation/host.js";
+import { checkOnce, type LinkHost } from "../links/host.js";
+
 export const EXECUTION_RESULT_SCHEMA = "agentpkg-execution-result-v0";
 export const EXECUTION_PROTOCOL_VERSION = "chrome-agent-browser-execution-v0";
 export const TOOL_HANDLER_KIND = "chrome-agent-browser.tools.BoundToolHandler";
@@ -114,6 +117,16 @@ export interface SessionDeps {
   compute?: ComputeEngine | null;
   /** conversation.v0: the host that asks the person a consent step (the chat surface); required for a turn, unused otherwise. */
   consent?: ConsentHost | null;
+  /**
+   * link.v0: the run's links as the host bound them (`links/host.ts::LinkHost`): every dependency
+   * resolved and decided, an inner plan per accepted link. Required for a package with dependencies;
+   * a package with only slots runs without one, and its slots then yield `unattended`.
+   */
+  links?: LinkHost | null;
+  /** link.v0 §6, §7: the person's surface during the run (a join card, the one budget-raise card); absent, nobody is asked. */
+  runConsent?: RunConsentHost | null;
+  /** The hash of the plan a decision made during the run names (L-36, L-44): the Run Plan's, or an operator plan's; absent, null. */
+  planHash?: string | null;
   onProgress?: ProgressListener | null;
   progressIntervalSeconds?: number;
   /**
@@ -239,14 +252,21 @@ export class ExecutionSession {
     if (turn !== null && !conversational) throw new ExecutionError(PLAN_INVALID, "A turn was given for a package that declares no conversation");
     if (turn !== null && !deps.consent) throw new ExecutionError(PLAN_INVALID, "A turn needs the host's consent host");
     if (turn !== null && (plan.execution.conversation ?? null) === null) throw new ExecutionError(PLAN_INVALID, "A turn needs a plan that records the conversation");
+    // link.v0 (L-10, L-17): every dependency resolved and decided before the run, by the host that
+    // holds the caller's plan; the links handed over are this caller's.
+    const links = deps.links ?? null;
+    const dependencies = pkg.manifest.dependencies;
+    if (Array.isArray(dependencies) && dependencies.length > 0 && links === null) throw new ExecutionError(PLAN_INVALID, "This package declares dependencies and the host handed the run no links for them");
+    if (links !== null && links.caller.digest !== pkg.digest) throw new ExecutionError(PLAN_INVALID, "The links handed to this run belong to another package");
     // network.v0 (R-24): the envelope the person agreed to is the one the signed declaration gives,
-    // re-derived here; a plan that describes it differently, or omits it, is refused, not believed.
-    if (plan.execution.mode === MODE_MODEL && canonicalString(plan.execution.network ?? null) !== canonicalString(networkPlan(pkg))) {
+    // re-derived here (composed with the links, link.v0 L-22); a plan that describes it
+    // differently, or omits it, is refused, not believed.
+    if (plan.execution.mode === MODE_MODEL && canonicalString(plan.execution.network ?? null) !== canonicalString(networkPlan(pkg, links?.worstCases ?? null))) {
       throw new ExecutionError(PLAN_INVALID, "The run plan's delegation envelope does not match the package's own declaration");
     }
     const capabilities =
       plan.execution.mode === MODE_MODEL
-        ? checkCapabilities(pkg, limits, { toolBindings: plan.tool_bindings, deniedTools: plan.execution.denied_tool_ids, fixture, computeAvailable: (deps.compute ?? null) !== null, turn: turn !== null })
+        ? checkCapabilities(pkg, limits, { toolBindings: plan.tool_bindings, deniedTools: plan.execution.denied_tool_ids, fixture, computeAvailable: (deps.compute ?? null) !== null, turn: turn !== null, links: links?.worstCases ?? null })
         : { tools_declared: Object.keys(pkg.tools).length, tool_bindings: plan.tool_bindings.length, mode: "tool_probe", note: "A tool probe binds one declared tool. Whether this host could run the whole package is a different question, and a model-backed plan asks it." };
 
     // 3. The person's decisions, unchanged or refused.
@@ -256,6 +276,8 @@ export class ExecutionSession {
         throw new ExecutionError(PERMISSION_DENIED, `A model-backed run requires permission '${permissionId}', which is denied.`, { detail: { permission: permissionId } });
       }
     }
+    // 3a. link.v0 L-28: a `once` grant on a linked package's card the composition could consume more than once.
+    if (links !== null) checkOnce(pkg, links.bindings);
     // 3b. Every tool binding, re-derived from the verified package and compared with the plan,
     //     then matched against the approvals the person actually gave.
     const tools = fixture
@@ -411,6 +433,9 @@ export class ExecutionSession {
           observer,
           compute: this.deps.compute ?? null,
           turn: this.turnContext(now),
+          links: this.deps.links ?? null,
+          consent: this.deps.runConsent ?? null,
+          planHash: this.deps.planHash ?? null,
         });
       } catch (error) {
         if (!(error instanceof AgentPkgError)) throw error;

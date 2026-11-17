@@ -7,6 +7,7 @@
  * model binding lifts the descriptor's capabilities, limits and local flag beside the
  * compatibility verdict; tool bindings and resource grants pass through unchanged.
  */
+import type { LinkCosts } from "../network/analysis.js";
 import { canonicalJson } from "../canonical.js";
 import { sha256HexSync } from "../hash.js";
 import type { JsonObject, JsonValue } from "../json.js";
@@ -306,6 +307,8 @@ export interface LocalPlanInputs {
   modelBinding?: ModelBindingDescriptor | null;
   toolBindings?: readonly ToolBindingRecord[];
   resourceGrants?: readonly ResourceGrant[];
+  /** link.v0: the run's link costs once its links are resolved and decided, so that the plan states the composed envelope (L-22). */
+  links?: LinkCosts | null;
   now?: Date;
   runPlanId?: string;
   sessionId?: string | null;
@@ -366,7 +369,7 @@ export function localExecutionPlan(input: LocalPlanInputs): { plan: ExecutionPla
       denied_tool_ids: declared.filter((toolId) => !approved.includes(toolId)),
       // The operator's grants are the whole conversation's; no preset or policy pre-decides a step here.
       conversation: conversationPlan(pkg, "balanced", null),
-      network: networkPlan(pkg),
+      network: networkPlan(pkg, input.links ?? null),
     },
     model_binding: input.fixture ? null : (input.modelBinding ?? null),
     tool_bindings: bindings,

@@ -25,6 +25,8 @@ import { dirname, join, resolve } from "node:path";
 import { ArgumentError, parseArguments, type ArgumentSpec } from "./cli-arguments.js";
 import { nodeComputeEngine } from "./cli-compute.js";
 import { catalogHttp, nodeTransport } from "./cli-net.js";
+import { cliLinks } from "./cli-links.js";
+import { splitToolApprovals, type LinkAdapters } from "./core/links/operator.js";
 import { AgentPkgError, ValidationError } from "./core/errors.js";
 import { evaluateCatalog, type ModelDescriptor } from "./core/compatibility.js";
 import { completeRunRecord, initialRunRecord } from "./core/execution/record.js";
@@ -69,7 +71,22 @@ export const RUN_OPTIONS: ArgumentSpec["options"] = {
     "--host-resources": { kind: "value" },
     "--resource-grant": { kind: "list" },
 };
-const RUN: ArgumentSpec = { positional: ["package"], options: RUN_OPTIONS };
+/**
+ * `run`'s own options beside the shared ones: link.v0's (`cli-links.ts`) and a repeatable
+ * `--trust-key`, whose first key pins this package's publisher and only that one verifies it;
+ * every key given is in the set a linked publisher is trusted by (link.v0 §12, D-699 (g)).
+ */
+const RUN: ArgumentSpec = {
+  positional: ["package"],
+  options: {
+    ...RUN_OPTIONS,
+    "--trust-key": { kind: "list" },
+    "--link": { kind: "list" },
+    "--link-grants": { kind: "list" },
+    "--deny-link": { kind: "list" },
+    "--join-fixture": { kind: "value" },
+  },
+};
 
 export const HOST_RUNTIME = "chrome-agent-browser";
 const PROVIDERS: readonly ProviderId[] = ["ollama", "openai", "anthropic"];
@@ -133,6 +150,8 @@ function modelBindingFromDescriptor(descriptor: ModelDescriptor, compatibility: 
 }
 
 export interface LiveBinding {
+  /** link.v0: the host's tool handlers for an accepted linked package's inner runs (its approved tools, bound as the caller's are), the caller's model route. */
+  linkAdapters: LinkAdapters | null;
   binding: ModelBindingDescriptor;
   definitions: ToolImplementationDefinition[];
   toolBindings: ReturnType<typeof normalizeToolBindings>;
@@ -229,7 +248,7 @@ export async function bindLive(pkg: Package, parsed: ReturnType<typeof parseArgu
     resolver: store,
     compute: nodeComputeEngine(),
   };
-  return { binding, definitions, toolBindings, resourceGrants, store, deps };
+  return { binding, definitions, toolBindings, resourceGrants, store, deps, linkAdapters: null };
 }
 
 export async function runCommand(args: string[]): Promise<number> {
@@ -243,13 +262,15 @@ export async function runCommand(args: string[]): Promise<number> {
     // conversation.v0 (V-28): a turn starts from a persisted state a single run does not have.
     throw new AgentPkgError("conversation_profile: this package declares a conversation and runs turn by turn; use agentpkg converse");
   }
-  const trustKey = parsed.value("--trust-key");
-  if (mode === "live" && !trustKey) throw new AgentPkgError("Live run requires a signed artifact and --trust-key PUBLIC_KEY");
-  if (trustKey) await verifyWithTrustedKey(pkg, publicKeyFromPem(readFileSync(trustKey, "utf8")));
+  const trustKeys = parsed.list("--trust-key");
+  if (mode === "live" && trustKeys.length === 0) throw new AgentPkgError("Live run requires a signed artifact and --trust-key PUBLIC_KEY");
+  // The first --trust-key pins this package's publisher, and only that one does: a key given to
+  // trust a linked publisher (link.v0 L-12) says nothing about who may sign the caller.
+  if (trustKeys.length > 0) await verifyWithTrustedKey(pkg, publicKeyFromPem(readFileSync(trustKeys[0]!, "utf8")));
   if (pkg.signature === null) throw new AgentPkgError("This runner executes signed packages only; sign the artifact first (agentpkg sign)");
   const signer = await fingerprint(await embeddedPublicKey(pkg.signature));
   const grants = jsonFile(parsed.value("--grants")!, "object") as Record<string, string>;
-  const approved = [...new Set(parsed.list("--approve-tool"))].sort();
+  let approved = [...new Set(parsed.list("--approve-tool"))].sort();
   // As `agentpkg run`: without `--limits` the host lowers nothing, and the package's own budget
   // and deadline apply; `--limits` is the host execution limits document (D-064).
   const limitsRaw: JsonValue = parsed.value("--limits") ? jsonFile(parsed.value("--limits")!, "object") : { ...PERMISSIVE_HOST_LIMITS };
@@ -259,6 +280,12 @@ export async function runCommand(args: string[]): Promise<number> {
   // memory.v0 M-16, M-64 N6: a memory read whose output is not the type's view is not bound, so
   // the run is refused before it starts, in both modes, as `agentpkg run` refuses it (D-230).
   checkMemoryBindings(pkg);
+  // `agentpkg run`'s check of the caller's own approvals (a value `<dependency>:<tool>` is a linked
+  // package's), before any link is resolved.
+  const checkOwnApprovals = (own: string[]): void => {
+    const unknown = own.filter((toolId) => !Object.hasOwn(pkg.tools, toolId)).sort();
+    if (unknown.length > 0) throw new AgentPkgError(`--approve-tool names tools this package does not declare: [${unknown.map((item) => `'${item}'`).join(", ")}]`);
+  };
 
   let plan: ExecutionPlan;
   let authorization;
@@ -272,15 +299,23 @@ export async function runCommand(args: string[]): Promise<number> {
     if (parsed.flag("--think") || parsed.list("--resource-grant").length > 0) throw new AgentPkgError("--think and --resource-grant apply to --mode live only");
     const fixture = fixtureAdapters(pkg);
     input = inputPath ? jsonFile(inputPath, "any") : fixture.input;
-    ({ plan, authorization } = localExecutionPlan({ pkg, archiveSha256, signerFingerprint: signer, decisions: grants, approvedTools: approved, fixture: true }));
     // compute.v0 (C-50): a module runs for real in fixture mode, in a Worker per call (D-251).
-    deps = { archive: bytes, fixture: { router: fixture.router, handlers: fixture.handlers }, compute: nodeComputeEngine() };
+    const compute = nodeComputeEngine();
+    // link.v0: every dependency resolved and decided, an inner run replaying its own fixture (L-29).
+    const linked = await cliLinks(pkg, parsed, { mode, grants, limits: parsed.value("--limits") ? (limitsRaw as JsonObject) : null, router: fixture.router, compute, checkOwnApprovals, jsonFile: (path) => jsonFile(path, "object") });
+    approved = linked.approved;
+    ({ plan, authorization } = localExecutionPlan({ pkg, archiveSha256, signerFingerprint: signer, decisions: grants, approvedTools: approved, fixture: true, links: linked.links?.worstCases ?? null }));
+    deps = { archive: bytes, fixture: { router: fixture.router, handlers: fixture.handlers }, compute, links: linked.links, runConsent: linked.consent, planHash: linked.planHash };
   } else {
     if (!inputPath) throw new AgentPkgError("Live workflow execution requires --input and --model provider/model");
     input = jsonFile(inputPath, "any");
-    live = await bindLive(pkg, parsed, bytes, grants, approved, limits.model_call_timeout_seconds);
-    ({ plan, authorization } = localExecutionPlan({ pkg, archiveSha256, signerFingerprint: signer, decisions: grants, approvedTools: approved, fixture: false, modelBinding: live.binding, toolBindings: live.toolBindings, resourceGrants: live.resourceGrants }));
-    deps = live.deps;
+    const split = splitToolApprovals(pkg, approved);
+    checkOwnApprovals(split.own);
+    live = await bindLive(pkg, parsed, bytes, grants, split.own, limits.model_call_timeout_seconds);
+    const linked = await cliLinks(pkg, parsed, { mode, grants, limits: parsed.value("--limits") ? (limitsRaw as JsonObject) : null, router: live.deps.router ?? null, compute: live.deps.compute ?? null, liveAdapters: live.linkAdapters, checkOwnApprovals, jsonFile: (path) => jsonFile(path, "object") });
+    approved = linked.approved;
+    ({ plan, authorization } = localExecutionPlan({ pkg, archiveSha256, signerFingerprint: signer, decisions: grants, approvedTools: approved, fixture: false, modelBinding: live.binding, toolBindings: live.toolBindings, resourceGrants: live.resourceGrants, links: linked.links?.worstCases ?? null }));
+    deps = { ...live.deps, links: linked.links, runConsent: linked.consent, planHash: linked.planHash };
   }
 
   const session = new ExecutionSession();

@@ -8,7 +8,7 @@
  * of a yes is a no. A host never answers as the `plan`: that provenance is the runtime's own,
  * for a step it did not put to the host (T23 review 2, nit 4).
  */
-import type { JsonValue } from "../json.js";
+import type { JsonObject, JsonValue } from "../json.js";
 import { ConsentError } from "./errors.js";
 
 export const DECIDED_BY = ["person", "transcript", "plan", "host", "preset", "policy"] as const;
@@ -80,4 +80,66 @@ export class TranscriptConsent implements ConsentHost {
     }
     return { accepted: false, decided_by: "host", reason: NO_DECISION };
   }
+}
+
+/** What a run may ask the person outside a conversation's consent steps (link.v0 §6, §7): to join a package found during the run, and to raise their own run limit. */
+export const RUN_REQUEST_KINDS = ["link.join", "budget.raise"] as const;
+export type RunRequestKind = (typeof RUN_REQUEST_KINDS)[number];
+
+/**
+ * One card of a run: its kind, the run and the step that asks, and the facts the runtime computed
+ * (`schemas/link-join-card.schema.json`, `schemas/budget-raise-card.schema.json`). Nothing on it is
+ * a model's word except the member the facts mark as the agent's.
+ */
+export interface RunRequest {
+  kind: RunRequestKind;
+  run_id: string;
+  node_id: string | null;
+  facts: JsonObject;
+  timeout_seconds: number;
+}
+
+/** The person's surface during a run (`RunConsentHost`): one `ask` per card; the signal ends the wait. */
+export interface RunConsentHost {
+  ask(request: RunRequest, signal: AbortSignal): Promise<unknown>;
+}
+
+export interface RunDecision {
+  accepted: boolean;
+  provenance: string;
+  grants?: Record<string, string>;
+  approved_tools?: string[];
+}
+
+/**
+ * A host's answer to a run's card against its contract (`check_run_decision`): `accepted` a boolean,
+ * `provenance` a code naming where the answer came from (the host's surface, a fixture); for a join
+ * that is accepted, the joined package's own `grants` and `approved_tools` (the card is that
+ * package's authorization). Anything else is the host's failure, never a yes.
+ */
+export function checkRunDecision(kind: RunRequestKind, value: unknown): RunDecision {
+  const record = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+  const allowed = new Set(["accepted", "provenance", ...(kind === "link.join" ? ["grants", "approved_tools"] : [])]);
+  const provenance = record?.provenance;
+  if (record === null || typeof record.accepted !== "boolean" || !(typeof provenance === "string" && REASON.test(provenance)) || Object.keys(record).some((key) => !allowed.has(key))) {
+    throw new ConsentError("consent_decision_invalid", `the host answered a ${kind} card outside the decision contract ({accepted: bool, provenance: code, …})`);
+  }
+  const decision: RunDecision = { accepted: record.accepted, provenance: provenance as string };
+  if (kind === "link.join") {
+    const grants = record.grants ?? {};
+    const approved = record.approved_tools ?? [];
+    if (
+      typeof grants !== "object" ||
+      grants === null ||
+      Array.isArray(grants) ||
+      !Object.values(grants as Record<string, unknown>).every((scope) => typeof scope === "string") ||
+      !Array.isArray(approved) ||
+      !approved.every((tool) => typeof tool === "string")
+    ) {
+      throw new ConsentError("consent_decision_invalid", "a join decision's grants are a map of permission ids to scopes and its approved_tools a list of tool ids");
+    }
+    decision.grants = { ...(grants as Record<string, string>) };
+    decision.approved_tools = [...new Set(approved as string[])].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  }
+  return decision;
 }

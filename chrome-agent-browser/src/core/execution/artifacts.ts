@@ -31,10 +31,29 @@ export function encodeJson(value: unknown): Uint8Array {
  * run's return value or the `execution_report` a classified failure carried; exports are written
  * only for a completed run, because an export selects from a final output a failed run lacks.
  */
+/** link.v0 L-30: the run's links and each inner run's record; a package with links may not export under these names. */
+export const LINKS_RECORD_NAME = "links.json";
+export const LINK_RUN_PREFIX = "link-";
+
 export function artifactRecords(result: JsonObject, pkg: Package | null = null): ArtifactRecord[] {
+  // link.v0 L-30: each inner run's report is written beside the caller's under flat names (a run's
+  // artifact directory holds no subdirectory), and `result.json` does not repeat them.
+  const innerRuns = (result.inner_runs as Record<string, JsonObject> | undefined) ?? {};
+  if (Object.hasOwn(result, "inner_runs")) {
+    const { inner_runs: _inner, ...rest } = result;
+    result = rest;
+  }
   const records: ArtifactRecord[] = [["result.json", encodeJson(result)]];
   for (const field of ["audit", "usage", "provenance"]) {
     if (Object.hasOwn(result, field)) records.push([`${field}.json`, encodeJson(result[field])]);
+  }
+  if (Object.hasOwn(result, "links")) records.push([LINKS_RECORD_NAME, encodeJson(result.links)]);
+  for (const runId of Object.keys(innerRuns).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
+    const report = innerRuns[runId]!;
+    records.push([`${LINK_RUN_PREFIX}${runId}.result.json`, encodeJson(report)]);
+    for (const field of ["audit", "usage", "provenance"]) {
+      if (Object.hasOwn(report, field)) records.push([`${LINK_RUN_PREFIX}${runId}.${field}.json`, encodeJson(report[field])]);
+    }
   }
   if (pkg !== null && result.status === "completed") {
     for (const entry of (pkg.graph.exports as JsonValue[] | undefined) ?? []) {

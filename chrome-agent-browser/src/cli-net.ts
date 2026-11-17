@@ -362,7 +362,8 @@ function perform(destination: Destination, address: string, request: HttpRequest
       });
       response.on("end", () => {
         socket.destroy();
-        finish(() => resolve({ status, headers: responseHeaders, body: Buffer.concat(chunks).toString("utf8") }));
+        const whole = Buffer.concat(chunks);
+        finish(() => resolve({ status, headers: responseHeaders, body: whole.toString("utf8"), bytes: new Uint8Array(whole) }));
       });
       response.on("error", () => stop(() => reject(request.signal.aborted ? (request.signal.reason as Error) : new TransportError("the response failed mid-transfer", { stage: "transport" }))));
     };

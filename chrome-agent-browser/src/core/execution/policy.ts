@@ -36,7 +36,7 @@ import {
   TOOL_PERMISSION_DENIED,
   TOOLS_NOT_SUPPORTED,
 } from "./errors.js";
-import { activationBound, activationCosts, networkNodes, networkOf, roleSteps, routeCalls, worstCase } from "../network/analysis.js";
+import { activationBound, activationCosts, deniedRoles, networkNodes, networkOf, roleSteps, routeCalls, worstCase, type LinkCosts } from "../network/analysis.js";
 import { computeLimitsOf, effectiveBudget, effectiveDeadlineSeconds, type HostExecutionLimits } from "./limits.js";
 
 const ONCE = "once";
@@ -80,6 +80,8 @@ export interface CapabilityOptions {
   computeAvailable?: boolean;
   /** conversation.v0: the session runs one turn of a conversation, with the persisted state, a consent host and the chain (V-28 does not apply). */
   turn?: boolean;
+  /** link.v0: the run's link costs once its links are bound (`LinkHost.worstCases`), so that the recorded "at most" is the composed one (L-22). */
+  links?: LinkCosts | null;
 }
 
 /**
@@ -141,7 +143,7 @@ export function checkCapabilities(pkg: Package, limits: HostExecutionLimits, opt
     }
   }
   const compute = checkCompute(pkg, limits, options.computeAvailable === true);
-  const network = checkNetwork(pkg, limits);
+  const network = checkNetwork(pkg, limits, options.links ?? null);
   return {
     tools_declared: declaredTools.length,
     tool_nodes: toolNodes.length,
@@ -161,18 +163,20 @@ export function checkCapabilities(pkg: Package, limits: HostExecutionLimits, opt
  * first activation; the runtime reserves it again when the node starts (R-17). A package without a
  * network returns null and its run record is unchanged.
  */
-export function checkNetwork(pkg: Package, limits: HostExecutionLimits): JsonObject | null {
+export function checkNetwork(pkg: Package, limits: HostExecutionLimits, links: LinkCosts | null = null): JsonObject | null {
   const graph = pkg.graph;
   const network = networkOf(graph);
   if (network === null) return null;
   const node = networkNodes(graph)[0]!;
-  const bound = worstCase(graph, pkg.policy, { budget: effectiveBudget(pkg, limits).effective as JsonObject, nodeTimeout: Math.min(node.timeout_seconds as number, effectiveDeadlineSeconds(pkg, limits)) });
+  // link.v0 (D-692 (c)): with the run's links bound, the composed bound, a denied link's role at activation bound 0.
+  const bound = worstCase(graph, pkg.policy, { budget: effectiveBudget(pkg, limits).effective as JsonObject, nodeTimeout: Math.min(node.timeout_seconds as number, effectiveDeadlineSeconds(pkg, limits)), links });
+  const denied = deniedRoles(network, links);
   const workers = new Map((graph.workers as JsonObject[]).map((worker) => [String(worker.id), worker]));
   const roleBudgets: JsonObject = {};
   for (const roleId of Object.keys(network.roles as JsonObject)) {
     const budget = workers.get(roleId)!.budget as JsonObject;
     // Each role's budget per activation (its worker's, enforced per instance) and its activation bound, so a run record can say what each role may spend (D-291).
-    roleBudgets[roleId] = { tokens: budget.tokens!, remote_calls: budget.remote_calls!, activation_bound: activationBound(network, roleId) };
+    roleBudgets[roleId] = { tokens: budget.tokens!, remote_calls: budget.remote_calls!, activation_bound: activationBound(network, roleId, denied) };
   }
   return { node: String(node.id), entry: String(network.entry), roles: Object.keys(network.roles as JsonObject), role_budgets: roleBudgets, worst_case: bound };
 }
