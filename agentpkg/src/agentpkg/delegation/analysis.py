@@ -136,6 +136,8 @@ def activation_costs(graph, role_id: str, links=None) -> dict:
         "seconds": role["timeout_seconds"],
     }
     if links is False:
+        # The role's own program still makes a slot's request-building call (link.v0 L-21).
+        costs["model_calls"] += sum(1 for s in steps if s["type"] == "link" and "slot" in s)
         return costs
     for step in steps:
         cost = link_cost(step, links) if step["type"] == "link" else None

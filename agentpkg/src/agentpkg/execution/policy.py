@@ -416,8 +416,9 @@ def check_network(package, limits: HostExecutionLimits, link_costs=None) -> dict
             role_id: {
                 "tokens": workers[role_id]["budget"]["tokens"],
                 "remote_calls": workers[role_id]["budget"]["remote_calls"],
-                # A role that holds a denied link is never activated (L-16).
-                "activation_bound": 0 if role_id in denied else activation_bound(network, role_id),
+                # A role that holds a denied link is never activated (L-16), and its own edges
+                # count for no other role's bound: the figures of `worst_case.activations`.
+                "activation_bound": activation_bound(network, role_id, denied),
             }
             for role_id in network["roles"]
         },
@@ -699,6 +700,9 @@ def _consumption_counts(package) -> dict[str, int]:
         from ..delegation.analysis import activation_bound, activation_costs
 
         for role_id in network["roles"]:
+            # Counted as if no link were denied: this check runs on the caller's grants before
+            # its links are bound, and a bound that is too high only refuses a `once` grant
+            # that a run without the denied role would have consumed once.
             activations = activation_bound(network, role_id)
             # The role's own program: a link's inner run consumes its own package's grants
             # (link.v0 L-28 counts those on its card).

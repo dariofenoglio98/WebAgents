@@ -39,10 +39,13 @@
         "flight_pick",
         "hotels",
         "hotel_pick",
-        "calendar"
+        "calendar",
+        "hotel_name",
+        "named_hotel"
       ],
       "state_write": [
-        "trip"
+        "trip",
+        "hotel_name"
       ]
     },
     {
@@ -99,6 +102,28 @@
       "state_write": [
         "calendar"
       ]
+    },
+    {
+      "id": "FindHotel",
+      "kind": "packaged",
+      "skills": [
+        "find-hotel"
+      ],
+      "tools": [
+        "web.search"
+      ],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 4000,
+        "remote_calls": 3
+      },
+      "state_read": [
+        "trip",
+        "hotel_name"
+      ],
+      "state_write": [
+        "named_hotel"
+      ]
     }
   ],
   "input_schema": "schemas/request.schema.json",
@@ -114,10 +139,10 @@
       }
     }
   },
-  "deadline_seconds": 2800,
+  "deadline_seconds": 3600,
   "network": {
     "entry": "FrontMan",
-    "max_hops": 6,
+    "max_hops": 8,
     "state_schema": "schemas/network-state.schema.json",
     "initial": {
       "literal": {
@@ -126,10 +151,12 @@
         "flight_pick": null,
         "hotels": [],
         "hotel_pick": null,
-        "calendar": []
+        "calendar": [],
+        "hotel_name": null,
+        "named_hotel": null
       }
     },
-    "message_schema": "schemas/request.schema.json",
+    "message_schema": "schemas/message.schema.json",
     "result": {
       "object": {
         "plan": {
@@ -159,6 +186,14 @@
         "calendar": {
           "from": "state",
           "path": "/calendar"
+        },
+        "hotel_name": {
+          "from": "state",
+          "path": "/hotel_name"
+        },
+        "named_hotel": {
+          "from": "state",
+          "path": "/named_hotel"
         }
       }
     },
@@ -204,6 +239,14 @@
                 "calendar": {
                   "from": "state",
                   "path": "/calendar"
+                },
+                "hotel_name": {
+                  "from": "state",
+                  "path": "/hotel_name"
+                },
+                "named_hotel": {
+                  "from": "state",
+                  "path": "/named_hotel"
                 }
               }
             },
@@ -215,6 +258,10 @@
           "/trip": {
             "from": "steps",
             "path": "/understand/trip"
+          },
+          "/hotel_name": {
+            "from": "steps",
+            "path": "/understand/hotel_name"
           }
         },
         "route": {
@@ -249,6 +296,14 @@
               "calendar": {
                 "from": "state",
                 "path": "/calendar"
+              },
+              "hotel_name": {
+                "from": "steps",
+                "path": "/understand/hotel_name"
+              },
+              "named_hotel": {
+                "from": "state",
+                "path": "/named_hotel"
               }
             }
           }
@@ -261,6 +316,10 @@
           },
           {
             "to": "Hotels",
+            "max_uses": 1
+          },
+          {
+            "to": "FindHotel",
             "max_uses": 1
           },
           {
@@ -458,6 +517,110 @@
           }
         ],
         "may_end": false
+      },
+      "FindHotel": {
+        "description": "For a hotel the traveller named that the aggregator does not list: searches for the hotel's own page and may ask the agent that page offers, after the person agrees (fictional data).",
+        "steps": [
+          {
+            "id": "find",
+            "type": "tool",
+            "tool": "web.search",
+            "input": {
+              "object": {
+                "query": {
+                  "coalesce": [
+                    {
+                      "from": "state",
+                      "path": "/hotel_name"
+                    },
+                    {
+                      "literal": ""
+                    }
+                  ]
+                }
+              }
+            },
+            "output_schema": "schemas/search-results.schema.json",
+            "timeout_seconds": 20
+          },
+          {
+            "id": "ask",
+            "type": "link",
+            "slot": "named-hotel",
+            "locate": {
+              "coalesce": [
+                {
+                  "from": "input",
+                  "path": "/hotel_url"
+                },
+                {
+                  "from": "steps",
+                  "path": "/find/results/0/url"
+                }
+              ]
+            },
+            "input": {
+              "object": {
+                "check_in": {
+                  "from": "state",
+                  "path": "/trip/date_out"
+                },
+                "check_out": {
+                  "from": "state",
+                  "path": "/trip/date_back"
+                },
+                "travellers": {
+                  "from": "state",
+                  "path": "/trip/travellers"
+                }
+              }
+            },
+            "request": {
+              "task": "request",
+              "max_output_tokens": 1500
+            },
+            "reason": {
+              "literal": "The hotel you named is not among the aggregator's; the page found for it offers its own agent."
+            },
+            "max_joins": 1,
+            "budget": {
+              "model_calls": 1,
+              "tool_calls": 1,
+              "compute_calls": 0,
+              "remote_calls": 3,
+              "tokens": 6000
+            },
+            "output_schema": "schemas/join-outcome.schema.json",
+            "timeout_seconds": 300
+          }
+        ],
+        "writes": {
+          "/named_hotel": {
+            "from": "steps",
+            "path": "/ask"
+          }
+        },
+        "route": {
+          "next": "FrontMan",
+          "message": {
+            "object": {
+              "text": {
+                "literal": "Results are in the shared state."
+              },
+              "notes": {
+                "literal": ""
+              }
+            }
+          }
+        },
+        "timeout_seconds": 340,
+        "edges": [
+          {
+            "to": "FrontMan",
+            "max_uses": 1
+          }
+        ],
+        "may_end": false
       }
     }
   },
@@ -487,11 +650,19 @@
       "worker": "Coordinator",
       "depends_on": [],
       "input": {
-        "from": "state",
-        "path": "/request"
+        "object": {
+          "text": {
+            "from": "state",
+            "path": "/request/text"
+          },
+          "notes": {
+            "from": "state",
+            "path": "/request/notes"
+          }
+        }
       },
       "output_schema": "schemas/result.schema.json",
-      "timeout_seconds": 2700,
+      "timeout_seconds": 3500,
       "writes": {
         "/result": {
           "from": "result",

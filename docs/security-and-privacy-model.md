@@ -1,4 +1,4 @@
-# The Agent-Native Web: security and privacy model, version 3
+# The Agent-Native Web: security and privacy model, version 4
 
 **Status.** Version 2, approved at gate 2 (2026-11-02) and corrected after review 1 (2026-11-02;
 §8). Normative for the Python reference (`agentpkg` 0.7.1) and the Chrome core (0.5.0) at `main`
@@ -10,6 +10,8 @@ primary statement are kept in [threat-model.md](threat-model.md); every claim th
 property of §3. **Version 3** (2026-11-15, T65) turns §6.1's
 commitments for planned links (LK-1…LK-5) into implemented statements for the Python reference
 (`agentpkg` 0.8.0), with pointers and cases, and extends P-4, P-5, P-7, P-9 and P-17 by one sentence each; the Chrome core's pointers are T66's.
+**Version 4** (2026-11-16, T65) does the same for LK-6…LK-8, a link made during a run, its caps
+and the budget-raise request, on the hosts of the reference that hand a run a person to ask.
 
 ## 0. How to read this document
 
@@ -1284,8 +1286,11 @@ states them as rules (L-1…L-45), and the protocol's experiment EL cites them. 
 planned link, are implemented in the Python reference** (`agentpkg` 0.8.0, T65): each carries its
 pointers and its cases of the family `link/*` (the reference's cases; the cross-runtime report takes
 them with the Chrome core's port, T66). **LK-6…LK-8, a link made during a run, its caps and the
-raise, are specified** (the specification's §6 and §7) **and planned**: the reference validates a
-slot's declaration and runs none, so they claim nothing about today's runs.
+raise, are implemented in the Python reference too** (the specification's §6 and §7), on the
+hosts that hand a run a person to ask: the developer CLI with a recorded person, and a driver
+that plays one. The execution session hands a run no consent surface (the frozen plugin over it
+cannot show a card), so a slot there yields `unattended` and no raise is asked: LK-7's first
+sentence is all that path exercises.
 
 - **LK-1 A link is pinned and verified before the run.** A package names another publisher's
   package as a dependency by package id, version, digest and HTTPS locator; the browser fetches it
@@ -1304,8 +1309,9 @@ slot's declaration and runs none, so they claim nothing about today's runs.
   before the run, in one review that lists every linked publisher, and may deny one: a denied link
   is unbound, as a denied optional tool is, and a role whose only step is a denied link leaves the
   route enum. A denial lasts for the run: a publisher the person denied, at the review or on a join
-  card (LK-6), is not offered again in that run, and a join whose candidate that key signed is
-  refused without a card and recorded. *Bounds:* a caller vouching for a linked publisher (a link
+  card (LK-6), is not offered again in that run, a join whose candidate that key signed is
+  refused without a card and recorded, and a planned link that key signed starts no inner run
+  after the denial. *Bounds:* a caller vouching for a linked publisher (a link
   grants nothing: P-2, P-18); a denied publisher asked for again through a join. *Residual:* consent
   fatigue (DF-8's budget; remembered decisions, DF-6, later). *Python reference:* a binding per dependency
   with the person's decision and a denial of the publisher's key,
@@ -1313,7 +1319,7 @@ slot's declaration and runs none, so they claim nothing about today's runs.
   the refusal of an undecided one, `agentpkg/src/agentpkg/links/operator.py:operator_links`; a
   denied link's role out of every route, `agentpkg/src/agentpkg/delegation/analysis.py:denied_roles`
   and `agentpkg/src/agentpkg/delegation/runner.py:run_network`. In the control plane: the review, the denial and the caller's plan, `agentpkg/src/agentpkg/browser/links.py:review` (`plan_links`, `staleness`), with a receipt and an inner Run Plan per linked package through the ordinary `ControlPlane.authorize` and `ControlPlane.prepare_run_plan` of `agentpkg/src/agentpkg/browser/control.py`. *Conformance:* `link/undecided`,
-  `link/denied-link-node`, `link/denied-link-excluded` (link N-23, N-30, N-31). An inner plan that is not the caller's: `link/inner-plan-replay` (link N-34). An inner plan with no caller, handed over as a caller's plan, so that a link's card would run its package outside any composition: `link/inner-plan-alone` (link N-54), refused by `agentpkg/src/agentpkg/execution/session.py:ExecutionSession`, and by the control plane's lease, which hands a linked package's bytes out only beside its caller's (`agentpkg/src/agentpkg/browser/control.py:ControlPlane.issue_execution_lease`). *Experiment:* EL.
+  `link/denied-link-node`, `link/denied-link-excluded` (link N-23, N-30, N-31). A key declined on a join card stops the planned link it signed, `agentpkg/src/agentpkg/links/host.py:LinkHost.denied` read by `agentpkg/src/agentpkg/runtime.py:Runtime.call_link`: `link/declined-key-planned-link` (link N-57). An inner plan that is not the caller's: `link/inner-plan-replay` (link N-34). An inner plan with no caller, handed over as a caller's plan, so that a link's card would run its package outside any composition: `link/inner-plan-alone` (link N-54), refused by `agentpkg/src/agentpkg/execution/session.py:ExecutionSession`, and by the control plane's lease, which hands a linked package's bytes out only beside its caller's (`agentpkg/src/agentpkg/browser/control.py:ControlPlane.issue_execution_lease`). *Experiment:* EL.
 - **LK-3 A linked package gains no authority from its caller.** An inner run holds the intersection
   of the linked package's own declaration and the person's grants on its card; nothing of the
   caller's receipt, tools, resources, memory or state reaches it beyond the link's input instance,
@@ -1387,14 +1393,36 @@ slot's declaration and runs none, so they claim nothing about today's runs.
   was sent and chooses which page is looked at (P-18's: the fetch grants nothing). A tool whose validated result carries a
   URL may echo its own arguments into it (a search query), so text a model put in that tool's
   arguments can reach the host the slot looks at: no wider than the approved tool call, whose
-  host already received the arguments. *Implemented so far:* the declaration's checks,
-  `agentpkg/src/agentpkg/links/declarations.py:check_link_declarations` (`link/slot-in-map`,
-  `link/slot-at-top-level`, `link/locate-source`, `link/locate-message`, `link/slot-caps`; link
-  N-8…N-12); the reference runs no slot.
+  host already received the arguments. *Python reference:* the declaration's checks,
+  `agentpkg/src/agentpkg/links/declarations.py:check_link_declarations`; where a slot looks and
+  how, `agentpkg/src/agentpkg/links/join.py:locate_urls` and
+  `agentpkg/src/agentpkg/links/join.py:find_candidate` over `browser/discovery.py` and the
+  package fetch, unchanged; the refusals before any card,
+  `agentpkg/src/agentpkg/links/join.py:refusal_before_card`; the card's facts,
+  `agentpkg/src/agentpkg/links/join.py:card_facts`; the order, the held reservation, the
+  decision, the inner plan and the request-building call,
+  `agentpkg/src/agentpkg/runtime.py:Runtime.call_join` and
+  `agentpkg/src/agentpkg/runtime.py:Runtime._join_request`. A run's record is checked by
+  `scripts/verify_link_run.py`: a decision before every inner run of a joined package, the
+  candidate's worst case recomputed from its own declaration inside the ceiling, the inner plan
+  bound to this plan, run and slot. *Conformance:* `link/slot-in-map`, `link/slot-at-top-level`,
+  `link/locate-source`, `link/locate-message`, `link/slot-caps` (link N-8…N-12);
+  `link/join-declined`, `link/join-not-found`, `link/join-verification`, `link/join-nested`,
+  `link/join-denied-publisher`, `link/join-over-ceiling-tokens` and its five siblings,
+  `link/join-budget`, `link/join-request-nonconforming`, `link/join-inner-failed`,
+  `link/join-accepted` (link N-36, N-38…N-46); a slot whose `input` is not an object of named
+  fields, so that the card's view could not name what is sent, `link/slot-input` (link N-55); a
+  candidate no worst case is defined for, refused as data, `link/join-conversational` (link
+  N-56). *Experiment:* EL.
 - **LK-7 No person, no join; the caps.** An unattended run refuses every join and every raise and
   records the refusal; a slot's joins and a run's joins are capped, and the rest are refused without
   a card and summarised at the end; a signed policy may forbid joins (P-10, P-11, UC-3, UC-6).
   *Bounds:* fatigue as a channel; background joins. *Residual:* the caps are constants of the version.
+  *Python reference:* `agentpkg/src/agentpkg/runtime.py:Runtime.call_join` (no consent surface,
+  the host's policy and the caps are checked before anything is looked at) and the run record's
+  `joins` (`agentpkg/src/agentpkg/links/host.py:LinkHost`), which lists every refused join.
+  *Conformance:* `link/unattended-join`, `link/join-cap`, `link/raise-unattended` (link N-35,
+  N-37, N-49). *Experiment:* EL.
 - **LK-8 The person may raise their own limit, never the publisher's.** When a reservation fails on
   the person's run limit and a person is present, the runtime may ask once per run to raise that
   limit by a stated amount, with the usage so far, the reservation that failed and what it is for
@@ -1404,9 +1432,17 @@ slot's declaration and runs none, so they claim nothing about today's runs.
   names its inner plan, and the plan is not rewritten; a refusal, or no person, is the refusal of
   today (P-5, P-9). *Bounds:* A-MODEL or A-PKG raising a budget by asking again (one
   raise per run, bounded in size); a raise past the publisher's ceiling. *Residual:* the person's
-  decision.
+  decision. *Python reference:* `agentpkg/src/agentpkg/runtime.py:Runtime._ask_raise` (asked for
+  a model call's token reservation and a planned link's reservation; the new limit is what the
+  reservation needs, by at most half of the plan's limit and never above the package's cap);
+  `scripts/verify_link_run.py` checks a recorded raise against its run, its plan and both
+  bounds. *Conformance:* `link/raise-accepted`, `link/raise-denied`, `link/raise-unattended`,
+  `link/package-cap-never-raised`, `link/second-raise-refused` (link N-47…N-51). *Experiment:* EL.
 
-**Evidence.** The reference's cases for the planned link are `link/*` N-1…N-34 and N-52…N-54
+**Evidence.** The reference's cases for a link made during a run and for the raise are `link/*`
+N-35…N-51 and N-55…N-57 (`agentpkg/tests/test_link_cases.py`, with the properties behind them in
+`agentpkg/tests/test_link_join.py`), and the planner 0.2.0's fixture walk joins the named hotel's
+package through its card (`agentpkg/tests/test_link_packages.py`). The reference's cases for the planned link are `link/*` N-1…N-34 and N-52…N-54
 (`examples/link/cases/cases.json`; `agentpkg/tests/test_link_cases.py`, and
 `agentpkg/tests/test_link_execution.py` for the two cases of the execution host), and the planner's fixture
 walk through both links attains the composed model and tool calls
@@ -1532,6 +1568,19 @@ consent and (planned) request, and can revoke what was remembered (P-4, P-12, P-
   caller's run (LK-2's pointers, `link/inner-plan-alone`); the settlement counts a linked
   package's compute calls in the caller's usage and a link's reservation meets the caller's
   approval threshold (LK-4's and P-9's cases, `link/linked-compute`, `link/approval-threshold`).
+- **Version 4 (2026-11-16, T65 part 2; D-693, D-694, D-696).** §6.1's commitments for a link
+  made during a run (LK-6), its caps (LK-7) and the budget-raise request (LK-8) became
+  implemented statements for the Python reference, each with its pointers and its cases
+  (`link/*` N-35…N-51), on the hosts that hand a run a person to ask; the execution session
+  hands none and its slots yield `unattended`. No statement changed and no id changed: the
+  reference does what version 3 specified, with three points made exact in the specification
+  (a declined card denies the key for the run; the reservation is held from before the card;
+  the raise's amount is what the reservation needs). The Chrome core's pointers are T66's.
+  After the review of the run-time half (same version, before its merge): LK-2 says what a
+  denial on a card does to a planned link the same key signed (it starts no inner run
+  afterwards, `link/declined-key-planned-link`); a slot's view is an object of named fields, so
+  the card names all that is sent (`link/slot-input`); a candidate's bytes are never a failure
+  of the caller's step (`link/join-conversational`).
 - **Version 1** is [threat-model.md](threat-model.md): the per-boundary notes written with each
   milestone from the format to Agent Delegation. They are kept as the implementation notes of this
   model: each section states the properties it implements, and nothing a specification cites was

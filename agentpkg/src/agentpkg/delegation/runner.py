@@ -13,7 +13,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 from ..errors import AgentPkgError, ValidationError
-from ..runtime import BudgetError, PolicyError, digest
+from ..runtime import BudgetError, PolicyError, digest, forget_time, note_time
 from ..validation import validate_instance
 from ..workflow_values import evaluate, tokens
 from .analysis import DONE, denied_roles, route_data, worst_case
@@ -180,13 +180,19 @@ def _activation(workflow, node_id, network, role_id, role, message, walk, patche
     async def work(ctx, view):
         ctx.node_id = f"{node_id}/{role_id}"
         local = {"state": view, "message": copy.deepcopy(message), "steps": {}}
-        async with asyncio.timeout(role["timeout_seconds"]):
-            for step in role["steps"]:
-                await asyncio.sleep(0)
-                local["steps"][step["id"]] = await workflow._step(step, local, ctx)
-            patch = {tokens(p)[0]: evaluate(v, local) for p, v in role["writes"].items()}
-            patched(role_id, patch)
-            decision = await _route(workflow, node_id, network, role_id, role, local, walk, ctx)
+        # What a wait for the person inside this activation may read (its route's model call
+        # may ask the budget-raise card, which ends before the role's time does).
+        noted = note_time(role["timeout_seconds"])
+        try:
+            async with asyncio.timeout(role["timeout_seconds"]):
+                for step in role["steps"]:
+                    await asyncio.sleep(0)
+                    local["steps"][step["id"]] = await workflow._step(step, local, ctx)
+                patch = {tokens(p)[0]: evaluate(v, local) for p, v in role["writes"].items()}
+                patched(role_id, patch)
+                decision = await _route(workflow, node_id, network, role_id, role, local, walk, ctx)
+        finally:
+            forget_time(noted)
         return {"patch": patch, "decision": decision}
 
     return work

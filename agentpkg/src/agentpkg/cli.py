@@ -264,6 +264,19 @@ def parser():
         ),
     )
     run.add_argument(
+        "--join-fixture",
+        metavar="JSON",
+        help=(
+            "The cards of the run answered from a recording (link.v0 sections 6 and 7): the "
+            "person's decisions on a slot's join cards and on the budget-raise card, and "
+            "optionally the recorded pages and package archives a slot looks at, replayed "
+            "through the discovery and package-URL policies. A fixture run looks at nothing "
+            "else (with no recorded page it finds none); only a live run without a recorded "
+            "web looks at the real one. Without the option nobody is there to "
+            "ask: every join is refused `unattended` and no raise is asked"
+        ),
+    )
+    run.add_argument(
         "--selected-files", help="Host JSON map of selected file IDs to local PDF paths"
     )
     run.add_argument(
@@ -646,19 +659,64 @@ def _dispatch(args):
 
                 return None, create_handlers(linked)
 
+            trusted = {fingerprint(_read_key(path)) for path in trust_keys}
+            joins = None
+            if args.limits:
+                options["limits"] = _json_file(args.limits)
+            if args.join_fixture:
+                # link.v0 §6, §7: the person's cards answered from a recording, and what a
+                # slot may look at: the recorded web, or, in live mode only, the real one under
+                # the same policies.
+                from .links.host import plan_hash
+                from .links.join import JoinHost, RecordedWeb, load_join_fixture
+                from .links.operator import operator_plan
+
+                web, consent = load_join_fixture(
+                    _json_file(args.join_fixture), Path(args.join_fixture).resolve().parent
+                )
+                if web is None and mode == "fixture":
+                    # Fixture mode touches no network (L-29): a fixture that records no web
+                    # is a web with nothing in it, so a slot that looks finds nothing.
+                    web = RecordedWeb({}, {})
+                if web is None:
+                    from .browser.discovery import discover_website
+                    from .links.fetch import fetch_dependency
+
+                    look = discover_website
+
+                    def fetch(url):
+                        return fetch_dependency({"id": "candidate", "locator": url})
+
+                else:
+                    look, fetch = web.look, web.fetch
+                joins = JoinHost(
+                    look=look,
+                    fetch=fetch,
+                    trust=lambda signer, linked: "trusted" if signer in trusted else "unknown",
+                    adapters=adapters,
+                )
+                caller_plan = operator_plan(
+                    package,
+                    grants=grants,
+                    approved_tools=approved,
+                    limits=options.get("limits"),
+                    decisions=decisions,
+                )
+                options["consent"] = consent
+                options["plan_hash"] = plan_hash(caller_plan)
             links = operator_links(
                 package,
                 archives=_pairs(args.link, "--link"),
                 decisions=decisions,
-                trusted={fingerprint(_read_key(path)) for path in trust_keys},
+                trusted=trusted,
                 require_trusted=mode == "live",
                 router=router,
                 adapters=adapters,
+                joins=joins,
+                caller_plan=caller_plan if args.join_fixture else None,
             )
             if links is not None:
                 options["links"] = links
-        if command == "run" and args.limits:
-            options["limits"] = _json_file(args.limits)
         if args.out:
             if (
                 Path(args.out).exists()

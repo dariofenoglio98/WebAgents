@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+from collections import Counter
 from dataclasses import dataclass, field
 
 from ..delegation.analysis import activation_bound, network_of
@@ -155,7 +156,7 @@ class LinkHost:
     inner runs made. A host builds it after resolution and the person's decisions; it refuses
     an undecided dependency (L-17) and a composition the caller's budget cannot hold (L-20)."""
 
-    def __init__(self, caller: Package, bindings: dict, *, consent=None):
+    def __init__(self, caller: Package, bindings: dict, *, joins=None, caller_plan=None):
         declared = [record["id"] for record in caller.manifest["dependencies"]]
         missing = [name for name in declared if name not in bindings]
         if missing:
@@ -181,7 +182,17 @@ class LinkHost:
             if binding.decision == ACCEPTED and binding.plan_hash is None:
                 binding.plan_hash = plan_hash(binding.plan)
         check_composition(caller, self.worst_cases)
-        self.consent = consent
+        # link.v0 §6: what lets this run's slots look and join (`links.join.JoinHost`), None
+        # where the host cannot; the cards shown per slot (L-39); every slot step's outcome;
+        # the bindings of the packages joined, by their inner plan's hash.
+        self.joins = joins
+        self.cards: Counter = Counter()
+        self.join_records: list[dict] = []
+        self.joined: dict[str, LinkBinding] = {}
+        # The plan the run was decided under, where the host states one a decision made
+        # during the run can name (L-36, L-44): an operator's plan and its hash.
+        self.caller_plan = caller_plan
+        self.caller_plan_hash = plan_hash(caller_plan) if caller_plan is not None else None
         self.runs: list[dict] = []
         self.reports: dict[str, dict] = {}
 
@@ -195,6 +206,12 @@ class LinkHost:
 
     def binding(self, dependency: str) -> LinkBinding:
         return self.bindings[dependency]
+
+    def denied(self, binding: LinkBinding) -> bool:
+        """Whether a link may start no inner run now (L-13, L-35): the person denied it at the
+        review, or has since declined a join card of the key that signed it. A denial is of
+        the publisher's key and lasts for the run."""
+        return binding.decision != ACCEPTED or binding.link.signer in self.denied_keys
 
     def reservation(self, binding: LinkBinding) -> dict:
         """L-24: the linked package's worst case under the effective limits, its own caps as the
@@ -215,12 +232,13 @@ class LinkHost:
             deadline_seconds=deadline_seconds,
         )
 
-    def finished(self, inner: InnerRun, *, name: str, node_id: str, status: str, error_code):
-        """Keep an inner run's record beside the caller's (L-30)."""
+    def finished(self, inner: InnerRun, *, key: str, name: str, node_id: str, status, error_code):
+        """Keep an inner run's record beside the caller's (L-30); `key` is `dependency` for a
+        planned link and `slot` for a join."""
         self.runs.append(
             {
                 "inner_run_id": inner.run_id,
-                "dependency": name,
+                key: name,
                 "node_id": node_id,
                 "status": status,
                 "error_code": error_code,
@@ -232,10 +250,36 @@ class LinkHost:
     def record(self) -> dict:
         """The run record's `links` (L-30): each link with its publisher, decision and inner
         plan, and the inner runs made."""
+        slots = any("slot" in step for _, step, _, _ in link_operations(self.caller.graph))
+        joins = []
+        for entry in self.join_records:
+            binding = self.joined.get(entry.get("inner_plan_hash"))
+            kept = binding.record() if binding is not None else {}
+            joins.append(
+                {
+                    **copy.deepcopy(entry),
+                    # An accepted join's package and inner plan, as a planned link's are kept.
+                    "package": (
+                        {k: v for k, v in kept.items() if k not in ("dependency", "decision")}
+                        if binding is not None
+                        else None
+                    ),
+                }
+            )
+        stated = {}
+        if self.caller_plan is not None:
+            stated = {
+                "caller_plan": copy.deepcopy(self.caller_plan),
+                "caller_plan_hash": self.caller_plan_hash,
+            }
         return {
             "schema": RUN_LINKS_SCHEMA,
             "links": [self.bindings[name].record() for name in sorted(self.bindings)],
             "runs": copy.deepcopy(self.runs),
+            # Present exactly when the caller's graph holds a slot: every slot step's outcome,
+            # in order, refused without a card or decided on one (L-30).
+            **({"joins": joins} if slots else {}),
+            **stated,
         }
 
 
