@@ -713,6 +713,7 @@ denial, the receipts and inner plans, staleness, a restart, the runs through the
 the join card accepted, declined, lost on the way, an origin that is not read, a policy that
 forbids joins), `test/extension/links-ui.test.ts` (the cards and the view in the page, the
 rendered tree against the audit), the conformance suite's `link/*` family and the planner's three
-walks on both runtimes, and `scripts/e2e-link.mjs`, which runs all of the above in headless
+walks on both runtimes (the whole suite: 289 of 289 cases and 4,047 of 4,047 checks at `e389fb0`,
+[`conformance/results/2026-11-17T15-05-12-352Z/`](../conformance/results/2026-11-17T15-05-12-352Z/report.md)), and `scripts/e2e-link.mjs`, which runs all of the above in headless
 Chrome from four local origins with `scripts/verify_chrome_link_e2e.py` recomputing its exports
 ([`chrome-link-e2e.json`](../examples/verification/chrome-link-e2e.json)).
