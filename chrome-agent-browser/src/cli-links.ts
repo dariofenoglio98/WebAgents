@@ -139,13 +139,13 @@ export async function cliLinks(
     if (Object.hasOwn(decisions, name)) throw new AgentPkgError(`--deny-link and --link-grants both name ${pyRepr(name)}`);
     decisions[name] = { decision: "denied" };
   }
-  const adapters: LinkAdapters = (linkedPackage) => {
+  const adapters: LinkAdapters = (linkedPackage, decision) => {
     if (options.mode === "fixture") {
       const fixture = fixtureAdapters(linkedPackage);
       return { router: fixture.router, handlers: fixture.handlers };
     }
     if (!options.liveAdapters) throw new AgentPkgError("this host binds no tools for a linked package");
-    return options.liveAdapters(linkedPackage);
+    return options.liveAdapters(linkedPackage, decision);
   };
   const trusted = new Set<string>();
   for (const path of parsed.list("--trust-key")) trusted.add(await fingerprint(publicKeyFromPem(readFileSync(path, "utf8"))));

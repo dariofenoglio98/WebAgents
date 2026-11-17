@@ -99,3 +99,15 @@ describe("fixture mode never dials (L-29)", () => {
     expect(linked.web?.requests.map((request) => request.kind)).toEqual(["discovery"]);
   });
 });
+
+describe("a linked package's tools, live (the Node CLI's adapters)", () => {
+  it("are bound from the Chrome host's registry, one handler per tool the card approved and none other", async () => {
+    const { linkedToolHandlers } = await import("../src/cli-run.js");
+    const flights = await loadPackageBytes(read("dist/webair-flights-0.1.0.agent.pkg"));
+    const grants = jsonFile("examples/link/webair-flights-grants.json") as Record<string, string>;
+    const tools = { definitions: [], transport: recording().transport };
+    const approved = await linkedToolHandlers(flights, { grants, approvedTools: ["search-flights"] }, tools, new Date());
+    expect(Object.keys(approved)).toEqual([String(flights.tools["search-flights"]!.binding)]);
+    expect(await linkedToolHandlers(flights, { grants, approvedTools: [] }, tools, new Date())).toEqual({});
+  });
+});

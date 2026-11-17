@@ -1635,7 +1635,7 @@ export class Runtime {
       // for a request no run would take.
       try {
         if (joins.adapters) {
-          const adapters = await joins.adapters(link.package);
+          const adapters = await joins.adapters(link.package, { grants: binding.grants, approvedTools: binding.approvedTools });
           binding.router = adapters.router;
           binding.handlers = { ...adapters.handlers };
         }

@@ -54,7 +54,7 @@ export interface JoinHost {
   look(url: string): Promise<Pick<DiscoveryResult, "candidates">>;
   download(url: string): Promise<Uint8Array>;
   trust: TrustOf;
-  adapters?: ((pkg: Package) => JoinAdapters | Promise<JoinAdapters>) | null;
+  adapters?: ((pkg: Package, decision: { grants: Readonly<Record<string, string>>; approvedTools: readonly string[] }) => JoinAdapters | Promise<JoinAdapters>) | null;
   policy?: "allow" | "forbid";
 }
 

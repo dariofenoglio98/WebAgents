@@ -76,8 +76,12 @@ export function splitToolApprovals(caller: Package, approvals: readonly string[]
   };
 }
 
-/** What an accepted linked package's inner runs are handed: its own fixture replay, or the host's handlers for its tools with null for the caller's route. */
-export type LinkAdapters = (pkg: Package) => Promise<{ router: ModelRouter | null; handlers: Record<string, ToolHandler> }> | { router: ModelRouter | null; handlers: Record<string, ToolHandler> };
+/**
+ * What an accepted linked package's inner runs are handed: its own fixture replay, or the host's
+ * handlers for the tools its card approved with null for the caller's route. `decision` is the card's
+ * (its grants and approved tools), so that a host binds no tool the person did not approve (D-022).
+ */
+export type LinkAdapters = (pkg: Package, decision: { grants: Readonly<Record<string, string>>; approvedTools: readonly string[] }) => Promise<{ router: ModelRouter | null; handlers: Record<string, ToolHandler> }> | { router: ModelRouter | null; handlers: Record<string, ToolHandler> };
 
 /**
  * Resolve the caller's dependencies and bind the operator's decisions. `archives`: supplied
@@ -118,7 +122,7 @@ export async function operatorLinks(
     const approved = [...new Set(decision.approved_tools ?? [])].sort(codepoint);
     const unknown = approved.filter((tool) => !Object.hasOwn(link.package.tools, tool)).sort(codepoint);
     if (unknown.length > 0) throw new AgentPkgError(`approved tool ${pyRepr(unknown[0]!)} is not declared by linked package ${pyRepr(name)}`);
-    const adapters = options.adapters ? await options.adapters(link.package) : { router: null, handlers: {} };
+    const adapters = options.adapters ? await options.adapters(link.package, { grants: decision.grants ?? {}, approvedTools: approved }) : { router: null, handlers: {} };
     checkModel(link, adapters.router ?? options.router ?? null);
     bindings.set(name, new LinkBinding(link, ACCEPTED, { grants: { ...(decision.grants ?? {}) } as Grants, approvedTools: approved, handlers: adapters.handlers, router: adapters.router, limits: decision.limits ?? null }));
   }
