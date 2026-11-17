@@ -26,7 +26,7 @@ import { planHash, type LinkHost } from "./core/links/host.js";
 import { loadJoinFixture, RecordedWeb, type JoinHost } from "./core/links/join.js";
 import { operatorLinks, operatorPlan, splitToolApprovals, type LinkAdapters, type OperatorDecision } from "./core/links/operator.js";
 import type { ModelRouter } from "./core/models/contract.js";
-import { TransportError } from "./core/models/transport.js";
+import { TransportError, type HttpTransport } from "./core/models/transport.js";
 import type { Package } from "./core/package.js";
 import { validatePackageUrl } from "./core/policy.js";
 import { pyRepr } from "./core/repr.js";
@@ -72,9 +72,8 @@ function transportCode(error: unknown, operation: "download" | "discovery"): str
 }
 
 /** A package's bytes at a URL under the package-URL policy, over the Node transport: no redirect, a byte cap, nothing sent but the request line. */
-export async function fetchPackageBytes(url: string): Promise<Uint8Array> {
+export async function fetchPackageBytes(url: string, transport: HttpTransport = nodeTransport({ allowLoopbackHttp: false })): Promise<Uint8Array> {
   validatePackageUrl(url);
-  const transport = nodeTransport({ allowLoopbackHttp: false });
   let response;
   try {
     response = await transport({ url, method: "GET", headers: { accept: "application/octet-stream" }, body: null, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), maxResponseBytes: MAX_ARCHIVE_BYTES });
@@ -88,11 +87,10 @@ export async function fetchPackageBytes(url: string): Promise<Uint8Array> {
 }
 
 /** Website discovery of one page over the Node transport (`browser/discovery.py`'s rules: one page, a byte cap, no script, no redirect followed). */
-export async function lookAtPage(url: string): Promise<DiscoveryResult> {
+export async function lookAtPage(url: string, transport: HttpTransport = nodeTransport({ allowLoopbackHttp: false })): Promise<DiscoveryResult> {
   const hash = url.indexOf("#");
   const document = hash >= 0 ? url.slice(0, hash) : url;
   validatePackageUrl(document, "Website");
-  const transport = nodeTransport({ allowLoopbackHttp: false });
   let response;
   try {
     response = await transport({ url: document, method: "GET", headers: { accept: "text/html, application/xhtml+xml" }, body: null, signal: AbortSignal.timeout(DEFAULT_LIMITS.timeoutSeconds * 1000), maxResponseBytes: DEFAULT_LIMITS.maxHtmlBytes });
@@ -127,8 +125,10 @@ export interface CliLinks {
 export async function cliLinks(
   pkg: Package,
   parsed: ParsedArguments,
-  options: { mode: "fixture" | "live"; grants: Record<string, string>; limits: JsonObject | null; router: ModelRouter | null; compute: ComputeEngine | null; liveAdapters?: LinkAdapters | null; checkOwnApprovals: (approved: string[]) => void; jsonFile: (path: string) => JsonValue },
+  options: { mode: "fixture" | "live"; grants: Record<string, string>; limits: JsonObject | null; router: ModelRouter | null; compute: ComputeEngine | null; liveAdapters?: LinkAdapters | null; checkOwnApprovals: (approved: string[]) => void; jsonFile: (path: string) => JsonValue; transport?: HttpTransport },
 ): Promise<CliLinks> {
+  // Every byte a link fetches or a slot looks at leaves through this transport (D-067); a test hands its own.
+  const transport = options.transport ?? nodeTransport({ allowLoopbackHttp: false });
   const { own, linked } = splitToolApprovals(pkg, [...new Set(parsed.list("--approve-tool"))]);
   options.checkOwnApprovals(own);
   const decisions: Record<string, OperatorDecision> = {};
@@ -166,8 +166,8 @@ export async function cliLinks(
     if (web === null && options.mode === "fixture") web = new RecordedWeb(new Map(), new Map());
     const recorded = web;
     joins = {
-      look: recorded !== null ? (url) => recorded.look(url) : lookAtPage,
-      download: recorded !== null ? (url) => recorded.download(url) : fetchPackageBytes,
+      look: recorded !== null ? (url) => recorded.look(url) : (url) => lookAtPage(url, transport),
+      download: recorded !== null ? (url) => recorded.download(url) : (url) => fetchPackageBytes(url, transport),
       trust,
       adapters,
     };
@@ -184,7 +184,7 @@ export async function cliLinks(
     adapters,
     fetch: async (record) => {
       try {
-        return await fetchPackageBytes(String(record.locator));
+        return await fetchPackageBytes(String(record.locator), transport);
       } catch (error) {
         if (error instanceof AgentPkgError) throw new LinkRefusal("link_fetch_failed", `dependency ${pyRepr(String(record.id))}: ${error.message}`);
         throw error;
