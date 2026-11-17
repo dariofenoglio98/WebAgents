@@ -9,9 +9,10 @@ nothing about today's code. The per-boundary implementation notes that this mode
 primary statement are kept in [threat-model.md](threat-model.md); every claim there now cites a
 property of §3. **Version 3** (2026-11-15, T65) turns §6.1's
 commitments for planned links (LK-1…LK-5) into implemented statements for the Python reference
-(`agentpkg` 0.8.0), with pointers and cases, and extends P-4, P-5, P-7, P-9 and P-17 by one sentence each; the Chrome core's pointers are T66's.
+(`agentpkg` 0.8.0), with pointers and cases, and extends P-4, P-5, P-7, P-9 and P-17 by one sentence each.
 **Version 4** (2026-11-16, T65) does the same for LK-6…LK-8, a link made during a run, its caps
 and the budget-raise request, on the hosts of the reference that hand a run a person to ask.
+Under the same version, T66 (2026-11-17) adds the Chrome core's pointers (core 0.7.0) to LK-1…LK-8: the port and the extension, whose execution host does hand a run a person to ask.
 
 ## 0. How to read this document
 
@@ -1278,14 +1279,14 @@ destination from the person's machine beyond a bundled list). *Evidence planned:
 family (an undeclared destination; an import; the cap; an unattended run; an amendment replay) and
 enforcement cases for the catalog.
 
-### 6.1 Agent Links (planned links implemented in the Python reference; the join and the raise planned; binds T66 and T67; D-680…D-682, D-690…D-699)
+### 6.1 Agent Links (implemented in the Python reference and in the Chrome core; binds T67; D-680…D-682, D-690…D-709)
 
 A package may name another publisher's package and ask it for help, as a page links to a page.
 The commitments below are the design of T64 (2026-11-15); [`spec/link-v0.md`](../spec/link-v0.md)
 states them as rules (L-1…L-45), and the protocol's experiment EL cites them. **LK-1…LK-5, the
 planned link, are implemented in the Python reference** (`agentpkg` 0.8.0, T65): each carries its
-pointers and its cases of the family `link/*` (the reference's cases; the cross-runtime report takes
-them with the Chrome core's port, T66). **LK-6…LK-8, a link made during a run, its caps and the
+pointers and its cases of the family `link/*`, which run on both runtimes since the Chrome core's
+port (core 0.7.0, T66). **LK-6…LK-8, a link made during a run, its caps and the
 raise, are implemented in the Python reference too** (the specification's §6 and §7), on the
 hosts that hand a run a person to ask: the developer CLI with a recorded person, and a driver
 that plays one. The execution session hands a run no consent surface (the frozen plugin over it
@@ -1299,7 +1300,7 @@ sentence is all that path exercises.
   bytes that were verified (P-1, P-5). *Bounds:* A-PKG or A-ORIG substituting the linked package; a
   caller naming a package it did not pin. *Residual:* P-1's and P-2's. *Python reference:*
   `agentpkg/src/agentpkg/links/resolve.py:resolve_links` (`verify_linked`, `check_record`), the
-  fetch through `agentpkg/src/agentpkg/browser/fetch.py:download_to_file`, unchanged. In the control plane each dependency is a package session of its own, `agentpkg/src/agentpkg/browser/links.py:resolve`; the execution host verifies each linked archive again, `agentpkg/src/agentpkg/execution/session.py:ExecutionSession._bind_links`. *Conformance:*
+  fetch through `agentpkg/src/agentpkg/browser/fetch.py:download_to_file`, unchanged. In the control plane each dependency is a package session of its own, `agentpkg/src/agentpkg/browser/links.py:resolve`; the execution host verifies each linked archive again, `agentpkg/src/agentpkg/execution/session.py:ExecutionSession._bind_links`. *Chrome core:* `chrome-agent-browser/src/core/links/resolve.ts:resolveLinks` (`verifyLinked`, `checkRecord`), the download over the host's transport, `chrome-agent-browser/src/core/links/web.ts:downloadPackage`. In the extension each dependency is a package session of its own under its caller, fetched under the package download's rules once its origin is granted, `chrome-agent-browser/src/extension/background/controller.ts:resolveLinks` (`openChild`); the execution session verifies each linked archive again, `chrome-agent-browser/src/core/execution/links.ts:bindLinks`. *Conformance:*
   `link/digest-mismatch`, `link/signer-mismatch`, `link/identity-mismatch`, `link/signature-absent`
   (link N-14…N-17). *Experiment:* EL.
 - **LK-2 One card per new publisher; a valid signature is not a trusted publisher across links.**
@@ -1318,7 +1319,7 @@ sentence is all that path exercises.
   `agentpkg/src/agentpkg/links/host.py:LinkHost`; the trust evaluation per linked publisher and
   the refusal of an undecided one, `agentpkg/src/agentpkg/links/operator.py:operator_links`; a
   denied link's role out of every route, `agentpkg/src/agentpkg/delegation/analysis.py:denied_roles`
-  and `agentpkg/src/agentpkg/delegation/runner.py:run_network`. In the control plane: the review, the denial and the caller's plan, `agentpkg/src/agentpkg/browser/links.py:review` (`plan_links`, `staleness`), with a receipt and an inner Run Plan per linked package through the ordinary `ControlPlane.authorize` and `ControlPlane.prepare_run_plan` of `agentpkg/src/agentpkg/browser/control.py`. *Conformance:* `link/undecided`,
+  and `agentpkg/src/agentpkg/delegation/runner.py:run_network`. In the control plane: the review, the denial and the caller's plan, `agentpkg/src/agentpkg/browser/links.py:review` (`plan_links`, `staleness`), with a receipt and an inner Run Plan per linked package through the ordinary `ControlPlane.authorize` and `ControlPlane.prepare_run_plan` of `agentpkg/src/agentpkg/browser/control.py`. *Chrome core:* `chrome-agent-browser/src/core/links/host.ts:LinkHost` (a binding per dependency, a denial of the key, `LinkHost.denied` read by `chrome-agent-browser/src/core/workflow/runtime.ts:callLink`), `chrome-agent-browser/src/core/links/operator.ts:operatorLinks`, a denied link's role out of every route, `chrome-agent-browser/src/core/network/analysis.ts:deniedRoles`. In the extension: the review, the denial of a key and the caller's plan over the inner plans, `chrome-agent-browser/src/extension/background/controller.ts:linksView` (`decideLink`, `authorizeLinks`, `planLinks`, `linkStaleness`), shown by `chrome-agent-browser/src/extension/ui/links.ts:linksCard` with a publisher's words quoted and attributed; an inner plan is never prepared alone (`chrome-agent-browser/src/extension/background/controller.ts:prepareRunPlan`) and never run as a run's own plan (`chrome-agent-browser/src/core/execution/runner.ts:ExecutionSession`). *Conformance:* `link/undecided`,
   `link/denied-link-node`, `link/denied-link-excluded` (link N-23, N-30, N-31). A key declined on a join card stops the planned link it signed, `agentpkg/src/agentpkg/links/host.py:LinkHost.denied` read by `agentpkg/src/agentpkg/runtime.py:Runtime.call_link`: `link/declined-key-planned-link` (link N-57). An inner plan that is not the caller's: `link/inner-plan-replay` (link N-34). An inner plan with no caller, handed over as a caller's plan, so that a link's card would run its package outside any composition: `link/inner-plan-alone` (link N-54), refused by `agentpkg/src/agentpkg/execution/session.py:ExecutionSession`, and by the control plane's lease, which hands a linked package's bytes out only beside its caller's (`agentpkg/src/agentpkg/browser/control.py:ControlPlane.issue_execution_lease`). *Experiment:* EL.
 - **LK-3 A linked package gains no authority from its caller.** An inner run holds the intersection
   of the linked package's own declaration and the person's grants on its card; nothing of the
@@ -1330,7 +1331,7 @@ sentence is all that path exercises.
   Data Flow's labels, DF-2 and DF-3, will carry the recipients). *Python reference:* an inner run is built from its binding
   alone, `agentpkg/src/agentpkg/links/host.py:InnerRun`; the input instance and the result,
   `agentpkg/src/agentpkg/runtime.py:Runtime.call_link`; `agentpkg/tests/test_link_runtime.py`.
-  *Conformance:* `link/grant-not-inherited`, `link/input-outside-view`, `link/input-schema`,
+  *Chrome core:* an inner run is built from its binding alone, `chrome-agent-browser/src/core/links/host.ts:LinkHost.start`, by the mediator `chrome-agent-browser/src/core/workflow/runtime.ts:callLink`, which validates the input and the result against the linked package's own schemas. On a Chrome host an inner run's tools are bound from the linked package's own registry and its own card's approvals, without the caller's files, records or memory, `chrome-agent-browser/src/core/links/tools.ts:linkedToolHandlers` (`linkedDefinitions`), handed to the session by `chrome-agent-browser/src/extension/execution/execute.ts:executeRun`. *Conformance:* `link/grant-not-inherited`, `link/input-outside-view`, `link/input-schema`,
   `link/result-schema` (link N-7, N-25…N-27). *Experiment:* EL.
 - **LK-4 The worst case is composed across links before consent.** A link step's cost is the linked
   package's own worst case, computed from its declaration (model calls, tool calls per tool, compute
@@ -1350,7 +1351,7 @@ sentence is all that path exercises.
   `agentpkg/src/agentpkg/delegation/analysis.py:link_cost`,
   `agentpkg/src/agentpkg/links/resolve.py:check_composition`, the reservation and the settlement in
   `agentpkg/src/agentpkg/runtime.py:Runtime.call_link`; a run's record is checked against the
-  bound recomputed from the declarations by `scripts/verify_link_run.py`. *Conformance:*
+  bound recomputed from the declarations by `scripts/verify_link_run.py`. *Chrome core:* `chrome-agent-browser/src/core/links/analysis.ts:packageWorstCase` and `chrome-agent-browser/src/core/network/analysis.ts:linkCost`, the refusal of a composition above the caller's budget, `chrome-agent-browser/src/core/links/resolve.ts:checkComposition`, the reservation and the settlement, `chrome-agent-browser/src/core/workflow/runtime.ts:callLink`; the plan states the composed envelope, `chrome-agent-browser/src/core/runplan.ts:buildRunPlan`, which the extension's review shows before consent, `chrome-agent-browser/src/extension/ui/links.ts:linksCard`. *Conformance:*
   `link/bound-exceeds-budget`, `link/reservation-refused`, `link/inner-over-budget`,
   `link/planned-walk`, `link/link-in-map`, and for a slot's ceiling
   `link/slot-bound-exceeds-budget` (link N-13, N-21, N-28, N-29, N-32, N-33); a linked package's
@@ -1368,7 +1369,7 @@ sentence is all that path exercises.
   under the same rule. *Bounds:* unbounded recursion across publishers, planned or found at run
   time. *Residual:* none at depth one. *Python reference:*
   `agentpkg/src/agentpkg/links/resolve.py:check_profile`, and for a dependency that names its own
-  caller `agentpkg/src/agentpkg/links/declarations.py:check_link_declarations`. *Conformance:*
+  caller `agentpkg/src/agentpkg/links/declarations.py:check_link_declarations`. *Chrome core:* `chrome-agent-browser/src/core/links/resolve.ts:checkProfile` (`nestedReason`), the declaration's checks in `chrome-agent-browser/src/core/links/declarations.ts`, and a join candidate's refusal, `chrome-agent-browser/src/core/links/join.ts:refusalBeforeCard`. *Conformance:*
   `link/cycle`, `link/target-conversational`, `link/nested`, `link/nested-slot` (link N-6,
   N-18…N-20). *Experiment:* EL.
 - **LK-6 A link made during a run is a request decided on facts the runtime computed.** A declared
@@ -1405,7 +1406,7 @@ sentence is all that path exercises.
   `agentpkg/src/agentpkg/runtime.py:Runtime._join_request`. A run's record is checked by
   `scripts/verify_link_run.py`: a decision before every inner run of a joined package, the
   candidate's worst case recomputed from its own declaration inside the ceiling, the inner plan
-  bound to this plan, run and slot. *Conformance:* `link/slot-in-map`, `link/slot-at-top-level`,
+  bound to this plan, run and slot. *Chrome core:* `chrome-agent-browser/src/core/links/join.ts:findCandidate` (`locateUrls`, `refusalBeforeCard`, `cardFacts`) ordered by `chrome-agent-browser/src/core/workflow/runtime.ts:callJoin`; a slot's look and its candidate's download are one GET each with no body, cookie or referrer, `chrome-agent-browser/src/core/links/web.ts:lookAtPage`. In the extension the card is written into the stored run by the execution host (`chrome-agent-browser/src/extension/execution/execute.ts:runConsent`), shown by `chrome-agent-browser/src/extension/ui/links.ts:joinCard` with the publisher's and the agent's words quoted and attributed and declining the default, and answered through `chrome-agent-browser/src/extension/background/runs.ts:decideCard`, which admits only permissions and tools the card lists. *Conformance:* `link/slot-in-map`, `link/slot-at-top-level`,
   `link/locate-source`, `link/locate-message`, `link/slot-caps` (link N-8…N-12);
   `link/join-declined`, `link/join-not-found`, `link/join-verification`, `link/join-nested`,
   `link/join-denied-publisher`, `link/join-over-ceiling-tokens` and its five siblings,
@@ -1421,7 +1422,7 @@ sentence is all that path exercises.
   *Python reference:* `agentpkg/src/agentpkg/runtime.py:Runtime.call_join` (no consent surface,
   the host's policy and the caps are checked before anything is looked at) and the run record's
   `joins` (`agentpkg/src/agentpkg/links/host.py:LinkHost`), which lists every refused join.
-  *Conformance:* `link/unattended-join`, `link/join-cap`, `link/raise-unattended` (link N-35,
+  *Chrome core:* `chrome-agent-browser/src/core/workflow/runtime.ts:callJoin` (no consent surface, the caps `chrome-agent-browser/src/core/links/join.ts:MAX_RUN_CARDS`); a signed policy's `links.join: forbid`, `chrome-agent-browser/src/core/policies/bundle.ts:readPolicyBundle`, handed to a run by `chrome-agent-browser/src/extension/background/runs.ts:RunCardContext`. *Conformance:* `link/unattended-join`, `link/join-cap`, `link/raise-unattended` (link N-35,
   N-37, N-49). *Experiment:* EL.
 - **LK-8 The person may raise their own limit, never the publisher's.** When a reservation fails on
   the person's run limit and a person is present, the runtime may ask once per run to raise that
@@ -1436,7 +1437,7 @@ sentence is all that path exercises.
   a model call's token reservation and a planned link's reservation; the new limit is what the
   reservation needs, by at most half of the plan's limit and never above the package's cap);
   `scripts/verify_link_run.py` checks a recorded raise against its run, its plan and both
-  bounds. *Conformance:* `link/raise-accepted`, `link/raise-denied`, `link/raise-unattended`,
+  bounds. *Chrome core:* `chrome-agent-browser/src/core/workflow/runtime.ts:askRaise`; a surface that takes no raise card (a signed policy's `links.raise: forbid`) is never asked, `chrome-agent-browser/src/core/conversation/host.ts:RunConsentHost`; the card, `chrome-agent-browser/src/extension/ui/links.ts:raiseCard`. *Conformance:* `link/raise-accepted`, `link/raise-denied`, `link/raise-unattended`,
   `link/package-cap-never-raised`, `link/second-raise-refused` (link N-47…N-51). *Experiment:* EL.
 
 **Evidence.** The reference's cases for a link made during a run and for the raise are `link/*`
@@ -1581,6 +1582,15 @@ consent and (planned) request, and can revoke what was remembered (P-4, P-12, P-
   afterwards, `link/declined-key-planned-link`); a slot's view is an object of named fields, so
   the card names all that is sent (`link/slot-input`); a candidate's bytes are never a failure
   of the caller's step (`link/join-conversational`).
+- **Version 4, the Chrome core's pointers (2026-11-17, T66; D-700…D-709).** LK-1…LK-8 gained
+  their *Chrome core* pointers: the port of `links/` (core 0.7.0), and the extension, where a
+  linked package is a session of its own under its caller, the one review lists every linked
+  publisher with a denial per key, and the execution host hands a run a person to ask (the join
+  card and the budget-raise card, the delegation view drawn from the audit). No statement and
+  no id changed. Two points are the Chrome hosts' own and are stated where they apply: an inner
+  run's tools are bound from the linked package's own registry (LK-3), and a signed policy may
+  forbid joins or the raise (LK-7, LK-8; the policy bundle's `links` section). The `link/*`
+  family runs on both runtimes.
 - **Version 1** is [threat-model.md](threat-model.md): the per-boundary notes written with each
   milestone from the format to Agent Delegation. They are kept as the implementation notes of this
   model: each section states the properties it implements, and nothing a specification cites was
