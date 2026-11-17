@@ -213,7 +213,7 @@ def test_a_directory_short_of_its_unit_list_is_refused_or_its_shortfall_printed(
 ):
     import shutil
 
-    victim = sorted((directory / "runs").iterdir())[0]
+    victim = min((directory / "runs").iterdir())
     shutil.rmtree(victim)
     with pytest.raises(SystemExit, match="1 of 42 units have no outcome"):
         analyze.tables([directory], resamples=50)
@@ -302,7 +302,7 @@ def test_the_archive_leaves_out_each_runs_memory_key(directory):
 
     import pack
 
-    run = sorted((directory / "runs").iterdir())[0]
+    run = min((directory / "runs").iterdir())
     (run / "memory").mkdir()
     (run / "memory" / "memory.key").write_bytes(b"k" * 32)
     (run / "memory" / "kept.md").write_text("x")

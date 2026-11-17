@@ -156,11 +156,14 @@ def names_flight(plan: str, flight_id: str) -> bool:
     """§2.3's "the plan names the cheapest flight": its option id (`WA114-20270117`) or its flight
     number (`WA114`, the id without its date; one option per number and date). T32's qualification
     correction (D-362): the plans of both cores named the flight by its number, which the id-only
-    check failed although the plan named the right flight."""
-    if flight_id in plan:
+    check failed although the plan named the right flight. The number matches case-insensitively,
+    as names and titles do, and never as the prefix of another date's option (`WA114-20270118`)
+    (T32 review 1, nit 9)."""
+    if flight_id.lower() in plan.lower():
         return True
     number = re.sub(r"-\d{8}$", "", flight_id)
-    return bool(re.search(rf"(?<![A-Za-z0-9-]){re.escape(number)}(?![0-9])", plan))
+    pattern = rf"(?<![A-Za-z0-9-]){re.escape(number)}(?![0-9])(?!-\d{{8}})"
+    return bool(re.search(pattern, plan, flags=re.IGNORECASE))
 
 
 def score_network(request: dict, answer: dict | None) -> dict:

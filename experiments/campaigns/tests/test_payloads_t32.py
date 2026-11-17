@@ -151,6 +151,10 @@ def test_a_plan_naming_the_cheapest_flight_by_its_number_names_it():
     assert not score.names_flight("Cheapest flight: WA1140 at $708.", "WA114-20270117")
     assert not score.names_flight("Cheapest flight: WA115 at $708.", "WA114-20270117")
     assert not score.names_flight("flight XWA114 ", "WA114-20270117")
+    # Review 1, nit 9: another date's option is not the flight; case as names and titles.
+    assert not score.names_flight("Take WA114-20270118.", "WA114-20270117")
+    assert score.names_flight("Cheapest flight: wa114 at $708.", "WA114-20270117")
+    assert score.names_flight("Book wa114-20270117.", "WA114-20270117")
 
 
 def test_ts_n_names_and_titles_match_case_insensitively():
