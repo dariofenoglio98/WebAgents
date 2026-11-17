@@ -38,6 +38,10 @@ def stay(client, payload):
     return client.post(f"{HOTEL_PREFIX}/availability", json=payload)
 
 
+def _domains(path):
+    return json.loads(path.read_text(encoding="utf-8"))["domains"]
+
+
 def _json(package, path):
     return json.loads((AGENTS / package / path).read_text(encoding="utf-8"))
 
@@ -109,7 +113,12 @@ def test_each_package_tool_names_its_publishers_service(package, tool_id, host, 
     assert tool["endpoint"] == f"https://{host}{path}"
     assert tool["domains"] == [host] and tool["side_effects"] == "read"
     policy = _json(package, "policy/policy.json")
-    assert policy["network"]["allowed_domains"] == [host]
+    # A package reaches exactly the hosts its tools name: the planner 0.2.0 also its own search
+    # service (`web.search`, D-696), the others only the service above.
+    domains = sorted(
+        {d for path in (AGENTS / package / "tools").glob("*.tool.json") for d in _domains(path)}
+    )
+    assert host in domains and sorted(policy["network"]["allowed_domains"]) == domains
 
 
 @pytest.mark.parametrize("package,tool_id,host,path", TOOLS)

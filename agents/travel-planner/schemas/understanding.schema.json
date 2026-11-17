@@ -39,11 +39,19 @@
     "summary": {
       "type": "string",
       "maxLength": 1000
+    },
+    "hotel_name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 120
     }
   },
   "required": [
     "trip",
-    "summary"
+    "summary",
+    "hotel_name"
   ],
   "additionalProperties": false
 }

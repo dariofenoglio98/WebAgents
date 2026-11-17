@@ -18,11 +18,13 @@ runtime's own route data, and their tool answers are the origin's own
     python examples/link/make_link_examples.py            # write the source trees
     python examples/link/make_link_examples.py --check    # compare with the committed trees
 
-The planner exists in two versions (D-683). 0.1.0, signed, is the tree under `agents/`. 0.2.0
-is 0.1.0 plus `FindHotel` (a `web.search` step, then a slot that may join the named hotel's
-package during the run); until it is signed its source is written beside this script, as
-`examples/link/travel-planner-0.2.0/`, with the join fixture `examples/link/join-fixture.json`
-(the hotel's recorded page, its archive, and the person's recorded decision on the card).
+The planner exists in two versions (D-683), both signed. 0.2.0 is the tree under `agents/`
+since the user's "go" of 2026-11-16: 0.1.0 plus `FindHotel` (a `web.search` step, then a slot
+that may join the named hotel's package during the run). 0.1.0's source is no longer a tree; it
+is `planner_010()`, which rebuilds `dist/travel-planner-0.1.0.agent.pkg`'s digest
+(`agentpkg/tests/test_link_shipped.py`). Beside this script: the join fixture
+`examples/link/join-fixture.json` (the hotel's recorded page, its archive, and the person's
+recorded decision on the card) and the 0.2.0's grants.
 
 A test asserts the committed sources are this script's output
 (`agentpkg/tests/test_link_packages.py`). All data is fictional; nothing is booked.
@@ -1656,34 +1658,33 @@ def join_fixture() -> dict:
     }
 
 
-#: The planner 0.2.0's source and the join fixture, beside this script until 0.2.0 is signed
-#: (D-683: the 0.2.0 sources replace 0.1.0's under `agents/` only then).
-STAGED = "travel-planner-0.2.0"
+def planner_010() -> dict:
+    """The planner 0.1.0's members: `dist/travel-planner-0.1.0.agent.pkg`'s source, no longer a
+    tree under `agents/` since 0.2.0 replaced it there (D-683)."""
+    return planner_members(flights_members(), hotels_members())
 
 
 def staged() -> dict:
-    """What this script writes under `examples/link/`: the planner 0.2.0's source tree, the
-    join fixture and the planner 0.2.0's grants."""
-    flights, hotels, hotel = flights_members(), hotels_members(), salitubam_members()
-    planner = planner_020_members(planner_members(flights, hotels), hotel)
+    """What this script writes under `examples/link/`: the join fixture and the planner
+    0.2.0's grants."""
+    planner = sources()["travel-planner"]
     grants = {
         permission["id"]: "session" for permission in planner["policy/policy.json"]["permissions"]
     }
     return {
-        STAGED: planner,
         "join-fixture.json": join_fixture(),
-        f"{STAGED}-grants.json": grants,
+        "travel-planner-0.2.0-grants.json": grants,
     }
 
 
 def sources() -> dict:
-    """Every source tree by its directory under `agents/`."""
-    flights, hotels = flights_members(), hotels_members()
+    """Every source tree by its directory under `agents/`: the planner is 0.2.0 (D-683)."""
+    flights, hotels, hotel = flights_members(), hotels_members(), salitubam_members()
     return {
         "webair-flights": flights,
         "staymere-hotels": hotels,
-        "hotel-salitubam": salitubam_members(),
-        "travel-planner": planner_members(flights, hotels),
+        "hotel-salitubam": hotel,
+        "travel-planner": planner_020_members(planner_members(flights, hotels), hotel),
     }
 
 
@@ -1696,7 +1697,6 @@ def main(argv: list[str]) -> int:
     differing = []
     trees = {ROOT / "agents" / name: members for name, members in sources().items()}
     extra = staged()
-    trees[HERE / STAGED] = extra.pop(STAGED)
     for target, members in trees.items():
         if not check:
             base.write_tree(target, members)

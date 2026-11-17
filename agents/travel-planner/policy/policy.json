@@ -27,11 +27,21 @@
       "resources": [
         "webagents-webair-production.up.railway.app"
       ]
+    },
+    {
+      "id": "network.search",
+      "kind": "network",
+      "description": "Search the web for a hotel's own page through the planner's search service.",
+      "required": true,
+      "resources": [
+        "webagents-tripwright-production.up.railway.app"
+      ]
     }
   ],
   "network": {
     "allowed_domains": [
-      "webagents-webair-production.up.railway.app"
+      "webagents-webair-production.up.railway.app",
+      "webagents-tripwright-production.up.railway.app"
     ],
     "https_only": true,
     "allow_redirects": false
@@ -45,10 +55,11 @@
   },
   "budget": {
     "estimated_tokens": 4000,
-    "hard_tokens": 96000,
-    "max_remote_calls": 24,
+    "hard_tokens": 128000,
+    "max_remote_calls": 36,
     "max_calls_per_tool": {
-      "check-calendar": 1
+      "check-calendar": 1,
+      "web.search": 1
     },
     "max_parallel_workers": 2,
     "estimated_cost_usd": null,
@@ -60,7 +71,8 @@
       "FrontMan",
       "Flights",
       "Hotels",
-      "Calendar"
+      "Calendar",
+      "FindHotel"
     ],
     "allow_remote": false
   },

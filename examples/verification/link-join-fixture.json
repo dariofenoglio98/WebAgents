@@ -1,8 +1,9 @@
 {
- "what": "The travel planner 0.2.0's fixture walk with a link made during the run: FindHotel searches, the slot looks at the page found, the named hotel's package is fetched, verified and joined through its card (T65 part 2 acceptance; spec/link-v0.md sections 6 and 11), then the same walk with nobody there to ask; both records verified by scripts/verify_link_run.py. The planner 0.2.0 is run from its unsigned source (examples/link/travel-planner-0.2.0/) until its go/no-go.",
+ "what": "The travel planner 0.2.0's fixture walk with a link made during the run: FindHotel searches, the slot looks at the page found, the named hotel's package is fetched, verified and joined through its card (T65 part 2 acceptance; spec/link-v0.md sections 6 and 11), then the same walk with nobody there to ask; both records verified by scripts/verify_link_run.py. The planner 0.2.0 is the signed archive dist/travel-planner-0.2.0.agent.pkg (signed 2026-11-16 at the user's go, D-683).",
  "date": "2026-11-16",
  "agentpkg_version": "0.8.0",
  "archives": {
+  "dist/travel-planner-0.2.0.agent.pkg": "73265f3ed2ba5b6ffb1fc5ee39b9ff5280810e9e5db8e2a245bf4547ab117c27",
   "dist/webair-flights-0.1.0.agent.pkg": "4cc62fbbb02e6f01f59212de6880fdfc139355332a2c013004fc82230124502a",
   "dist/staymere-hotels-0.1.0.agent.pkg": "d80a3052d7c1cda24b0695a77951d8edc663063e2a2c012e52fdcb72ed175b53",
   "dist/hotel-salitubam-0.1.0.agent.pkg": "d695af9328367432e9e25cb04ccea69f45205f9cc4524731d6bc63b16d34dbc7"
@@ -11,7 +12,7 @@
   "command": [
    "agentpkg",
    "run",
-   "examples/link/travel-planner-0.2.0",
+   "dist/travel-planner-0.2.0.agent.pkg",
    "--mode",
    "fixture",
    "--grants",
@@ -35,14 +36,14 @@
    "--join-fixture",
    "examples/link/join-fixture.json",
    "--out",
-   "examples/my-planner-join"
+   "examples/my-planner-020-join"
   ],
   "verify_command": [
    "python",
    "scripts/verify_link_run.py",
-   "examples/my-planner-join",
+   "examples/my-planner-020-join",
    "--package",
-   "examples/link/travel-planner-0.2.0"
+   "dist/travel-planner-0.2.0.agent.pkg"
   ],
   "run": {
    "status": "completed",
@@ -105,37 +106,36 @@
     "action": "link.started",
     "node_id": "plan-trip/Flights/search",
     "dependency": "webair-flights",
-    "inner_run_id": "d928d209-8b2e-4600-8575-09ee6172bb9e",
-    "inner_plan_hash": "9dc2b469220d74f420a0adfa0558ba80a34ce73170d6f3e4bda2255b5cd30762",
+    "inner_run_id": "3c4b84d8-8f26-47e4-97a4-bb87f84969b5",
+    "inner_plan_hash": "2d6345769708a1dff1acc3e4413b9830d186433ed3ff979cc2bd6cf8b4b0f32c",
     "sequence": 36
    },
    {
     "action": "link.completed",
     "node_id": "plan-trip/Flights/search",
     "dependency": "webair-flights",
-    "inner_run_id": "d928d209-8b2e-4600-8575-09ee6172bb9e",
+    "inner_run_id": "3c4b84d8-8f26-47e4-97a4-bb87f84969b5",
     "sequence": 37
    },
    {
     "action": "link.started",
     "node_id": "plan-trip/Hotels/search",
     "dependency": "hotel-aggregator",
-    "inner_run_id": "abedf375-974d-4fd5-a8fd-c6cf85f96956",
-    "inner_plan_hash": "c7be0de184a74d56385fe9cd2deb775a2f2ecb353c19311d58dba3e25aef0344",
+    "inner_run_id": "181e1233-a8bb-4611-8605-71078cf931de",
+    "inner_plan_hash": "4185b9bcfb0d88a4834a9b250b47096fe63ba9e144b548629bb5cd2c29860991",
     "sequence": 73
    },
    {
     "action": "link.completed",
     "node_id": "plan-trip/Hotels/search",
     "dependency": "hotel-aggregator",
-    "inner_run_id": "abedf375-974d-4fd5-a8fd-c6cf85f96956",
+    "inner_run_id": "181e1233-a8bb-4611-8605-71078cf931de",
     "sequence": 74
    },
    {
     "action": "link.requested",
     "node_id": "plan-trip/FindHotel/ask",
     "slot": "named-hotel",
-    "sequence": 118,
     "fetches": [
      {
       "url": "https://webagents-hotel-salitubam-production.up.railway.app/",
@@ -153,7 +153,8 @@
      "version": "0.1.0",
      "digest": "bb69fb7acc020cd239d030895d0d7e9e7b7ad47d4ab7feba31ead038a836ce37",
      "signer": "sha256:8ee8ec08acf1e665b0d831acc42516efc83e6eceb099c9351df0ec7ecc5445ec"
-    }
+    },
+    "sequence": 118
    },
    {
     "action": "link.decided",
@@ -163,7 +164,7 @@
     "decided_by": "person",
     "reason": null,
     "provenance": "fixture",
-    "inner_plan_hash": "52bcb0e11cb3d5c7a73b8c6c8fb5e0e94632d764224e3e43a81ae24fd219371a",
+    "inner_plan_hash": "d29de0827f9cf6f10f8a85f9625f5817ea432a58230973710b1a0394bd7ba968",
     "sequence": 119,
     "worst_case": {
      "model_calls": 1,
@@ -180,51 +181,111 @@
     "action": "link.started",
     "node_id": "plan-trip/FindHotel/ask",
     "slot": "named-hotel",
-    "inner_run_id": "eb4cf5e3-3c1d-466d-b8ab-5e4c8744d159",
-    "inner_plan_hash": "52bcb0e11cb3d5c7a73b8c6c8fb5e0e94632d764224e3e43a81ae24fd219371a",
+    "inner_run_id": "360e61aa-9436-41d3-9026-510a13ba9653",
+    "inner_plan_hash": "d29de0827f9cf6f10f8a85f9625f5817ea432a58230973710b1a0394bd7ba968",
     "sequence": 127
    },
    {
     "action": "link.completed",
     "node_id": "plan-trip/FindHotel/ask",
     "slot": "named-hotel",
-    "inner_run_id": "eb4cf5e3-3c1d-466d-b8ab-5e4c8744d159",
+    "inner_run_id": "360e61aa-9436-41d3-9026-510a13ba9653",
     "sequence": 128
    }
   ],
   "join_record": [
    {
     "node_id": "plan-trip/FindHotel/ask",
-    "slot": "named-hotel",
     "joined": true,
+    "slot": "named-hotel",
     "accepted": true,
     "decided_by": "person",
     "reason": null,
     "provenance": "fixture",
-    "package": {
+    "candidate": {
      "package_id": "org.webagents.hotel-salitubam",
      "version": "0.1.0",
      "digest": "bb69fb7acc020cd239d030895d0d7e9e7b7ad47d4ab7feba31ead038a836ce37",
+     "signer": "sha256:8ee8ec08acf1e665b0d831acc42516efc83e6eceb099c9351df0ec7ecc5445ec"
+    },
+    "worst_case": {
+     "model_calls": 1,
+     "tool_calls": {
+      "check-availability": 1
+     },
+     "compute_calls": 0,
+     "remote_calls": 3,
+     "tokens": 6000,
+     "seconds": 280
+    },
+    "inner_plan_hash": "d29de0827f9cf6f10f8a85f9625f5817ea432a58230973710b1a0394bd7ba968",
+    "package": {
+     "package_id": "org.webagents.hotel-salitubam",
+     "name": "Hotel Salitubam",
+     "version": "0.1.0",
+     "digest": "bb69fb7acc020cd239d030895d0d7e9e7b7ad47d4ab7feba31ead038a836ce37",
+     "archive_sha256": "d695af9328367432e9e25cb04ccea69f45205f9cc4524731d6bc63b16d34dbc7",
      "signer": "sha256:8ee8ec08acf1e665b0d831acc42516efc83e6eceb099c9351df0ec7ecc5445ec",
      "trust": "unknown",
-     "plan_hash": "52bcb0e11cb3d5c7a73b8c6c8fb5e0e94632d764224e3e43a81ae24fd219371a"
-    },
-    "parent": {
-     "plan_hash": "1977e3cd93ca44f7eb43a0332bfa3c322d6fff6c5109e52f429b984dfa069662",
-     "run_id": "bc827ad5-100d-4ab0-90f7-7628e3bbd798",
-     "slot": "named-hotel"
+     "worst_case": {
+      "model_calls": 1,
+      "tool_calls": {
+       "check-availability": 1
+      },
+      "compute_calls": 0,
+      "remote_calls": 3,
+      "tokens": 6000,
+      "seconds": 280
+     },
+     "plan": {
+      "schema": "agentpkg-link-plan-v0",
+      "parent": {
+       "plan_hash": "1e376786c5aa36022aaeb495c0312b5b671c015f92d9a7ef243ccd89de229d22",
+       "run_id": "6ddcb0f6-512f-47b9-8a3c-be962e385a9a",
+       "slot": "named-hotel"
+      },
+      "package": {
+       "package_id": "org.webagents.hotel-salitubam",
+       "version": "0.1.0",
+       "digest": "bb69fb7acc020cd239d030895d0d7e9e7b7ad47d4ab7feba31ead038a836ce37",
+       "archive_sha256": "d695af9328367432e9e25cb04ccea69f45205f9cc4524731d6bc63b16d34dbc7"
+      },
+      "publisher": {
+       "signer_fingerprint": "sha256:8ee8ec08acf1e665b0d831acc42516efc83e6eceb099c9351df0ec7ecc5445ec",
+       "trust_status": "unknown"
+      },
+      "decisions": {
+       "memory.session": "session",
+       "model.reasoning": "session",
+       "network.salitubam": "session"
+      },
+      "tool_approvals": [
+       "check-availability"
+      ],
+      "worst_case": {
+       "model_calls": 1,
+       "tool_calls": {
+        "check-availability": 1
+       },
+       "compute_calls": 0,
+       "remote_calls": 3,
+       "tokens": 6000,
+       "seconds": 280
+      }
+     },
+     "plan_hash": "d29de0827f9cf6f10f8a85f9625f5817ea432a58230973710b1a0394bd7ba968"
     }
    }
   ],
-  "caller_plan_hash": "1977e3cd93ca44f7eb43a0332bfa3c322d6fff6c5109e52f429b984dfa069662",
+  "caller_plan_hash": "1e376786c5aa36022aaeb495c0312b5b671c015f92d9a7ef243ccd89de229d22",
   "plan": "Boston to Reykjavik, 9 to 14 March 2027: WebAir WA205 nonstop at 20:30 ($287); Hotel Salitubam, standard double SAL-STD-20270309-5N for five nights ($910), from the hotel's own agent; one movable meeting on 11 March. Nothing is booked.",
   "verification": {
    "schema": "webagents-verify-link-run-v0",
-   "run": "examples/my-planner-join",
+   "run": "examples/my-planner-020-join",
    "status": "completed",
    "package": {
     "package_id": "org.webagents.travel-planner",
-    "digest": "34b7e01c74811a65c6a7452280a883216b8316363d7800bbfdef085b5e06ba11"
+    "digest": "bfd3ea19b28e26c7d953a2a8dc23091fa7864cd1de35eef6a2b7191c22a89011"
    },
    "links": [
     {
@@ -267,11 +328,11 @@
     },
     "max_hops": 8,
     "activations": {
-     "FrontMan": 5,
-     "Flights": 1,
-     "Hotels": 1,
      "Calendar": 1,
-     "FindHotel": 1
+     "FindHotel": 1,
+     "Flights": 1,
+     "FrontMan": 5,
+     "Hotels": 1
     }
    },
    "observed": {
@@ -301,17 +362,17 @@
     "tokens": 11.351
    },
    "inner_dispatches": {
-    "d928d209-8b2e-4600-8575-09ee6172bb9e": {
+    "3c4b84d8-8f26-47e4-97a4-bb87f84969b5": {
      "dependency": "webair-flights",
      "model_requests": 1,
      "tool_arguments": 1
     },
-    "abedf375-974d-4fd5-a8fd-c6cf85f96956": {
+    "181e1233-a8bb-4611-8605-71078cf931de": {
      "dependency": "hotel-aggregator",
      "model_requests": 1,
      "tool_arguments": 1
     },
-    "eb4cf5e3-3c1d-466d-b8ab-5e4c8744d159": {
+    "360e61aa-9436-41d3-9026-510a13ba9653": {
      "dependency": "named-hotel",
      "model_requests": 1,
      "tool_arguments": 1
@@ -325,7 +386,7 @@
   "command": [
    "agentpkg",
    "run",
-   "examples/link/travel-planner-0.2.0",
+   "dist/travel-planner-0.2.0.agent.pkg",
    "--mode",
    "fixture",
    "--grants",
@@ -347,20 +408,50 @@
    "--approve-tool",
    "web.search",
    "--out",
-   "examples/my-planner-unattended"
+   "examples/my-planner-020-unattended"
   ],
   "verify_command": [
    "python",
    "scripts/verify_link_run.py",
-   "examples/my-planner-unattended",
+   "examples/my-planner-020-unattended",
    "--package",
-   "examples/link/travel-planner-0.2.0"
+   "dist/travel-planner-0.2.0.agent.pkg"
   ],
   "run": {
    "status": "completed",
    "passed": true
   },
   "link_events": [
+   {
+    "action": "link.started",
+    "node_id": "plan-trip/Flights/search",
+    "dependency": "webair-flights",
+    "inner_run_id": "a128564b-4c41-4b32-aeaa-2b9e602a956f",
+    "inner_plan_hash": "2d6345769708a1dff1acc3e4413b9830d186433ed3ff979cc2bd6cf8b4b0f32c",
+    "sequence": 36
+   },
+   {
+    "action": "link.completed",
+    "node_id": "plan-trip/Flights/search",
+    "dependency": "webair-flights",
+    "inner_run_id": "a128564b-4c41-4b32-aeaa-2b9e602a956f",
+    "sequence": 37
+   },
+   {
+    "action": "link.started",
+    "node_id": "plan-trip/Hotels/search",
+    "dependency": "hotel-aggregator",
+    "inner_run_id": "7645c109-2b91-418d-9c9b-aa0400e86f18",
+    "inner_plan_hash": "4185b9bcfb0d88a4834a9b250b47096fe63ba9e144b548629bb5cd2c29860991",
+    "sequence": 73
+   },
+   {
+    "action": "link.completed",
+    "node_id": "plan-trip/Hotels/search",
+    "dependency": "hotel-aggregator",
+    "inner_run_id": "7645c109-2b91-418d-9c9b-aa0400e86f18",
+    "sequence": 74
+   },
    {
     "action": "link.decided",
     "node_id": "plan-trip/FindHotel/ask",
@@ -377,11 +468,11 @@
   "plan": "Boston to Reykjavik, 9 to 14 March 2027: WebAir WA205 nonstop at 20:30 ($287); Hotel Salitubam could not be asked, and the aggregator does not list it: Harbour Guesthouse for five nights ($850) is the cheapest it lists; one movable meeting on 11 March. Nothing is booked.",
   "verification": {
    "schema": "webagents-verify-link-run-v0",
-   "run": "examples/my-planner-unattended",
+   "run": "examples/my-planner-020-unattended",
    "status": "completed",
    "package": {
     "package_id": "org.webagents.travel-planner",
-    "digest": "34b7e01c74811a65c6a7452280a883216b8316363d7800bbfdef085b5e06ba11"
+    "digest": "bfd3ea19b28e26c7d953a2a8dc23091fa7864cd1de35eef6a2b7191c22a89011"
    },
    "links": [
     {
@@ -424,11 +515,11 @@
     },
     "max_hops": 8,
     "activations": {
-     "FrontMan": 5,
-     "Flights": 1,
-     "Hotels": 1,
      "Calendar": 1,
-     "FindHotel": 1
+     "FindHotel": 1,
+     "Flights": 1,
+     "FrontMan": 5,
+     "Hotels": 1
     }
    },
    "observed": {
@@ -457,12 +548,12 @@
     "tokens": 12.966
    },
    "inner_dispatches": {
-    "042b70a0-870e-4a93-90d3-d4c96c8c3eab": {
+    "a128564b-4c41-4b32-aeaa-2b9e602a956f": {
      "dependency": "webair-flights",
      "model_requests": 1,
      "tool_arguments": 1
     },
-    "b33caab7-6769-42d3-9832-0b081ab4be9e": {
+    "7645c109-2b91-418d-9c9b-aa0400e86f18": {
      "dependency": "hotel-aggregator",
      "model_requests": 1,
      "tool_arguments": 1

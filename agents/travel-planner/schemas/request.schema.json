@@ -10,11 +10,20 @@
     "notes": {
       "type": "string",
       "maxLength": 2000
+    },
+    "hotel_url": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uri",
+      "maxLength": 2048
     }
   },
   "required": [
     "text",
-    "notes"
+    "notes",
+    "hotel_url"
   ],
   "additionalProperties": false
 }

@@ -28,8 +28,17 @@ SHIPPED = {
 LINKS = {"webair-flights": "webair-flights", "hotel-aggregator": "staymere-hotels"}
 
 
-def archive(stem):
-    return DIST / f"{stem}-0.1.0.agent.pkg"
+def archive(stem, version="0.1.0"):
+    return DIST / f"{stem}-{version}.agent.pkg"
+
+
+def generator():
+    spec = importlib.util.spec_from_file_location(
+        "make_link_examples", LINK / "make_link_examples.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def key(stem):
@@ -39,7 +48,13 @@ def key(stem):
 @pytest.mark.parametrize("stem", sorted(SHIPPED))
 def test_a_shipped_archive_is_its_source_signed_by_its_publisher(stem, tmp_path):
     shipped = load_package(archive(stem))
-    rebuilt = load_package(build_package(ROOT / "agents" / stem, tmp_path / f"{stem}.agent.pkg"))
+    source = ROOT / "agents" / stem
+    if stem == "travel-planner":
+        # 0.2.0 replaced 0.1.0's tree under `agents/` (D-683); the generator still writes 0.1.0.
+        made = generator()
+        source = tmp_path / "travel-planner-0.1.0"
+        made.base.write_tree(source, made.planner_010())
+    rebuilt = load_package(build_package(source, tmp_path / f"{stem}.agent.pkg"))
     assert shipped.digest == rebuilt.digest
     verified = verify_package(archive(stem), trusted_key=key(stem))
     assert verified["valid"] and verified["key_fingerprint"] == fingerprint(_read_key(key(stem)))
@@ -173,3 +188,56 @@ def test_the_signed_index_1_7_0_names_the_four_archives():
         assert entry["package_url"].startswith("https://")
     current = json.loads((examples / "agent-index.json").read_text(encoding="utf-8"))
     assert current["content"]["version"] == "1.6.0"
+
+
+# -- the planner 0.2.0, signed at the user's "go" of 2026-11-16 (D-683) ----------------------------
+
+
+def test_the_planner_020_is_its_source_signed_by_the_planners_key(tmp_path):
+    shipped = load_package(archive("travel-planner", "0.2.0"))
+    rebuilt = load_package(
+        build_package(ROOT / "agents" / "travel-planner", tmp_path / "p.agent.pkg")
+    )
+    assert shipped.digest == rebuilt.digest
+    assert shipped.manifest["version"] == "0.2.0"
+    assert shipped.manifest["runtime"]["minimum_version"] == "0.8.0"
+    verified = verify_package(archive("travel-planner", "0.2.0"), trusted_key=key("travel-planner"))
+    assert verified["valid"]
+    assert verified["key_fingerprint"] == fingerprint(_read_key(key("travel-planner")))
+    # The same two planned links as 0.1.0, by the same digests and keys.
+    first = load_package(archive("travel-planner"))
+    assert shipped.manifest["dependencies"] == first.manifest["dependencies"]
+
+
+def test_the_join_walk_runs_on_the_shipped_planner_020_and_verifies(tmp_path, capsys):
+    out = tmp_path / "planner-join"
+    argv = ["run", str(archive("travel-planner", "0.2.0")), "--mode", "fixture"]
+    argv += ["--grants", str(LINK / "travel-planner-0.2.0-grants.json")]
+    for dependency, stem in LINKS.items():
+        argv += ["--link", f"{dependency}={archive(stem)}"]
+        argv += ["--link-grants", f"{dependency}={LINK / f'{stem}-grants.json'}"]
+    for tool in (
+        "check-calendar",
+        "webair-flights:search-flights",
+        "hotel-aggregator:search-hotels",
+        "web.search",
+    ):
+        argv += ["--approve-tool", tool]
+    argv += ["--join-fixture", str(LINK / "join-fixture.json")]
+    for stem in ("travel-planner", "webair-flights", "staymere-hotels"):
+        argv += ["--trust-key", str(key(stem))]
+    assert main(argv + ["--out", str(out)]) == 0, capsys.readouterr().err
+    capsys.readouterr()
+    spec = importlib.util.spec_from_file_location(
+        "verify_link_run", ROOT / "scripts" / "verify_link_run.py"
+    )
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+    result = verifier.verify(out)
+    assert result["passed"], [c for c in result["checks"] if not c.get("passed", True)]
+    assert result["observed"]["model_calls"] == result["at_most"]["model_calls"] == 14
+    assert (result["at_most"]["remote_calls"], result["at_most"]["tokens"]) == (33, 122000)
+    joins = json.loads((out / "links.json").read_text())["joins"]
+    assert [(j["joined"], j["package"]["package_id"]) for j in joins] == [
+        (True, "org.webagents.hotel-salitubam")
+    ]

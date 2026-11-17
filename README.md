@@ -437,12 +437,12 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   person's model, from its own grants, and holds nothing of the package that asked; its worst
   case is composed into the caller's, so "at most" is stated across publishers before the run.
   The example is a travel planner that asks WebAir Flights and a hotel aggregator
-  ([`agents/travel-planner/`](agents/travel-planner/README.md)). The Python reference runs
+  (`dist/travel-planner-0.1.0.agent.pkg`). The Python reference runs
   planned links and a link found during a run: a declared slot that the runtime may bind to a
   package it discovers on a page the person or an approved search named, only after the person
   agrees on a card of computed facts and inside a ceiling stated before the run
-  ([`examples/link/travel-planner-0.2.0/`](examples/link/travel-planner-0.2.0/README.md)). The
-  Chrome port is next.
+  (the planner 0.2.0, [`agents/travel-planner/`](agents/travel-planner/README.md), signed as
+  `dist/travel-planner-0.2.0.agent.pkg`; 0.1.0 stays in `dist/`). The Chrome port is next.
 - **Bounded delegation** ([`spec/network-v0.md`](spec/network-v0.md), agentpkg 0.7.0): a package
   may declare a network of roles with the edges a role may hand off along, each with a use cap, a
   hop cap and a per-role budget; at a role's route the model chooses the next role among the

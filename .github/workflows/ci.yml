@@ -173,9 +173,11 @@ jobs:
             --trust-key examples/keys/webair-publisher.pub.pem > "$RUNNER_TEMP/verify-webair-080.json"
           "$agentpkg" verify dist/travel-network-0.1.0.agent.pkg \
             --trust-key examples/keys/travel-network-publisher.pub.pem > "$RUNNER_TEMP/verify-travel-network.json"
-          # T65: the four Agent Links packages, each under its own publisher's key.
+          # T65: the Agent Links packages (the planner in two versions), each under its own publisher's key.
           "$agentpkg" verify dist/travel-planner-0.1.0.agent.pkg \
             --trust-key examples/keys/travel-planner-publisher.pub.pem > "$RUNNER_TEMP/verify-travel-planner.json"
+          "$agentpkg" verify dist/travel-planner-0.2.0.agent.pkg \
+            --trust-key examples/keys/travel-planner-publisher.pub.pem > "$RUNNER_TEMP/verify-travel-planner-020.json"
           "$agentpkg" verify dist/webair-flights-0.1.0.agent.pkg \
             --trust-key examples/keys/webair-publisher.pub.pem > "$RUNNER_TEMP/verify-webair-flights.json"
           "$agentpkg" verify dist/staymere-hotels-0.1.0.agent.pkg \
@@ -215,6 +217,8 @@ jobs:
               "verify-travel-network.json": ("org.webagents.travel-network", "0.1.0",
                   "sha256:27c903afe0b78ae7e27736bfbddafd6f8b6a58b3c26f0bce9507f70aeff762ef"),
               "verify-travel-planner.json": ("org.webagents.travel-planner", "0.1.0",
+                  "sha256:e41f5d09f76431b4f7055d8b211a60a8ee26eeb9384ea7c1b705f3daafa49f08"),
+              "verify-travel-planner-020.json": ("org.webagents.travel-planner", "0.2.0",
                   "sha256:e41f5d09f76431b4f7055d8b211a60a8ee26eeb9384ea7c1b705f3daafa49f08"),
               "verify-webair-flights.json": ("org.webagents.webair-flights", "0.1.0",
                   "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"),

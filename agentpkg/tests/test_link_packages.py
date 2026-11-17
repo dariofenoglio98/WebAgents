@@ -23,8 +23,9 @@ from agentpkg.workflow_values import references, tokens
 ROOT = Path(__file__).resolve().parents[2]
 AGENTS = ROOT / "agents"
 LINKED = {"webair-flights": "webair-flights", "hotel-aggregator": "staymere-hotels"}
-#: The planner 0.2.0's source and the join fixture, beside the generator until 0.2.0 is signed.
-STAGED = ROOT / "examples" / "link" / "travel-planner-0.2.0"
+#: The planner 0.2.0's source, under `agents/` since it was signed (D-683); 0.1.0's source is the
+#: generator's `planner_010()`.
+PLANNER = AGENTS / "travel-planner"
 JOIN_FIXTURE = ROOT / "examples" / "link" / "join-fixture.json"
 GRANTS = {"model.reasoning": "session", "memory.session": "session"}
 
@@ -82,10 +83,10 @@ def test_the_planner_pins_the_linked_sources_by_digest_and_key(tmp_path):
 
 
 def composition(tmp_path, keys, sources, generator, denied=()):
-    """The planner and its two linked packages from the generator's members, the linked ones
-    signed with test keys (the records' `signer` dropped: the real keys sign the shipped
+    """The planner 0.1.0 and its two linked packages from the generator's members, the linked
+    ones signed with test keys (the records' `signer` dropped: the real keys sign the shipped
     archives, which `test_link_shipped.py` checks)."""
-    planner = json.loads(json.dumps(sources["travel-planner"]))
+    planner = generator.planner_010()
     for record in planner["MANIFEST.agent"]["dependencies"]:
         record.pop("signer")
     generator.base.write_tree(tmp_path / "planner", planner)
@@ -155,7 +156,7 @@ def test_the_fixture_walk_is_the_full_tour_and_attains_the_envelope(
     assert report["output"]["flight_pick"]["id"] == "WA205-20270309"
     assert report["output"]["hotel_pick"]["id"] == "H-HAF"
     # What the README tells a person is the computed envelope.
-    readme = (AGENTS / "travel-planner" / "README.md").read_text(encoding="utf-8")
+    readme = generator.planner_010()["README.md"]
     assert f"at most {bound['model_calls']} model calls" in readme
     assert f"{bound['remote_calls']} remote calls and {bound['tokens']:,} tokens" in readme
     assert f"at most {bound['max_hops']} handoffs" in readme
@@ -236,12 +237,13 @@ def open_sources(package) -> list[str]:
     return found
 
 
-def test_every_link_input_of_the_planner_reads_closed_fields_only():
-    planner = load_package(AGENTS / "travel-planner")
+def test_every_link_input_of_the_planner_reads_closed_fields_only(tmp_path, generator):
+    generator.base.write_tree(tmp_path / "planner-0.1.0", generator.planner_010())
+    planner = load_package(tmp_path / "planner-0.1.0")
     assert len(list(link_operations(planner.graph))) == 2
     assert open_sources(planner) == []
     # 0.2.0: the two planned links and the slot's view (D-683's condition, both versions).
-    staged = load_package(STAGED)
+    staged = load_package(PLANNER)
     assert [step.get("slot") for _, step, _, _ in link_operations(staged.graph)] == [
         None,
         None,
@@ -255,7 +257,7 @@ def test_every_link_input_of_the_planner_reads_closed_fields_only():
     [("message", "/text"), ("message", "/notes"), ("state", "/flight_pick/reason")],
 )
 def test_the_closed_field_walk_fails_on_free_text(tmp_path, sources, generator, source, pointer):
-    planner = json.loads(json.dumps(sources["travel-planner"]))
+    planner = generator.planner_010()
     graph = planner["graph.json"]
     step = graph["network"]["roles"]["Hotels"]["steps"][0]
     step["input"]["object"]["city"] = {"from": source, "path": pointer}
@@ -295,29 +297,17 @@ def test_a_linked_package_runs_alone_and_states_its_worst_case(name):
     ).replace("  ", " ")
 
 
-# -- the planner 0.2.0: FindHotel, the search and the slot (unsigned until the go/no-go) ----------
+# -- the planner 0.2.0: FindHotel, the search and the slot (signed at the go of 2026-11-16) -------
 
 
-def test_the_staged_planner_and_the_join_fixture_are_the_generator_output(generator):
-    staged = generator.staged()
-    members = staged.pop(generator.STAGED)
-    committed = {
-        path.relative_to(STAGED).as_posix()
-        for path in STAGED.rglob("*")
-        if path.is_file() and path.name != ".DS_Store"
-    }
-    assert committed == set(members)
-    for member, value in members.items():
-        text = (STAGED / member).read_text(encoding="utf-8")
-        assert (text == value) if isinstance(value, str) else (json.loads(text) == value), member
-    for name, value in staged.items():
-        assert json.loads((STAGED.parent / name).read_text(encoding="utf-8")) == value, name
-    # 0.1.0 is untouched by the generator's second version: same sources, same digests pinned.
-    assert (
-        load_package(STAGED).manifest["dependencies"]
-        == (load_package(AGENTS / "travel-planner").manifest["dependencies"])
-    )
-    assert load_package(STAGED).manifest["version"] == "0.2.0"
+def test_the_join_fixture_and_the_grants_are_the_generator_output(generator):
+    link = ROOT / "examples" / "link"
+    for name, value in generator.staged().items():
+        assert json.loads((link / name).read_text(encoding="utf-8")) == value, name
+    # 0.2.0 links what 0.1.0 links: the same digests and keys pinned.
+    shipped = load_package(ROOT / "dist" / "travel-planner-0.1.0.agent.pkg")
+    assert load_package(PLANNER).manifest["dependencies"] == shipped.manifest["dependencies"]
+    assert load_package(PLANNER).manifest["version"] == "0.2.0"
 
 
 def staged_run(
@@ -331,7 +321,7 @@ def staged_run(
     tmp_path.mkdir(parents=True, exist_ok=True)
     out = tmp_path / "out"
     link = ROOT / "examples" / "link"
-    argv = ["run", str(STAGED), "--mode", "fixture"]
+    argv = ["run", str(PLANNER), "--mode", "fixture"]
     argv += ["--grants", str(link / "travel-planner-0.2.0-grants.json")]
     for dependency, name in LINKED.items():
         argv += ["--link", f"{dependency}={ROOT / 'dist' / (name + '-0.1.0.agent.pkg')}"]
@@ -399,14 +389,14 @@ def test_the_join_fixture_walk_joins_the_named_hotel_and_attains_the_envelope(tm
     # The envelope stated before consent holds the join at its ceiling, and the tour attains
     # its model calls: 10 of the planner, one of each of the three other publishers' packages,
     # and the request-building call.
-    planner = load_package(STAGED)
+    planner = load_package(PLANNER)
     usage = read(out, "usage.json")
     models = sum(1 for e in audit if e["action"] == "model.called") + sum(
         link["model_calls"] for link in usage["links"].values()
     )
     walk = [e["role"] for e in audit if e["action"] == "network.activated"]
     assert walk.count("FrontMan") == 5 and walk[5] == "FindHotel"
-    readme = (STAGED / "README.md").read_text(encoding="utf-8").replace("\n", " ")
+    readme = (PLANNER / "README.md").read_text(encoding="utf-8").replace("\n", " ")
     assert "at most 8 handoffs; FrontMan at most 5 times" in readme
     assert "at most 1 model call, 1 tool call, 3 remote calls and 6,000 tokens" in readme
     slot = next(step for _, step, _, _ in link_operations(planner.graph) if "slot" in step)
