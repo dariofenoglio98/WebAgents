@@ -179,3 +179,31 @@ describe("the join (link.v0 §6)", () => {
     expect(looked).toEqual([]);
   });
 });
+
+describe("the delegation view's model (D-704)", () => {
+  it("draws the planned walk from the audit: each activation, the link its role asked, what it held and spent", async () => {
+    const { delegationTree } = await import("../../../src/core/links/delegation.js");
+    const { report } = await walk("0.1.0");
+    const tree = delegationTree(report.audit);
+    expect(tree.linked).toBe(true);
+    expect(tree.activations.map((activation) => activation.role)).toEqual(events(report.audit, "network.activated").map((event) => event.role));
+    const asked = tree.activations.flatMap((activation) => activation.links.map((link) => [activation.role, link.name, link.state]));
+    expect(asked.sort()).toEqual([["Flights", "webair-flights", "answered"], ["Hotels", "hotel-aggregator", "answered"]]);
+    for (const link of tree.activations.flatMap((activation) => activation.links)) {
+      const started = events(report.audit, "link.started").find((event) => event.inner_run_id === link.inner_run_id)!;
+      expect(link.reserved).toEqual(started.reserved);
+      expect(link.usage).toEqual(events(report.audit, "link.completed").find((event) => event.inner_run_id === link.inner_run_id)!.usage);
+    }
+    expect(tree.activations.every((activation) => activation.state === "done")).toBe(true);
+  });
+
+  it("draws a join with its look and the person's decision, and a slot nobody could be asked about", async () => {
+    const { delegationTree } = await import("../../../src/core/links/delegation.js");
+    const joined = delegationTree((await walk("0.2.0", { joinFixture: true })).report.audit);
+    const join = joined.activations.flatMap((activation) => activation.links).find((link) => link.kind === "join")!;
+    expect(join).toMatchObject({ name: "named-hotel", state: "answered", decision: { accepted: true, decided_by: "person", provenance: "fixture" } });
+    expect(join.fetches).toHaveLength(2);
+    const unattended = delegationTree((await walk("0.2.0")).report.audit);
+    expect(unattended.activations.flatMap((activation) => activation.links).find((link) => link.kind === "join")).toMatchObject({ state: "not_joined", code: "unattended", fetches: null });
+  });
+});
