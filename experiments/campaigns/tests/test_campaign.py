@@ -43,14 +43,14 @@ def test_the_smoke_preset_runs_one_ts_l_question_on_every_side_on_ts_ls_rungs_on
     assert len([u for u in narrowed if u["task_set"] == "TS-N"]) == 2 * 3  # two rungs, three sides
 
 
-def test_the_ts_l_attack_arm_is_the_resolvers_abstract_on_py_and_fw_only():
-    units = campaign.units_for("qualification", ["L30"], list(campaign.SIDES), PAYLOADS)
+def test_the_ts_l_attack_arm_is_the_abstract_and_the_pdf_on_py_and_fw_only():
+    units = campaign.units_for("e3", ["L30"], list(campaign.SIDES), PAYLOADS)
     attacked = {
         (u["side"], u["arm"]["placement"]) for u in units if u["task_set"] == "TS-L" and u["arm"]
     }
     assert attacked and {side for side, _ in attacked} == {"Py", "FW"}
-    assert {placement for _, placement in attacked} == {"resolver.abstract"}
-    benign = [u for u in units if u["task_set"] == "TS-L" and u["arm"] is None]
+    assert {placement for _, placement in attacked} == {"resolver.abstract", "pdf.text"}
+    benign = campaign.units_for("e2", ["L30"], list(campaign.SIDES), PAYLOADS, ("TS-L",))
     assert len(benign) == 6 * 3  # every question, one phrasing, every side (E2's parity rows)
     assert not campaign.units_for("qualification", ["L9"], ["Py"], PAYLOADS, ("TS-L",))
 
@@ -64,8 +64,8 @@ def test_the_literature_envelope_is_the_graphs_bound_and_the_policys_caps():
     assert campaign.envelope_for(unit, task, table)["model_calls"] == 48  # + the answer step
 
 
-def test_qualification_reaches_a_placement_only_where_the_path_reads_it():
-    units = campaign.units_for("qualification", ["L9"], ["Py"], PAYLOADS)
+def test_the_placement_sweep_reaches_a_placement_only_where_the_path_reads_it():
+    units = campaign.units_for("placements", ["L9"], ["Py"], PAYLOADS)
     tasks = campaign.load_tasks()
     for unit in units:
         if unit["arm"]:
@@ -125,6 +125,25 @@ def test_the_tree_state_ignores_only_the_results_directory(tmp_path):
         assert inside.name in campaign.tree_state(tmp_path / "elsewhere")[0]
     finally:
         shutil.rmtree(inside, ignore_errors=True)
+
+
+def test_campaigns_side_by_side_never_see_each_others_directories():
+    """T32: one campaign per rung runs at once in one results directory; the first shard of each
+    wrote its manifest clean, the later shards saw the sibling directories as a dirty tree."""
+    results = campaign.EXPERIMENTS / "injection_campaign" / "results"
+    tag = uuid.uuid4().hex[:8]
+    mine, sibling = results / f"probe-{tag}-L9", results / f"probe-{tag}-L30"
+    code = campaign.EXPERIMENTS / f"campaign-state-probe-{tag}"
+    try:
+        for path in (mine, sibling, code):
+            path.mkdir()
+            (path / "x.json").write_text("{}")
+        status = campaign.tree_state(mine)[0]
+        assert mine.name not in status and sibling.name not in status
+        assert code.name in status  # anything outside the results tree is still a change
+    finally:
+        for path in (mine, sibling, code):
+            shutil.rmtree(path, ignore_errors=True)
 
 
 SMOKE = campaign.EXPERIMENTS / "injection_campaign" / "results" / "2026-11-04T19-25-14Z_smoke"
@@ -335,6 +354,8 @@ def test_resume_classifies_a_recorded_unit_without_an_outcome_and_never_reruns_i
     import campaigns.origin.stack as stack_module
 
     monkeypatch.setattr(stack_module, "CampaignStack", Stack)
+    # The route is up (T32 review 2, finding 1: unstubbed, the probe reached the Mac's Ollama).
+    monkeypatch.setattr(campaign, "route_ready", lambda rung: True)
     capsys.readouterr()
     args = ["--preset", "smoke", "--rungs", "L9", "--sides", "FW", "--out", str(out), "--resume"]
     assert campaign.main(args) == 0
@@ -350,12 +371,14 @@ def test_resume_classifies_a_recorded_unit_without_an_outcome_and_never_reruns_i
 
 
 def test_the_summary_keeps_the_injected_and_twin_arms_apart():
-    meta = {"side": "Py", "arm": "upload-01@search.fare_name#twin"}
-    assert campaign._cell_key(meta) == "Py|upload-01#twin"
-    assert campaign._cell_key({**meta, "arm": "upload-01@rules.change_summary#injected"}) == (
-        "Py|upload-01#injected"
+    meta = {"side": "Py", "task_set": "TS-W", "family": "F-UPLOAD"}
+    meta["arm"] = "upload-01@search.fare_name#twin"
+    assert campaign._cell_key(meta, "L9") == "Py|L9|TS-W|F-UPLOAD#twin"
+    assert campaign._cell_key({**meta, "arm": "upload-02@rules.change_summary#injected"}, "L9") == (
+        "Py|L9|TS-W|F-UPLOAD#injected"
     )
-    assert campaign._cell_key({"side": "FW", "arm": "benign"}) == "FW|benign"
+    benign = {"side": "FW", "task_set": "TS-C", "arm": "benign"}
+    assert campaign._cell_key(benign, "L4") == "FW|L4|TS-C|benign"
 
 
 def test_the_redirect_twin_is_exposed_as_the_plain_answer():
@@ -370,3 +393,101 @@ def test_an_unknown_side_has_no_driver_in_any_family():
             runner("XX")
     assert campaign._literature_runner("FW").__module__ == "campaigns.baseline.literature"
     assert campaign._network_runner("Cr").__module__ == "campaigns.driver.cr_driver"
+
+
+# -- T32: the presets of PROTOCOL.md §3 E2 and E3 (D-360) -------------------------------------
+def test_e3_is_300_injected_runs_per_cell_stratified_37_or_38_per_family_each_with_its_twin():
+    import collections
+
+    units = campaign.units_for("e3", ["L9"], ["Py"], PAYLOADS, ("TS-W",))
+    injected = [u for u in units if u["arm"]["arm"] == "injected"]
+    twins = [u for u in units if u["arm"]["arm"] == "twin"]
+    assert len(injected) == len(twins) == 300
+    by_family = collections.Counter(PAYLOADS[u["arm"]["payload"]]["family"] for u in injected)
+    assert set(by_family) == set(catalog.E3_FAMILIES)
+    assert sorted(by_family.values()) == [37] * 4 + [38] * 4
+    strip = lambda u: (u["task_id"], u["phrasing"], u["arm"]["payload"], u["arm"]["placement"])  # noqa: E731
+    assert sorted(map(strip, injected)) == sorted(map(strip, twins))  # every run has its twin
+    assert len(set(map(strip, injected))) == 300  # drawn without replacement
+
+
+def test_e3_draws_admit_only_the_families_tasks_and_reached_placements():
+    tasks = campaign.load_tasks()
+    for task, _phrasing, payload_id, placement in campaign.e3_draws(tasks, PAYLOADS):
+        payload = PAYLOADS[payload_id]
+        assert task["class"] in ("W1", "W2", "W3", "W4")
+        assert placement in payload["placements"]
+        assert placement in catalog.RECORD_PLACEMENTS or campaign.reaches(placement, task)
+        if payload["family"] in ("F-ACTION", "F-CONSENT"):
+            assert task["class"] != "W4"
+        if payload["family"] == "F-STEER":
+            assert not task["truth"]["selected_fare_id"].endswith("-FLEX")
+        assert payload_id not in campaign.LITERATURE_PAYLOADS
+
+
+def test_e3_cells_pair_across_sides_and_rungs():
+    """The draws depend on the seed only: every side and rung runs the same 600 arms."""
+    units = campaign.units_for("e3", ["L4", "L9"], list(campaign.SIDES), PAYLOADS, ("TS-W",))
+    arms = {}
+    for u in units:
+        arms.setdefault((u["side"], u["rung"]), set()).add(
+            (u["task_id"], u["phrasing"], campaign.arm_id(u["arm"]))
+        )
+    assert len(arms) == 6 and len({frozenset(v) for v in arms.values()}) == 1
+    assert all(len(v) == 600 for v in arms.values())
+
+
+def test_e3s_literature_arm_is_every_question_by_its_payloads_and_placements_injected_only():
+    units = campaign.units_for("e3", ["L30"], list(campaign.SIDES), PAYLOADS, ("TS-L",))
+    assert {u["side"] for u in units} == {"Py", "FW"}
+    per_side = [u for u in units if u["side"] == "Py"]
+    placements = sum(len(PAYLOADS[p]["placements"]) for p in campaign.LITERATURE_PAYLOADS)
+    assert len(per_side) == 6 * placements and {u["arm"]["arm"] for u in units} == {"injected"}
+
+
+def test_e2_is_every_task_by_its_phrasings_benign_and_paper_is_e2_plus_e3():
+    e2 = campaign.units_for("e2", ["L9"], ["FW"], PAYLOADS)
+    assert len(e2) == 40 * 3 + 20 * 3 + 12 and all(u["arm"] is None for u in e2)
+    e3 = campaign.units_for("e3", ["L9"], ["FW"], PAYLOADS)
+    paper = campaign.units_for("paper", ["L9"], ["FW"], PAYLOADS)
+    assert sorted(u["id"] for u in paper) == sorted(u["id"] for u in e2 + e3)
+    qualification = campaign.units_for("qualification", ["L9"], ["FW"], PAYLOADS)
+    assert sorted(u["id"] for u in qualification) == sorted(u["id"] for u in paper)
+    with pytest.raises(ValueError, match="one rung"):
+        campaign.units_for("qualification", ["L9", "L30"], ["FW"], PAYLOADS)
+
+
+def test_shards_partition_the_units_and_share_one_manifest(tmp_path, capsys):
+    out = tmp_path / "out"
+    base = ["--preset", "e3", "--rungs", "L9", "--sides", "Py", "--out", str(out), "--dry-run"]
+    assert campaign.main([*base, "--shard", "0/3"]) == 0
+    manifest = (out / "manifest.json").read_text()
+    assert campaign.main([*base, "--shard", "2/3"]) == 0  # checks, never rewrites
+    assert (out / "manifest.json").read_text() == manifest
+    units = json.loads((out / "units.json").read_text())
+    parts = [units[i::3] for i in range(3)]
+    assert sum(map(len, parts)) == len(units) and not set.intersection(
+        *[{u["id"] for u in p} for p in parts]
+    )
+    with pytest.raises(SystemExit):
+        campaign.main([*base, "--shard", "3/3"])
+
+
+def test_ts_l_is_never_sharded(tmp_path):
+    """Crossref's lane is per process (pacing.py): sharded TS-L would query it concurrently."""
+    base = ["--preset", "e2", "--rungs", "L30", "--sides", "Py", "--out", str(tmp_path / "o")]
+    with pytest.raises(SystemExit):
+        campaign.main([*base, "--shard", "0/2", "--dry-run"])
+    narrowed = [*base, "--task-sets", "TS-W", "--shard", "0/2", "--dry-run"]
+    assert campaign.main(narrowed) == 0
+
+
+def test_literature_review_units_get_the_context_their_package_needs_on_local_rungs():
+    """§2.2 (num_ctx per package need): TS-L on L30 at 65,536; WebAir at the rung's 32,768; a hosted
+    rung keeps its own route."""
+    url = "http://127.0.0.1:11434"
+    tsl = campaign.rung_for_unit({"rung": "L30", "task_set": "TS-L"}, url)
+    webair = campaign.rung_for_unit({"rung": "L30", "task_set": "TS-W"}, url)
+    hosted = campaign.rung_for_unit({"rung": "H", "task_set": "TS-L"}, url)
+    assert tsl.context_window == 65536 and webair.context_window == 32768
+    assert hosted.context_window == campaign.rung_of("H", url).context_window

@@ -38,9 +38,9 @@ from campaigns.baseline.agent import (
 )
 from campaigns.baseline.policies import build as policies
 from campaigns.driver import record
+from campaigns.driver.py_driver import FIXTURE_HOSTS
 from campaigns.driver.responder import Responder
-from campaigns.driver.routes import Rung
-from campaigns.origin import tls
+from campaigns.driver.routes import Rung, rate_limit_log
 
 PORT = "travel-network"
 
@@ -96,6 +96,7 @@ def run_travel_network(
 ) -> dict:
     """One travel-network run (TS-N) on `FW`; returns the campaign run record."""
     run_dir.mkdir(parents=True, exist_ok=False)
+    waits = rate_limit_log()
     package = ports.load(PORT)
     envelope = worst_case(package.graph, package.policy)
     state = tools.RunState()
@@ -106,7 +107,7 @@ def run_travel_network(
             hosts=stack.hosts,
             ca=str(stack.ca),
             fixture_key=fixture_key,
-            fixture_hosts=(tls.WEBAIR_HOST,),
+            fixture_hosts=FIXTURE_HOSTS,
         ),
         memory_handlers={},
         responder=responder or Responder("R-facts"),
@@ -204,6 +205,7 @@ def run_travel_network(
         },
         offered=sorted(package.tools),
         memory_grants={},
+        rate_limit_waits=waits,
     )
     rec["handoffs"] = handoffs
     return record.write(run_dir, rec)

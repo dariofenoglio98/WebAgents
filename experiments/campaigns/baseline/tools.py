@@ -157,6 +157,14 @@ class ToolLayer:
         self.budget = budget
         self.files = files  # the package's members, for the declared input schemas
         self.conversation = conversation or {}
+        if transport is None:  # T31b review 2, nit 6: refused here, never a model-visible failure
+            missing = sorted(
+                s["binding"]
+                for s in self.specs.values()
+                if s["kind"] == "http" and s["binding"] not in self.host_handlers
+            )
+            if missing:
+                raise ValueError(f"no transport and no host handler for {', '.join(missing)}")
 
     # Layer 1: the recorder. --------------------------------------------------------------------
     def record(self, invoke, spec: dict):
@@ -164,6 +172,8 @@ class ToolLayer:
             try:
                 arguments = json.loads(input_json) if input_json else {}
             except ValueError:
+                arguments = {"_unparsed": input_json}
+            if not isinstance(arguments, dict):  # `null`, `5`, `[]`: not an object (T31 r3, nit 2)
                 arguments = {"_unparsed": input_json}
             decoded = decode_nested(arguments, spec["schema"])
             if decoded is not arguments:  # TUNING.md T-3
@@ -348,29 +358,54 @@ class ToolLayer:
         url = spec["endpoint"]
         parts = urlsplit(url)
         host = parts.hostname
-        dial = {"at": time.time(), "url": url, "host": host, "mapped": host in self.transport.hosts}
-        dial["lookup"] = _lookup(host)
-        self.state.dials.append(dial)
+        # The dial log in `hostmap`'s shape (T31b review 1, carry-over 1; D-360): a lookup entry
+        # for the declared hostname's real answer, then, only if it resolved, a dial entry with
+        # `dialed` and `connected` set from the outcome of the TCP connection.
+        lookup = _lookup(host)
+        self.state.dials.append(
+            {
+                "at": time.time(),
+                "kind": "lookup",
+                "host": host,
+                "mapped": host in self.transport.hosts,
+                "lookup": lookup,
+            }
+        )
+        if not lookup["ok"]:
+            raise RuntimeError(f"the lookup of {host} failed: {lookup.get('error')}")
         if host not in self.transport.hosts:
             raise RuntimeError(f"no campaign mapping for {host}")
         address, port = self.transport.hosts[host]
+        dial = {"at": time.time(), "url": url, "host": host, "mapped": True}
         dial["dialed"] = [address, port]
+        dial["connected"] = False
         headers = {"Host": host, "Accept": "application/json"}
         if self.transport.fixture_key and host in self.transport.fixture_hosts:
             headers[HEADER] = self.transport.fixture_key
             dial["fixture_key"] = self.transport.fixture_key
+        self.state.dials.append(dial)
+
+        async def trace(event: str, info: dict) -> None:
+            if event == "connection.connect_tcp.complete":
+                dial["connected"] = True
+
         context = ssl.create_default_context(cafile=self.transport.ca)
         async with httpx.AsyncClient(
             verify=context, follow_redirects=False, timeout=spec["timeout_seconds"] or 20
         ) as client:
-            response = await client.request(
-                spec["method"] or "POST",
-                f"https://{address}:{port}{parts.path}"
-                + (f"?{parts.query}" if parts.query else ""),
-                json=arguments,
-                headers=headers,
-                extensions={"sni_hostname": host},
-            )
+            try:
+                response = await client.request(
+                    spec["method"] or "POST",
+                    f"https://{address}:{port}{parts.path}"
+                    + (f"?{parts.query}" if parts.query else ""),
+                    json=arguments,
+                    headers=headers,
+                    extensions={"sni_hostname": host, "trace": trace},
+                )
+            except httpx.HTTPError as exc:
+                if not dial["connected"]:
+                    dial["error"] = type(exc).__name__
+                raise
         dial["status"] = response.status_code
         try:
             body = response.json()

@@ -51,7 +51,7 @@ import type { JsonObject, JsonValue } from "../src/core/json.js";
 import { fingerprint, publicKeyFromPem } from "../src/core/keys.js";
 import { agentToolDigests, requestedResourceTypes } from "../src/core/memory/declarations.js";
 import { documentToRecord } from "../src/core/memory/document.js";
-import { RELATIONS, type MemoryRecord } from "../src/core/memory/model.js";
+import { RELATIONS, stemKey, titleIndex, type MemoryRecord } from "../src/core/memory/model.js";
 import { checkMemoryBindings, MemoryRun } from "../src/core/memory/run.js";
 import { emptyMemorySnapshot, MemoryStore } from "../src/core/memory/store.js";
 import { normalizeModelBinding } from "../src/core/models/binding.js";
@@ -89,6 +89,16 @@ interface Route {
   think?: boolean | null;
   api_key_env?: string | null;
   timeout_seconds?: number;
+  /** D-361's rate-limit policy (`routes.RATE_LIMIT_RETRY`), sent for a hosted rung only. */
+  rate_limit?: RateLimitPolicy | null;
+}
+
+interface RateLimitPolicy {
+  status: number;
+  max_resends: number;
+  max_total_seconds: number;
+  base_seconds: number;
+  max_wait_seconds: number;
 }
 
 interface Job {
@@ -102,6 +112,8 @@ interface Job {
   grants: Record<string, string>;
   approved_tools: string[];
   records: string[];
+  /** The records' file stems, in `records`' order (the folder import's resolution, M-59). */
+  record_stems?: string[];
   memory_grants: Record<string, string>;
   route: Route;
   mapping: { hosts: Record<string, [string, number]>; ca: string; fixture_key: string | null; fixture_hosts: string[] } | null;
@@ -109,10 +121,16 @@ interface Job {
   probe_proposals?: JsonValue;
   /** Offline tests only: one GET through the tool transport (its resolver seam), no conversation. */
   probe_fetch?: string;
+  /** Offline tests only: one `tls.connect` through the mapping (the dial seam's `connected`). */
+  probe_dial?: { servername: string; host: string; port: number };
   /** Offline tests only: the run mode's recording transport over canned responses (its pairing with `observe` and the adapters' answers). */
   probe_record?: { observed: Observed[]; requests: { url: string; method: string; body: string | null }[]; responses: { status: number; body: string }[] };
   /** Offline tests only: the responder's decisions on these cards (rule 11 with `responder.py`). */
   probe_consent?: { turn: number; facts: JsonValue }[];
+  /** Offline tests only: the records as `parseRecords` reads them (T32 review 2, nit 6). */
+  probe_records?: boolean;
+  /** Offline tests only: one model request through `modelTransport` over canned answers (D-361's rate-limit policy). */
+  probe_rate_limit?: { responses: { status: number; headers: Record<string, string>; body: string }[] };
 }
 
 const dials: JsonObject[] = [];
@@ -128,14 +146,28 @@ function installMapping(mapping: NonNullable<Job["mapping"]>): void {
   const mapped = ((options: tls.ConnectionOptions, ...rest: unknown[]) => {
     const name = typeof options === "object" && options !== null ? options.servername : undefined;
     const target = name ? mapping.hosts[name] : undefined;
+    // `connected`: whether the TCP connection was established, set from the socket's outcome as
+    // the other two seams set it (T31 review 3, carry-over 1; D-360).
+    const observe = (socket: tls.TLSSocket, entry: JsonObject): tls.TLSSocket => {
+      entry.connected = false;
+      socket.once("connect", () => {
+        entry.connected = true;
+      });
+      socket.once("error", (error: Error) => {
+        if (entry.connected !== true) entry.error = error.name;
+      });
+      return socket;
+    };
     if (!name || target === undefined) {
       // An unmapped dial goes where the core sent it; it is a dial all the same (boundary (a)).
       const dialed = options?.host ? [options.host, options.port ?? 443] : null;
-      dials.push({ at: Date.now() / 1000, host: name ?? null, address: options?.host ?? null, mapped: false, dialed });
-      return (original as (...args: unknown[]) => tls.TLSSocket)(options, ...rest);
+      const entry: JsonObject = { at: Date.now() / 1000, host: name ?? null, address: options?.host ?? null, mapped: false, dialed };
+      dials.push(entry);
+      return observe((original as (...args: unknown[]) => tls.TLSSocket)(options, ...rest), entry);
     }
-    dials.push({ at: Date.now() / 1000, host: name, address: options.host ?? null, mapped: true, dialed: target });
-    return (original as (...args: unknown[]) => tls.TLSSocket)({ ...options, host: target[0], port: target[1], ca }, ...rest);
+    const entry: JsonObject = { at: Date.now() / 1000, host: name, address: options.host ?? null, mapped: true, dialed: target };
+    dials.push(entry);
+    return observe((original as (...args: unknown[]) => tls.TLSSocket)({ ...options, host: target[0], port: target[1], ca }, ...rest), entry);
   }) as typeof tls.connect;
   tls.connect = mapped;
   syncBuiltinESMExports();
@@ -165,6 +197,18 @@ function toolTransport(mapping: Job["mapping"]): HttpTransport {
   };
 }
 
+/** The Responses API's answer text: the `output_text` parts of its `message` items, joined. */
+function responsesText(answer: JsonObject): string | null {
+  const parts: string[] = [];
+  for (const item of (Array.isArray(answer.output) ? answer.output : []) as JsonObject[]) {
+    if (item?.type !== "message" || !Array.isArray(item.content)) continue;
+    for (const part of item.content as JsonObject[]) {
+      if (part?.type === "output_text" && typeof part.text === "string") parts.push(part.text);
+    }
+  }
+  return parts.length ? parts.join("") : null;
+}
+
 /** The provider's own token counts on the answer, onto the request the observer recorded last. */
 function recordUsage(kind: Route["kind"], text: string, status: number): void {
   const entry = modelCalls[modelCalls.length - 1];
@@ -174,15 +218,55 @@ function recordUsage(kind: Route["kind"], text: string, status: number): void {
     const answer = JSON.parse(text) as JsonObject;
     const usage = (answer.usage ?? {}) as JsonObject;
     entry.usage = kind === "ollama" ? { input_tokens: answer.prompt_eval_count ?? null, output_tokens: answer.eval_count ?? null } : { input_tokens: usage.input_tokens ?? null, output_tokens: usage.output_tokens ?? null };
+    // The answer's text as `Py`'s route records it (D-360, the matchers' `model_output`): Ollama's
+    // `message.content` (its `thinking` is the model's reasoning, never read), the Responses API's
+    // `output_text` parts of its message items (its `reasoning` items never read).
+    entry.text = kind === "ollama" ? (((answer.message ?? {}) as JsonObject).content ?? null) : responsesText(answer);
   } catch {
     entry.usage = null;
   }
 }
 
+/** Seconds to wait before resend `resends + 1` of a call answered 429, or null when the policy is
+ * spent: `routes.rate_limit_wait`, line for line (the provider's `retry-after-ms`, then
+ * `retry-after` in seconds, else `base * 2^resends`; capped per wait and per call). */
+function rateLimitWait(policy: RateLimitPolicy, resends: number, headers: Record<string, string>, waited: number): number | null {
+  if (resends >= policy.max_resends) return null;
+  let wait: number | null = null;
+  for (const [name, scale] of [["retry-after-ms", 0.001], ["retry-after", 1]] as const) {
+    const value = headers[name];
+    const parsed = value === undefined || value.trim() === "" ? Number.NaN : Number(value) * scale;
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      wait = parsed;
+      break;
+    }
+  }
+  if (wait === null) wait = policy.base_seconds * 2 ** resends;
+  wait = Math.min(wait, policy.max_wait_seconds);
+  if (waited + wait > policy.max_total_seconds) return null;
+  return Math.round(wait * 1000) / 1000;
+}
+
+function pause(seconds: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(signal.reason);
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", abort);
+      resolve();
+    }, seconds * 1000);
+    const abort = () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    };
+    signal.addEventListener("abort", abort, { once: true });
+  });
+}
+
 /** The core sends no sampling temperature; the campaign's (rule 2) is added to the body here, and
- * the answer's token counts are recorded (observation only). */
-function modelTransport(route: Route): HttpTransport {
-  const base = nodeTransport({ allowLoopbackHttp: route.kind === "ollama" });
+ * the answer's token counts are recorded (observation only). On a hosted rung a 429 is waited out
+ * and the same request sent again (D-361's policy, as `Py`'s router and `FW`'s transport do), each
+ * wait recorded on the call (`rate_limit_waits`). */
+function modelTransport(route: Route, base: HttpTransport = nodeTransport({ allowLoopbackHttp: route.kind === "ollama" })): HttpTransport {
   const temperature = route.temperature;
   return async (request) => {
     let sent = request;
@@ -192,7 +276,22 @@ function modelTransport(route: Route): HttpTransport {
       else body.temperature = temperature;
       sent = { ...request, body: JSON.stringify(body) };
     }
-    const response = await base(sent);
+    let response = await base(sent);
+    const policy = route.rate_limit;
+    if (policy) {
+      let resends = 0;
+      let waited = 0;
+      while (response.status === policy.status) {
+        const wait = rateLimitWait(policy, resends, response.headers, waited);
+        if (wait === null) break;
+        const entry = modelCalls[modelCalls.length - 1];
+        if (entry !== undefined) ((entry.rate_limit_waits ??= []) as number[]).push(wait);
+        await pause(wait, request.signal);
+        resends += 1;
+        waited += wait;
+        response = await base(sent);
+      }
+    }
     if (request.method === "POST") recordUsage(route.kind, response.body, response.status);
     return response;
   };
@@ -322,12 +421,26 @@ function recorded(handlers: Record<string, ToolHandler>, toolIds: Record<string,
   return out;
 }
 
-function parseRecords(texts: string[]): MemoryRecord[] {
+/** The record set read as `Py`'s and `FW`'s folder import reads it (agentpkg `memory/folder.py`:
+ * `document_to_record(export=True)` with the stems first, then the unambiguous titles): the
+ * links block mirrored at the end of a body is stripped and body wikilinks resolve (T32 review 2,
+ * nit 6: read plainly, every body ended with `<!-- memory.v0 links -->` and its lines). The
+ * campaign's records need no edges: the relations and the links they resolve to are dropped, as
+ * before. */
+function parseRecords(texts: string[], stems?: string[]): MemoryRecord[] {
+  const heads = texts.map((text) => documentToRecord(text).record);
+  const titles = new Map<string, string>();
+  const resolve = new Map<string, string>();
+  heads.forEach((head, index) => {
+    titles.set(head.id, head.title);
+    resolve.set(stemKey(stems?.[index] ?? head.title), head.id);
+  });
+  for (const [key, id] of titleIndex(titles)) if (!resolve.has(key)) resolve.set(key, id);
   return texts.map((text) => {
-    const { record } = documentToRecord(text);
-    // The folder's relations are wikilinks by title; the campaign's records need no edges.
+    const { record } = documentToRecord(text, { export: true, resolution: { resolve, titles } });
     const bare = record as unknown as Record<string, unknown>;
     for (const relation of RELATIONS) delete bare[relation];
+    delete bare.links;
     return record;
   });
 }
@@ -345,6 +458,19 @@ async function main(): Promise<void> {
     emit({ probe: "fetch", error, dials });
     return;
   }
+  if (job.probe_dial !== undefined) {
+    const { servername, host, port } = job.probe_dial;
+    const error = await new Promise<string | null>((done) => {
+      const socket = tls.connect({ servername, host, port });
+      socket.once("secureConnect", () => {
+        socket.destroy();
+        done(null);
+      });
+      socket.once("error", (failure: Error) => done(failure.name));
+    });
+    emit({ probe: "dial", error, dials });
+    return;
+  }
   if (job.probe_record !== undefined) {
     const probe = job.probe_record;
     let index = 0;
@@ -358,6 +484,22 @@ async function main(): Promise<void> {
       await transport({ url: request.url, method: request.method as "GET" | "POST", headers: {}, body: request.body, signal: AbortSignal.timeout(5_000), maxResponseBytes: 1 << 20 });
     }
     emit({ probe: "record", tool_calls: toolCalls, pending: pending as unknown as JsonValue });
+    return;
+  }
+  if (job.probe_records) {
+    emit({ probe: "records", records: parseRecords(job.records, job.record_stems) as unknown as JsonValue });
+    return;
+  }
+  if (job.probe_rate_limit !== undefined) {
+    const answers = [...job.probe_rate_limit.responses];
+    let sent = 0;
+    const canned: HttpTransport = async () => {
+      sent += 1;
+      return answers.shift()!;
+    };
+    modelCalls.push({ at: Date.now() / 1000, url: "probe", body: null });
+    const response = await modelTransport(job.route, canned)({ url: "https://probe.invalid/v1/responses", method: "POST", headers: {}, body: "{}", signal: AbortSignal.timeout(60_000), maxResponseBytes: 1 << 20 });
+    emit({ probe: "rate_limit", status: response.status, sent, model_calls: modelCalls });
     return;
   }
   if (job.probe_consent !== undefined) {
@@ -374,7 +516,7 @@ async function main(): Promise<void> {
   checkMemoryBindings(pkg);
   const now = () => new Date();
   const snapshot = emptyMemorySnapshot();
-  snapshot.records = parseRecords(job.records);
+  snapshot.records = parseRecords(job.records, job.record_stems);
   const store = await MemoryStore.open({ key: new Uint8Array(randomBytes(32)), snapshot, now });
   const permissions = new Map((pkg.policy.permissions as JsonObject[]).map((p) => [String(p.id), p]));
   const resourceGrants: ResourceGrant[] = [];

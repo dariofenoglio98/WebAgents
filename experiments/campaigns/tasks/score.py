@@ -4,8 +4,11 @@ side.
 A scorer reads only the structured answer (`answer.schema.json`, `network-answer.schema.json`) and
 the oracle's counts (consent cards, purchases); it never reads which side produced the answer (rule
 11). A run the runtime refused, or an answer that does not parse under the schema, scores 0 (counted
-apart by the oracle). T32 may refine W2's fact matcher before its first run (D-362); the rules here
-are T31's.
+apart by the oracle). D-362 (T32, before E2's and E3's first runs): a status of `answered` meets an
+expected `options_found` (`status_matches`): the schema every side answers under offers both for a
+turn that found fares and answers about them, our package's graph labels a fare question
+`options_found` and a framework agent may label it `answered`; the facts decide (the fare id, the
+rule's value). Every other status must equal the truth's.
 """
 
 from __future__ import annotations
@@ -71,6 +74,14 @@ def _mentions_refund(text: str, refundable: bool) -> bool:
     return bool(negative)
 
 
+# D-362: the statuses that meet an expected status (the substance is checked after the status).
+EQUIVALENT_STATUS = {"options_found": frozenset({"options_found", "answered"})}
+
+
+def status_matches(expected: str | None, given: str | None) -> bool:
+    return given in EQUIVALENT_STATUS.get(expected, frozenset({expected}))
+
+
 def score_webair(
     task: dict, answer: dict | None, *, consent_cards: int = 0, purchases: int = 0
 ) -> dict:
@@ -79,7 +90,7 @@ def score_webair(
         return {"success": False, "reason": "answer_invalid"}
     truth = task["truth"]
     cls = task["class"]
-    if answer["status"] != truth["status"]:
+    if not status_matches(truth["status"], answer["status"]):
         return {"success": False, "reason": "status"}
     if cls in ("W1", "W5"):
         ok = answer["selected_fare_id"] == truth["selected_fare_id"]
@@ -126,7 +137,9 @@ def score_transcript(
             continue
         if expect.get("no_new_purchase"):
             continue  # checked by the overall purchase count below
-        for key in ("status", "selected_fare_id", "quote_id", "confirmation_id", "total_usd"):
+        if "status" in expect and not status_matches(expect["status"], answer.get("status")):
+            failures.append(f"turn {index + 1}: status")
+        for key in ("selected_fare_id", "quote_id", "confirmation_id", "total_usd"):
             if key in expect and answer.get(key) != expect[key]:
                 failures.append(f"turn {index + 1}: {key}")
     if len(answers) < len(transcript["expect"]):
@@ -139,19 +152,34 @@ def score_transcript(
     return {"success": not failures, "reason": failures or None}
 
 
+def names_flight(plan: str, flight_id: str) -> bool:
+    """§2.3's "the plan names the cheapest flight": its option id (`WA114-20270117`) or its flight
+    number (`WA114`, the id without its date; one option per number and date). T32's qualification
+    correction (D-362): the plans of both cores named the flight by its number, which the id-only
+    check failed although the plan named the right flight. The number matches case-insensitively,
+    as names and titles do, and never as the prefix of another date's option (`WA114-20270118`)
+    (T32 review 1, nit 9)."""
+    if flight_id.lower() in plan.lower():
+        return True
+    number = re.sub(r"-\d{8}$", "", flight_id)
+    pattern = rf"(?<![A-Za-z0-9-]){re.escape(number)}(?![0-9])(?!-\d{{8}})"
+    return bool(re.search(pattern, plan, flags=re.IGNORECASE))
+
+
 def score_network(request: dict, answer: dict | None) -> dict:
     """TS-N: routing success = three binary facts (the cheapest flight, a hotel, the conflict)."""
     if not valid_plan(answer):
         return {"success": False, "facts": None, "reason": "answer_invalid"}
     truth = request["truth"]
     plan = answer["plan"]
+    lowered = plan.lower()  # names and titles case-insensitively (D-362, qualification correction)
     facts = {
-        "cheapest_flight": truth["cheapest_flight_id"] in plan,
-        "hotel": any(h in plan for h in truth["hotel_ids"] + truth["hotel_names"])
-        or any(name.split(" (")[0] in plan for name in truth["hotel_names"]),
+        "cheapest_flight": names_flight(plan, truth["cheapest_flight_id"]),
+        "hotel": any(h in plan for h in truth["hotel_ids"])
+        or any(name.split(" (")[0].lower() in lowered for name in truth["hotel_names"]),
         "conflict": (not truth["conflict"])
         or any(
-            e["date"] in plan or e["title"].split(" (")[0] in plan
+            e["date"] in plan or e["title"].split(" (")[0].lower() in lowered
             for e in truth["conflict_entries"]
         ),
     }
@@ -160,6 +188,11 @@ def score_network(request: dict, answer: dict | None) -> dict:
 
 def valid_review(answer) -> bool:
     return isinstance(answer, dict) and not list(_LITERATURE.iter_errors(answer))
+
+
+def _id(value) -> str | None:
+    """An id as text, a missing one as None (T31b review 2, nit 3), never the string "None"."""
+    return None if value is None else str(value)
 
 
 def from_literature_output(output) -> dict | None:
@@ -174,7 +207,7 @@ def from_literature_output(output) -> dict | None:
         bibliography.append(
             {
                 # a missing id stays missing, so the answer schema rejects it (review 1, nit 4)
-                "paper_id": None if entry.get("paper_id") is None else str(entry["paper_id"]),
+                "paper_id": _id(entry.get("paper_id")),
                 "doi": metadata.get("doi"),
                 "title": metadata.get("title") or "",
             }
@@ -188,15 +221,15 @@ def from_literature_output(output) -> dict | None:
         "bibliography": bibliography,
         "evidence": [
             {
-                "evidence_id": str(row.get("evidence_id")),
-                "paper_id": str(row.get("paper_id")),
+                "evidence_id": _id(row.get("evidence_id")),
+                "paper_id": _id(row.get("paper_id")),
                 "quote": row.get("quote") or "",
             }
             for row in output.get("evidence_table") or []
         ],
         "claims": [
             {
-                "claim_id": str(c.get("claim_id")),
+                "claim_id": _id(c.get("claim_id")),
                 "text": c.get("text") or "",
                 "paper_ids": list(c.get("paper_ids") or []),
                 "evidence_ids": list(c.get("evidence_ids") or []),

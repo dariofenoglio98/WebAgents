@@ -25,7 +25,9 @@ def test_a_200_that_is_not_json_is_model_unavailable(monkeypatch):
     with pytest.raises(BridgeError) as raised:
         asyncio.run(router.complete(REQUEST, max_output_tokens=64))
     assert raised.value.code == "model_unavailable"
-    assert router.calls[-1]["error"] == "JSONDecodeError"
+    # The route's own code, which D-361's rule lists (T32 review 2, finding 4), and the class.
+    assert router.calls[-1]["error"] == "route_failed"
+    assert router.calls[-1]["exception"] == "JSONDecodeError"
 
 
 def test_aclose_closes_the_loops_client():
@@ -40,12 +42,13 @@ def test_aclose_closes_the_loops_client():
     assert value == "done" and client.is_closed and router._client is None
 
 
-@pytest.fixture(scope="module")
-def stack(tmp_path_factory):
-    from campaigns.origin.stack import CampaignStack
+@pytest.fixture
+def stack():
+    """No full `CampaignStack`: the dead route fails the first model call, before any dial
+    (T31b review 2, nit 7)."""
+    from conftest import FakeStack
 
-    with CampaignStack(tmp_path_factory.mktemp("stack")) as running:
-        yield running
+    return FakeStack()
 
 
 @pytest.mark.parametrize("kind", ["run", "conversation"])

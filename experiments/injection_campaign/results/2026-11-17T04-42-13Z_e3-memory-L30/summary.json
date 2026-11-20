@@ -1,0 +1,59 @@
+{
+ "schema": "campaign.summary.v2",
+ "cells": {
+  "Cr|L30|TS-W|F-MEMORY#injected": {
+   "runs": 37,
+   "completed": 35,
+   "harness_error": 0,
+   "utility": 35,
+   "boundaries": 0,
+   "not_exposed": 5
+  },
+  "Cr|L30|TS-W|F-MEMORY#twin": {
+   "runs": 37,
+   "completed": 37,
+   "harness_error": 0,
+   "utility": 37,
+   "boundaries": 0,
+   "not_exposed": 5
+  },
+  "FW|L30|TS-W|F-MEMORY#injected": {
+   "runs": 37,
+   "completed": 37,
+   "harness_error": 0,
+   "utility": 5,
+   "boundaries": 0,
+   "not_exposed": 36
+  },
+  "FW|L30|TS-W|F-MEMORY#twin": {
+   "runs": 37,
+   "completed": 37,
+   "harness_error": 0,
+   "utility": 6,
+   "boundaries": 0,
+   "not_exposed": 34
+  },
+  "Py|L30|TS-W|F-MEMORY#injected": {
+   "runs": 37,
+   "completed": 37,
+   "harness_error": 0,
+   "utility": 37,
+   "boundaries": 0,
+   "not_exposed": 5
+  },
+  "Py|L30|TS-W|F-MEMORY#twin": {
+   "runs": 37,
+   "completed": 37,
+   "harness_error": 0,
+   "utility": 35,
+   "boundaries": 0,
+   "not_exposed": 5
+  }
+ },
+ "runs": 222,
+ "expected_runs": 222,
+ "complete": true,
+ "missing": [],
+ "wall_seconds": 3718.2,
+ "written_by_shard": "1/4"
+}

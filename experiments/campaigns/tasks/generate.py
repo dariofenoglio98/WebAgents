@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import re
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -40,7 +41,7 @@ from origin import inventory as inv  # noqa: E402
 SEED = 31
 PHRASINGS = HERE / "phrasings.json"
 SCENARIOS = ROOT / "examples" / "webair-scenarios.json"
-OUTPUTS = ("ts-w.json", "ts-c.json", "ts-l.json", "ts-n.json")
+OUTPUTS = ("ts-w.json", "ts-c.json", "ts-l.json", "ts-n.json", "ts-w-home.json")
 
 # The campaign record set's traveler (records/memory/person.identity, payment.card): the only party
 # WebAir 0.8.0 quotes (PROTOCOL.md §2.3, W3). tests/test_tasks.py pins these to the folder.
@@ -593,6 +594,76 @@ def build_ts_n(truth: Truth, rng: random.Random, templates: dict) -> list[dict]:
     return requests
 
 
+# --- TS-W's home-airport phrasings (F-MEMORY's supplementary arm; T32 review 1, finding 2) -------
+# WebAir's plan reads the travel profile only when the request leaves the departure open
+# (`needs_travel_profile`, agents/webair/skills/travel-request/SKILL.md), and every TS-W phrasing
+# names it, so F-MEMORY's profile body was never read on W1–W4. These phrasings are TS-W's own
+# with "from Boston" replaced by "from my home airport": the campaign profile's `home_airport` is
+# BOS (records/memory/travel.profile, pinned by tests/test_tasks.py), so a run that reads it
+# searches the task's own route. A read profile also fills `nonstop_only` (its `prefer_nonstop`)
+# and `cabin` (its `preferred_cabin`) where the plan leaves them null (graph `search-request`), so a
+# task is kept only if its truth's fare is a nonstop economy fare of the route and date: then those
+# defaults remove other options only, never the truth's (the truth carries over unchanged).
+HOME_AIRPORT = "BOS"
+HOME_PATTERN = re.compile(r"\b(?:from )?(?:Boston|BOS) to ")
+HOME_TEXT = "from my home airport to "
+# The scenario tasks carry no params; their route is the scenarios' BOS -> ZRH (summary lines).
+SCENARIO_DESTINATIONS = {"hero": "ZRH", "checked-bag": "ZRH", "fare-rules": "ZRH"}
+
+
+def home_route(task: dict) -> tuple[str, str] | None:
+    params = task.get("params") or {}
+    if params.get("origin") == HOME_AIRPORT:
+        return HOME_AIRPORT, params["destination"]
+    if not params and task["shape"] in SCENARIO_DESTINATIONS:
+        return HOME_AIRPORT, SCENARIO_DESTINATIONS[task["shape"]]
+    return None
+
+
+def home_phrasing(turns):
+    """The phrasing with its departure left to the profile, or None if it names none to replace."""
+    turns = turns if isinstance(turns, list) else [turns]
+    first = HOME_PATTERN.sub(HOME_TEXT, turns[0], count=1)
+    if first == turns[0] or re.search(r"\b(Boston|BOS)\b", first):
+        return None
+    first = first[0].upper() + first[1:]
+    return [first, *turns[1:]] if len(turns) > 1 else first
+
+
+def build_ts_w_home(truth: Truth, ts_w: list[dict]) -> list[dict]:
+    out = []
+    for task in ts_w:
+        if task["class"] not in ("W1", "W2", "W3", "W4"):
+            continue
+        route = home_route(task)
+        fare_id = (task.get("truth") or {}).get("selected_fare_id")
+        if route is None or not fare_id:
+            continue
+        day = date.fromisoformat(
+            f"{fare_id.split('-')[-2][:4]}-{fare_id.split('-')[-2][4:6]}-{fare_id.split('-')[-2][6:]}"
+        )
+        kept = {f.fare_id for _, f in truth.fares(*route, day, nonstop_only=True, cabin="economy")}
+        if fare_id not in kept:
+            continue
+        phrasings = [h for h in (home_phrasing(p) for p in task["phrasings"]) if h is not None]
+        if not phrasings:
+            continue
+        out.append(
+            {
+                "id": f"{task['id']}-home",
+                "base": task["id"],
+                "class": task["class"],
+                "shape": task["shape"],
+                "source": "ts-w.json, departure left to the travel profile",
+                "params": task["params"],
+                "phrasings": phrasings,
+                "truth": task["truth"],
+                "reads_profile": True,
+            }
+        )
+    return out
+
+
 def build() -> dict[str, str]:
     templates = json.loads(PHRASINGS.read_text())
     scenarios = json.loads(SCENARIOS.read_text())
@@ -607,12 +678,16 @@ def build() -> dict[str, str]:
     ts_c = build_ts_c(truth, random.Random(f"{SEED}-C"), templates["ts-c"])
     ts_l = build_ts_l(templates["ts-l"])
     ts_n = build_ts_n(truth, random.Random(f"{SEED}-N"), templates["ts-n"])
+    ts_w_home = build_ts_w_home(truth, ts_w)
     del rng
     return {
         "ts-w.json": canonical(header | {"task_set": "TS-W", "tasks": ts_w}),
         "ts-c.json": canonical(header | {"task_set": "TS-C", "transcripts": ts_c}),
         "ts-l.json": canonical(header | {"task_set": "TS-L", "questions": ts_l}),
         "ts-n.json": canonical(header | {"task_set": "TS-N", "requests": ts_n}),
+        "ts-w-home.json": canonical(
+            header | {"task_set": "TS-W", "variant": "home airport", "tasks": ts_w_home}
+        ),
     }
 
 

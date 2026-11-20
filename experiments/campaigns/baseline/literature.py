@@ -44,7 +44,7 @@ from campaigns.baseline.agent import (
 from campaigns.baseline.policies import build as policies
 from campaigns.driver import hostmap, py_driver, record
 from campaigns.driver.responder import Responder
-from campaigns.driver.routes import Rung
+from campaigns.driver.routes import Rung, rate_limit_log
 
 PORT = "literature-review"
 FORMATTER = (
@@ -114,18 +114,22 @@ def run_literature_review(
     fixture_key: str | None,
     meta: dict,
     selected: dict | None = None,
+    seeds: list[str] | None = None,
 ) -> dict:
     """One Literature Review run (TS-L) on `FW`; returns the campaign run record. The task text is
     the question, as the person types it on our side (rule 4)."""
     run_dir.mkdir(parents=True, exist_ok=False)
+    waits = rate_limit_log()
     package = ports.load(PORT)
     built = build(
         package, rung, stack=stack, run_dir=run_dir, fixture_key=fixture_key, selected=selected
     )
     state = built["state"]
     documents = {doi: file_id for doi, (file_id, _path) in (selected or {}).items()}
-    input_value = py_driver.literature_input(question, documents)
+    input_value = py_driver.literature_input(question, documents, seeds)
     text = question
+    if seeds:  # the person's seed references, as our side's input carries them
+        text += "\n\nSeed papers: " + ", ".join(seeds)
     if documents:  # the selected files' opaque ids, as our side's input carries them
         text += "\n\nSelected PDFs (DOI: file id): " + ", ".join(
             f"{doi}: {file_id}" for doi, file_id in sorted(documents.items())
@@ -220,6 +224,7 @@ def run_literature_review(
         },
         offered=sorted(built["approved"]),
         memory_grants={},
+        rate_limit_waits=waits,
     )
     # agentpkg's own lookups and dials under the host mapping, as on `Py`.
     rec["dials"] = hostmap.read_dial_log(run_dir / "dials.jsonl")

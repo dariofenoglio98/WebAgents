@@ -25,6 +25,7 @@ import time
 from pathlib import Path
 
 import httpx
+import openai
 from agents import (
     Agent,
     AgentOutputSchemaBase,
@@ -43,10 +44,9 @@ from openai import AsyncOpenAI
 from campaigns.baseline import ports, tools
 from campaigns.baseline.policies import build as policies
 from campaigns.driver import record
-from campaigns.driver.py_driver import prepare_memory, webair_grants
+from campaigns.driver.py_driver import FIXTURE_HOSTS, prepare_memory, webair_grants
 from campaigns.driver.responder import Responder
-from campaigns.driver.routes import Rung
-from campaigns.origin import tls
+from campaigns.driver.routes import RateLimitRetryTransport, Rung, rate_limit_log
 
 set_tracing_disabled(True)
 
@@ -86,6 +86,22 @@ class JsonSchemaOutput(AgentOutputSchemaBase):
         return value
 
 
+def output_text(items: list) -> str:
+    """The SDK's output items as the model's written text: each message's text parts, and each
+    function call as its name and raw arguments; `reasoning` items are left out (§2.4.3)."""
+    texts = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") == "message":
+            for part in item.get("content") or []:
+                if isinstance(part, dict) and isinstance(part.get("text"), str):
+                    texts.append(part["text"])
+        elif item.get("type") == "function_call":
+            texts.append(f"{item.get('name')} {item.get('arguments')}")
+    return "\n".join(texts)
+
+
 class Recorder(RunHooks):
     """The model seam (observation only): every request, its usage, and the per-turn token cap."""
 
@@ -113,14 +129,13 @@ class Recorder(RunHooks):
             "output_tokens": usage.output_tokens,
         }
         entry["outcome"] = "ok"
-        entry["output"] = json.dumps(
-            [
-                item.model_dump() if hasattr(item, "model_dump") else item
-                for item in response.output
-            ],
-            ensure_ascii=False,
-            default=str,
-        )[:20000]
+        items = [
+            item.model_dump() if hasattr(item, "model_dump") else item for item in response.output
+        ]
+        entry["output"] = json.dumps(items, ensure_ascii=False, default=str)[:20000]
+        # What the model wrote, untruncated and without its reasoning (D-360, the matchers'
+        # `model_output`, as our routes record `text`): its messages' text and its function calls.
+        entry["text"] = output_text(items)
         self.tokens += (usage.input_tokens or 0) + (usage.output_tokens or 0)
         if self.hard_tokens is not None and self.tokens > self.hard_tokens:
             raise BudgetExceeded(f"{self.tokens} tokens over the turn's {self.hard_tokens}")
@@ -232,7 +247,14 @@ def sdk_model(rung: Rung):
         key = os.environ.get(rung.api_key_env or "")
         if not key:
             raise RuntimeError("the hosted rung's key variable is unset")
-        client = AsyncOpenAI(api_key=key, timeout=rung.timeout_seconds, max_retries=0)
+        # D-361's rate-limit policy, as on `Py` and `Cr` (T32 review 2, finding 3): the client
+        # retries nothing; its transport waits out a 429 and resends.
+        client = AsyncOpenAI(
+            api_key=key,
+            timeout=rung.timeout_seconds,
+            max_retries=0,
+            http_client=httpx.AsyncClient(transport=RateLimitRetryTransport()),
+        )
         return OpenAIResponsesModel(model=rung.model, openai_client=client)
     raise ValueError(f"unknown provider {rung.provider}")
 
@@ -258,10 +280,21 @@ def ollama_context(rung: Rung) -> int | None:
     return None
 
 
-RUN_OUTCOMES = ("max_turns", "output_not_conforming", "budget_exhausted", "deadline")
+# A model call that timed out (the OpenAI client's `APITimeoutError`, a subclass of
+# `APIConnectionError` and not of `TimeoutError`) is the run's own failure, as `Py`'s `ReadTimeout`
+# and `Cr`'s `model_call_timeout` are (D-361; T32 review 1, finding 4): never a harness error.
+RUN_OUTCOMES = (
+    "max_turns",
+    "output_not_conforming",
+    "budget_exhausted",
+    "deadline",
+    "model_call_timeout",
+)
 
 
 def _error_code(exc: BaseException) -> str:
+    if isinstance(exc, openai.APITimeoutError):  # before any connection-error check
+        return "model_call_timeout"
     if isinstance(exc, MaxTurnsExceeded):
         return "max_turns"
     if isinstance(exc, ModelBehaviorError):
@@ -296,6 +329,7 @@ def run_webair(
     from agentpkg.memory.host import cli_memory
 
     run_dir.mkdir(parents=True, exist_ok=False)
+    waits = rate_limit_log()
     package = ports.load("webair")
     grants, memory_grants = webair_grants(grant_profile)
     memory_dir = prepare_memory(run_dir, profile_insertion)
@@ -311,7 +345,7 @@ def run_webair(
             hosts=stack.hosts,
             ca=str(stack.ca),
             fixture_key=fixture_key,
-            fixture_hosts=(tls.WEBAIR_HOST,),
+            fixture_hosts=FIXTURE_HOSTS,
         ),
         memory_handlers=memory_handlers,
         responder=responder,
@@ -450,5 +484,6 @@ def run_webair(
             },
             offered=sorted(offered),
             memory_grants=dict(flag.split("=", 1) for flag in memory_grants),
+            rate_limit_waits=waits,
         ),
     )

@@ -54,6 +54,38 @@ def test_the_scenarios_are_w1_w2_and_w5():
         )
 
 
+def test_the_home_airport_phrasings_leave_the_departure_to_the_profiles_home_airport(origin):
+    """F-MEMORY's supplementary arm (T32 review 1, finding 2): the campaign profile's home airport
+    is the one the phrasings leave out, the truth is the base task's, and it holds under the
+    defaults a read profile adds (nonstop, economy): the origin still lists the truth's fare."""
+    profile = next((canaries.MEMORY_DIR / "travel.profile").glob("*.md")).read_text()
+    assert f'home_airport: "{generate.HOME_AIRPORT}"' in profile
+    assert "prefer_nonstop: true" in profile and 'preferred_cabin: "economy"' in profile
+    base = {t["id"]: t for t in _load("ts-w.json")["tasks"]}
+    home = _load("ts-w-home.json")["tasks"]
+    assert len(home) >= 8 and {t["class"] for t in home} <= {"W1", "W2", "W3", "W4"}
+    for task in home:
+        source = base[task["base"]]
+        assert task["truth"] == source["truth"] and task["reads_profile"] is True
+        for text in task["phrasings"]:
+            first = text[0] if isinstance(text, list) else text
+            assert "home airport" in first and "Boston" not in first and "BOS" not in first
+        origin_code, destination = generate.home_route(source)
+        assert origin_code == "BOS"
+        fare_id = task["truth"]["selected_fare_id"]
+        day = fare_id.split("-")[-2]
+        body = {
+            "origin": "BOS",
+            "destination": destination,
+            "date": f"{day[:4]}-{day[4:6]}-{day[6:]}",
+            "passengers": 1,
+            "nonstop_only": True,
+            "cabin": "economy",
+        }
+        found = origin.post("/api/v1/search_flights", json=body).json()
+        assert fare_id in {f["fare_id"] for fl in found["flights"] for f in fl["fares"]}, task["id"]
+
+
 def test_the_traveler_is_the_record_sets():
     values = canaries.folder_values()
     assert generate.CONTACT_EMAIL == values["identity.email"]

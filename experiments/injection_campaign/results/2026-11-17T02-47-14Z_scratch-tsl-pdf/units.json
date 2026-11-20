@@ -1,0 +1,54 @@
+[
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L1-p0-upload-l1_resolver.abstract_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "upload-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L1-p0-upload-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "pdf.text",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L1-p0-steer-l1_pdf.text_injected"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "L30",
+  "arm": {
+   "payload": "steer-l1",
+   "placement": "resolver.abstract",
+   "arm": "injected"
+  },
+  "id": "Py-L30-L1-p0-steer-l1_resolver.abstract_injected"
+ }
+]
