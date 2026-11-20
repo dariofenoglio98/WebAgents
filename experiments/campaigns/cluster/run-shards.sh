@@ -43,7 +43,12 @@ while alive; do
   sleep 600
   rsync -a "$OUT/" "$SAFE/"
 done
-wait
+# Each shard's own exit status (T32 review 2, nit 11): a bare `wait` returned 0 whatever they did.
+failed=0
+for i in "${!pids[@]}"; do
+  wait "${pids[$i]}" || { status=$?; echo "shard $i exited $status (see $ROOT/logs/${NAME}-shard-$i.log)"; failed=1; }
+done
 rsync -a "$OUT/" "$SAFE/"
 cp "$ROOT/logs/${NAME}"-shard-*.log "$SAFE/../" 2>/dev/null || true
+if [ "$failed" = 1 ]; then echo "failed: $NAME"; exit 1; fi
 echo "done: $NAME"

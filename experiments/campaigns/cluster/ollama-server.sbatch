@@ -30,7 +30,9 @@ PORT_FILE=${STATE}/port-${SLURM_JOB_NAME}
 if [ -z "${WEBAGENTS_PORT:-}" ] && [ -f "${PORT_FILE}" ]; then WEBAGENTS_PORT=$(cat "${PORT_FILE}"); fi
 PORT=${WEBAGENTS_PORT:-$((20000 + SLURM_JOB_ID % 10000))}
 export OLLAMA_MODELS=/models
-export OLLAMA_HOST=0.0.0.0:${PORT}
+# Loopback only (T32 review 2, nit 12): the server takes no authentication on a shared node, and both
+# routes reach it on 127.0.0.1 (the shards on the node, run-shards.sh; the reverse tunnel, tunnel.sh).
+export OLLAMA_HOST=127.0.0.1:${PORT}
 # §2.2: one model loaded at a time; the rung's context (32,768) as the server default (`FW` reaches
 # Ollama through /v1, which takes no num_ctx); kept loaded; four slots (recorded in every manifest's
 # `served` block through server-<jobid>.json; concurrent decoding can change a temperature-0 answer).

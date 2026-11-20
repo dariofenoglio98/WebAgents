@@ -63,7 +63,7 @@ EXPERIMENTS = ROOT / "experiments"
 if str(EXPERIMENTS) not in sys.path:  # `campaigns` itself puts WebAir's origin on the path
     sys.path.insert(0, str(EXPERIMENTS))
 
-from campaigns.driver import pacing  # noqa: E402
+from campaigns.driver import pacing, record  # noqa: E402
 from campaigns.driver.routes import Rung  # noqa: E402
 from campaigns.origin import catalog, tls  # noqa: E402
 from campaigns.tasks import generate  # noqa: E402
@@ -153,6 +153,11 @@ def reaches(placement: str, task: dict) -> bool:
     prefix = placement.split(".")[0]
     if task["class"] not in PLACEMENT_REACH.get(prefix, ()):
         return False
+    if prefix == "record":
+        # WebAir's plan reads the travel profile only when the request leaves the departure open
+        # (TS-W's home-airport phrasings, `reads_profile`); no other task's path reads it (T32
+        # review 2, nit 13).
+        return bool(task.get("reads_profile"))
     if prefix == "quote" and task["task_set"] == "TS-C":
         return task.get("shape") in QUOTE_SHAPES
     return True
@@ -316,6 +321,8 @@ def units_for(
         cells += _e2_cells(tasks)
         for payload in payloads.values():
             for placement in payload["placements"]:
+                # A record placement is read only on the home-airport phrasings (`reaches`),
+                # which the sweep never takes: F-MEMORY's reach is `e3-memory`'s (nit 13).
                 for task in _first_reached(tasks, placement):
                     cells += [(task, 0, arm) for arm in _pairs(payload["id"], placement)]
     else:
@@ -937,7 +944,7 @@ def finish_unit(unit: dict, *, tasks, payloads, out: Path, envelopes_table=None)
         prices=prices_for(unit["rung"]),
     )
     outcome["exposed"] = exposure(rec, arm)
-    (run_dir / "outcome.json").write_text(json.dumps(outcome, indent=1, default=str) + "\n")
+    record.write_whole(run_dir / "outcome.json", json.dumps(outcome, indent=1, default=str) + "\n")
     return outcome
 
 
@@ -998,11 +1005,25 @@ def summarize(out: Path, units: list[dict] | None = None) -> dict:
 
 
 def _write_atomic(path: Path, text: str) -> None:
+    record.write_whole(path, text)
+
+
+def write_summary(out: Path, units: list[dict], **extra) -> dict:
+    """Every shard writes the summary over all units when it ends. It is computed and written under
+    an exclusive lock on the results directory, so the last one written is the last one computed
+    (T32 review 2, nit 10: a slower shard's older, incomplete summary could be written last)."""
+    import fcntl
     import os
 
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    temporary.write_text(text)
-    os.replace(temporary, path)
+    handle = os.open(out, os.O_RDONLY)
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        summary = summarize(out, units)
+        summary.update(extra)
+        _write_atomic(out / "summary.json", json.dumps(summary, indent=1) + "\n")
+    finally:
+        os.close(handle)  # releases the lock
+    return summary
 
 
 def mixes_contexts(units: list[dict], ollama_url: str) -> bool:
@@ -1217,10 +1238,12 @@ def main(argv: list[str] | None = None) -> int:
                 handle.write(json.dumps(line) + "\n")
             print(json.dumps(line), flush=True)
     # Every shard writes the summary over all units; the last one to finish writes it complete.
-    summary = summarize(out, units)
-    summary["wall_seconds"] = round(time.monotonic() - started, 1)
-    summary["written_by_shard"] = args.shard
-    (out / "summary.json").write_text(json.dumps(summary, indent=1) + "\n")
+    summary = write_summary(
+        out,
+        units,
+        wall_seconds=round(time.monotonic() - started, 1),
+        written_by_shard=args.shard,
+    )
     print(json.dumps(summary["cells"], indent=1))
     own = {u["id"] for u in mine}
     missing = [m for m in summary["missing"] if m in own]

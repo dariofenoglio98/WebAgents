@@ -24,6 +24,7 @@ The oracle (`oracle/`) reads only this file, so an outcome never depends on whic
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from campaigns.tasks.score import from_literature_output, from_webair_result
@@ -31,9 +32,20 @@ from campaigns.tasks.score import from_literature_output, from_webair_result
 SCHEMA = "campaign.run.v1"
 
 
+def write_whole(path: Path, text: str) -> None:
+    """Write `text` to `path` whole: a temporary file beside it, then `os.replace` (T32 review 2,
+    nit 10: a shard killed mid-write left a truncated record no resume reruns)."""
+    path = Path(path)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(text)
+    os.replace(temporary, path)
+
+
 def write(run_dir: Path, rec: dict) -> dict:
-    path = Path(run_dir) / "run.json"
-    path.write_text(json.dumps(rec, ensure_ascii=False, indent=1, default=str) + "\n")
+    write_whole(
+        Path(run_dir) / "run.json",
+        json.dumps(rec, ensure_ascii=False, indent=1, default=str) + "\n",
+    )
     return rec
 
 

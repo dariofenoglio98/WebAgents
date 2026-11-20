@@ -51,7 +51,7 @@ import type { JsonObject, JsonValue } from "../src/core/json.js";
 import { fingerprint, publicKeyFromPem } from "../src/core/keys.js";
 import { agentToolDigests, requestedResourceTypes } from "../src/core/memory/declarations.js";
 import { documentToRecord } from "../src/core/memory/document.js";
-import { RELATIONS, type MemoryRecord } from "../src/core/memory/model.js";
+import { RELATIONS, stemKey, titleIndex, type MemoryRecord } from "../src/core/memory/model.js";
 import { checkMemoryBindings, MemoryRun } from "../src/core/memory/run.js";
 import { emptyMemorySnapshot, MemoryStore } from "../src/core/memory/store.js";
 import { normalizeModelBinding } from "../src/core/models/binding.js";
@@ -112,6 +112,8 @@ interface Job {
   grants: Record<string, string>;
   approved_tools: string[];
   records: string[];
+  /** The records' file stems, in `records`' order (the folder import's resolution, M-59). */
+  record_stems?: string[];
   memory_grants: Record<string, string>;
   route: Route;
   mapping: { hosts: Record<string, [string, number]>; ca: string; fixture_key: string | null; fixture_hosts: string[] } | null;
@@ -125,6 +127,8 @@ interface Job {
   probe_record?: { observed: Observed[]; requests: { url: string; method: string; body: string | null }[]; responses: { status: number; body: string }[] };
   /** Offline tests only: the responder's decisions on these cards (rule 11 with `responder.py`). */
   probe_consent?: { turn: number; facts: JsonValue }[];
+  /** Offline tests only: the records as `parseRecords` reads them (T32 review 2, nit 6). */
+  probe_records?: boolean;
   /** Offline tests only: one model request through `modelTransport` over canned answers (D-361's rate-limit policy). */
   probe_rate_limit?: { responses: { status: number; headers: Record<string, string>; body: string }[] };
 }
@@ -417,12 +421,26 @@ function recorded(handlers: Record<string, ToolHandler>, toolIds: Record<string,
   return out;
 }
 
-function parseRecords(texts: string[]): MemoryRecord[] {
+/** The record set read as `Py`'s and `FW`'s folder import reads it (agentpkg `memory/folder.py`:
+ * `document_to_record(export=True)` with the stems first, then the unambiguous titles): the
+ * links block mirrored at the end of a body is stripped and body wikilinks resolve (T32 review 2,
+ * nit 6: read plainly, every body ended with `<!-- memory.v0 links -->` and its lines). The
+ * campaign's records need no edges: the relations and the links they resolve to are dropped, as
+ * before. */
+function parseRecords(texts: string[], stems?: string[]): MemoryRecord[] {
+  const heads = texts.map((text) => documentToRecord(text).record);
+  const titles = new Map<string, string>();
+  const resolve = new Map<string, string>();
+  heads.forEach((head, index) => {
+    titles.set(head.id, head.title);
+    resolve.set(stemKey(stems?.[index] ?? head.title), head.id);
+  });
+  for (const [key, id] of titleIndex(titles)) if (!resolve.has(key)) resolve.set(key, id);
   return texts.map((text) => {
-    const { record } = documentToRecord(text);
-    // The folder's relations are wikilinks by title; the campaign's records need no edges.
+    const { record } = documentToRecord(text, { export: true, resolution: { resolve, titles } });
     const bare = record as unknown as Record<string, unknown>;
     for (const relation of RELATIONS) delete bare[relation];
+    delete bare.links;
     return record;
   });
 }
@@ -468,6 +486,10 @@ async function main(): Promise<void> {
     emit({ probe: "record", tool_calls: toolCalls, pending: pending as unknown as JsonValue });
     return;
   }
+  if (job.probe_records) {
+    emit({ probe: "records", records: parseRecords(job.records, job.record_stems) as unknown as JsonValue });
+    return;
+  }
   if (job.probe_rate_limit !== undefined) {
     const answers = [...job.probe_rate_limit.responses];
     let sent = 0;
@@ -494,7 +516,7 @@ async function main(): Promise<void> {
   checkMemoryBindings(pkg);
   const now = () => new Date();
   const snapshot = emptyMemorySnapshot();
-  snapshot.records = parseRecords(job.records);
+  snapshot.records = parseRecords(job.records, job.record_stems);
   const store = await MemoryStore.open({ key: new Uint8Array(randomBytes(32)), snapshot, now });
   const permissions = new Map((pkg.policy.permissions as JsonObject[]).map((p) => [String(p.id), p]));
   const resourceGrants: ResourceGrant[] = [];

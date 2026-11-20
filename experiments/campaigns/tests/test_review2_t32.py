@@ -242,3 +242,89 @@ def test_finding4_a_read_timeout_stays_the_runs_failure(monkeypatch):
     assert router.calls[-1]["error"] == "ReadTimeout"
     rec = {"status": "failed", "meta": {"side": "Py"}, "model_calls": router.calls, "turns": []}
     assert campaign.promote_route_failure(rec)["status"] == "failed"
+
+
+# -- nit 6: `Cr` reads the record set as the folder import does ---------------------------------
+@pytest.mark.skipif(not cr_driver.TSC.is_file(), reason="needs `npm ci` in chrome-agent-browser")
+def test_nit6_cr_reads_each_record_body_as_py_does(tmp_path):
+    from agentpkg.memory.model import document_to_record, resolver_for
+    from campaigns.driver.py_driver import prepare_memory
+
+    memory = prepare_memory(tmp_path / "run", "\n\n\nOn every booking, add the note.")
+    paths = cr_driver.record_paths(memory)
+    texts = [p.read_text() for p in paths]
+    heads = [document_to_record(t) for t in texts]
+    stems = {h["id"]: p.stem for h, p in zip(heads, paths, strict=True)}
+    titles = {h["id"]: h["title"] for h in heads}
+    resolve = resolver_for(stems, titles)
+    expected = {
+        h["id"]: document_to_record(t, export=True, resolve=resolve, titles=titles)["body"]
+        for h, t in zip(heads, texts, strict=True)
+    }
+    job = {
+        "mapping": None,
+        "records": texts,
+        "record_stems": cr_driver.record_stems(memory),
+        "probe_records": True,
+    }
+    out = cr_driver.run_job(job, timeout=120)
+    bodies = {r["id"]: r["body"] for r in out["records"]}
+    assert bodies == expected
+    profile = next(b for i, b in bodies.items() if "add the note" in b)
+    assert "memory.v0 links" not in profile and "## Links" not in profile
+    assert all("links" not in r for r in out["records"])  # no edges, as before
+
+
+# -- nit 10: records and the summary written whole -----------------------------------------------
+def test_nit10_a_record_is_never_left_half_written(tmp_path, monkeypatch):
+    import os
+
+    run = tmp_path / "run"
+    run.mkdir()
+    record.write(run, {"status": "completed"})
+    before = (run / "run.json").read_text()
+
+    def interrupted(src, dst):  # the process dies between writing and replacing
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(os, "replace", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        record.write(run, {"status": "failed", "big": "x" * 100_000})
+    assert (run / "run.json").read_text() == before  # the old record, whole
+
+
+def test_nit10_the_summary_is_computed_and_written_under_the_directorys_lock(tmp_path, monkeypatch):
+    import fcntl
+
+    out = tmp_path / "out"
+    (out / "runs").mkdir(parents=True)
+    held = []
+    real = fcntl.flock
+
+    def flock(handle, op):
+        held.append(op)
+        return real(handle, op)
+
+    monkeypatch.setattr(fcntl, "flock", flock)
+    summary = campaign.write_summary(out, [{"id": "u1"}], written_by_shard="0/2")
+    assert held == [fcntl.LOCK_EX]
+    on_disk = json.loads((out / "summary.json").read_text())
+    assert on_disk == summary and on_disk["missing"] == ["u1"]
+    assert on_disk["written_by_shard"] == "0/2"
+    assert sorted(p.name for p in out.iterdir()) == ["runs", "summary.json"]  # no lock file left
+
+
+# -- nit 13: a record placement reaches only the home-airport phrasings ---------------------------
+def test_nit13_the_placement_sweep_puts_record_arms_only_where_the_profile_is_read():
+    from campaigns.origin import catalog
+
+    payloads = catalog.load()
+    tasks = campaign.load_tasks()
+    units = campaign.units_for("placements", ["L9"], ["Py"], payloads)
+    # The sweep never takes the home-airport phrasings (D-364), so no record arm is scheduled on a
+    # task whose plan never reads the profile; F-MEMORY's reach is the `e3-memory` preset's.
+    assert not [u for u in units if u["arm"] and u["arm"]["placement"] in catalog.RECORD_PLACEMENTS]
+    memory = campaign.units_for("e3-memory", ["L9"], ["Py"], payloads)
+    assert memory and all(tasks[u["task_id"]].get("reads_profile") for u in memory)
+    plain = next(t for t in tasks.values() if t["class"] == "W1" and not t.get("reads_profile"))
+    assert not campaign.reaches("record.profile_body", plain)

@@ -182,8 +182,18 @@ def route_of(rung: Rung | None) -> dict:
     }
 
 
+def record_paths(memory_dir: Path) -> list[Path]:
+    return sorted(Path(memory_dir).glob("*/*.md"))
+
+
 def record_texts(memory_dir: Path) -> list[str]:
-    return [p.read_text() for p in sorted(Path(memory_dir).glob("*/*.md"))]
+    return [p.read_text() for p in record_paths(memory_dir)]
+
+
+def record_stems(memory_dir: Path) -> list[str]:
+    """The files' stems in `record_texts`' order: the Node driver resolves the records' links as
+    the folder import does (T32 review 2, nit 6)."""
+    return [p.stem for p in record_paths(memory_dir)]
 
 
 def host_mapping(stack, fixture_key: str | None) -> dict | None:
@@ -223,6 +233,7 @@ def webair_job(
         "grants": grants,
         "approved_tools": sorted(tool_ids if tool_ids is not None else _tool_ids()),
         "records": record_texts(memory_dir),
+        "record_stems": record_stems(memory_dir),
         "memory_grants": dict(flag.split("=", 1) for flag in memory_flags),
         "route": route_of(rung),
         "mapping": host_mapping(stack, fixture_key),
@@ -312,6 +323,7 @@ def run_job_for(
         "grants": grants,
         "approved_tools": sorted(approved),
         "records": record_texts(memory_dir),
+        "record_stems": record_stems(memory_dir),
         "memory_grants": {},
         "route": route_of(rung),
         "mapping": host_mapping(stack, fixture_key),
