@@ -346,23 +346,32 @@ function perform(destination: Destination, address: string, request: HttpRequest
         return;
       }
       const declared = Number.parseInt(responseHeaders["content-length"] ?? "", 10);
-      if (Number.isFinite(declared) && declared > request.maxResponseBytes) {
+      if (request.truncate !== true && Number.isFinite(declared) && declared > request.maxResponseBytes) {
         stop(() => reject(new TransportError("the response exceeds the byte cap", { stage: "body_size", http_status: status, response_bytes: declared })));
         return;
       }
       let size = 0;
       const chunks: Buffer[] = [];
       response.on("data", (chunk: Buffer) => {
-        size += chunk.length;
-        if (size > request.maxResponseBytes) {
-          stop(() => reject(new TransportError("the response exceeds the byte cap", { stage: "body_size", http_status: status, response_bytes: size })));
+        if (size + chunk.length > request.maxResponseBytes) {
+          if (request.truncate !== true) {
+            size += chunk.length;
+            stop(() => reject(new TransportError("the response exceeds the byte cap", { stage: "body_size", http_status: status, response_bytes: size })));
+            return;
+          }
+          // Discovery reads the page's first bytes and stops (link.v0 L-31).
+          chunks.push(chunk.subarray(0, request.maxResponseBytes - size));
+          const whole = Buffer.concat(chunks);
+          stop(() => resolve({ status, headers: responseHeaders, body: whole.toString("utf8"), bytes: new Uint8Array(whole), truncated: true }));
           return;
         }
+        size += chunk.length;
         chunks.push(chunk);
       });
       response.on("end", () => {
         socket.destroy();
-        finish(() => resolve({ status, headers: responseHeaders, body: Buffer.concat(chunks).toString("utf8") }));
+        const whole = Buffer.concat(chunks);
+        finish(() => resolve({ status, headers: responseHeaders, body: whole.toString("utf8"), bytes: new Uint8Array(whole) }));
       });
       response.on("error", () => stop(() => reject(request.signal.aborted ? (request.signal.reason as Error) : new TransportError("the response failed mid-transfer", { stage: "transport" }))));
     };

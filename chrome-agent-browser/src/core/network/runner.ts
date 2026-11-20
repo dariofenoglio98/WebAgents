@@ -15,7 +15,7 @@ import type { Context } from "../workflow/runtime.js";
 import { digest } from "../workflow/runtime.js";
 import { evaluate, type Environment } from "../workflow/values.js";
 import type { Workflow } from "../workflow/interpreter.js";
-import { DONE, edgeKey, routeData, rolesOf, worstCase, type Counts } from "./analysis.js";
+import { deniedRoles, DONE, edgeKey, routeData, rolesOf, worstCase, type Counts } from "./analysis.js";
 import { RouteRefusal } from "./errors.js";
 
 /** Where the network is: the hop count, the uses of each edge and the activations of each role, as the transition check reads them (R-14). */
@@ -23,6 +23,9 @@ export class Walk {
   hop = 0;
   readonly uses: Counts = new Map();
   readonly activations: Counts = new Map();
+
+  /** link.v0 L-16: the roles whose program holds a link the person denied; never a target. */
+  constructor(readonly denied: ReadonlySet<string> = new Set()) {}
 
   count(counts: Counts, key: string): number {
     return counts.get(key) ?? 0;
@@ -72,11 +75,19 @@ export async function runNetwork(workflow: Workflow, node: JsonObject, input: Js
   }
   // The run's "at most" (R-21): the bound under the effective budget, the node's timeout and the
   // deadline as the host lowered it, the same figures the execution host recorded.
-  const bound = worstCase(graph, workflow.package.policy, { budget: rt.budget, nodeTimeout: Math.min(node.timeout_seconds as number, workflow.deadlineSeconds) });
+  // With links, the composed bound (link.v0 L-19): each link's worst case inside its role's
+  // activation cost, a denied link's role never activated.
+  const bound = worstCase(graph, workflow.package.policy, { budget: rt.budget, nodeTimeout: Math.min(node.timeout_seconds as number, workflow.deadlineSeconds), links: rt.linkCosts });
+  const denied = deniedRoles(network, rt.linkCosts);
+  if (denied.has(String(network.entry))) {
+    // The entry holds a denied link, so no activation of this network could complete.
+    rt.record("link.denied", { context: ctx, node_id: nodeId, role: String(network.entry) });
+    throw new PolicyError(`network ${nodeId}: its entry role holds a link the person denied`);
+  }
   rt.reserveNetwork(ctx, nodeId, bound, String(network.entry));
   let state = deepCopy(evaluate(network.initial!, {})) as JsonObject;
   let message = input;
-  const walk = new Walk();
+  const walk = new Walk(denied);
   let current = String(network.entry);
   walk.activations.set(current, 1);
   // The shared state after the current activation's patch, once validated; the loop commits it.
@@ -200,6 +211,10 @@ function checkTransition(workflow: Workflow, ctx: Context, nodeId: string, netwo
     if (role.may_end !== true) reason = "end_not_allowed";
   } else if (!declared) {
     reason = "edge_undeclared";
+  } else if (walk.denied.has(String(target))) {
+    // link.v0 L-16: the target's program holds a denied link. A chosen route never names it (it
+    // left the enum); a fixed route to it is refused here.
+    reason = "link_denied";
   } else if (walk.hop >= (network.max_hops as number)) {
     reason = "hops_exhausted";
   } else {
@@ -216,7 +231,7 @@ function checkTransition(workflow: Workflow, ctx: Context, nodeId: string, netwo
   workflow.runtime.record("route.decided", { context: ctx, allowed: reason === null, ...facts, reason });
   if (reason !== null) {
     if (chosenBy === "model") throw new RouteRefusal(reason, declared ? (target as string) : null);
-    if (reason === "edge_undeclared" || reason === "end_not_allowed") throw new PolicyError(`role ${roleId}: route to ${String(target)} is not declared (${reason})`);
+    if (reason === "edge_undeclared" || reason === "end_not_allowed" || reason === "link_denied") throw new PolicyError(`role ${roleId}: route to ${String(target)} is not declared (${reason})`);
     throw new BudgetError(`role ${roleId}: route to ${String(target)} refused (${reason})`);
   }
 }
@@ -236,8 +251,8 @@ async function route(workflow: Workflow, nodeId: string, network: JsonObject, ro
     checkTransition(workflow, ctx, nodeId, network, roleId, role, walk, spec.next!, "package");
     return { next: String(spec.next), message };
   }
-  const data = routeData(network, roleId, evaluate(spec.input!, local), walk.uses, walk.activations, walk.hop);
-  const targets = [...(role.edges as JsonObject[]).map((edge) => String(edge.to)), ...(role.may_end === true ? [DONE] : [])];
+  const data = routeData(network, roleId, evaluate(spec.input!, local), walk.uses, walk.activations, walk.hop, walk.denied);
+  const targets = [...(role.edges as JsonObject[]).map((edge) => String(edge.to)).filter((to) => !walk.denied.has(to)), ...(role.may_end === true ? [DONE] : [])];
   const bundled = workflow.modelSchema(messageSchema) as JsonObject;
   const schema: JsonObject = {
     type: "object",

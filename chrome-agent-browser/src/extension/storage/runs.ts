@@ -33,6 +33,32 @@ export interface RunInvocation {
   profile_id: string | null;
   /** conversation.v0 (D-270): the turn this run is, as the service worker started it; absent for a one-shot run. */
   turn?: TurnStart | null;
+  /**
+   * link.v0 L-15 (T66, D-701): each accepted link's inner plan with its authorization, as the
+   * execution host is handed them, the full inner Run Plan for the export, and the hash of the
+   * linked archive, which the host reads from the snapshot store and verifies itself.
+   */
+  links?: Record<string, { run_plan: ExecutionPlan; authorization: ExecutionAuthorization; full_plan: RunPlan; archive_sha256: string }> | null;
+}
+
+/** link.v0 §6, §7 (T66, D-703): a card the run waits on, written by the host: its kind, the step that asks and the facts the core computed and validated. */
+export interface RunCardPending {
+  card_id: string;
+  kind: "link.join" | "budget.raise";
+  node_id: string | null;
+  facts: JsonObject;
+  timeout_seconds: number;
+  requested_at: string;
+  /** A join card only: what a pin made from the card would record (the candidate's own verified key and its claimed publisher), so the service worker can pin without the candidate's bytes. */
+  publisher?: { public_key: string; claimed_id: string; claimed_name: string; package_id: string } | null;
+}
+
+/** The person's answer to a run's card, written by the service worker before the host is told. */
+export interface RunCardAnswer {
+  accepted: boolean;
+  grants?: Record<string, string>;
+  approved_tools?: string[];
+  decided_at: string;
 }
 
 /** conversation.v0: a consent card the turn is waiting on (V-29), written by the host, shown by the chat surface. */
@@ -90,6 +116,11 @@ export interface StoredRun {
   consent_pending?: ConsentPending | null;
   consent_decisions?: Record<string, ConsentAnswer> | null;
   turn_outcome?: TurnOutcome | null;
+  /** link.v0 §6, §7 (T66): the card the run waits on, or null; the person's answers by card id. */
+  run_card_pending?: RunCardPending | null;
+  run_card_answers?: Record<string, RunCardAnswer> | null;
+  /** The cards whose answer the run took (its wait ended with the person's answer, not by time), by id: a pin asked on a join card is made only for one of these (T66 review 1, nit 8). */
+  run_card_taken?: string[] | null;
 }
 
 export interface StoredArtifact {

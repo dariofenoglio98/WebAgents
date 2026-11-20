@@ -83,7 +83,24 @@ export function failureCode(error: unknown): FailureCode {
   if (error instanceof ValidationError) return "schema_validation";
   if (error instanceof PolicyError) return "permission_denied";
   if (error instanceof ComputeError) return "compute_error";
+  if (error instanceof LinkError) return "link_error";
   return "worker_error";
+}
+
+/**
+ * An inner run that failed (link.v0 L-27, `links/errors.py::LinkError`): the caller's step fails
+ * `link_error`, and the inner run's own code is named by `link.failed`, never by the caller's node.
+ */
+export class LinkError extends AgentPkgError {
+  override readonly name: string = "LinkError";
+  readonly dependency: string;
+  readonly inner_code: string;
+
+  constructor(dependency: string, innerCode: string, options: { cause?: unknown } = {}) {
+    super(`link ${dependency}: the inner run failed (${innerCode})`, options);
+    this.dependency = dependency;
+    this.inner_code = innerCode;
+  }
 }
 
 /**

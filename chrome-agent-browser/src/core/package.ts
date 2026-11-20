@@ -9,6 +9,7 @@
 import { readArchiveBytes } from "./archive.js";
 import { canonicalJson } from "./canonical.js";
 import { conversationRecords } from "./conversation/declarations.js";
+import { linkRecords } from "./links/records.js";
 import { ValidationError } from "./errors.js";
 import { sha256Hex } from "./hash.js";
 import { parseJson, type JsonObject, type JsonValue } from "./json.js";
@@ -70,5 +71,9 @@ export function inspectPackage(pkg: Package): JsonObject {
   // conversation.v0: the turns, the persistent keys and the consent steps, where declared (V-20).
   const conversation = conversationRecords(pkg);
   if (conversation !== null) result.conversation = conversation;
+  // link.v0: the dependencies and slots the program declares, where it declares any; the composed
+  // envelope needs the linked packages (`agentpkg inspect --link`).
+  const links = linkRecords(pkg);
+  if (links !== null) result.links = links;
   return result;
 }

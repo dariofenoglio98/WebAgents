@@ -42,7 +42,7 @@ INDEXED_PACKAGES = {
         "4acd67cf414f52542a855bc399e1dbc8912307c608236b866c3ce317ecf7b9ca",
     ),
     # WebAir Flights (link.v0, T65), which the travel planner pins by digest at this path and
-    # the signed index 1.7.0 (examples/agent-index-1.7.0.json, current from T66 on) names; the planner and the two other linked packages live on their own origins.
+    # the signed index 1.7.0 (examples/agent-index.json since T66) names; the planner and the two other linked packages live on their own origins.
     "/packages/webair-flights-0.1.0.agent.pkg": (
         Path(__file__).parent / "packages" / "webair-flights-0.1.0.agent.pkg",
         "4cc62fbbb02e6f01f59212de6880fdfc139355332a2c013004fc82230124502a",
@@ -54,7 +54,7 @@ INDEXED_PACKAGES = {
 DOCUMENTS = {
     "/agent-index.json": (
         Path(__file__).parent / "documents" / "agent-index.json",
-        "be7dc571b44451265064d3af3c7de09be0730c50c5c82c46dd0f807d5caef9e3",
+        "6e94409a460ed4b7a4c1a88234f967b975229a365e70eab7473f57298b783ca6",
     ),
     "/policies/webagents-research.json": (
         Path(__file__).parent / "documents" / "policies" / "webagents-research.json",

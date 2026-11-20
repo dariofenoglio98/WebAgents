@@ -442,7 +442,16 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   package it discovers on a page the person or an approved search named, only after the person
   agrees on a card of computed facts and inside a ceiling stated before the run
   (the planner 0.2.0, [`agents/travel-planner/`](agents/travel-planner/README.md), signed as
-  `dist/travel-planner-0.2.0.agent.pkg`; 0.1.0 stays in `dist/`). The Chrome port is next.
+  `dist/travel-planner-0.2.0.agent.pkg`; 0.1.0 stays in `dist/`). The Chrome Agent Browser runs
+  them too (core 0.7.0, T66): the review lists every linked publisher with its own trust state and
+  a denial per publisher, the run page shows who was asked, drawn from the run's own record, and
+  the join card and the budget-raise card appear in the run; both runtimes agree on the `link/*`
+  conformance family and the planner's three walks, and a headless Chrome held the review, a
+  denial, both walks and the join card
+  ([`chrome-link-e2e.json`](examples/verification/chrome-link-e2e.json);
+  [guide §16](docs/chrome-agent-browser.md#16-agent-links-t66)). On a Chrome host the signed
+  planner 0.2.0 stops after its accepted card at its own `FindHotel` budget, because that host
+  bounds a model request's input by its bytes; the guide says why.
 - **Bounded delegation** ([`spec/network-v0.md`](spec/network-v0.md), agentpkg 0.7.0): a package
   may declare a network of roles with the edges a role may hand off along, each with a use cap, a
   hop cap and a per-role budget; at a role's route the model chooses the next role among the

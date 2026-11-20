@@ -15,10 +15,10 @@ its residual). Nothing a specification cites has been removed.
 | Property | Implemented in the sections |
 |---|---|
 | P-1 integrity and provenance of what runs | Threats and controls; What signatures and identity mean; Browser control-plane boundary; Package execution boundary; Agent Links |
-| P-2 a valid signature is not a trusted publisher | Threats and controls; What signatures and identity mean; Browser control-plane boundary; Agent Browser plugin boundary; Search and policy subscriptions; Agent Links |
+| P-2 a valid signature is not a trusted publisher | Threats and controls; What signatures and identity mean; Browser control-plane boundary; Agent Browser plugin boundary; Search and policy subscriptions; Agent Links; Agent Links in Chrome |
 | P-3 data only | Threats and controls; workflow.v0 boundary; Code in packages |
 | P-4 declared at most, granted no more | Threats and controls; Browser control-plane boundary; Agent Browser plugin boundary; Run surface boundary; Package execution boundary; Tool broker boundary; Agent Links |
-| P-5 prepare, re-verify, then run | Browser control-plane boundary; Agent Browser plugin boundary; Run surface boundary; Model-router bridge boundary; Package execution boundary; Agent Links |
+| P-5 prepare, re-verify, then run | Browser control-plane boundary; Agent Browser plugin boundary; Run surface boundary; Model-router bridge boundary; Package execution boundary; Agent Links; Agent Links in Chrome |
 | P-6 a model's output is data | Run surface boundary; Model-router bridge boundary; workflow.v0 boundary; In-browser inference |
 | P-7 control flow is the signed graph | Threats and controls; workflow.v0 boundary; Delegation networks; Agent Links |
 | P-8 tools only through bindings under the address policy | Threats and controls; Browser control-plane boundary; Tool broker boundary; Scholarly search, selected files and pacing; Chrome Agent Browser |
@@ -29,10 +29,10 @@ its residual). Nothing a specification cites has been removed.
 | P-13 sealed values | Threats and controls; User memory |
 | P-14 memory through reviewed proposals | File and memory handling; User memory |
 | P-15 compute isolation | Code in packages |
-| P-16 consent bound to constructed facts | Conversations and consent; Conversations in Chrome |
-| P-17 confinement across roles | Threats and controls; workflow.v0 boundary; Delegation networks; Agent Links |
+| P-16 consent bound to constructed facts | Conversations and consent; Conversations in Chrome; Agent Links in Chrome |
+| P-17 confinement across roles | Threats and controls; workflow.v0 boundary; Delegation networks; Agent Links; Agent Links in Chrome |
 | P-18 inputs from the web grant nothing | Threats and controls; File and memory handling; Browser control-plane boundary; Scholarly search, selected files and pacing; Search and policy subscriptions |
-| P-19 least privilege and secrets at rest (the extension) | Browser control-plane boundary; Agent Browser plugin boundary; Chrome Agent Browser; Native helper and macOS installer; Conversations in Chrome; In-browser inference |
+| P-19 least privilege and secrets at rest (the extension) | Browser control-plane boundary; Agent Browser plugin boundary; Chrome Agent Browser; Native helper and macOS installer; Conversations in Chrome; In-browser inference; Agent Links in Chrome |
 
 The original framing of the first note (September 2026): this prototype treats a downloaded package as
 untrusted data. Its publisher can request capabilities and provide instructions; the operator's
@@ -834,3 +834,30 @@ own cap; denied, unanswered or with nobody to ask, the refusal stands. The publi
 and the "at most" computed from them are never raised. In the reference the developer CLI and a
 driver that plays the person hand a run its consent surface; the execution session hands none.
 
+### Agent Links in Chrome (T66)
+
+*Properties: P-2, P-5, P-16, P-17, P-19 ([the model](security-and-privacy-model.md#3-properties)).*
+
+The Chrome core is the port of the reference's `links/` (core 0.7.0); what follows is what the
+extension adds as a host ([guide §16](chrome-agent-browser.md#16-agent-links-t66)). It is the
+first host that holds Run Plans **and** hands a run a person to ask, so LK-6…LK-8 run there under
+a plan.
+
+| Threat | Control and remaining limit |
+|---|---|
+| Opening a package makes the browser contact hosts the person never chose (the linked packages' origins) | Opening fetches the package alone. The linked packages are fetched when the person presses **Load linked agents**, which names each origin first; the page asks Chrome for those origins in that click and the service worker refuses any it was not granted before a byte moves (D-193). Each fetch is the package download: one GET, no redirect, no credentials, no referrer, a byte cap. Limit: the locators are the caller's publisher's choice; the request tells those origins that this browser looked. |
+| A caller vouches for a linked publisher: the person trusted the planner, so its dependencies run | Each linked package is a session of its own: its publisher's key is evaluated against the person's own store, the review shows it "signature valid, publisher unknown" until that key is pinned from that package's own card, and the default policy prepares no inner plan for an unpinned key (`link_undecided`). Pinning the caller's key changes nothing for a linked one (P-2). Limit: consent fatigue with several publishers; the pin's default scope is that one package. |
+| The publisher's text dresses up the review or a card (a name or a description that reads as a fact of the browser's) | A publisher's name for itself, a package's name and description, a permission's description and a slot's reason are rendered as quoted words with whose they are; every other fact on the review, the join card and the raise card is computed by the worker or the core from verified bytes, and a card's facts are validated against their schema before the card exists (P-16). Limit: the person's reading; the quoted words are still shown. |
+| A page answers a card, or answers it with more than it shows | Only the extension's own pages may send requests. The service worker checks an answer against the card the host wrote: the card's id, and for a join only permissions and tools that card lists, with a scope of once or session; the answer is written to the run before it is delivered, and the host reads it there too. No answer within the step's time is a no. Limit: an extension page is trusted as the person's own surface. |
+| A join makes the runtime dial a host no plan names | The slot's address is the person's or an approved tool's result, never a model's (refused at validation). The look and the download are one GET each from the execution host, with no body, cookie or referrer, and only to an origin the person granted Chrome: the run is handed Chrome's granted origins at its start and refuses any other before a request is made (`origin_not_granted` in the slot's `fetches`), since Chrome would send an extension's request to an ungranted origin and let a permissive server's answer be read. The joined package's tools reach only the origins of the tools the card approved, which the page asks Chrome for in the Accept click. Limit: an origin granted for another purpose is readable by a slot too; a grant revoked during the run still admits that origin until the run ends; a search service chooses which page is looked at. |
+| An inner run reaches the caller's tools, files or records | An inner plan's tools are bound from the linked package's own registry and its own approvals; the caller's files, record grants and agent document are not handed to it, and in this version an inner run holds nothing of the person's memory at all (a linked package that needs a record cannot be accepted). The run's transport admits only the plan's origins: the caller's and each accepted link's (P-17, P-19). |
+| An inner plan runs outside its caller's run, or a stale one runs | The service worker never prepares an inner plan alone (`link_plan_parent_mismatch`) and refuses to ready or start a linked package's own session (`link_lease_without_caller`), and the session refuses one handed over as a run's own plan. The caller's plan is hash-bound over each inner plan's hash; re-verification covers every one (cleared, changed, another caller's, itself stale), and the session verifies each archive against its inner plan and each inner plan against the caller's entry before anything runs (P-5). |
+| The delegation view misleads: the package draws who was asked | The view is a fold of the run's own audit events, redrawn at each; nothing on it is the package's, and a message or an input is shown as its hash. An inner run is known by its id, so concurrent runs of one step are drawn apart. A denied publisher is named as not asked from the plan's record. Limit: it shows what the audit holds, which is what the runtime mediated. |
+| A pin is made for a key the person never saw (a join card's pin naming another key) | The pin is made by the service worker from the candidate's own verified key, kept with the card by the execution host, and only when its fingerprint is the signer the card's facts state; it is recorded on the Trust page with the run and the slot it came from. |
+| A policy's restriction is ignored during a run | A subscribed policy's `links.join: forbid` reaches the run as the join host's policy (every slot answers `policy`, nothing is looked at); `links.raise: forbid` removes the raise card from the run's surface, so the request is never made. Both are shown in the review and in Settings. Limit: the policy is read when the run starts. |
+
+What the extension does not give here: a linked package's grants are the preset's and cannot be
+customized per link in this version; the trust entries a run's slots evaluate a candidate against
+are read when the run starts; and a Chrome host bounds a model request's input by its UTF-8
+bytes (D-115), so a role budget sized for a tokenizer can refuse a call there that the reference
+admits (the signed planner 0.2.0's request-building call, guide §16).

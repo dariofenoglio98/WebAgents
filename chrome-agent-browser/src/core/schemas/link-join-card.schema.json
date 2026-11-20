@@ -1,0 +1,397 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "link.v0 join card facts (spec/link-v0.md L-34)",
+  "description": "What the runtime computed about a join candidate, from its verified bytes and the caller's signed slot. `package.name` and `package.description` are the publisher's words; `reason` is the agent's; every other member is a fact.",
+  "type": "object",
+  "properties": {
+    "slot": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "publisher": {
+      "type": "object",
+      "properties": {
+        "signer": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "trust": {
+          "type": "string",
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "signer",
+        "trust"
+      ],
+      "additionalProperties": false
+    },
+    "package": {
+      "type": "object",
+      "properties": {
+        "package_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "archive_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "package_id",
+        "version",
+        "digest",
+        "archive_sha256",
+        "name",
+        "description"
+      ],
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "page_url": {
+          "type": "string"
+        },
+        "package_url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "page_url",
+        "package_url"
+      ],
+      "additionalProperties": false
+    },
+    "requirements": {
+      "type": "object",
+      "properties": {
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "resources": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "description",
+              "required",
+              "resources"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "execution": {
+                "type": "string"
+              },
+              "endpoint": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "method": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "domains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "permissions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "side_effects": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "execution",
+              "endpoint",
+              "method",
+              "domains",
+              "permissions",
+              "side_effects"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "allowed_domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "model": {
+          "type": "object",
+          "properties": {
+            "tasks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "capabilities": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "context_window": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id",
+                  "capabilities",
+                  "context_window"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "privacy": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "tasks",
+            "privacy"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "permissions",
+        "tools",
+        "allowed_domains",
+        "model"
+      ],
+      "additionalProperties": false
+    },
+    "view": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "worst_case": {
+      "type": "object",
+      "properties": {
+        "model_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tool_calls": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "compute_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "remote_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "seconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "model_calls",
+        "tool_calls",
+        "compute_calls",
+        "remote_calls",
+        "tokens",
+        "seconds"
+      ],
+      "additionalProperties": false
+    },
+    "ceiling": {
+      "type": "object",
+      "properties": {
+        "model_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tool_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "compute_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "remote_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "seconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "model_calls",
+        "tool_calls",
+        "compute_calls",
+        "remote_calls",
+        "tokens",
+        "seconds"
+      ],
+      "additionalProperties": false
+    },
+    "at_most_unchanged": {
+      "const": true
+    },
+    "left": {
+      "type": "object",
+      "properties": {
+        "tokens": {
+          "type": "integer"
+        },
+        "remote_calls": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tokens",
+        "remote_calls"
+      ],
+      "additionalProperties": false
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 500
+    },
+    "cards": {
+      "type": "object",
+      "properties": {
+        "slot": {
+          "type": "object",
+          "properties": {
+            "shown": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "shown",
+            "max"
+          ],
+          "additionalProperties": false
+        },
+        "run": {
+          "type": "object",
+          "properties": {
+            "shown": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "shown",
+            "max"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "slot",
+        "run"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "slot",
+    "publisher",
+    "package",
+    "source",
+    "requirements",
+    "view",
+    "worst_case",
+    "ceiling",
+    "at_most_unchanged",
+    "left",
+    "reason",
+    "cards"
+  ],
+  "additionalProperties": false
+}

@@ -17,6 +17,8 @@ import type { OpenAIReasoningEffort } from "../../core/models/adapters/openai.js
 import type { MemorySnapshot } from "../../core/memory/store.js";
 import type { TurnStart } from "../../core/execution/runner.js";
 import type { InBrowserEntry } from "../../core/models/in-browser-catalog.js";
+import type { RunCardContext } from "../background/runs.js";
+import type { RunCardAnswer } from "../storage/runs.js";
 
 export interface HostCredentials {
   openai: string | null;
@@ -72,6 +74,13 @@ export interface HostStartMessage {
    * absent for every other route: such a run gets no engine port.
    */
   inBrowser?: InBrowserStart | null;
+  /**
+   * link.v0 §6, §7 (T66): what the run's cards need. The trust entries a join candidate's signer is
+   * evaluated against (the person's store, then the subscribed policy's anchors: public keys and
+   * scopes, nothing secret), and whether the policy forbids joins or the raise. Null or absent: the
+   * run has no card surface, so a slot yields `unattended` and no raise is asked.
+   */
+  cards?: RunCardContext | null;
 }
 
 export interface InBrowserStart {
@@ -107,17 +116,25 @@ export interface HostDecideMessage {
   accepted: boolean;
 }
 
+/** link.v0 §6, §7 (T66): the person's answer to a run's card; the record carries it too, so a lost message never hangs the step. */
+export interface HostCardMessage {
+  type: "host.card";
+  runId: string;
+  cardId: string;
+  answer: RunCardAnswer;
+}
+
 export interface HostStatusMessage {
   type: "host.status";
 }
 
-export type HostCommand = HostStartMessage | HostCancelMessage | HostStatusMessage | HostDecideMessage | HostModelsMessage | HostEngineMessage;
+export type HostCommand = HostStartMessage | HostCancelMessage | HostStatusMessage | HostDecideMessage | HostCardMessage | HostModelsMessage | HostEngineMessage;
 
 export interface HostStatusReply {
   runs: Array<{ run_id: string; status: "preparing" | "running" | "settling" }>;
 }
 
-export const HOST_COMMAND_TYPES: readonly HostCommand["type"][] = ["host.start", "host.cancel", "host.status", "host.decide", "host.models", "host.engine"];
+export const HOST_COMMAND_TYPES: readonly HostCommand["type"][] = ["host.start", "host.cancel", "host.status", "host.decide", "host.card", "host.models", "host.engine"];
 
 /**
  * The service worker's script, as the manifest names it (`background.service_worker`; a test
@@ -135,5 +152,5 @@ export function isHostCommand(value: unknown): value is HostCommand {
 
 /** Messages the offscreen page and its Worker exchange (never seen outside the host). */
 /** `start` transfers the engine port (T41, D-450) when the plan binds the in-browser route. */
-export type WorkerCommand = { kind: "start"; message: HostStartMessage; enginePort?: MessagePort | null } | { kind: "cancel" } | { kind: "decide"; step: string; accepted: boolean };
+export type WorkerCommand = { kind: "start"; message: HostStartMessage; enginePort?: MessagePort | null } | { kind: "cancel" } | { kind: "decide"; step: string; accepted: boolean } | { kind: "card"; cardId: string; answer: RunCardAnswer };
 export type WorkerEvent = { kind: "progress"; runId: string } | { kind: "finished"; runId: string; status: string } | { kind: "failed"; runId: string; code: string; message: string };

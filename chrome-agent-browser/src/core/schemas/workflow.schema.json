@@ -569,7 +569,8 @@
             "output",
             "compute",
             "consent",
-            "network"
+            "network",
+            "link"
           ]
         },
         "input": {
@@ -754,6 +755,75 @@
         },
         "text": {
           "$ref": "#/$defs/value"
+        },
+        "dependency": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "slot": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "locate": {
+          "$ref": "#/$defs/value"
+        },
+        "request": {
+          "type": "object",
+          "properties": {
+            "task": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+            },
+            "max_output_tokens": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            }
+          },
+          "required": [
+            "task",
+            "max_output_tokens"
+          ],
+          "additionalProperties": false
+        },
+        "reason": {
+          "$ref": "#/$defs/value"
+        },
+        "max_joins": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        },
+        "budget": {
+          "type": "object",
+          "properties": {
+            "model_calls": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "tool_calls": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "compute_calls": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "remote_calls": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "tokens": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            }
+          },
+          "additionalProperties": false
         }
       },
       "required": [
@@ -1543,6 +1613,219 @@
               ]
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "link"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "task"
+                  ]
+                },
+                {
+                  "required": [
+                    "max_output_tokens"
+                  ]
+                },
+                {
+                  "required": [
+                    "tool"
+                  ]
+                },
+                {
+                  "required": [
+                    "item_schema"
+                  ]
+                },
+                {
+                  "required": [
+                    "max_items"
+                  ]
+                },
+                {
+                  "required": [
+                    "max_parallel"
+                  ]
+                },
+                {
+                  "required": [
+                    "steps"
+                  ]
+                },
+                {
+                  "required": [
+                    "yield"
+                  ]
+                },
+                {
+                  "required": [
+                    "select"
+                  ]
+                },
+                {
+                  "required": [
+                    "unique_by"
+                  ]
+                },
+                {
+                  "required": [
+                    "limit"
+                  ]
+                },
+                {
+                  "required": [
+                    "assertions"
+                  ]
+                },
+                {
+                  "required": [
+                    "checks"
+                  ]
+                },
+                {
+                  "required": [
+                    "module"
+                  ]
+                },
+                {
+                  "required": [
+                    "function"
+                  ]
+                },
+                {
+                  "required": [
+                    "input_schema"
+                  ]
+                },
+                {
+                  "required": [
+                    "limits"
+                  ]
+                },
+                {
+                  "required": [
+                    "permissions"
+                  ]
+                },
+                {
+                  "required": [
+                    "text"
+                  ]
+                }
+              ]
+            },
+            "oneOf": [
+              {
+                "required": [
+                  "dependency"
+                ],
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "slot"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "locate"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "request"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "reason"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "max_joins"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "budget"
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "slot",
+                  "locate",
+                  "request",
+                  "max_joins",
+                  "budget"
+                ],
+                "not": {
+                  "required": [
+                    "dependency"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "anyOf": [
+              {
+                "required": [
+                  "dependency"
+                ]
+              },
+              {
+                "required": [
+                  "slot"
+                ]
+              },
+              {
+                "required": [
+                  "locate"
+                ]
+              },
+              {
+                "required": [
+                  "request"
+                ]
+              },
+              {
+                "required": [
+                  "reason"
+                ]
+              },
+              {
+                "required": [
+                  "max_joins"
+                ]
+              },
+              {
+                "required": [
+                  "budget"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "link"
+              }
+            }
+          }
         }
       ]
     },
@@ -1559,7 +1842,8 @@
             "tool",
             "join",
             "validate",
-            "compute"
+            "compute",
+            "link"
           ]
         },
         "input": {
@@ -1706,6 +1990,75 @@
             }
           },
           "minProperties": 1,
+          "additionalProperties": false
+        },
+        "dependency": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "slot": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "locate": {
+          "$ref": "#/$defs/value"
+        },
+        "request": {
+          "type": "object",
+          "properties": {
+            "task": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+            },
+            "max_output_tokens": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            }
+          },
+          "required": [
+            "task",
+            "max_output_tokens"
+          ],
+          "additionalProperties": false
+        },
+        "reason": {
+          "$ref": "#/$defs/value"
+        },
+        "max_joins": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        },
+        "budget": {
+          "type": "object",
+          "properties": {
+            "model_calls": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "tool_calls": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "compute_calls": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "remote_calls": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "tokens": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            }
+          },
           "additionalProperties": false
         }
       },
@@ -2253,6 +2606,209 @@
             "properties": {
               "type": {
                 "const": "compute"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "link"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "task"
+                  ]
+                },
+                {
+                  "required": [
+                    "max_output_tokens"
+                  ]
+                },
+                {
+                  "required": [
+                    "tool"
+                  ]
+                },
+                {
+                  "required": [
+                    "item_schema"
+                  ]
+                },
+                {
+                  "required": [
+                    "max_items"
+                  ]
+                },
+                {
+                  "required": [
+                    "max_parallel"
+                  ]
+                },
+                {
+                  "required": [
+                    "steps"
+                  ]
+                },
+                {
+                  "required": [
+                    "yield"
+                  ]
+                },
+                {
+                  "required": [
+                    "select"
+                  ]
+                },
+                {
+                  "required": [
+                    "unique_by"
+                  ]
+                },
+                {
+                  "required": [
+                    "limit"
+                  ]
+                },
+                {
+                  "required": [
+                    "assertions"
+                  ]
+                },
+                {
+                  "required": [
+                    "checks"
+                  ]
+                },
+                {
+                  "required": [
+                    "module"
+                  ]
+                },
+                {
+                  "required": [
+                    "function"
+                  ]
+                },
+                {
+                  "required": [
+                    "input_schema"
+                  ]
+                },
+                {
+                  "required": [
+                    "limits"
+                  ]
+                }
+              ]
+            },
+            "oneOf": [
+              {
+                "required": [
+                  "dependency"
+                ],
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "slot"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "locate"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "request"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "reason"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "max_joins"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "budget"
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "slot",
+                  "locate",
+                  "request",
+                  "max_joins",
+                  "budget"
+                ],
+                "not": {
+                  "required": [
+                    "dependency"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "anyOf": [
+              {
+                "required": [
+                  "dependency"
+                ]
+              },
+              {
+                "required": [
+                  "slot"
+                ]
+              },
+              {
+                "required": [
+                  "locate"
+                ]
+              },
+              {
+                "required": [
+                  "request"
+                ]
+              },
+              {
+                "required": [
+                  "reason"
+                ]
+              },
+              {
+                "required": [
+                  "max_joins"
+                ]
+              },
+              {
+                "required": [
+                  "budget"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "link"
               }
             }
           }

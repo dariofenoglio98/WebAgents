@@ -119,6 +119,21 @@ a { color: var(--ab-accent); }
 .ab-banner-bad { background: var(--ab-bad-bg); color: var(--ab-bad-text); }
 .ab-banner-neutral { background: var(--ab-neutral-bg); color: var(--ab-neutral-text); }
 .ab-banner p { margin: 4px 0 0; }
+/* Agent Links (T66): the review's linked agents, a run's cards, the delegation view. */
+.ab-link-publisher { border: 1px solid var(--ab-border); border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
+.ab-link-publisher[data-denied="true"] { opacity: 0.75; }
+.ab-link-publisher-head { margin-bottom: 6px; }
+.ab-link-item { border-top: 1px dashed var(--ab-border); padding-top: 8px; margin-top: 8px; }
+.ab-link-name { margin: 0 0 4px; font-size: 1rem; text-transform: none; letter-spacing: normal; }
+.ab-link-at-most, .ab-link-slot { border-top: 1px solid var(--ab-border); padding-top: 8px; margin-top: 10px; }
+.ab-quoted q { font-style: italic; }
+.ab-run-card { border: 2px solid var(--ab-warn-text); border-radius: var(--ab-radius); padding: 12px 14px; margin: 10px 0; background: var(--ab-surface); }
+.ab-run-card .ab-inline { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.ab-delegation-view { border-top: 1px solid var(--ab-border); margin-top: 10px; padding-top: 8px; }
+.ab-delegation-activations, .ab-delegation-links { margin: 4px 0 4px 18px; padding: 0; }
+.ab-delegation-links { list-style: none; border-left: 2px solid var(--ab-border); padding-left: 10px; }
+.ab-delegation-link { margin: 4px 0; }
+.ab-delegation-link .ab-defs { margin: 2px 0 6px; font-size: 0.9rem; }
 .ab-profile-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
 .ab-panel .ab-profile-cards { grid-template-columns: 1fr; }
 .ab-profile-card { text-align: left; display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 2px solid var(--ab-border); border-radius: var(--ab-radius); background: var(--ab-surface); color: var(--ab-text); font: inherit; cursor: pointer; }

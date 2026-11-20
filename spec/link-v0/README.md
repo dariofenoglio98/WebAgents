@@ -7,6 +7,7 @@ implements against and what the tests validate:
 |---|---|
 | `workflow.schema.patch.json` | RFC 6902: on `step` and `node` of `workflow.schema.json`, the type `link`, its fields (`dependency`; for a slot `slot`, `locate`, `request`, `reason`, `max_joins`, `budget`) and its conditionals (§2.2, §2.3: a link names a dependency or a slot, never both, and carries no field of another type). Applied to agentpkg's live schema by T65; the Chrome copy is synced from it by T66. |
 | `manifest.schema.patch.json` | RFC 6902: a dependency record of `manifest.schema.json` gains the optional `id` and `signer` (§2.1). |
+| `policy-bundle-v0.schema.patch.json` | RFC 6902: the policy bundle (`spec/extensions/policy-bundle-v0.md`) gains the optional `links` section, `{join, raise}` each `allow` or `forbid`: a host under a signed policy that forbids joins answers every slot `policy` (L-33), and one that forbids the raise never asks it (L-41). Read by the Chrome core (T66); agentpkg reads no policy bundle. |
 
 Two further contracts live with agentpkg's schemas, because a host renders them:
 `agentpkg/src/agentpkg/schemas/link-join-card.schema.json`, the facts of a join card (L-34), and

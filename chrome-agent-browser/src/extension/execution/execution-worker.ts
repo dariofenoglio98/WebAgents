@@ -54,6 +54,10 @@ scope.onmessage = (event) => {
     handle?.decide(command.step, command.accepted);
     return;
   }
+  if (command.kind === "card") {
+    handle?.card(command.cardId, command.answer);
+    return;
+  }
   if (command.kind !== "start" || handle !== null) return;
   const database = new Database();
   const api = languageModelApi();

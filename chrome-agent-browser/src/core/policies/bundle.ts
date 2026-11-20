@@ -83,6 +83,8 @@ export interface PolicyBundle {
   memory: { types_allowed: string[] | null; proposals: "ask" | "refuse"; agent: "allow" | "refuse"; recall: "ask" | "propose" | "auto" } | null;
   /** conversation.v0 (D-271): whether a preset may pre-decide consent steps, and the kinds whose steps are never asked; null when the bundle says nothing. */
   consent: { pre_decide: "allow" | "never"; forbid_kinds: string[] } | null;
+  /** link.v0 (D-681, D-682): whether a run's slots may join a package found during the run, and whether the budget-raise request may be asked; null when the bundle says nothing. A policy only lowers. */
+  links: { join: "allow" | "forbid"; raise: "allow" | "forbid" } | null;
 }
 
 /** A subscribed bundle as this browser holds it. */
@@ -143,6 +145,8 @@ export async function readPolicyBundle(content: JsonObject): Promise<PolicyBundl
   };
   const consentRaw = content.consent === undefined || content.consent === null ? null : (content.consent as JsonObject);
   const consent: PolicyBundle["consent"] = consentRaw === null ? null : { pre_decide: consentRaw.pre_decide === "never" ? "never" : "allow", forbid_kinds: Array.isArray(consentRaw.forbid_kinds) ? consentRaw.forbid_kinds.map(str) : [] };
+  const linksRaw = content.links === undefined || content.links === null ? null : (content.links as JsonObject);
+  const links: PolicyBundle["links"] = linksRaw === null ? null : { join: linksRaw.join === "forbid" ? "forbid" : "allow", raise: linksRaw.raise === "forbid" ? "forbid" : "allow" };
   const issuer = content.issuer as JsonObject;
   return {
     policy_id: str(content.policy_id),
@@ -159,6 +163,7 @@ export async function readPolicyBundle(content: JsonObject): Promise<PolicyBundl
     bindings: bindings === null ? null : { allow: (bindings.allow as JsonObject[]).map((item) => ({ kind: str(item.kind) as ImplementationKind, origins: Array.isArray(item.origins) ? item.origins.map(str) : null })) },
     memory,
     consent,
+    links,
   };
 }
 

@@ -216,6 +216,10 @@ has no `innerHTML`.
   `installer/macos/test-installer.sh` against the built `.pkg`, and `scripts/e2e-native-helper.mjs`,
   where headless Chrome starts the real helper for the extension's worker
   ([`examples/verification/chrome-native-helper-e2e-t17.json`](../examples/verification/chrome-native-helper-e2e-t17.json)).
+- **Agent Links** (T66): `scripts/e2e-link.mjs` runs the planner's review, a denial, both walks
+  and the join card in headless Chrome from four local origins, and
+  `scripts/verify_chrome_link_e2e.py` recomputes its exports, with `scripts/verify_link_run.py`
+  passing on each ([`chrome-link-e2e.json`](../examples/verification/chrome-link-e2e.json); §16).
 - **CI** runs the tests on Ubuntu and macOS with Node 24 and 26, builds and packs the extension,
   checks the zip's structure and that a second build packs to the same bytes, and runs the
   conformance suite ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)).
@@ -568,3 +572,164 @@ report ([`chrome-inbrowser-e2e.json`](../examples/verification/chrome-inbrowser-
 that origin answers for `huggingface.co` itself, Hugging Face's real redirect to its LFS content host
 and that host's CORS answer are exercised only by a headed download from Hugging Face (done for the
 4B on 2026-11-05).
+
+## 16. Agent Links (T66)
+
+A package that links other publishers' packages ([`link.v0`](../spec/link-v0.md): pinned
+dependencies used by `link` steps, and slots bound during a run) is opened, reviewed and run as
+any package is. What changes is that the person decides on **each publisher** before the run, sees
+one "at most" composed over all of them, may be asked a question while the run is in flight, and
+can watch who was asked. The core's part is `src/core/links/` (agentpkg's `links/`, module for
+module, D-700); this section is the extension's (D-701…D-705).
+
+**A linked package is a session of its own.** Opening a package fetches that package and nothing
+else. The authorization view then shows a card **Linked agents** that names each dependency and
+the origin its record's locator is on; the button **Load linked agents** asks Chrome for those
+origins (the click is the gesture, D-193) and the service worker fetches each archive under the
+package download's rules (D-033: the URL gate, one GET, no redirect, no credentials, no referrer,
+a byte cap, a deadline), verifies it as any package and checks it against its record (identity,
+digest, declared signer, one-shot profile, depth one; L-10, L-11). Each becomes a child session
+of the caller (`StoredSession.parent`, the caller's `links` and `link_denials`): it has its own
+snapshot, publisher report, receipt and Run Plan, is never listed or counted as an open package,
+and ends with its caller. A refusal leaves no session and no snapshot behind. Nothing of a linked
+package runs here.
+
+**One review, one card per publisher (L-12, L-13).** The card groups the linked packages by the
+key that signed them. For each group: the publisher's name for itself, the key, and its trust
+state as the person's own store sees it ("Signature valid · publisher unknown" as if the package
+had been opened directly: the caller's trust never extends to a linked publisher, and the caller's
+declared `signer` is a check, not a pin). For each package: what it would be granted (each
+permission with the decision the current preset gives it within the package's own declaration,
+the subscribed policy applied), its tools with their endpoints and whether they would be approved,
+the record types it asks for, its model needs, the steps of the caller that ask it, and its own
+worst case. A publisher's name, a package's name and its description are **the publisher's words**:
+they are shown quoted, with whose they are; every other fact is computed by the worker from
+verified bytes. An unknown key is pinned from that package's own card, in two presses, scoped to
+that package unless the person widens it; the default policy accepts a link only once its key is
+pinned. **Deny this publisher** denies the key for this agent's runs (every dependency it signed):
+the review says the run will not ask it, the plan records the denial, and the envelope leaves its
+part out. Under the cards the review states the composed **at most**, each linked agent's tool
+named with the link that asks it (`webair-flights:search-flights`), and, for a package with a
+slot, what the slot may look at, what it may send, the ceiling a joined package must fit, the
+card caps, and that the "at most" already holds the join at that ceiling. The agent page's own
+"How it delegates" card is marked as the package's own part until the linked agents are loaded.
+
+**One Authorize (D-702).** Using the agent records the caller's decisions and, for each linked
+package the person did not deny, issues that package's own receipt with the decisions the review
+listed for it. The page sends back what it listed (each link's `decided_sha256`), and the worker
+refuses `link_decisions_changed`, issuing nothing, when a preset, a policy or a denial changed
+in between. The caller's Run Plan is prepared over the inner plans: each accepted link gets an
+inner Run Plan on the caller's model with `parent: {package_digest, dependency}` (L-14), and the
+caller's plan records `links: {<id>: {package_id, version, digest, archive_sha256, signer, trust,
+decision, plan_hash}}` and states the composed envelope (`execution.network`,
+`execution.links.worst_case`; L-15, L-22). A link whose inner plan cannot be prepared blocks the
+caller's plan by name (`link_undecided`, with the cause), and a package whose dependencies are not
+loaded is `link_unresolved`. The plan's origins are the caller's and each accepted link's, named
+by dependency; the page asks Chrome for them in the Authorize click, and a denied publisher's
+origin is not among them. Re-verification covers the inner plans: a caller's plan is stale when
+an inner plan it names was cleared (`link_plan_cleared`), changed (`link_plan_changed`), names
+another caller (`link_plan_parent_mismatch`) or is itself stale (`link_plan_stale`), for instance
+after a linked key was unpinned. An inner plan is never prepared, leased or run alone: the worker
+refuses to prepare one alone (`link_plan_parent_mismatch`) and to ready or start a linked
+package's own session (`link_lease_without_caller`), and the execution session refuses one
+handed over as a run's own plan. In this
+version a linked package's permissions are the preset's (they are not customized per link), and
+an inner run holds nothing of the person's memory: a linked package that requires one of the
+person's records, or binds a memory tool, stays undecided with the reason, and can only be denied
+(B-306).
+
+**The run.** The invocation carries each accepted link's inner plan, authorization and archive
+hash; the execution host reads the archives from the snapshot store and the session verifies each
+against its inner plan, the inner plan against the entry the caller's plan names, and its
+authorization as it verifies the caller's (`core/execution/links.ts`). An inner run's tools are
+bound from the linked package's own registry and its own approvals, over the run's transport,
+which admits only the plan's origins; the caller's files, records and memory are not handed over
+(L-25). The run page shows **Who was asked**, the delegation view (D-704): each activation of a
+role with where it handed off, and under it each link it asked (an inner run known by its id, so
+the items of a map step that run together are one line each), with its state (working,
+answered, failed, not started, declined), what was held for it and what it used, and what crossed
+as a hash. The view is a fold of the run's own audit (`core/links/delegation.ts`, over
+`network.activated`, `route.decided`, `link.requested`, `link.decided`, `link.started`,
+`link.completed`, `link.failed`, `link.refused`, `link.denied`, `budget.requested`,
+`budget.raised`), redrawn at every such event; nothing on it comes from the package, and a
+message or an input is never shown as text. A denied publisher is named as not asked. The export
+(D-705) adds `link-plan-<dependency>.json` (each accepted link's inner Run Plan) to the run's
+files, which already hold `links.json` and each inner run's `link-<inner run id>.*.json`;
+`scripts/verify_link_run.py` passes on the exported directory as it passes on a reference record.
+
+**A link made during a run: the join card (L-31…L-38, D-703).** A slot's look and its candidate's
+download are one GET each from the execution host (`core/links/web.ts`: no body, no cookie, no
+referrer, no redirect followed, a byte cap), to an address the plan could not record: one the
+person gave in the task, or one a declared search tool returned. Only an origin the person granted
+Chrome is dialled: the worker hands the run Chrome's granted origins when it starts, and the
+execution host refuses any other before a request is made (Chrome itself would send an
+extension's request to an ungranted origin, and let it be read when the server allows it), so a
+page elsewhere is listed in the audit as `origin_not_granted` and the slot finds nothing. A page
+longer than 1 MiB is read to its first MiB and its head scanned, as the reference's discovery
+reads it. A candidate that is verified, is not refused by a rule (the caller itself, a
+conversation, nested links, a key denied in this run, the model route, the slot's ceiling, what
+the run has left) and whose worst case could be reserved is put before the person on a **join
+card** in the run panel, with the facts the core computed and validated
+(`link-join-card.schema.json`), in the order D-681 gives: the publisher's key and trust state, the
+package, its name and description (the publisher's words), where it was found, its tools with
+their endpoints, its permissions (each with a choice of deny, once or session; a required one
+starts allowed, nothing else does), the record types it asks for, its model needs, what the agent
+may send it (the fields of the slot's view), why the agent asks (the agent's words), its worst
+case inside the slot's ceiling, that the accepted "at most" is unchanged, what the run has left,
+and the card counts. **No, continue without it** is the default button, and no answer within the
+step's time is a no; a no lasts for the run. Nothing of the candidate reaches the caller's model
+before the decision: the request-building call comes after an acceptance, with the slot's view
+and the joined package's name, description and input schema as its only data. Accepting asks
+Chrome for the origins of the tools the card approved, then answers; the joined package's tools
+reach those origins only. The card may also pin the candidate's key (for that package, or for
+the publisher); the pin is made by the service worker from the candidate's own verified key, only
+once the run took the answer (an answer that came after the card's time pins nothing), and is
+listed on the Trust page with a note saying which run and slot it came from. A pin that fails
+leaves the answer standing and is said on the card. The join's inner
+plan names the caller's Run Plan by its hash, the run and the slot (L-36), and the links record
+states that hash (`caller_plan_hash`).
+
+**The budget-raise card (L-41…L-44).** When a reservation fails on the person's own run limit and
+the raise is admissible (once per run, by at most half of the limit, never above the agent's own
+cap), the run panel shows a card with the limit, what is used and held, what the step needs and
+what the limit would become. **No, keep my limit** is the default. The raise is recorded
+(`budget.requested`, `budget.raised`) and shown in the delegation view (kept, when the refusal it
+would have avoided follows). A conversation's turn is never asked: the chat shows only the
+turn's consent card, and the conversation's reservation counted the limits the turn runs under
+(V-10), so a turn has no run-card surface (no raise, and a slot is `unattended`).
+
+**How a card travels.** As a conversation's consent card does (§13): the execution host writes
+the card into the stored run (`run_card_pending`), the page reads it with the run, the person's
+answer (`run.decide`) is checked by the service worker against the card (its id; for a join only
+permissions and tools the card lists), written to the run (`run_card_answers`) and then delivered
+(`host.card`); the host also reads the record every second, so a lost message does not hang the
+step. One card is shown at a time: a join card and the raise card asked together are shown in
+turn, and one whose time ran out while it waited is never shown and ends unanswered.
+
+**Policy and Settings.** A subscribed policy may carry `links: {join, raise}`
+([policy bundle](../spec/extensions/policy-bundle-v0.md)): `join: forbid` makes every slot answer
+`policy` with nothing looked at and no card; `raise: forbid` means the raise is never asked.
+Settings → Policies states both rules and the caps of this version (at most 2 join cards in a
+run), and the review says what the policy in force forbids.
+
+**Found on this host: the planner 0.2.0's request-building call.** A Chrome host bounds a model
+request's input by its UTF-8 bytes (D-115: no tokenizer in the browser, and an estimate is not a
+bound). For Hotel Salitubam the request-building call's input bound is 2,886; with its 1,500
+output tokens the call reserves 4,386 against `FindHotel`'s 4,000 tokens per activation, and is
+refused (`worker_token_budget`, the step `budget_exhausted`; the agent's own cap is never the
+person's to raise). The signed 0.2.0 therefore reaches the card and the accepted decision on this
+host and then stops; the reference's fixture route and a host with a tokenizer do not see this.
+A planner whose `FindHotel` budget is 6,000 completes the join (the e2e builds that variant in
+its scratch directory with a throwaway key). A 0.2.1 with that budget is a new package version
+for the publisher to sign (B-307; `docs/conformance-divergences.md`).
+
+Evidence: `test/core/links/` (the composed envelopes, the walks, the join's pieces, the session's
+inner plans, the policy section), `test/extension/links.test.ts` (resolution, the review, the
+denial, the receipts and inner plans, staleness, a restart, the runs through the execution host,
+the join card accepted, declined, lost on the way, an origin that is not read, a policy that
+forbids joins), `test/extension/links-ui.test.ts` (the cards and the view in the page, the
+rendered tree against the audit), the conformance suite's `link/*` family and the planner's three
+walks on both runtimes (the whole suite: 289 of 289 cases and 4,047 of 4,047 checks at `e389fb0`,
+[`conformance/results/2026-11-17T15-05-12-352Z/`](../conformance/results/2026-11-17T15-05-12-352Z/report.md)), and `scripts/e2e-link.mjs`, which runs all of the above in headless
+Chrome from four local origins with `scripts/verify_chrome_link_e2e.py` recomputing its exports
+([`chrome-link-e2e.json`](../examples/verification/chrome-link-e2e.json)).

@@ -9,8 +9,8 @@ import { describe, expect, it } from "vitest";
 
 import { CoreError } from "../../src/core/errors.js";
 import type { AuthorizeResult, PermissionsView, RunPlanState, RunReadiness, SessionView, SettingsView } from "../../src/extension/messages.js";
-import { EVERY_SITE_PATTERN } from "../../src/extension/storage/permissions.js";
-import { originGuard } from "../../src/extension/execution/execute.js";
+import { EVERY_SITE_PATTERN, grantsCover } from "../../src/extension/storage/permissions.js";
+import { grantedOnly, originGuard } from "../../src/extension/execution/execute.js";
 import { TransportError, type HttpTransport } from "../../src/core/models/transport.js";
 import { SHIPPED } from "../helpers/paths.js";
 import { makeHarness, OLLAMA_ANSWERS, PACKAGE_URL, PAGE, SITE_ORIGIN, TAB, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
@@ -317,5 +317,34 @@ describe("discovery on grant (D-190)", () => {
     const unreadable = await refused(h.controller.handle({ type: "discovery.readTab", tabId: 8 }, PAGE));
     expect(unreadable.code).toBe("tab_not_readable");
     expect(unreadable.message).toContain("click the WebAgents button");
+  });
+});
+
+describe("a slot reads only granted origins (T66 review 1, finding 1)", () => {
+  it("grantsCover: the origin's own pattern, every site, a subdomain pattern; nothing narrower or of another origin", () => {
+    const origin = "https://hotel.example.org";
+    expect(grantsCover([`${origin}/*`], origin)).toBe(true);
+    expect(grantsCover([EVERY_SITE_PATTERN], origin)).toBe(true);
+    expect(grantsCover(["*://*/*"], origin)).toBe(true);
+    expect(grantsCover(["<all_urls>"], origin)).toBe(true);
+    expect(grantsCover(["https://*.example.org/*"], origin)).toBe(true);
+    expect(grantsCover(["https://example.org/*", "https://hotel.example.org/rooms/*", "https://other.example.org/*", "http://hotel.example.org/*"], origin)).toBe(false);
+    expect(grantsCover([`${origin}/*`], "https://hotel.example.org:8443")).toBe(true);
+    expect(grantsCover(["https://hotel.example.org:9000/*"], "https://hotel.example.org:8443")).toBe(false);
+    expect(grantsCover([], origin)).toBe(false);
+    expect(grantsCover([EVERY_SITE_PATTERN], null)).toBe(false);
+  });
+
+  it("grantedOnly: an ungranted origin is refused origin_not_granted and nothing is handed to the transport", async () => {
+    const seen: string[] = [];
+    const transport: HttpTransport = async (request) => {
+      seen.push(request.url);
+      return { status: 200, headers: {}, body: "" };
+    };
+    const guarded = grantedOnly(transport, ["https://granted.example.org/*"]);
+    await expect(guarded({ url: "https://hotel.example.org/", method: "GET", headers: {}, body: null, signal: new AbortController().signal, maxResponseBytes: 1024 })).rejects.toMatchObject({ code: "origin_not_granted" });
+    expect(seen).toEqual([]);
+    await guarded({ url: "https://granted.example.org/", method: "GET", headers: {}, body: null, signal: new AbortController().signal, maxResponseBytes: 1024 });
+    expect(seen).toEqual(["https://granted.example.org/"]);
   });
 });

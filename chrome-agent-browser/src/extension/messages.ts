@@ -13,7 +13,8 @@ import type { AuthorizationRequest, Decided } from "../core/authorization.js";
 import type { TranscriptTurn } from "../core/conversation/runner.js";
 import type { ConsentStepPlan } from "../core/types.js";
 import type { InputGatedRead } from "../core/inputs.js";
-import type { ConsentPending } from "./storage/runs.js";
+import type { ConsentPending, RunCardPending } from "./storage/runs.js";
+import type { DelegationTree } from "../core/links/delegation.js";
 import type { RunRecord } from "../core/execution/record.js";
 import type { CatalogEvaluation } from "../core/compatibility.js";
 import type { Candidate, DiscoveryResult, DiscoveryStatus } from "../core/discovery.js";
@@ -91,8 +92,18 @@ export type Request =
       modelId?: string | null;
       /** The permissions whose record the convenience preset chose (memory.v0 M-53): recorded as `preset` in the provenance. */
       presetSelections?: string[];
+      /**
+       * The linked packages' decisions the review showed (T66 review 1, nit 10): each accepted link's
+       * `decided_sha256` from the view; Authorize refuses `link_decisions_changed` when what it would
+       * grant now differs (a preset or a policy changed after the view). Absent: not checked.
+       */
+      linkDecisions?: Record<string, string>;
     }
-  | { type: "authorization.useProfile"; sessionId: string; packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean; presetSelections?: string[] }
+  | { type: "authorization.useProfile"; sessionId: string; packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean; presetSelections?: string[]; linkDecisions?: Record<string, string> }
+  /** link.v0 L-10 (T66): fetch, snapshot and verify every dependency of an open package, each as a session of its own. */
+  | { type: "links.resolve"; sessionId: string; packageDigest: string }
+  /** link.v0 L-13: deny one linked publisher (its key, for the run), or withdraw that denial. */
+  | { type: "links.decide"; sessionId: string; packageDigest: string; dependency: string; decision: "denied" | "undecided" }
   | { type: "models.evaluate"; sessionId: string; refresh: boolean }
   | { type: "models.probe"; provider: ProviderId }
   | { type: "inbrowser.get"; sessionId: string | null }
@@ -144,6 +155,8 @@ export type Request =
    */
   | { type: "run.active"; pageUrl?: string | null }
   | { type: "run.cancel"; runId: string }
+  /** link.v0 §6, §7 (T66): the person's answer to the card a run waits on (a join, the budget raise); a join's grants and approved tools are the joined package's own. */
+  | { type: "run.decide"; runId: string; cardId: string; accepted: boolean; grants?: Record<string, string>; approvedTools?: string[]; pin?: PinScope | null }
   | { type: "run.artifact"; runId: string; name: string }
   | { type: "run.artifactChunk"; runId: string; name: string; offset: number }
   | { type: "run.export"; runId: string }
@@ -263,7 +276,8 @@ export interface CandidateState {
 }
 
 export interface SessionSource {
-  kind: "url" | "website";
+  /** `link`: a linked package, fetched from its dependency record's locator for the caller that declares it (link.v0 L-10). */
+  kind: "url" | "website" | "link";
   display: string;
   advertised_on: string | null;
   opened_at: string;
@@ -458,6 +472,52 @@ export interface AuthorizationView {
   /** The secret store's state (T16): while not unlocked, `resources` is evaluated against no registry and records cannot be chosen. */
   secrets: SecretStoreState;
   origins: AuthorizationOrigins;
+  /** link.v0 (T66): the review of this package's links; null for a package that declares no dependency and no slot. */
+  links: LinksView | null;
+}
+
+/** One linked package in the review (link.v0 L-13): every member is computed from its verified bytes and the person's own stores; `package.name`, `package.description` and `publisher.claimed_name` are the publisher's words. */
+export interface LinkReviewItem {
+  dependency: string;
+  session_id: string;
+  package: { package_id: string; name: string; description: string; version: string; digest: string; archive_sha256: string };
+  publisher: Pick<PublisherReport, "claimed_id" | "claimed_name" | "signer_fingerprint" | "signature_status" | "trust_status" | "trust_reason">;
+  /** The linked package's own worst case (L-18), which the composed "at most" includes. */
+  worst_case: JsonObject;
+  decision: "accepted" | "denied" | "undecided";
+  /** What Authorize grants this package: the current preset's decisions within its own declaration, the subscribed policy applied. */
+  decided: Decided;
+  /** sha256 of the canonical `{decisions, tool_approvals}` of `decided`: the page echoes it at Authorize (`linkDecisions`). */
+  decided_sha256: string;
+  permissions: Array<{ id: string; kind: string; description: string; required: boolean; resources: string[] }>;
+  tools: Array<{ id: string; execution: string; endpoint: string | null; method: string | null; domains: string[]; permissions: string[]; side_effects: string; status: ToolStatus }>;
+  /** The record types it asks for (its `personal.read` and `memory.read` resources). */
+  records: string[];
+  model: { tasks: Array<{ id: string; capabilities: string[]; context_window: number }>; privacy: string | null };
+  /** The steps of the caller that ask it. */
+  steps: Array<{ step: string; where: string }>;
+  /** Why Authorize cannot accept it as it stands (an unpinned key, a record it requires): each a reason the person can act on, or deny the publisher. */
+  problems: Reason[];
+  authorization: { state: "issued" | "pending"; receipt_id: string | null };
+  run_plan: { state: "prepared" | "absent"; run_plan_sha256: string | null };
+}
+
+/** The review of a package's links (link.v0 L-13, L-22; `browser/links.py::review`). */
+export interface LinksView {
+  session_id: string;
+  package_digest: string;
+  /** Whether every dependency is fetched, verified and open as a session. */
+  resolved: boolean;
+  /** Where each dependency is fetched from, for the Load button and Chrome's origin prompt. */
+  locators: Array<{ dependency: string; package_id: string; version: string; locator: string; origin: string | null }>;
+  links: LinkReviewItem[];
+  /** The linked packages grouped by the key that signed them: a decision is of the key (L-13). */
+  publishers: Array<{ signer_fingerprint: string; trust_status: string; claimed_name: string; dependencies: string[]; denied: boolean }>;
+  /** `links/records.ts::linkRecords`: the dependencies, the slots at their ceilings, and the composed worst case (an "at most" once resolved). */
+  composed: JsonObject;
+  /** What a run's slots may do here: the run's card cap, and whether the subscribed policy forbids joins or the raise. */
+  run_cards: { max_join_cards: number; join: "allow" | "forbid"; raise: "allow" | "forbid"; policy: string | null };
+  note: string;
 }
 
 export interface AuthorizeResult {
@@ -612,6 +672,14 @@ export interface RunView extends RunRecord {
   profileId: string | null;
   /** conversation.v0 (D-270): the card this turn waits on, or null. */
   consentPending?: ConsentPending | null;
+  /** link.v0 §6, §7 (T66): the card this run waits on (a join, the budget raise), or null. */
+  runCard?: RunCardPending | null;
+  /** `run.decide`'s answer only: what became of a pin asked on the join card (T66 review 1, nit 8); made only once the run took the answer. */
+  cardPin?: { card_id: string; made: boolean; reason: string | null };
+  /** link.v0 (T66, D-704): who was asked, who is working and who answered, folded from the run's own audit; null for a run without a network or a link. */
+  delegation?: DelegationTree | null;
+  /** link.v0 L-15: the links the run's plan records, each with the person's decision; null for a package without dependencies. */
+  links?: Array<{ dependency: string; package_id: string; name: string | null; version: string; signer: string; trust: string | null; decision: "accepted" | "denied" }> | null;
 }
 
 export interface RunSummary {
@@ -945,7 +1013,7 @@ export function parseRequest(value: unknown): Request {
       only(fields, ["type", "sessionId"]);
       return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID) };
     case "authorization.authorize":
-      only(fields, ["type", "sessionId", "packageDigest", "decisions", "toolApprovals", "resourceSelections", "provenance", "prepare", "modelId", "presetSelections"]);
+      only(fields, ["type", "sessionId", "packageDigest", "decisions", "toolApprovals", "resourceSelections", "provenance", "prepare", "modelId", "presetSelections", "linkDecisions"]);
       return {
         type,
         sessionId: text(fields.sessionId, "sessionId", MAX_ID),
@@ -957,9 +1025,10 @@ export function parseRequest(value: unknown): Request {
         prepare: fields.prepare === true,
         modelId: optionalText(fields.modelId, "modelId", 300),
         ...(fields.presetSelections !== undefined ? { presetSelections: stringList(fields.presetSelections, "presetSelections") } : {}),
+        ...(fields.linkDecisions !== undefined ? { linkDecisions: stringMap(fields.linkDecisions, "linkDecisions") } : {}),
       };
     case "authorization.useProfile":
-      only(fields, ["type", "sessionId", "packageDigest", "profileId", "resourceSelections", "prepare", "presetSelections"]);
+      only(fields, ["type", "sessionId", "packageDigest", "profileId", "resourceSelections", "prepare", "presetSelections", "linkDecisions"]);
       return {
         type,
         sessionId: text(fields.sessionId, "sessionId", MAX_ID),
@@ -968,7 +1037,30 @@ export function parseRequest(value: unknown): Request {
         resourceSelections: stringMap(fields.resourceSelections, "resourceSelections"),
         prepare: fields.prepare === true,
         ...(fields.presetSelections !== undefined ? { presetSelections: stringList(fields.presetSelections, "presetSelections") } : {}),
+        ...(fields.linkDecisions !== undefined ? { linkDecisions: stringMap(fields.linkDecisions, "linkDecisions") } : {}),
       };
+    case "links.resolve":
+      only(fields, ["type", "sessionId", "packageDigest"]);
+      return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID), packageDigest: text(fields.packageDigest, "packageDigest", MAX_ID) };
+    case "links.decide":
+      only(fields, ["type", "sessionId", "packageDigest", "dependency", "decision"]);
+      if (fields.decision !== "denied" && fields.decision !== "undecided") throw invalid("decision must be 'denied' or 'undecided'");
+      return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID), packageDigest: text(fields.packageDigest, "packageDigest", MAX_ID), dependency: text(fields.dependency, "dependency", MAX_ID), decision: fields.decision };
+    case "run.decide": {
+      only(fields, ["type", "runId", "cardId", "accepted", "grants", "approvedTools", "pin"]);
+      if (typeof fields.accepted !== "boolean") throw invalid("accepted must be true or false");
+      const pin = fields.pin ?? null;
+      if (pin !== null && pin !== "package" && pin !== "publisher") throw invalid("pin must be 'package' (narrow) or 'publisher'");
+      return {
+        type,
+        runId: text(fields.runId, "runId", MAX_ID),
+        cardId: text(fields.cardId, "cardId", MAX_ID),
+        accepted: fields.accepted,
+        ...(fields.grants !== undefined ? { grants: stringMap(fields.grants, "grants") } : {}),
+        ...(fields.approvedTools !== undefined ? { approvedTools: stringList(fields.approvedTools, "approvedTools") } : {}),
+        pin,
+      };
+    }
     case "models.evaluate":
       only(fields, ["type", "sessionId", "refresh"]);
       return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID), refresh: fields.refresh === true };

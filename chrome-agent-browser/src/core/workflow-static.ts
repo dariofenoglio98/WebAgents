@@ -11,6 +11,7 @@ import { checkComputeDeclarations } from "./compute/declarations.js";
 import { checkConversationDeclarations, conversationInitialEnv } from "./conversation/declarations.js";
 import { roleSteps } from "./network/analysis.js";
 import { checkNetworkDeclarations } from "./network/declarations.js";
+import { checkLinkDeclarations } from "./links/declarations.js";
 import { canonicalString } from "./canonical.js";
 import { ValidationError } from "./errors.js";
 import { isJsonObject, parseJson, type JsonObject, type JsonValue } from "./json.js";
@@ -259,7 +260,7 @@ export async function validateWorkflow(
       }
       expression(node.yield!, stepEnv, `${label}/yield`, role, nodeId);
     }
-    if ((kind === "llm" || kind === "tool" || kind === "map") && role === coordinator) {
+    if ((kind === "llm" || kind === "tool" || kind === "map" || kind === "link") && role === coordinator) {
       throw new ValidationError(`${label}: effectful nodes require a non-coordinator worker`);
     }
   };
@@ -352,6 +353,10 @@ export async function validateWorkflow(
   // and the bound against the package's budget; a graph without a network passes (and may hold no
   // network node).
   await checkNetworkDeclarations(manifest, graph, policy, { documents, schema, expression, operation, nodes, files, schemaPaths });
+  // link.v0 (Chrome core 0.7.0): the dependency records, every `link` step against them, the slots
+  // and their ceilings against the package's budget; a package without a dependency or a link step
+  // passes. What needs a linked package's own declaration waits for preparation.
+  checkLinkDeclarations(manifest, graph, policy, { documents, schema, expression, atSchema: (root, parts, path, label) => atSchema(root, parts, path, documents, label) });
   // conversation.v0: the conversation object, the consent steps, the gate before every tool that
   // links a consented permission, and the fixture transcript; a graph without a conversation
   // passes (and may hold no consent step).

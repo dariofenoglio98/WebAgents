@@ -46,6 +46,7 @@ import { parseJson } from "./json.js";
 import { EXTENSION_SCHEMAS } from "./schemas/extensions/index.js";
 import { SCHEMAS } from "./schemas/index.js";
 import { CONVERSATION_CONTRACTS } from "./schemas/conversation/index.js";
+import { LINK_CONTRACTS } from "./schemas/link/index.js";
 import { MEMORY_CONTRACTS } from "./schemas/memory/index.js";
 import { urlsplit } from "./urls.js";
 
@@ -109,10 +110,10 @@ export const PATCHED_SCHEMAS: Readonly<Record<string, unknown>> = Object.freeze(
   policy: applyPatch(SCHEMAS.policy, MEMORY_CONTRACTS["policy.schema.patch"] as Patch),
   workflow: applyPatch(SCHEMAS.workflow, MEMORY_CONTRACTS["workflow.schema.patch"] as Patch),
 });
-/** The policy bundle schema with the memory decisions and the `memory` ceilings (M-54), and conversation.v0's `consent` section (D-271). */
+/** The policy bundle schema with the memory decisions and the `memory` ceilings (M-54), conversation.v0's `consent` section (D-271) and link.v0's `links` section (D-681, D-682). */
 export const PATCHED_EXTENSION_SCHEMAS: Readonly<Record<string, unknown>> = Object.freeze({
   ...EXTENSION_SCHEMAS,
-  "policy-bundle-v0": applyPatch(applyPatch(EXTENSION_SCHEMAS["policy-bundle-v0"], MEMORY_CONTRACTS["policy-bundle-v0.schema.patch"] as Patch), CONVERSATION_CONTRACTS["policy-bundle-v0.schema.patch"] as Patch),
+  "policy-bundle-v0": applyPatch(applyPatch(applyPatch(EXTENSION_SCHEMAS["policy-bundle-v0"], MEMORY_CONTRACTS["policy-bundle-v0.schema.patch"] as Patch), CONVERSATION_CONTRACTS["policy-bundle-v0.schema.patch"] as Patch), LINK_CONTRACTS["policy-bundle-v0.schema.patch"] as Patch),
 });
 
 export interface SchemaFailure {

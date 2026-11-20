@@ -5,11 +5,18 @@
  * lives and how they re-render; nothing here is computed about authority (D-035).
  */
 import type { Decision, Provenance } from "../../core/types.js";
-import type { AuthorizationView, AuthorizeResult, ModelsView, RunPlanState, SessionView } from "../messages.js";
+import type { AuthorizationView, AuthorizeResult, LinksView, ModelsView, RunPlanState, SessionView } from "../messages.js";
 import { newAuthorizeState, renderAuthorizeView, type AuthorizeState } from "./authorize.js";
 import { describeError, refusedOrigins, requestOrigins, send } from "./client.js";
 import { el } from "./dom.js";
 import { needsUnlock } from "./unlock.js";
+
+/** What the review listed for each linked package Authorize would decide (T66 review 1, nit 10): the worker refuses if it changed since. */
+function linkDecisions(view: AuthorizationView): { linkDecisions?: Record<string, string> } {
+  const links = view.links;
+  if (!links || !links.resolved) return {};
+  return { linkDecisions: Object.fromEntries(links.links.filter((item) => item.decision !== "denied").map((item) => [item.dependency, item.decided_sha256])) };
+}
 
 export interface AuthorizationHost {
   session: () => SessionView | null;
@@ -134,11 +141,11 @@ export function bindAuthorization(host: AuthorizationHost): AuthorizationControl
         state,
         {
           onUseProfile: (profileId, picks, presetSelections) =>
-            void act("Recording your decisions…", () => send<AuthorizeResult>({ type: "authorization.useProfile", sessionId: open.session.id, packageDigest: view.package_digest, profileId, resourceSelections: picks, prepare: true, ...(presetSelections && presetSelections.length > 0 ? { presetSelections } : {}) }), afterAuthorize),
+            void act("Recording your decisions…", () => send<AuthorizeResult>({ type: "authorization.useProfile", sessionId: open.session.id, packageDigest: view.package_digest, profileId, resourceSelections: picks, prepare: true, ...(presetSelections && presetSelections.length > 0 ? { presetSelections } : {}), ...linkDecisions(view) }), afterAuthorize),
           onAuthorize: (decisions: Record<string, Decision>, approvals, picks, provenance: Provenance, modelId, presetSelections) =>
             void act(
               "Recording your decisions…",
-              () => send<AuthorizeResult>({ type: "authorization.authorize", sessionId: open.session.id, packageDigest: view.package_digest, decisions, toolApprovals: approvals, resourceSelections: picks, provenance, prepare: true, modelId, ...(presetSelections && presetSelections.length > 0 ? { presetSelections } : {}) }),
+              () => send<AuthorizeResult>({ type: "authorization.authorize", sessionId: open.session.id, packageDigest: view.package_digest, decisions, toolApprovals: approvals, resourceSelections: picks, provenance, prepare: true, modelId, ...(presetSelections && presetSelections.length > 0 ? { presetSelections } : {}), ...linkDecisions(view) }),
               afterAuthorize,
             ),
           onPrepare: (modelId) =>
@@ -160,6 +167,19 @@ export function bindAuthorization(host: AuthorizationHost): AuthorizationControl
             }),
           onOpenSettings: host.openSettings,
           onTrust,
+          // link.v0 (T66, D-702): the review's controls.
+          onResolveLinks: () =>
+            void act("Loading the linked agents…", () => send<LinksView>({ type: "links.resolve", sessionId: open.session.id, packageDigest: view.package_digest }), (links) => {
+              state.notice = { text: `Loaded ${links.links.length} linked agent${links.links.length === 1 ? "" : "s"}. Nothing has run, and nothing is granted yet.`, tone: "good" };
+            }),
+          onDecideLink: (dependency, decision) =>
+            void act(decision === "denied" ? "Denying that publisher…" : "Allowing that publisher again…", () => send<LinksView>({ type: "links.decide", sessionId: open.session.id, packageDigest: view.package_digest, dependency, decision }), () => {
+              state.notice = { text: decision === "denied" ? "Denied for this agent's runs. Press “Use this agent” to prepare a plan without it." : "Allowed again. Press “Use this agent” to prepare a plan with it.", tone: "warn" };
+            }),
+          onTrustLink: (sessionId, signerFingerprint, scope) =>
+            void act("Trusting that publisher key…", () => send({ type: "trust.pin", sessionId, signerFingerprint, scope }), () => {
+              state.notice = { text: "That publisher key is now trusted on this device. It grants no permission by itself.", tone: "good" };
+            }),
           requestOrigins: host.requestOrigins ?? (typeof chrome !== "undefined" && chrome.permissions ? requestOrigins : undefined),
           onUnlock: host.unlock ? () => host.unlock?.(() => void load().then(host.rerender)) : undefined,
           rerender: host.rerender,

@@ -18,6 +18,8 @@ import { DEFAULT_PRESET } from "./authorization.js";
 import { canonicalJson } from "./canonical.js";
 import { conversationRecords } from "./conversation/declarations.js";
 import { networkRecords } from "./network/declarations.js";
+import type { LinkCosts } from "./network/analysis.js";
+import { packageWorstCase, WORST_CASE_FIGURES } from "./links/analysis.js";
 import { consentPlan, type ConsentPolicy } from "./policies/consent.js";
 import { CoreError } from "./errors.js";
 import type { EvaluationLayers, PublisherReport } from "./evaluation.js";
@@ -54,6 +56,7 @@ import {
   type ConversationPlan,
   type NetworkPlan,
   type ExecutionMode,
+  type LinkPlanEntry,
   type PresetId,
   type Provenance,
   type Reason,
@@ -244,6 +247,12 @@ export interface RunPlanInputs {
   consentPreset?: PresetId | null;
   now?: Date;
   runPlanId?: string;
+  /** link.v0 L-14: the caller an inner plan is prepared for (`{package_digest, dependency}`); only a linked package's plan carries it. */
+  parent?: JsonObject | null;
+  /** link.v0 L-15: the caller's links, each with the person's decision and its inner plan's hash. */
+  links?: Record<string, LinkPlanEntry> | null;
+  /** link.v0 L-22: each dependency's worst case, null for a denied link, so that the plan states the composed envelope. */
+  linkCosts?: LinkCosts | null;
 }
 
 /** `build_run_plan`: freeze one decision into a hashed, self-describing artifact. */
@@ -314,8 +323,13 @@ export async function buildRunPlan(pkg: Package, input: RunPlanInputs): Promise<
         (probe !== null ? " This plan is authority for ONE mediated call to one declared tool. It binds no model and is not authority to run this package's graph." : "") +
         " Declared tools the authorization did not approve are listed in denied_tool_ids; the runtime refuses any call to them (D-022).",
       conversation: conversationPlan(pkg, input.consentPreset ?? input.receipt.provenance?.preset ?? DEFAULT_PRESET, input.consentPolicy ?? null),
-      ...networkSection(pkg),
+      // With links, the composed envelope (link.v0 L-22): each accepted link's worst case inside its role's cost, a denied link's role never activated.
+      ...networkSection(pkg, input.linkCosts ?? null),
+      ...(input.links ? { links: { worst_case: composedFigures(pkg, input.linkCosts ?? null) } } : {}),
     },
+    // link.v0 L-14, L-15: an inner plan names its caller; a caller's plan records its links. Both hash-bound with the rest.
+    ...(input.parent ? { parent: { ...input.parent } } : {}),
+    ...(input.links ? { links: Object.fromEntries(Object.keys(input.links).sort().map((name) => [name, { ...input.links![name]! }])) } : {}),
     tool_bindings: bindings as unknown as RunPlan["tool_bindings"],
     tool_registry: input.toolRegistry ? toolRegistryReference(input.toolRegistry) : null,
     resource_grants: input.receipt.resource_grants.map((grant) => ({ ...grant })),
@@ -508,15 +522,22 @@ export function grantsOnce(receipt: Pick<AuthorizationReceipt, "decisions">): bo
 }
 
 /** network.v0 (R-24, `runplan.py`): the envelope the person agreed to, computed from the signed declaration; null for a package without a network. */
-export function networkPlan(pkg: Package): NetworkPlan | null {
-  const records = networkRecords(pkg);
+export function networkPlan(pkg: Package, links: LinkCosts | null = null): NetworkPlan | null {
+  // link.v0 L-22: with the links resolved and decided, the composed envelope.
+  const records = networkRecords(pkg, links);
   if (records === null) return null;
   return { node: records.node, entry: records.entry, roles: records.roles.map((role) => role.id), worst_case: JSON.parse(JSON.stringify(records.worst_case)) as JsonObject };
 }
 
+/** link.v0 L-22: the six figures of the envelope composed across the links. */
+function composedFigures(pkg: Package, links: LinkCosts | null): JsonObject {
+  const composed = packageWorstCase(pkg.graph, pkg.policy, { links });
+  return Object.fromEntries(WORST_CASE_FIGURES.map((name) => [name, JSON.parse(JSON.stringify(composed[name])) as JsonValue]));
+}
+
 /** `{network}` for a delegation package, nothing otherwise: only such a plan carries the section. */
-export function networkSection(pkg: Package): { network?: NetworkPlan } {
-  const network = networkPlan(pkg);
+export function networkSection(pkg: Package, links: LinkCosts | null = null): { network?: NetworkPlan } {
+  const network = networkPlan(pkg, links);
   return network === null ? {} : { network };
 }
 

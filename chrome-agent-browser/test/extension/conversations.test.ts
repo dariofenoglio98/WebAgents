@@ -381,6 +381,21 @@ describe("a conversation from the browser", () => {
     expect(after.status).toBe("open");
   });
 
+  it("a turn over the run limit fails at once: no budget-raise card is asked on a surface the chat never shows (T66 review 1, finding 3)", async () => {
+    // At 2,000 tokens the turn's first model call would fail on the person's limit alone, which is
+    // where a one-shot run may be asked to raise it (link.v0 §7). A turn has no run-card surface.
+    const w = await world({ limits: { total_tokens: 2000 } });
+    const started = await start(w, await authorize(w));
+    await send(w, started.conversationId, "hello");
+    const after = await settled(w, started.conversationId);
+    expect(after.transcript[0]).toMatchObject({ status: "failed", error_code: "budget_exhausted" });
+    const [run] = await w.h.runs.listRuns();
+    expect(run!.run_card_pending ?? null).toBeNull();
+    expect(Object.keys(run!.run_card_answers ?? {})).toEqual([]);
+    expect(w.h.host.started[0]!.cards).not.toBeNull();
+    expect((run!.audit as unknown as JsonObject[]).some((event) => String(event.action).startsWith("budget."))).toBe(false);
+  });
+
   it("two sends that read the same record start one turn; the other is refused and the chain stays one (T24 review 1 finding 4, V-17)", async () => {
     const w = await world();
     const started = await start(w, await authorize(w));

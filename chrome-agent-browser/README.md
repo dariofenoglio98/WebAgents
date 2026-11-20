@@ -172,6 +172,19 @@ What it shows today, on the WebAir demo site:
    store's key wrapped by your login keychain, and the Unlock sheet then unlocks with one click.
    The passphrase keeps working; without the helper nothing changes. Every unpacked build has the
    id `kjegegjdnpdcjhgamhjdphgemegefapb` (the manifest's `key`, D-200), the one the helper answers.
+15. **Agents that ask other agents** (T66, [Agent Links](../spec/link-v0.md); core 0.7.0). A
+   package may link other publishers' packages. The authorization view lists them under
+   **Linked agents**: **Load linked agents** fetches each from the address its signed record
+   names, and the review then shows every publisher with its own trust state (a linked key is
+   pinned from its own card; the caller never vouches for it), what each agent would be granted,
+   its tools and their endpoints, and one composed "at most" over all of them. **Deny this
+   publisher** leaves that agent out of the plan and the run. **Use this agent** issues a
+   receipt and an inner Run Plan per accepted agent. During a run the run page shows **Who was
+   asked**, drawn from the run's own record, and, for a package with a slot, a **join card**
+   before an agent found during the run is used (the default is no), and at most one card
+   asking to raise your own run limit. A publisher's name and description are shown as its
+   words, quoted; every other fact is computed by the browser
+   ([guide §16](../docs/chrome-agent-browser.md#16-agent-links-t66)).
 
 Verification is the same as the Python reference runtime's (`agentpkg`): the core reports the
 same digest, archive SHA-256, signer fingerprint and validity, and the browser summary equals
@@ -252,6 +265,28 @@ with `--resource-grant PERMISSION=RESOURCE_ID`, reads keys from `OPENAI_API_KEY`
 failure writes the artifacts and exits 2 with `agent-browser: workflow.v0 <code> at node <id>`.
 The Chrome runner executes signed packages only.
 
+A package with links takes `agentpkg run`'s link flags (`src/cli-links.ts`): `--link ID=ARCHIVE`
+(an archive the operator supplies for a dependency, accepted only by its digest; without one the
+dependency is fetched from its locator through `cli-net.ts`), `--link-grants ID=FILE` (that linked
+package's own grants: accepting it), `--deny-link ID`, `--approve-tool ID:TOOL` (a linked package's
+tool), a repeatable `--trust-key` (the first pins the caller's publisher and only that one
+verifies the caller; every key given trusts a linked publisher) and `--join-fixture FILE` (a
+recorded web and the person's recorded answers for a slot and the raise; fixture mode never
+dials). The run directory then also holds `links.json` and each inner run's
+`link-<inner run id>.*.json`, which `scripts/verify_link_run.py` recomputes:
+
+```sh
+node dist/cli.js run ../dist/travel-planner-0.1.0.agent.pkg --mode fixture \
+  --grants ../examples/link/travel-planner-grants.json --approve-tool check-calendar \
+  --link webair-flights=../dist/webair-flights-0.1.0.agent.pkg \
+  --link-grants webair-flights=../examples/link/webair-flights-grants.json --approve-tool webair-flights:search-flights \
+  --link hotel-aggregator=../dist/staymere-hotels-0.1.0.agent.pkg \
+  --link-grants hotel-aggregator=../examples/link/staymere-hotels-grants.json --approve-tool hotel-aggregator:search-hotels \
+  --trust-key ../examples/keys/travel-planner-publisher.pub.pem --trust-key ../examples/keys/webair-publisher.pub.pem \
+  --trust-key ../examples/keys/staymere-publisher.pub.pem --out ../examples/my-planner-chrome
+../agentpkg/.venv/bin/python ../scripts/verify_link_run.py ../examples/my-planner-chrome
+```
+
 `node dist/cli.js pdf-text <document.pdf>` runs the paper reader's parser over one PDF and prints
 `{pages, sha256, source}` (status 0) or `{"error": reason}` (status 3), the counterpart of
 `agentpkg host-pdf-read`.
@@ -300,6 +335,8 @@ node scripts/e2e-paper-reader.mjs      # a picked PDF read by a run in headless 
 node scripts/e2e-conversation.mjs      # a two-turn conversation with a consent card in headless Chrome (no network: a scripted Ollama, a local desk origin)
 node scripts/e2e-network.mjs           # the signed travel network (network.v0) in headless Chrome, fixture mode (a fake WebAir origin, a scripted Ollama)
 agentpkg/.venv/bin/python ../scripts/verify_chrome_conversation.py   # recompute its checks over the exported conversation
+node scripts/e2e-link.mjs              # Agent Links in headless Chrome: the planner's review, a denial, both walks, the join card (four local origins, a scripted Ollama)
+../agentpkg/.venv/bin/python ../scripts/verify_chrome_link_e2e.py --report ../examples/verification/chrome-link-e2e.json   # recompute it from the exports
 node scripts/e2e-literature-live.mjs --model openai/gpt-5.6-luna   # Literature Review live: real Chrome, Crossref, the resolver
 agentpkg/.venv/bin/python ../scripts/verify_chrome_literature_live.py  # recompute its checks, grounding included
 node scripts/measure-execution-host.mjs --minutes 30        # the D-027 host measurement (headed Chrome)
@@ -388,6 +425,13 @@ limits, and the reference driver's grounding checks. The evidence is
   classified, streams the body and stops at the byte cap. An extension has no resolver and no
   socket, so in Chrome those checks are the network stack's job
   ([threat model](../docs/threat-model.md#chrome-agent-browser-t7)).
+- **Agent Links, the parts left out** (T66). A linked agent's grants are the preset's: they are
+  not customized per link, and a linked agent that needs one of your records or an agent
+  document cannot be accepted (B-306). A slot looks only at sites you already allowed Chrome to
+  read; the origin of an address you type in a task is not asked for when you press Run (B-309).
+  The signed planner 0.2.0 reaches its join card here and then stops at its own `FindHotel`
+  budget, because this host bounds a model request's input by its bytes (D-115; a 0.2.1 is
+  B-307).
 - **Per-origin permissions.** The content script runs on every HTTPS page and reads only the
   advertised link elements; narrowing to opted-in origins is later hardening.
 - Firefox and the Meeting Agenda UI path are in the backlog. NANDA resolution is a stub: the

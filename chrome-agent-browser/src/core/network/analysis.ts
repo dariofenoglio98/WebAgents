@@ -1,6 +1,6 @@
 /**
  * The worst case of a delegation network, computed from the declaration alone (network.v0 §3):
- * `agentpkg/delegation/analysis.py`, line for line.
+ * `agentpkg/delegation/analysis.py`, line for line, with link.v0's link costs (L-19…L-22).
  *
  * Pure arithmetic over the graph and the policy: no package is opened, no model is contacted, and
  * nothing here imports the interpreter, so the control plane may compute what the agent page says.
@@ -98,19 +98,88 @@ export function routeCalls(graph: JsonObject): Array<[string, JsonObject]> {
   return found;
 }
 
+/** The figures a link adds to the operation that holds it (link.v0 L-19); seconds are not one of them: a link runs inside its step's and its role's time. */
+export const LINK_COMPONENTS = ["model_calls", "compute_calls", "remote_calls", "tokens"] as const;
+
+/** A linked package's own worst case in the figures a link's cost reads (`links/analysis.ts`'s W(p)). */
+export interface LinkedWorstCase {
+  model_calls: number;
+  tool_calls: Record<string, number>;
+  compute_calls: number;
+  remote_calls: number;
+  tokens: number;
+  seconds?: number;
+}
+
+/**
+ * Each dependency id's resolved worst case, or null for a link the person denied (link.v0 L-16);
+ * `false` leaves every link out (the role's own program), absent states the declaration alone.
+ */
+export type LinkCosts = Readonly<Record<string, LinkedWorstCase | null>>;
+
+/** What one run of a `link` step costs here (L-19, L-21), in the figures of an activation. */
+export interface LinkCost {
+  model_calls: number;
+  tool_calls: Record<string, number>;
+  compute_calls: number;
+  remote_calls: number;
+  tokens: number;
+}
+
+/**
+ * What one run of a `link` step can cost at most (link.v0 L-19, L-21), or null when it costs
+ * nothing here. A slot costs its declared ceiling plus the request-building call, its tool calls in
+ * total under `<slot>:*`. A planned link costs its linked package's own worst case, which only a
+ * resolved composition knows: `links` maps each dependency id to that worst case, or to null for a
+ * link the person denied; with no map (the declaration alone) a planned link is not counted yet.
+ * The linked tools are qualified `<dependency>:<tool>` (`delegation/analysis.py::link_cost`).
+ */
+export function linkCost(step: JsonObject, links?: LinkCosts | null): LinkCost | null {
+  if ("slot" in step) {
+    const ceiling = step.budget as JsonObject;
+    const figure = (name: string): number => (typeof ceiling[name] === "number" ? (ceiling[name] as number) : 0);
+    const total = figure("tool_calls");
+    return {
+      model_calls: figure("model_calls") + 1,
+      tool_calls: total ? { [`${String(step.slot)}:*`]: total } : {},
+      compute_calls: figure("compute_calls"),
+      remote_calls: figure("remote_calls"),
+      tokens: figure("tokens"),
+    };
+  }
+  const linked = links?.[String(step.dependency)] ?? null;
+  if (linked === null) return null;
+  const tools: Record<string, number> = {};
+  for (const [tool, count] of Object.entries(linked.tool_calls)) tools[`${String(step.dependency)}:${tool}`] = count;
+  return { model_calls: linked.model_calls, tool_calls: tools, compute_calls: linked.compute_calls, remote_calls: linked.remote_calls, tokens: linked.tokens };
+}
+
+/** The roles whose program holds a link the person denied (link.v0 L-16): such a role cannot complete, so no walk activates it. */
+export function deniedRoles(network: JsonObject, links?: LinkCosts | false | null): Set<string> {
+  const denied = new Set<string>();
+  if (!links) return denied;
+  for (const [roleId, role] of Object.entries(rolesOf(network))) {
+    const holds = (role.steps as JsonObject[]).some((step) => step.type === "link" && "dependency" in step && Object.hasOwn(links, String(step.dependency)) && links[String(step.dependency)] === null);
+    if (holds) denied.add(roleId);
+  }
+  return denied;
+}
+
 /**
  * What one activation of a role can cost at most (R-19): each step runs at most once (a
  * conditional one counts as taken), a chosen route is one model call, and the worker's budgets
- * bound its tokens and remote calls per instance.
+ * bound its tokens and remote calls per instance. A `link` step adds its link's cost beside them
+ * (link.v0 L-19); `links` is `linkCost`'s, and `false` leaves every link out (the role's own
+ * program).
  */
-export function activationCosts(graph: JsonObject, roleId: string): ActivationCosts {
+export function activationCosts(graph: JsonObject, roleId: string, links?: LinkCosts | false | null): ActivationCosts {
   const role = rolesOf(networkOf(graph)!)[roleId]!;
   const worker = (graph.workers as JsonObject[]).find((item) => item.id === roleId)!;
   const steps = role.steps as JsonObject[];
   const tools: Record<string, number> = {};
   for (const step of steps) if (step.type === "tool") tools[String(step.tool)] = (tools[String(step.tool)] ?? 0) + 1;
   const budget = worker.budget as JsonObject;
-  return {
+  const costs: ActivationCosts = {
     model_calls: steps.filter((step) => step.type === "llm").length + ("task" in (role.route as JsonObject) ? 1 : 0),
     tool_calls: tools,
     compute_calls: steps.filter((step) => step.type === "compute").length,
@@ -118,19 +187,36 @@ export function activationCosts(graph: JsonObject, roleId: string): ActivationCo
     tokens: budget.tokens as number,
     seconds: role.timeout_seconds as number,
   };
+  if (links === false) {
+    // The role's own program still makes a slot's request-building call (link.v0 L-21).
+    costs.model_calls += steps.filter((step) => step.type === "link" && "slot" in step).length;
+    return costs;
+  }
+  for (const step of steps) {
+    const cost = step.type === "link" ? linkCost(step, links) : null;
+    if (cost === null) continue;
+    for (const name of LINK_COMPONENTS) costs[name] += cost[name];
+    for (const [tool, count] of Object.entries(cost.tool_calls)) costs.tool_calls[tool] = (costs.tool_calls[tool] ?? 0) + count;
+  }
+  return costs;
 }
 
 /**
  * The most times any allowed walk activates a role (R-20): every activation but the entry's first
  * follows an edge into it, each edge is taken at most `max_uses` times, there are at most
- * `max_hops` transitions, and the role's own `max_activations` caps it further.
+ * `max_hops` transitions, and the role's own `max_activations` caps it further. A role in `denied`
+ * (link.v0 L-16) is never activated, so it counts zero and its own edges are never taken.
  */
-export function activationBound(network: JsonObject, roleId: string): number {
+export function activationBound(network: JsonObject, roleId: string, denied: ReadonlySet<string> = new Set()): number {
+  if (denied.has(roleId)) return 0;
   const roles = rolesOf(network);
   const role = roles[roleId]!;
   const entry = roleId === network.entry ? 1 : 0;
   let inbound = 0;
-  for (const other of Object.values(roles)) for (const edge of other.edges as JsonObject[]) if (edge.to === roleId) inbound += edge.max_uses as number;
+  for (const [otherId, other] of Object.entries(roles)) {
+    if (denied.has(otherId)) continue;
+    for (const edge of other.edges as JsonObject[]) if (edge.to === roleId) inbound += edge.max_uses as number;
+  }
   let bound = Math.min(inbound + entry, (network.max_hops as number) + entry);
   if ("max_activations" in role) bound = Math.min(bound, role.max_activations as number);
   return bound;
@@ -168,15 +254,18 @@ function summed(costsByRole: Readonly<Record<string, number>>, counts: Readonly<
  * The "at most" of a network (R-21, R-22): per component, the relaxation's maximum capped by the
  * run's own limit for that component (`budget`: the effective run budget, the declared one by
  * default). `relaxation` keeps the uncapped figures (validation compares them with the package's
- * own budget, R-22); `activations` is each role's bound.
+ * own budget, R-22); `activations` is each role's bound. `links` composes the links in (link.v0
+ * L-19…L-22; `linkCost`'s argument): a role that holds a denied link is never activated, so its
+ * bound is zero.
  */
-export function worstCase(graph: JsonObject, policy: JsonObject, options: { budget?: JsonObject | null; nodeTimeout?: number | null } = {}): WorstCase {
+export function worstCase(graph: JsonObject, policy: JsonObject, options: { budget?: JsonObject | null; nodeTimeout?: number | null; links?: LinkCosts | false | null } = {}): WorstCase {
   const network = networkOf(graph)!;
   const roles = Object.keys(rolesOf(network));
   const entry = String(network.entry);
-  const bounds: Record<string, number> = Object.fromEntries(roles.map((role) => [role, activationBound(network, role)]));
+  const denied = deniedRoles(network, options.links);
+  const bounds: Record<string, number> = Object.fromEntries(roles.map((role) => [role, activationBound(network, role, denied)]));
   const total = Math.min((network.max_hops as number) + 1, Object.values(bounds).reduce((sum, bound) => sum + bound, 0));
-  const costs: Record<string, ActivationCosts> = Object.fromEntries(roles.map((role) => [role, activationCosts(graph, role)]));
+  const costs: Record<string, ActivationCosts> = Object.fromEntries(roles.map((role) => [role, activationCosts(graph, role, options.links)]));
   const caps = { ...((options.budget ?? null) !== null && Object.keys(options.budget!).length > 0 ? options.budget! : (policy.budget as JsonObject)) };
   const deadline = graph.deadline_seconds as number;
   const nodes = networkNodes(graph);
@@ -234,12 +323,13 @@ export interface RouteTarget extends JsonObject {
 /**
  * What a role may still hand off to at this point of the walk, in edge order: each declared
  * target with its description and how many more times the edge can be taken (zero when the edge,
- * the target's activations or the hops are exhausted). Pure, so a fixture can be built from it.
+ * the target's activations or the hops are exhausted). A role in `denied` (it holds a link the
+ * person denied, link.v0 L-16) is not a target at all. Pure, so a fixture can be built from it.
  */
-export function routeTargets(network: JsonObject, roleId: string, uses: Counts, activations: Counts, hop: number): RouteTarget[] {
+export function routeTargets(network: JsonObject, roleId: string, uses: Counts, activations: Counts, hop: number, denied: ReadonlySet<string> = new Set()): RouteTarget[] {
   const roles = rolesOf(network);
   const hopsLeft = (network.max_hops as number) - hop;
-  return (roles[roleId]!.edges as JsonObject[]).map((edge) => {
+  return (roles[roleId]!.edges as JsonObject[]).filter((edge) => !denied.has(String(edge.to))).map((edge) => {
     const to = String(edge.to);
     const target = roles[to]!;
     let left = (edge.max_uses as number) - get(uses, edgeKey(roleId, to));
@@ -249,10 +339,10 @@ export function routeTargets(network: JsonObject, roleId: string, uses: Counts, 
 }
 
 /** The data of a route request (R-13): the role's constructed input and the availability. */
-export function routeData(network: JsonObject, roleId: string, input: JsonValue, uses: Counts, activations: Counts, hop: number): JsonObject {
+export function routeData(network: JsonObject, roleId: string, input: JsonValue, uses: Counts, activations: Counts, hop: number, denied: ReadonlySet<string> = new Set()): JsonObject {
   return {
     input,
-    targets: routeTargets(network, roleId, uses, activations, hop),
+    targets: routeTargets(network, roleId, uses, activations, hop, denied),
     hops_left: (network.max_hops as number) - hop,
     may_end: rolesOf(network)[roleId]!.may_end as boolean,
   };

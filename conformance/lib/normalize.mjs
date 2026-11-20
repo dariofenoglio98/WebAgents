@@ -81,6 +81,11 @@ export function normalizeAudit(audit, allowTokens = false) {
       view.push(entry);
       continue;
     }
+    // link.v0 (D-706): a link event's own facts (`linkFacts`), its ids already mapped by the caller.
+    if (LINK_EVENTS.has(action)) {
+      wave.push(JSON.stringify(linkFacts(event)));
+      continue;
+    }
     const facts = [action, event.node_id ?? null, event.role ?? null, event.task ?? event.tool ?? event.permission ?? null];
     if (action === "permission.checked") facts.push(event.allowed ?? null, event.grant ?? null);
     // A refusal's reason and the record and pointer it names (M-36, M-37), never a value.
@@ -309,4 +314,134 @@ export function compareConversation(python, node, { allowTokens = false } = {}) 
   }
   void CONVERSATION_FILES;
   return { checks, tokens: { python: pyTranscript.budget?.spent?.tokens ?? null, node: nodeTranscript.budget?.spent?.tokens ?? null } };
+}
+
+// -- link.v0 (T66, D-706) -----------------------------------------------------------------------
+// A run that holds links writes, beside its own files, `links.json` and each inner run's record
+// under `link-<inner run id>.{result,audit,usage,provenance}.json` (L-30). The ids each runtime
+// draws are the only values that differ by construction: the caller's run id (named in a join's
+// inner plan, `parent.run_id`), each inner run's id (in the file names, `links.json`'s `runs`, the
+// link events) and so each join's inner plan hash (over that parent). They are mapped to
+// placeholders by their order of appearance (`<run>`, `<inner:N>` in `links.json`'s `runs`,
+// `<join-plan:N>` in its `joins`), and then everything is compared exactly: `links.json`, the
+// caller's files as any run's, each inner run's files as any run's, and the link events in audit
+// order. A planned link's inner plan hash is a hash of the same link plan in both runtimes and is
+// compared as it is. A link event's facts join a wave's multiset with its dependency or slot, its
+// reason, decision, provenance, figure, candidate, worst case, reservation, usage, codes and the
+// hashes of what crossed (input, result, plan).
+export const LINK_EVENTS = new Set(["link.started", "link.completed", "link.failed", "link.refused", "link.denied", "link.requested", "link.decided", "budget.requested", "budget.raised"]);
+const LINK_FACTS = ["dependency", "slot", "reason", "accepted", "decided_by", "provenance", "figure", "candidate", "worst_case", "reserved", "needed", "tokens_left", "remote_calls_left", "usage", "error_code", "inner_run_id", "inner_plan_hash", "input_hash", "result_hash", "fetches", "package_id", "digest", "limit", "from", "to", "plan_hash"];
+const LINK_FILE = /^link-(.+?)\.(result|audit|usage|provenance)\.json$/u;
+
+/** The placeholder map of one runtime's link record: its caller run id, inner run ids and join plan hashes. */
+export function linkIds(files) {
+  if (!files["links.json"]) return new Map();
+  const links = decode(files["links.json"]);
+  const ids = new Map();
+  const audit = files["result.json"] ? decode(files["result.json"]).audit ?? [] : [];
+  if (audit.length > 0 && typeof audit[0].run_id === "string") ids.set(audit[0].run_id, "<run>");
+  // Inner runs in a canonical order, not the order they ended (concurrent ones, in a map, end in
+  // the scheduler's order): by the step that started them, what it started, and the input's hash.
+  const started = new Map(audit.filter((event) => event.action === "link.started").map((event) => [event.inner_run_id, event]));
+  const key = (run) => {
+    const event = started.get(run.inner_run_id) ?? {};
+    return JSON.stringify([run.node_id ?? "", run.dependency ?? run.slot ?? "", event.input_hash ?? "", event.sequence ?? 0]);
+  };
+  [...(links.runs ?? [])].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0)).forEach((run, index) => ids.set(run.inner_run_id, `<inner:${index}>`));
+  let joinIndex = 0;
+  for (const join of links.joins ?? []) if (typeof join.inner_plan_hash === "string" && !ids.has(join.inner_plan_hash)) ids.set(join.inner_plan_hash, `<join-plan:${(joinIndex += 1) - 1}>`);
+  return ids;
+}
+
+/** A JSON value with every mapped id replaced by its placeholder (whole strings only). */
+export function mapIds(value, ids) {
+  if (ids.size === 0) return value;
+  return JSON.parse(JSON.stringify(value), (_key, item) => (typeof item === "string" && ids.has(item) ? ids.get(item) : item));
+}
+
+/** A run's files with the ids mapped: names and JSON contents; `null` when the run holds no links. */
+export function linkView(files) {
+  if (!files["links.json"]) return null;
+  const ids = linkIds(files);
+  const out = {};
+  for (const [name, data] of Object.entries(files)) {
+    const match = LINK_FILE.exec(name);
+    const renamed = match && ids.has(match[1]) ? `link-${ids.get(match[1])}.${match[2]}.json` : name;
+    let value = name.endsWith(".json") ? mapIds(decode(data), ids) : null;
+    // `runs` is in the order the inner runs ended: for concurrent ones (a map's), the scheduler's.
+    if (name === "links.json") value = canonicalRuns(value);
+    if (name === "result.json" && value?.links) value = { ...value, links: canonicalRuns(value.links) };
+    out[renamed] = value !== null ? new TextEncoder().encode(JSON.stringify(value)) : data;
+  }
+  return out;
+}
+
+const canonicalRuns = (record) => ({ ...record, runs: [...(record.runs ?? [])].sort((a, b) => (a.inner_run_id < b.inner_run_id ? -1 : a.inner_run_id > b.inner_run_id ? 1 : 0)) });
+
+/** The facts a link event contributes to its wave's multiset (and to the ordered link sequence). */
+export function linkFacts(event) {
+  const facts = [event.action, event.node_id ?? null];
+  for (const key of LINK_FACTS) if (key in event) facts.push(`${key}=${JSON.stringify(event[key])}`);
+  return facts;
+}
+
+/**
+ * Compare two runs that may hold links: the caller's files as `compareArtifacts` does (the link
+ * records left out of its export check), `links.json` exactly, each inner run's files as a run's
+ * (`<inner:N>` in order), and the link events (with the model calls at a slot step) in audit
+ * order. Without `links.json` in either, this is `compareArtifacts`.
+ */
+export function compareLinkArtifacts(python, node, options = {}) {
+  const pyView = linkView(python);
+  const nodeView = linkView(node);
+  if (pyView === null && nodeView === null) return options.race ? compareFailureRace(python, node) : compareArtifacts(python, node, options);
+  if (options.race) return compareLinkRace(pyView ?? python, nodeView ?? node);
+  const checks = [];
+  const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
+  const left = pyView ?? python;
+  const right = nodeView ?? node;
+  check("links.json written in both", pyView !== null && nodeView !== null ? [] : [`python ${pyView !== null}, node ${nodeView !== null}`]);
+  const callerOf = (files) => Object.fromEntries(Object.entries(files).filter(([name]) => name !== "links.json" && !LINK_FILE.test(name)));
+  const innerOf = (files, id) => Object.fromEntries(Object.entries(files).flatMap(([name, data]) => {
+    const match = LINK_FILE.exec(name);
+    return match && match[1] === id ? [[`${match[2]}.json`, data]] : [];
+  }));
+  check("file set (ids mapped)", diff(Object.keys(left).sort(), Object.keys(right).sort()));
+  const compared = compareArtifacts(callerOf(left), callerOf(right), options);
+  checks.push(...compared.checks.filter((item) => item.name !== "file set").map((item) => ({ ...item, name: `caller: ${item.name}` })));
+  // `runs` is in the order the inner runs ended, which for concurrent ones is the scheduler's: compared as a set.
+  const record = (files) => {
+    const value = decode(files["links.json"]);
+    return { ...value, runs: [...(value.runs ?? [])].sort((a, b) => (a.inner_run_id < b.inner_run_id ? -1 : a.inner_run_id > b.inner_run_id ? 1 : 0)) };
+  };
+  if (left["links.json"] && right["links.json"]) check("links.json (ids mapped; runs as a set)", diff(record(left), record(right)));
+  const inner = [...new Set(Object.keys(left).flatMap((name) => (LINK_FILE.exec(name) ? [LINK_FILE.exec(name)[1]] : [])))].sort();
+  for (const id of inner) {
+    const result = compareArtifacts(innerOf(left, id), innerOf(right, id), options);
+    checks.push(...result.checks.map((item) => ({ ...item, name: `${id}: ${item.name}` })));
+  }
+  // A network's activations run one at a time, so the link events of its roles' steps (and the
+  // model calls at a slot step) are compared in audit order; a link node's or a map step's run
+  // beside its wave's siblings, and those are the per-wave multisets' above.
+  const ordered = (files) => {
+    const audit = files["result.json"] ? decode(files["result.json"]).audit ?? [] : [];
+    const slotSteps = new Set(audit.filter((event) => event.action === "link.decided").map((event) => event.node_id));
+    const role = (event) => typeof event.node_id === "string" && event.node_id.split("/").length >= 3;
+    return audit.filter((event) => role(event) && (LINK_EVENTS.has(event.action) || (event.action === "model.called" && slotSteps.has(event.node_id)))).map((event) => (LINK_EVENTS.has(event.action) ? linkFacts(event) : [event.action, event.node_id]));
+  };
+  check("a network's link events in audit order (ids mapped)", diff(ordered(left), ordered(right)));
+  return { checks, tokens: compared.tokens };
+}
+
+/**
+ * A run that failed inside a concurrent wave (D-092) with links: what the siblings got to before
+ * the failure is the scheduler's, so the caller is compared as `compareFailureRace` compares it,
+ * and of the link record only the bindings (`links.json`'s `links`), which preparation fixed.
+ */
+function compareLinkRace(python, node) {
+  const compared = compareFailureRace(python, node);
+  const checks = compared.checks.filter((item) => item.name !== "file set");
+  const bindings = (files) => (files["links.json"] ? decode(files["links.json"]).links : null);
+  checks.push({ name: "links.json bindings (ids mapped)", passed: diff(bindings(python), bindings(node)).length === 0, detail: diff(bindings(python), bindings(node)) });
+  return { checks, tokens: compared.tokens };
 }

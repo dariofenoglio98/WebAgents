@@ -18,7 +18,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { compareArtifacts, compareConversation, compareFailureRace, diff } from "./lib/normalize.mjs";
+import { compareArtifacts, compareConversation, compareFailureRace, compareLinkArtifacts, diff, linkIds, mapIds } from "./lib/normalize.mjs";
 import { readStored, rebuild } from "./lib/zip.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -94,7 +94,7 @@ function invoke(runtime, argv, label) {
   } catch {
     report = null;
   }
-  return { status: result.status, report, message, stderr: result.stderr, files: collect(out) };
+  return { status: result.status, report, message, stderr: result.stderr, files: collect(out), out };
 }
 
 // -- inputs the negative suite builds -------------------------------------------------------
@@ -192,6 +192,7 @@ function buildInputs() {
   // the Python driver from agentpkg's own test package and signed with the throwaway key.
   inputs.network = {};
   for (const testCase of NETWORK_CASES) inputs.network[testCase.id] = networkCase(testCase);
+  inputs.link = linkCases();
   // Grants files for the permission cases.
   const webairGrants = readJson(EXAMPLES("webair-0.2.0-grants.json"));
   inputs.webairNetworkDenied = writeInput("webair-network-denied.json", JSON.stringify({ ...webairGrants, "network.webair": "deny" }));
@@ -324,6 +325,260 @@ function networkCase(testCase) {
   const forged = spawn(PYTHON, [join(ROOT, "conformance/drivers/network_probe.py"), "--signed-archive", source, signed, join(SCRATCH, "keys", "throwaway.pem")]);
   if (forged.status !== 0) throw new Error(`network probe ${name}: ${forged.stderr}`);
   return { archive: signed, source, grants, case: testCase, refusedAtBuild: build.stderr.trim() };
+}
+
+// -- link.v0 (T65, T66; spec/link-v0.md §10) ------------------------------------------------------
+const LINK_CASES = JSON.parse(spawn(PYTHON, [join(ROOT, "conformance/drivers/link_probe.py"), "--cases"]).stdout);
+
+/**
+ * Every link probe case at once (`drivers/link_probe.py --all`): each case's caller source, its
+ * linked archives signed with the driver's throwaway publisher keys, its grants and its `run`
+ * arguments; the caller is built and signed here with the runner's own throwaway key, or, for a
+ * case refused at validation, signed by the driver without validating, so that both CLIs meet the
+ * same refusal when they load it. The caller key goes first among the `--trust-key`s (link.v0 §12).
+ */
+function linkCases() {
+  const written = spawn(PYTHON, [join(ROOT, "conformance/drivers/link_probe.py"), "--all", join(SCRATCH, "link")]);
+  if (written.status !== 0) throw new Error(`link probe: ${written.stderr}`);
+  const cases = {};
+  for (const item of JSON.parse(written.stdout)) {
+    const name = item.case.id;
+    const built = join(SCRATCH, "link", `${name}.unsigned.agent.pkg`);
+    const signed = join(SCRATCH, "link", `${name}.agent.pkg`);
+    const build = spawn(PYTHON_CLI, ["build", item.source, "-o", built]);
+    if (build.status === 0) agentpkg(["sign", built, "--private-key", join(SCRATCH, "keys", "throwaway.pem"), "-o", signed]);
+    else {
+      const forged = spawn(PYTHON, [join(ROOT, "conformance/drivers/link_probe.py"), "--signed-archive", item.source, signed, join(SCRATCH, "keys", "throwaway.pem")]);
+      if (forged.status !== 0) throw new Error(`link probe ${name}: ${forged.stderr}`);
+    }
+    cases[name] = {
+      archive: signed,
+      source: item.source,
+      case: item.case,
+      argv: ["run", signed, "--mode", "fixture", "--grants", item.grants, "--out", "{out}", "--trust-key", inputs.throwawayKey, ...item.trust_keys.flatMap((key) => ["--trust-key", key]), ...item.argv],
+    };
+  }
+  return cases;
+}
+
+/** The planner's walks (T65, D-683): 0.1.0 through both links; 0.2.0 with the join fixture (joined) and without it (unattended). */
+const PLANNER_LINKS = ["--link", `webair-flights=${DIST("webair-flights-0.1.0.agent.pkg")}`, "--link-grants", `webair-flights=${EXAMPLES("link/webair-flights-grants.json")}`, "--link", `hotel-aggregator=${DIST("staymere-hotels-0.1.0.agent.pkg")}`, "--link-grants", `hotel-aggregator=${EXAMPLES("link/staymere-hotels-grants.json")}`, "--approve-tool", "check-calendar", "--approve-tool", "webair-flights:search-flights", "--approve-tool", "hotel-aggregator:search-hotels"];
+const PLANNER_KEYS = ["travel-planner", "webair", "staymere"].flatMap((name) => ["--trust-key", EXAMPLES(`keys/${name}-publisher.pub.pem`)]);
+const plannerRun = (version, grants, extra) => ["run", DIST(`travel-planner-${version}.agent.pkg`), "--mode", "fixture", "--grants", EXAMPLES(grants), "--out", "{out}", ...PLANNER_LINKS, ...extra];
+const PLANNER_CASES = [
+  { id: "travel-planner/fixture", title: "Tripwright 0.1.0 (link.v0, T65): FrontMan consults Flights, Hotels and Calendar; Flights asks WebAir Flights and Hotels asks Staymere, each a linked package run as an inner run; the composed envelope attained", argv: plannerRun("0.1.0", "link/travel-planner-grants.json", PLANNER_KEYS), verify: "0.1.0" },
+  { id: "travel-planner/join-fixture", title: "Tripwright 0.2.0 (link.v0 §6, the stretch half): FindHotel's slot looks at the recorded page, the person's recorded card accepts Hotel Salitubam, the request-building call, the joined package's inner run; the composed envelope attained", argv: plannerRun("0.2.0", "link/travel-planner-0.2.0-grants.json", ["--approve-tool", "web.search", "--join-fixture", EXAMPLES("link/join-fixture.json")]), verify: "0.2.0" },
+  { id: "travel-planner/unattended", title: "Tripwright 0.2.0 without a person: the slot yields `unattended`, nothing is looked at, the aggregator's hotel stands", argv: plannerRun("0.2.0", "link/travel-planner-0.2.0-grants.json", ["--approve-tool", "web.search"]), verify: "0.2.0" },
+];
+
+/** One planner walk on both CLIs: completed in both, the records identical once their ids are mapped, and `scripts/verify_link_run.py` passing on each. */
+function runPlanner(testCase) {
+  const python = invoke("python", testCase.argv, testCase.id.replace(/\W+/gu, "_"));
+  const node = invoke("node", testCase.argv, testCase.id.replace(/\W+/gu, "_"));
+  const checks = [];
+  const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
+  check("exit status 0 in both", [python.status, node.status].every((status) => status === 0) ? [] : [`python ${python.status}: ${python.message ?? ""}`, `node ${node.status}: ${node.message ?? ""}`]);
+  if (python.report && node.report) {
+    const strip = ({ output_directory: _o, usage: _u, ...rest }) => rest;
+    check("success report (minus output directory and usage)", diff(strip(python.report), strip(node.report)));
+  }
+  checks.push(...compareLinkArtifacts(python.files, node.files).checks);
+  const verified = {};
+  for (const [runtime, observation] of [["python", python], ["node", node]]) {
+    const result = spawn(PYTHON, [join(ROOT, "scripts/verify_link_run.py"), observation.out, "--package", DIST(`travel-planner-${testCase.verify}.agent.pkg`)]);
+    let report = null;
+    try {
+      report = JSON.parse(result.stdout);
+    } catch {
+      report = null;
+    }
+    verified[runtime] = report === null ? null : { passed: report.passed, checks: Array.isArray(report.checks) ? report.checks.length : report.checks, observed: report.observed, at_most: report.at_most };
+    check(`scripts/verify_link_run.py passes on the ${runtime} record`, report?.passed === true ? [] : [JSON.stringify(report?.checks ?? result.stderr.slice(-400)).slice(0, 400)]);
+  }
+  check("the verifier counts the same checks and figures on both", diff(verified.python, verified.node));
+  const halves = { python: python.status === 0 && "links.json" in python.files, chromeVersionRefused: versionRefused(node) };
+  return { checks, notes: [], halves, observed: { python: summary(python), node: summary(node), verified } };
+}
+
+/** The audit events of one action. */
+const eventsOf = (result, action) => (result.audit ?? []).filter((event) => event.action === action);
+const nameOf = (event) => event.dependency ?? event.slot;
+
+/**
+ * What `agentpkg/tests/test_link_cases.py::test_run_cases` asserts of a run case, read off one
+ * runtime's record (the parts that need no Python object): the outcome and the node, the links that
+ * started, completed, failed, were refused or denied, the activations, the decisions in order, the
+ * fetches, the cards, the request-building calls, the order at the slot step, the raise, the joins
+ * and the usage. Returns the failures, empty when the record holds what the case expects.
+ */
+function linkExpectations(result, testCase) {
+  const expect = testCase.expect ?? {};
+  const failures = [];
+  const same = (name, observed, expected) => {
+    if (JSON.stringify(observed) !== JSON.stringify(expected)) failures.push(`${name}: ${JSON.stringify(observed)} != ${JSON.stringify(expected)}`);
+  };
+  if (testCase.code === "completed") same("status", result.status, "completed");
+  else {
+    same("status", [result.status, result.error_code], ["failed", testCase.code]);
+    same(`node.failed at ${expect.node}`, eventsOf(result, "node.failed").filter((event) => event.node_id === expect.node).map((event) => event.error_code).slice(0, 1), [testCase.code]);
+  }
+  if ("step" in expect) {
+    const step = eventsOf(result, "node.failed").filter((event) => event.node_id === expect.step);
+    same(`node.failed at ${expect.step}`, step.map((event) => event.error_code).slice(0, 1), [testCase.code]);
+    if ("failed_check" in expect) same("failed_check", step[0]?.failed_check?.check ?? null, expect.failed_check);
+  }
+  const sorted = (items) => [...items].sort();
+  if ("started" in expect) same("started", sorted(eventsOf(result, "link.started").map(nameOf)), sorted(expect.started));
+  if ("completed" in expect) same("completed", sorted(eventsOf(result, "link.completed").map(nameOf)), sorted(expect.completed));
+  same("failed", Object.fromEntries(eventsOf(result, "link.failed").map((event) => [nameOf(event), event.error_code])), expect.failed ?? {});
+  same("refused", eventsOf(result, "link.refused").length, expect.refused ?? 0);
+  if ("reason" in expect) same("refused reason", eventsOf(result, "link.refused")[0]?.reason ?? null, expect.reason);
+  same("denied", eventsOf(result, "link.denied").length, expect.denied ?? 0);
+  if ("activations" in expect) {
+    const counts = {};
+    for (const event of eventsOf(result, "network.activated")) counts[event.role] = (counts[event.role] ?? 0) + 1;
+    same("activations", counts, expect.activations);
+  }
+  const decided = eventsOf(result, "link.decided");
+  if ("decided" in expect) same("decided", decided.map((event, index) => Object.fromEntries(Object.keys(expect.decided[index] ?? {}).map((key) => [key, event[key] ?? null]))), expect.decided);
+  else same("decided", decided.length, 0);
+  same("requested", eventsOf(result, "link.requested").map((event) => event.fetches.map((fetch) => `${fetch.kind}:${fetch.status}`)), expect.requested ?? []);
+  same("cards", decided.filter((event) => event.decided_by === "person").length, expect.cards ?? 0);
+  if ("request_calls" in expect) {
+    const calls = eventsOf(result, "model.called").filter((event) => event.node_id === expect.slot_step);
+    same("request-building calls", calls.length, expect.request_calls);
+    for (const call of calls) if (!decided.some((event) => event.accepted && event.sequence < call.sequence)) failures.push("a request-building call before an accepted decision");
+  }
+  if ("order" in expect) same("order at the slot step", (result.audit ?? []).filter((event) => expect.order.includes(event.action) && event.node_id === expect.slot_step).map((event) => event.action), expect.order);
+  same("raise", [eventsOf(result, "budget.requested").length, eventsOf(result, "budget.raised").length], expect.raise ?? [0, 0]);
+  if (Array.isArray(result.links?.joins)) same("joins' reasons", result.links.joins.map((join) => join.reason), decided.map((event) => (event.accepted && nameOf(event) in (expect.failed ?? {}) ? "failed" : event.reason)));
+  if ("absent_target" in expect) for (const event of eventsOf(result, "route.decided")) if (event.next === expect.absent_target) failures.push(`route to ${expect.absent_target}`);
+  for (const [figure, value] of Object.entries(expect.usage ?? {})) same(`usage.${figure}`, result.usage?.[figure], value);
+  for (const [name, figures] of Object.entries(expect.link_usage ?? {})) for (const [figure, value] of Object.entries(figures)) same(`usage.links.${name}.${figure}`, result.usage?.links?.[name]?.[figure], value);
+  return failures;
+}
+
+/** Whether a top-level node runs in a wave with siblings: the scheduler's layers of the caller's graph. */
+function concurrentWave(source, nodeId) {
+  const graph = readJson(join(source, "graph.json"));
+  const nodes = graph.nodes ?? [];
+  const done = new Set();
+  let pending = [...nodes];
+  while (pending.length > 0) {
+    const ready = pending.filter((node) => (node.depends_on ?? []).every((dependency) => done.has(dependency)));
+    if (ready.length === 0) return false;
+    if (ready.some((node) => node.id === nodeId)) return ready.length > 1;
+    for (const node of ready) done.add(node.id);
+    pending = pending.filter((node) => !done.has(node.id));
+  }
+  return false;
+}
+
+/** One `run` case of the link family on both CLIs: the outcome the list names in both, the records identical once their ids are mapped, and every expectation of the case held by each runtime's record. */
+function runLinkCase(testCase) {
+  const probe = inputs.link[testCase.id];
+  const label = `link_${testCase.id.replace(/\W+/gu, "_")}`;
+  const python = invoke("python", probe.argv, label);
+  const node = invoke("node", probe.argv, label);
+  const checks = [];
+  const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
+  if (testCase.code === "completed") {
+    check("exit status 0 in both", [python.status, node.status].every((status) => status === 0) ? [] : [`python ${python.status}: ${python.message ?? ""}`, `node ${node.status}: ${node.message ?? ""}`]);
+  } else {
+    const expectation = { code: testCase.code, node: testCase.expect?.node };
+    const refusals = { python: refusalOf(python, expectation), node: refusalOf(node, expectation) };
+    check("refused with status 2 in both", [python, node].every((o) => o.status === 2 && o.report === null) ? [] : [`python ${python.status}`, `node ${node.status}`]);
+    check(`refusal code ${testCase.code} at node ${testCase.expect?.node}`, ["python", "node"].filter((r) => refusals[r].code !== testCase.code || refusals[r].node !== testCase.expect?.node).map((r) => `${r}: ${refusals[r].code} at ${refusals[r].node} (${r === "python" ? python.message : node.message})`));
+    check("identical message", python.message === node.message ? [] : [`python: ${python.message}`, `node: ${node.message}`]);
+  }
+  // A failure inside a wave with siblings is a race (D-092): what they got to is the scheduler's.
+  const race = testCase.code !== "completed" && concurrentWave(probe.source, testCase.expect?.node);
+  checks.push(...compareLinkArtifacts(python.files, node.files, { race }).checks);
+  for (const [runtime, observation] of [["python", python], ["node", node]]) {
+    const result = observation.files["result.json"] ? JSON.parse(new TextDecoder().decode(observation.files["result.json"])) : null;
+    check(`the case's expectations hold on the ${runtime} record`, result === null ? ["no result.json"] : linkExpectations(result, testCase));
+  }
+  const halves = { python: (testCase.code === "completed" ? python.status === 0 : python.status === 2) && "result.json" in python.files, chromeVersionRefused: versionRefused(node) };
+  return { checks, notes: [], halves, observed: { python: summary(python), node: summary(node) } };
+}
+
+/** The link family (link.v0 §10): every case at its stage with its code on both runtimes, and the planner's walks. Every case carries `requires: 0.8.0`. */
+function linkFamilyCases(cli) {
+  const cases = PLANNER_CASES.map((testCase) => ({ ...testCase, kind: "fixture parity", requires: "0.8.0", run: () => runPlanner(testCase) }));
+  for (const testCase of LINK_CASES) {
+    const id = `link/${testCase.id}`;
+    const title = `${testCase.title} (link.v0 §10, ${testCase.stage})`;
+    if (testCase.stage === "validation" || testCase.stage === "prepare") {
+      cases.push({ ...cli(id, title, [inputs.link[testCase.id].argv], { code: testCase.code, message: new RegExp(`^${testCase.code}: `, "u") }), requires: "0.8.0" });
+    } else if (testCase.stage === "run") {
+      cases.push({ id, title, kind: "fixture parity", requires: "0.8.0", run: () => runLinkCase(testCase) });
+    } else if (testCase.stage === "grants") {
+      cases.push({ id, title, kind: "documented difference", requires: "0.8.0", run: () => runLinkGrants(testCase) });
+    } else {
+      cases.push({ id, title, kind: "execution-layer parity", requires: "0.8.0", run: () => runLinkHost(testCase) });
+    }
+  }
+  // T66 review 1, finding 2: a control on N-52's composition through both execution sessions, from the Run Plans.
+  cases.push({ id: "link/linked-compute-plan", title: "A linked package with a compute node runs from its inner Run Plan on a host with a compute engine (link.v0 L-15, L-26; a control on N-52)", kind: "execution-layer parity", requires: "0.8.0", run: () => runLinkSessionControl("linked-compute") });
+  return cases;
+}
+
+/** Both execution layers' link host for one command line (`drivers/link_host.py`, `drivers/link-host.ts`): their whole answers. */
+function linkLayers(argv) {
+  const path = writeInput(`link-argv-${(counter += 1)}.json`, JSON.stringify(argv.filter((arg) => arg !== "{out}")));
+  return [spawn(PYTHON, [join(ROOT, "conformance/drivers/link_host.py"), path]), spawn(process.execPath, [join(SCRATCH, "drivers", "link-host.js"), path])].map((result) => (result.status === 0 ? JSON.parse(result.stdout) : { outcome: "driver_failed", message: result.stderr.slice(-400) }));
+}
+
+/**
+ * L-28's grant check, a recorded difference of the CLIs (D-091) and not of the runtimes: `agentpkg
+ * run` binds the links and makes no `once` check across them (its execution session does, before
+ * anything runs; D-707), so a `once` grant on a linked card is spent once per inner run there; the
+ * Chrome CLI runs through its execution layer, which refuses before anything runs. Each CLI is
+ * checked against its own documented behaviour, and the two execution layers' link hosts are
+ * compared directly.
+ */
+function runLinkGrants(testCase) {
+  const probe = inputs.link[testCase.id];
+  const checks = [];
+  const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
+  const python = invoke("python", probe.argv, "link_grants");
+  const node = invoke("node", probe.argv, "link_grants");
+  check("agentpkg run: no once check across a link, the run completes", python.status === 0 && "links.json" in python.files ? [] : [`${python.status}: ${python.message}`]);
+  check(`chrome CLI: refused before the run (${testCase.code}), nothing written`, node.status === 2 && /^Permission '[^']+' of linked package '[^']+' was granted 'once', and the composition could consume it more than once\.$/u.test(node.message ?? "") && Object.keys(node.files).length === 0 ? [] : [`${node.status}: ${node.message}`]);
+  const outcomes = linkLayers(probe.argv);
+  check(`execution layers: both refuse ${testCase.code}`, outcomes.every((o) => o.outcome === "refused" && o.code === testCase.code) ? [] : outcomes.map((o) => JSON.stringify(o).slice(0, 400)));
+  check("execution layers: identical answers", diff(outcomes[0], outcomes[1]));
+  return { checks, notes: [`A recorded difference of the CLIs (D-091, D-707): agentpkg run completes; the Chrome CLI and both execution layers refuse with "${node.message}".`], halves: { python: outcomes[0].outcome === "refused", chromeVersionRefused: versionRefused(node) }, observed: { python: summary(python), node: summary(node), execution_layers: outcomes } };
+}
+
+/**
+ * A case of the stage `host` (L-15): both execution sessions handed a caller's plan with its links,
+ * changed as `test_link_execution.py` changes them (`drivers/link_session.py`, the reference's
+ * control plane and runner; `drivers/link-session.ts`, the Chrome core's local plans and session):
+ * every outcome refused with the case's code, and the two lists identical.
+ */
+function runLinkHost(testCase) {
+  const checks = [];
+  const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
+  const argv = writeInput(`link-host-${testCase.id}.json`, JSON.stringify(inputs.link[testCase.id].argv.filter((arg) => arg !== "{out}")));
+  const outcomes = [spawn(PYTHON, [join(ROOT, "conformance/drivers/link_session.py"), testCase.id, join(SCRATCH, `link-session-${testCase.id}`)]), spawn(process.execPath, [join(SCRATCH, "drivers", "link-session.js"), testCase.id, argv])].map((result) => (result.status === 0 ? JSON.parse(result.stdout) : [{ outcome: "driver_failed", message: result.stderr.slice(-400) }]));
+  check(`execution sessions: every change refused ${testCase.code}`, outcomes.every((list) => list.length > 0 && list.every((o) => o.outcome === "refused" && o.code === testCase.code)) ? [] : outcomes.map((list) => JSON.stringify(list).slice(0, 400)));
+  check("execution sessions: identical answers", diff(outcomes[0], outcomes[1]));
+  return { checks, notes: [], halves: { python: outcomes[0].every?.((o) => o.code === testCase.code) === true, chromeVersionRefused: false }, observed: { execution_sessions: outcomes } };
+}
+
+/**
+ * A control of the execution sessions (T66 review 1, finding 2): one run case's composition, the plans
+ * unchanged, through both sessions; both accepted, completed, and the same compute calls.
+ */
+function runLinkSessionControl(caseId) {
+  const checks = [];
+  const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
+  const argv = writeInput(`link-host-${caseId}.json`, JSON.stringify(inputs.link[caseId].argv.filter((arg) => arg !== "{out}")));
+  const outcomes = [spawn(PYTHON, [join(ROOT, "conformance/drivers/link_session.py"), caseId, join(SCRATCH, `link-session-${caseId}`)]), spawn(process.execPath, [join(SCRATCH, "drivers", "link-session.js"), caseId, argv])].map((result) => (result.status === 0 ? JSON.parse(result.stdout) : [{ outcome: "driver_failed", message: result.stderr.slice(-400) }]));
+  check("execution sessions: accepted and completed", outcomes.every((list) => list.length === 1 && list[0].outcome === "accepted" && list[0].status === "completed") ? [] : outcomes.map((list) => JSON.stringify(list).slice(0, 400)));
+  check("execution sessions: identical answers", diff(outcomes[0], outcomes[1]));
+  return { checks, notes: [], halves: { python: outcomes[0][0]?.status === "completed", chromeVersionRefused: false }, observed: { execution_sessions: outcomes } };
 }
 
 const CONVERSATION_CASES = JSON.parse(spawn(PYTHON, [join(ROOT, "conformance/drivers/conversation_probe.py"), "--cases"]).stdout);
@@ -596,6 +851,7 @@ function negativeCases() {
     ...computeNegativeCases(cli, run, documented),
     ...conversationNegativeCases(cli, run, documented),
     ...networkNegativeCases(cli, run, documented),
+    ...linkFamilyCases(cli),
     documented(
       "once-overused",
       "The model permission granted once, to a graph that calls the model more than once",
@@ -853,7 +1109,9 @@ let nodeDriver = null;
 async function bundleDrivers() {
   // The Chrome core's TypeScript, bundled with the esbuild its own build uses.
   const esbuild = await import(pathToFileURL(join(ROOT, "chrome-agent-browser/node_modules/esbuild/lib/main.js")).href);
-  const drivers = ["control-plane", "execution-policy"].map((name) => join(ROOT, "conformance/drivers", `${name}.ts`));
+  const drivers = Object.fromEntries(["control-plane", "execution-policy", "link-host", "link-session"].map((name) => [name, join(ROOT, "conformance/drivers", `${name}.ts`)]));
+  // The Node CLI's compute Worker beside the drivers (named, so the drivers keep their flat names): `link-session.ts`'s `linked-compute` control runs a linked compute node.
+  drivers["compute-worker-node"] = join(ROOT, "chrome-agent-browser/src/compute-worker-node.ts");
   await esbuild.build({ entryPoints: drivers, bundle: true, platform: "node", format: "esm", target: "node24", outdir: join(SCRATCH, "drivers"), outExtension: { ".js": ".js" }, logLevel: "warning" });
   // ESM output needs a module scope: name the directory a module package.
   writeFileSync(join(SCRATCH, "drivers", "package.json"), '{"type": "module"}\n');

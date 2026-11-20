@@ -7,6 +7,7 @@
  * model binding lifts the descriptor's capabilities, limits and local flag beside the
  * compatibility verdict; tool bindings and resource grants pass through unchanged.
  */
+import type { LinkCosts } from "../network/analysis.js";
 import { canonicalJson } from "../canonical.js";
 import { sha256HexSync } from "../hash.js";
 import type { JsonObject, JsonValue } from "../json.js";
@@ -15,7 +16,7 @@ import type { Package } from "../package.js";
 import { pyIsoTimestamp } from "../pyjson.js";
 import { conversationPlan, networkPlan } from "../runplan.js";
 import { normalizeToolBindings, type ToolBindingRecord } from "../tools/bindings.js";
-import { MODE_MODEL, MODE_TOOL_PROBE, type ConversationPlan, type ExecutionMode, type ModelBinding, type NetworkPlan, type ResourceGrant, type RunPlan } from "../types.js";
+import { MODE_MODEL, MODE_TOOL_PROBE, type ConversationPlan, type ExecutionMode, type LinkPlanEntry, type ModelBinding, type NetworkPlan, type ResourceGrant, type RunPlan } from "../types.js";
 import { ExecutionError, invalid, TOOL_NOT_BOUND } from "./errors.js";
 import { normalizeResourceGrants } from "./policy.js";
 
@@ -42,7 +43,13 @@ export interface ExecutionPlan {
     conversation: ConversationPlan | null;
     /** network.v0 (R-24): the delegation envelope the plan froze; null for a package without a network. The runner re-derives it. */
     network: NetworkPlan | null;
+    /** link.v0 L-22: the envelope composed across the links; null for a plan without links. */
+    links: JsonObject | null;
   };
+  /** link.v0 L-14: the caller an inner plan was prepared for; null for a run's own plan. */
+  parent: JsonObject | null;
+  /** link.v0 L-15: each dependency with the person's decision and its inner plan's hash; null for a package without dependencies. */
+  links: Record<string, LinkPlanEntry> | null;
   model_binding: ModelBindingDescriptor | null;
   tool_bindings: ToolBindingRecord[];
   resource_grants: ResourceGrant[];
@@ -80,12 +87,53 @@ function idList(value: unknown, field: string): string[] {
   return list.map((item) => text(item, `${field}[]`, { limit: 200 })!);
 }
 
+/** At most this many bytes of canonical JSON in a plan's link sections. */
+const MAX_LINK_SECTION_BYTES = 64 * 1024;
+
+function boundedSection(value: unknown, field: string): JsonObject | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "object" || Array.isArray(value)) throw invalid(`${field} must be an object`);
+  if (canonicalJson(value).length > MAX_LINK_SECTION_BYTES) throw invalid(`${field} is too large`);
+  return JSON.parse(JSON.stringify(value)) as JsonObject;
+}
+
+/** link.v0 L-14: an inner plan's parent, `{package_digest, dependency}` or `{plan_hash, run_id, slot}`. */
+function normalizeParent(value: unknown): JsonObject | null {
+  if (value === undefined || value === null) return null;
+  const record = fields(value, "run_plan.parent", ["package_digest", "dependency", "plan_hash", "run_id", "slot"]);
+  const keys = Object.keys(record).sort().join(",");
+  if (keys !== "dependency,package_digest" && keys !== "plan_hash,run_id,slot") throw invalid("run_plan.parent names a caller's package and dependency, or a plan, a run and a slot");
+  return Object.fromEntries(Object.entries(record).map(([key, item]) => [key, text(item, `parent.${key}`, { limit: 200, allowNull: key === "plan_hash" })]));
+}
+
+/** link.v0 L-15: the caller's links, at most the format's eight, each a closed record. */
+function normalizeLinks(value: unknown): Record<string, LinkPlanEntry> | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "object" || Array.isArray(value) || Object.keys(value).length > 8) throw invalid("run_plan.links must be a map of at most 8 dependencies");
+  const links: Record<string, LinkPlanEntry> = {};
+  for (const [name, raw] of Object.entries(value as Record<string, unknown>)) {
+    const entry = fields(raw, `run_plan.links.${name}`, ["package_id", "version", "digest", "archive_sha256", "signer", "trust", "decision", "plan_hash"], ["package_id", "version", "digest", "archive_sha256", "signer", "decision", "plan_hash"]);
+    if (entry.decision !== "accepted" && entry.decision !== "denied") throw invalid(`run_plan.links.${name}.decision is accepted or denied`);
+    links[text(name, "run_plan.links", { limit: 200 })!] = {
+      package_id: text(entry.package_id, "links.package_id", { limit: 200 })!,
+      version: text(entry.version, "links.version", { limit: 64 })!,
+      digest: text(entry.digest, "links.digest", { limit: 128 })!,
+      archive_sha256: text(entry.archive_sha256, "links.archive_sha256", { limit: 128 })!,
+      signer: text(entry.signer, "links.signer", { limit: 128 })!,
+      trust: text(entry.trust, "links.trust", { limit: 64, allowNull: true }),
+      decision: entry.decision,
+      plan_hash: text(entry.plan_hash, "links.plan_hash", { limit: 128, allowNull: true }),
+    };
+  }
+  return links;
+}
+
 /** The bounded facts, all required, with the plan's tool bindings normalized and every required tool bound. */
 export function normalizeExecutionPlan(raw: unknown): ExecutionPlan {
-  const record = fields(raw, "run_plan", ["run_plan_id", "run_plan_sha256", "session_id", "package", "publisher", "execution", "model_binding", "tool_bindings", "resource_grants"], ["run_plan_id", "run_plan_sha256", "package", "publisher", "execution"]);
+  const record = fields(raw, "run_plan", ["run_plan_id", "run_plan_sha256", "session_id", "package", "publisher", "execution", "model_binding", "tool_bindings", "resource_grants", "parent", "links"], ["run_plan_id", "run_plan_sha256", "package", "publisher", "execution"]);
   const pkg = fields(record.package, "run_plan.package", ["package_id", "name", "version", "digest", "archive_sha256", "execution_profile"], ["package_id", "version", "digest", "archive_sha256"]);
   const publisher = fields(record.publisher, "run_plan.publisher", ["signer_fingerprint", "signature_status", "trust_status"], ["signer_fingerprint"]);
-  const execution = fields(record.execution, "run_plan.execution", ["mode", "profile", "required_permission_ids", "required_tool_ids", "probe_tool_id", "tool_binding_count", "fixture", "denied_tool_ids", "conversation", "network"], ["mode"]);
+  const execution = fields(record.execution, "run_plan.execution", ["mode", "profile", "required_permission_ids", "required_tool_ids", "probe_tool_id", "tool_binding_count", "fixture", "denied_tool_ids", "conversation", "network", "links"], ["mode"]);
   const mode = execution.mode;
   if (mode !== MODE_MODEL && mode !== MODE_TOOL_PROBE) throw invalid("A run plan must be model-backed or a tool probe");
   const fixture = execution.fixture === true;
@@ -130,7 +178,10 @@ export function normalizeExecutionPlan(raw: unknown): ExecutionPlan {
       denied_tool_ids: [...new Set(idList(execution.denied_tool_ids, "run_plan.execution.denied_tool_ids"))].sort(),
       conversation: normalizeConversationPlan(execution.conversation),
       network: normalizeNetworkPlan(execution.network),
+      links: boundedSection(execution.links, "run_plan.execution.links"),
     },
+    parent: normalizeParent(record.parent),
+    links: normalizeLinks(record.links),
     model_binding: mode === MODE_MODEL && !fixture ? normalizeModelBinding(record.model_binding) : null,
     tool_bindings: bindings,
     resource_grants: normalizeResourceGrants(record.resource_grants),
@@ -275,7 +326,11 @@ export function executionPlanFromRunPlan(plan: RunPlan): ExecutionPlan {
       denied_tool_ids: denied,
       conversation: (plan.execution as { conversation?: ConversationPlan | null }).conversation ?? null,
       network: plan.execution.network ?? null,
+      links: plan.execution.links ?? null,
     },
+    // link.v0: an inner plan's caller, a caller's links (L-14, L-15).
+    parent: plan.parent ?? null,
+    links: plan.links ?? null,
     model_binding: plan.model_binding === null ? null : modelBindingFromPlan(plan.model_binding),
     tool_bindings: plan.tool_bindings,
     resource_grants: plan.resource_grants,
@@ -306,6 +361,11 @@ export interface LocalPlanInputs {
   modelBinding?: ModelBindingDescriptor | null;
   toolBindings?: readonly ToolBindingRecord[];
   resourceGrants?: readonly ResourceGrant[];
+  /** link.v0: the run's link costs once its links are resolved and decided, so that the plan states the composed envelope (L-22). */
+  links?: LinkCosts | null;
+  /** link.v0 L-14: the caller an inner plan is prepared for; L-15: the caller's link entries. Both hash-bound with the plan. */
+  parent?: JsonObject | null;
+  linkEntries?: Record<string, LinkPlanEntry> | null;
   now?: Date;
   runPlanId?: string;
   sessionId?: string | null;
@@ -346,6 +406,8 @@ export function localExecutionPlan(input: LocalPlanInputs): { plan: ExecutionPla
     tool_bindings: bindings as unknown as JsonValue,
     resource_grants: [...(input.resourceGrants ?? [])] as unknown as JsonValue,
     created_at: pyIsoTimestamp(now),
+    ...(input.parent ? { parent: input.parent } : {}),
+    ...(input.linkEntries ? { links: input.linkEntries as unknown as JsonValue } : {}),
   };
   const sha = sha256HexSync(canonicalJson(facts));
   const runPlanId = input.runPlanId ?? `local_${sha.slice(0, 32)}`;
@@ -366,8 +428,10 @@ export function localExecutionPlan(input: LocalPlanInputs): { plan: ExecutionPla
       denied_tool_ids: declared.filter((toolId) => !approved.includes(toolId)),
       // The operator's grants are the whole conversation's; no preset or policy pre-decides a step here.
       conversation: conversationPlan(pkg, "balanced", null),
-      network: networkPlan(pkg),
+      network: networkPlan(pkg, input.links ?? null),
     },
+    ...(input.parent ? { parent: input.parent } : {}),
+    ...(input.linkEntries ? { links: input.linkEntries } : {}),
     model_binding: input.fixture ? null : (input.modelBinding ?? null),
     tool_bindings: bindings,
     resource_grants: [...(input.resourceGrants ?? [])],

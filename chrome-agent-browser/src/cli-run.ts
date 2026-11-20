@@ -25,6 +25,11 @@ import { dirname, join, resolve } from "node:path";
 import { ArgumentError, parseArguments, type ArgumentSpec } from "./cli-arguments.js";
 import { nodeComputeEngine } from "./cli-compute.js";
 import { catalogHttp, nodeTransport } from "./cli-net.js";
+import { cliLinks } from "./cli-links.js";
+import { splitToolApprovals, type LinkAdapters } from "./core/links/operator.js";
+import { linkedToolHandlers as linkedHandlers } from "./core/links/tools.js";
+import { toolHandlers, type BrokerDeps } from "./core/tools/broker.js";
+import type { ToolHandler } from "./core/tools/handler.js";
 import { AgentPkgError, ValidationError } from "./core/errors.js";
 import { evaluateCatalog, type ModelDescriptor } from "./core/compatibility.js";
 import { completeRunRecord, initialRunRecord } from "./core/execution/record.js";
@@ -69,7 +74,22 @@ export const RUN_OPTIONS: ArgumentSpec["options"] = {
     "--host-resources": { kind: "value" },
     "--resource-grant": { kind: "list" },
 };
-const RUN: ArgumentSpec = { positional: ["package"], options: RUN_OPTIONS };
+/**
+ * `run`'s own options beside the shared ones: link.v0's (`cli-links.ts`) and a repeatable
+ * `--trust-key`, whose first key pins this package's publisher and only that one verifies it;
+ * every key given is in the set a linked publisher is trusted by (link.v0 §12, D-699 (g)).
+ */
+const RUN: ArgumentSpec = {
+  positional: ["package"],
+  options: {
+    ...RUN_OPTIONS,
+    "--trust-key": { kind: "list" },
+    "--link": { kind: "list" },
+    "--link-grants": { kind: "list" },
+    "--deny-link": { kind: "list" },
+    "--join-fixture": { kind: "value" },
+  },
+};
 
 export const HOST_RUNTIME = "chrome-agent-browser";
 const PROVIDERS: readonly ProviderId[] = ["ollama", "openai", "anthropic"];
@@ -133,12 +153,24 @@ function modelBindingFromDescriptor(descriptor: ModelDescriptor, compatibility: 
 }
 
 export interface LiveBinding {
+  /** link.v0: the host's tool handlers for an accepted linked package's inner runs (its approved tools, bound as the caller's are), the caller's model route. */
+  linkAdapters: LinkAdapters | null;
   binding: ModelBindingDescriptor;
   definitions: ToolImplementationDefinition[];
   toolBindings: ReturnType<typeof normalizeToolBindings>;
   resourceGrants: ResourceGrant[];
   store: MemoryResourceStore | null;
   deps: SessionDeps;
+}
+
+/**
+ * link.v0, live: a linked or joined package's tool handlers (`core/links/tools.ts`): its own
+ * registry, each tool its card approved and nothing else (D-022), over the caller's transport,
+ * credentials and pacer; the caller's files, resources and memory are not handed over (L-25).
+ */
+export function linkedToolHandlers(linkedPackage: Package, decision: { grants: Readonly<Record<string, string>>; approvedTools: readonly string[] }, tools: BrokerDeps, now: Date): Promise<Record<string, ToolHandler>> {
+  const { definitions: _definitions, files: _files, resources: _resources, memory: _memory, ...shared } = tools;
+  return linkedHandlers(linkedPackage, decision, shared, { runtimeVersion: CORE_VERSION, now });
 }
 
 export async function bindLive(pkg: Package, parsed: ReturnType<typeof parseArguments>, bytes: Uint8Array, grants: Record<string, string>, approved: string[], modelCallTimeout: number): Promise<LiveBinding> {
@@ -229,7 +261,28 @@ export async function bindLive(pkg: Package, parsed: ReturnType<typeof parseArgu
     resolver: store,
     compute: nodeComputeEngine(),
   };
-  return { binding, definitions, toolBindings, resourceGrants, store, deps };
+  // link.v0: a linked or joined package's tools, bound as the caller's are (the Chrome host's own
+  // registry: one generic HTTPS JSON binding per declared remote tool), each one the card approved;
+  // its inner runs use the caller's model route (router null, L-14).
+  const linkAdapters: LinkAdapters = async (linkedPackage, decision) => ({ router: null, handlers: await linkedToolHandlers(linkedPackage, decision, deps.tools!, now) });
+  return { binding, definitions, toolBindings, resourceGrants, store, deps, linkAdapters };
+}
+
+/**
+ * The keys `agentpkg run --limits` takes (the runtime's own: `Runtime(limits=…)`), and the host
+ * execution limit each one is. A document in that form is read as the permissive host document
+ * with those figures lowered, so that one limits file means the same run on both CLIs (the link
+ * family's probe writes it, D-709); any other document is the host execution limits document.
+ */
+const RUNTIME_LIMIT_KEYS: Readonly<Record<string, string>> = { hard_tokens: "total_tokens", max_remote_calls: "max_remote_calls", max_parallel_workers: "max_parallel_workers", max_calls_per_tool: "max_calls_per_tool" };
+
+function hostLimitsDocument(raw: JsonValue): JsonValue {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const keys = Object.keys(raw);
+  if (keys.length === 0 || !keys.includes("hard_tokens") || keys.some((key) => !Object.hasOwn(RUNTIME_LIMIT_KEYS, key))) return raw;
+  const document: JsonObject = { ...PERMISSIVE_HOST_LIMITS };
+  for (const key of keys) document[RUNTIME_LIMIT_KEYS[key]!] = raw[key]!;
+  return document;
 }
 
 export async function runCommand(args: string[]): Promise<number> {
@@ -243,22 +296,30 @@ export async function runCommand(args: string[]): Promise<number> {
     // conversation.v0 (V-28): a turn starts from a persisted state a single run does not have.
     throw new AgentPkgError("conversation_profile: this package declares a conversation and runs turn by turn; use agentpkg converse");
   }
-  const trustKey = parsed.value("--trust-key");
-  if (mode === "live" && !trustKey) throw new AgentPkgError("Live run requires a signed artifact and --trust-key PUBLIC_KEY");
-  if (trustKey) await verifyWithTrustedKey(pkg, publicKeyFromPem(readFileSync(trustKey, "utf8")));
+  const trustKeys = parsed.list("--trust-key");
+  if (mode === "live" && trustKeys.length === 0) throw new AgentPkgError("Live run requires a signed artifact and --trust-key PUBLIC_KEY");
+  // The first --trust-key pins this package's publisher, and only that one does: a key given to
+  // trust a linked publisher (link.v0 L-12) says nothing about who may sign the caller.
+  if (trustKeys.length > 0) await verifyWithTrustedKey(pkg, publicKeyFromPem(readFileSync(trustKeys[0]!, "utf8")));
   if (pkg.signature === null) throw new AgentPkgError("This runner executes signed packages only; sign the artifact first (agentpkg sign)");
   const signer = await fingerprint(await embeddedPublicKey(pkg.signature));
   const grants = jsonFile(parsed.value("--grants")!, "object") as Record<string, string>;
-  const approved = [...new Set(parsed.list("--approve-tool"))].sort();
+  let approved = [...new Set(parsed.list("--approve-tool"))].sort();
   // As `agentpkg run`: without `--limits` the host lowers nothing, and the package's own budget
   // and deadline apply; `--limits` is the host execution limits document (D-064).
   const limitsRaw: JsonValue = parsed.value("--limits") ? jsonFile(parsed.value("--limits")!, "object") : { ...PERMISSIVE_HOST_LIMITS };
-  const limits = normalizeHostLimits(limitsRaw);
+  const limits = normalizeHostLimits(hostLimitsDocument(limitsRaw));
   const inputPath = parsed.value("--input");
   const archiveSha256 = await sha256Hex(bytes);
   // memory.v0 M-16, M-64 N6: a memory read whose output is not the type's view is not bound, so
   // the run is refused before it starts, in both modes, as `agentpkg run` refuses it (D-230).
   checkMemoryBindings(pkg);
+  // `agentpkg run`'s check of the caller's own approvals (a value `<dependency>:<tool>` is a linked
+  // package's), before any link is resolved.
+  const checkOwnApprovals = (own: string[]): void => {
+    const unknown = own.filter((toolId) => !Object.hasOwn(pkg.tools, toolId)).sort();
+    if (unknown.length > 0) throw new AgentPkgError(`--approve-tool names tools this package does not declare: [${unknown.map((item) => `'${item}'`).join(", ")}]`);
+  };
 
   let plan: ExecutionPlan;
   let authorization;
@@ -272,21 +333,29 @@ export async function runCommand(args: string[]): Promise<number> {
     if (parsed.flag("--think") || parsed.list("--resource-grant").length > 0) throw new AgentPkgError("--think and --resource-grant apply to --mode live only");
     const fixture = fixtureAdapters(pkg);
     input = inputPath ? jsonFile(inputPath, "any") : fixture.input;
-    ({ plan, authorization } = localExecutionPlan({ pkg, archiveSha256, signerFingerprint: signer, decisions: grants, approvedTools: approved, fixture: true }));
     // compute.v0 (C-50): a module runs for real in fixture mode, in a Worker per call (D-251).
-    deps = { archive: bytes, fixture: { router: fixture.router, handlers: fixture.handlers }, compute: nodeComputeEngine() };
+    const compute = nodeComputeEngine();
+    // link.v0: every dependency resolved and decided, an inner run replaying its own fixture (L-29).
+    const linked = await cliLinks(pkg, parsed, { mode, grants, limits: parsed.value("--limits") ? (limitsRaw as JsonObject) : null, router: fixture.router, compute, checkOwnApprovals, jsonFile: (path) => jsonFile(path, "object") });
+    approved = linked.approved;
+    ({ plan, authorization } = localExecutionPlan({ pkg, archiveSha256, signerFingerprint: signer, decisions: grants, approvedTools: approved, fixture: true, links: linked.links?.worstCases ?? null }));
+    deps = { archive: bytes, fixture: { router: fixture.router, handlers: fixture.handlers }, compute, links: linked.links, runConsent: linked.consent, planHash: linked.planHash };
   } else {
     if (!inputPath) throw new AgentPkgError("Live workflow execution requires --input and --model provider/model");
     input = jsonFile(inputPath, "any");
-    live = await bindLive(pkg, parsed, bytes, grants, approved, limits.model_call_timeout_seconds);
-    ({ plan, authorization } = localExecutionPlan({ pkg, archiveSha256, signerFingerprint: signer, decisions: grants, approvedTools: approved, fixture: false, modelBinding: live.binding, toolBindings: live.toolBindings, resourceGrants: live.resourceGrants }));
-    deps = live.deps;
+    const split = splitToolApprovals(pkg, approved);
+    checkOwnApprovals(split.own);
+    live = await bindLive(pkg, parsed, bytes, grants, split.own, limits.model_call_timeout_seconds);
+    const linked = await cliLinks(pkg, parsed, { mode, grants, limits: parsed.value("--limits") ? (limitsRaw as JsonObject) : null, router: live.deps.router ?? null, compute: live.deps.compute ?? null, liveAdapters: live.linkAdapters, checkOwnApprovals, jsonFile: (path) => jsonFile(path, "object") });
+    approved = linked.approved;
+    ({ plan, authorization } = localExecutionPlan({ pkg, archiveSha256, signerFingerprint: signer, decisions: grants, approvedTools: approved, fixture: false, modelBinding: live.binding, toolBindings: live.toolBindings, resourceGrants: live.resourceGrants, links: linked.links?.worstCases ?? null }));
+    deps = { ...live.deps, links: linked.links, runConsent: linked.consent, planHash: linked.planHash };
   }
 
   const session = new ExecutionSession();
   const runId = `run_${randomBytes(16).toString("hex")}`;
   const created = new Date();
-  const begin: BeginReport = await session.begin({ run_id: runId, run_plan: plan, authorization, input, limits: limitsRaw, host: { runtime: HOST_RUNTIME, runtime_version: CORE_VERSION, verified_version: CORE_VERSION } }, deps);
+  const begin: BeginReport = await session.begin({ run_id: runId, run_plan: plan, authorization, input, limits: hostLimitsDocument(limitsRaw), host: { runtime: HOST_RUNTIME, runtime_version: CORE_VERSION, verified_version: CORE_VERSION } }, deps);
   const onSignal = () => {
     process.stderr.write("agent-browser: cancelling the run\n");
     session.cancel();

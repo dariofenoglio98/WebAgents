@@ -2,9 +2,11 @@
 // Do not edit: run `npm run sync-schemas` after a schema change in agentpkg.
 
 import auditEventSchema from "./audit-event.schema.json" with { type: "json" };
+import budgetRaiseCardSchema from "./budget-raise-card.schema.json" with { type: "json" };
 import evalSchema from "./eval.schema.json" with { type: "json" };
 import graphSchema from "./graph.schema.json" with { type: "json" };
 import integritySchema from "./integrity.schema.json" with { type: "json" };
+import linkJoinCardSchema from "./link-join-card.schema.json" with { type: "json" };
 import manifestSchema from "./manifest.schema.json" with { type: "json" };
 import modelRequestSchema from "./model-request.schema.json" with { type: "json" };
 import modelResultSchema from "./model-result.schema.json" with { type: "json" };
@@ -17,9 +19,11 @@ import workflowSchema from "./workflow.schema.json" with { type: "json" };
 /** Every agentpkg schema, by the name `validate_document` uses (`manifest`, `policy`, ...). */
 export const SCHEMAS: Readonly<Record<string, unknown>> = Object.freeze({
   "audit-event": auditEventSchema,
+  "budget-raise-card": budgetRaiseCardSchema,
   "eval": evalSchema,
   "graph": graphSchema,
   "integrity": integritySchema,
+  "link-join-card": linkJoinCardSchema,
   "manifest": manifestSchema,
   "model-request": modelRequestSchema,
   "model-result": modelResultSchema,
@@ -33,9 +37,11 @@ export const SCHEMAS: Readonly<Record<string, unknown>> = Object.freeze({
 /** The schema file names in sorted order, for the equality test. */
 export const SCHEMA_FILES: readonly string[] = Object.freeze([
   "audit-event.schema.json",
+  "budget-raise-card.schema.json",
   "eval.schema.json",
   "graph.schema.json",
   "integrity.schema.json",
+  "link-join-card.schema.json",
   "manifest.schema.json",
   "model-request.schema.json",
   "model-result.schema.json",

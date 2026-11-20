@@ -28,20 +28,28 @@ import { findAllSealed, findSealed } from "../memory/scan.js";
 import type { MemoryRun } from "../memory/run.js";
 import { deepCopy } from "../references.js";
 import { pyRepr } from "../repr.js";
-import { failuresForSchema, validateDocument, type PackageSchemas } from "../schema.js";
+import { failuresForSchema, PackageSchemas as PackageSchemasClass, validateDocument, type PackageSchemas } from "../schema.js";
 import type { RemoteCallBound, ToolContext, ToolHandler } from "../tools/handler.js";
 import { schemaFacts } from "../tools/facts.js";
 import type { AuditEvent } from "../types.js";
 import { urlsplit } from "../urls.js";
 import { AnswerCheckFailure } from "./assertions.js";
 import { CancelToken, withDeadline } from "./cancel.js";
-import { AdapterError, BudgetError, CancelledError, errorName, failedCheck, PolicyError, TimeoutError } from "./errors.js";
+import { AdapterError, BudgetError, CancelledError, errorName, failedCheck, failureCode, LinkError, PolicyError, TimeoutError, WorkflowError } from "./errors.js";
 import { disclosedScalars, feedbackLine, type Refusal } from "./feedback.js";
 import { Semaphore } from "./sync.js";
 import type { AuditChain } from "../conversation/chain.js";
 import { MAX_TEXT_CHARS, gatedPermissions } from "../conversation/declarations.js";
 import { checkDecision, type ConsentDecision, type ConsentHost, type ConsentRequest } from "../conversation/host.js";
-import type { WorstCase } from "../network/analysis.js";
+import { ConsentError } from "../conversation/errors.js";
+import type { ExecutionReport } from "./interpreter.js";
+import type { LinkCosts, WorstCase } from "../network/analysis.js";
+import { checkRunDecision, type RunConsentHost, type RunRequest } from "../conversation/host.js";
+import { ACCEPTED, LinkBinding, linkPlan, planHash as hashPlan, zeroUsage, type InnerRun, type InnerUsage, type LinkHost } from "../links/host.js";
+import { worstCaseFigures, type WorstCaseFigures } from "../links/analysis.js";
+import { candidateFacts, cardFacts, findCandidate, MAX_RUN_CARDS, refusalBeforeCard, slotReason, verifyCandidate } from "../links/join.js";
+import { LinkRefusal } from "../links/errors.js";
+import { bundleSchema } from "./bundle.js";
 import { RouteRefusal } from "../network/errors.js";
 
 export type GrantDecision = "once" | "session" | "always" | "deny";
@@ -211,7 +219,26 @@ export interface RuntimeOptions {
   computePrepared?: Map<string, PreparedModule> | null;
   /** The host's compute ceilings `Workflow.create` already read from `limits` (else read here). */
   computeLimits?: ComputeLimits | null;
+  /**
+   * link.v0: what the run holds about its links (`links/host.ts::LinkHost`): the resolved packages,
+   * the person's decision on each publisher and what an accepted one was granted. Null: a package
+   * without links.
+   */
+  links?: LinkHost | null;
+  /**
+   * link.v0 §6, §7: the person's surface during the run: a join card and the one budget-raise card
+   * are asked there. Null: nobody is there to ask, so every join is refused `unattended` and no
+   * raise is asked (L-33, L-43).
+   */
+  consent?: RunConsentHost | null;
+  /** The hash of the plan this run was decided under (a Run Plan's, or an operator's plan): what a decision made during the run names (L-36, L-44). */
+  planHash?: string | null;
 }
+
+/** How long the one budget-raise card of a run waits for the person at most (link.v0 L-43); a join card waits for its step's time. Neither waits past the operation it is asked in. */
+export const RAISE_CARD_SECONDS = 120;
+/** Seconds a card's wait, and a joined package's inner run, end before the step they are inside does (L-35, L-38, L-43). */
+export const CARD_MARGIN_SECONDS = 1;
 
 const REASON = /^[a-z][a-z0-9_]{0,63}$/u;
 // A fact value is a count, a flag, or a structural token such as a stop reason, a JSON Schema
@@ -252,6 +279,8 @@ class WorkerUsage {
   tokens = 0;
   reserved_tokens = 0;
   remote_calls = 0;
+  /** link.v0 L-24: remote calls held for an inner run until it settles (the run only). */
+  reserved_remote_calls = 0;
   tool_calls: Record<string, number> = {};
   /** compute.v0: counted for the run only (`usage.compute_calls`), never per worker. */
   compute_calls = 0;
@@ -301,6 +330,16 @@ export class Context implements ToolContext {
 
   remoteCall(charge: boolean): RemoteCallBound | null {
     return this.runtime.extraRemoteCall(this, charge);
+  }
+
+  /** link.v0: one planned link, run as an inner run from its own plan (§5). */
+  link(step: JsonObject, payload: JsonValue, deadlineSeconds: number, token: CancelToken): Promise<JsonValue> {
+    return this.runtime.callLink(this, step, payload, deadlineSeconds, token);
+  }
+
+  /** link.v0: one slot step (§6); its outcome is data whatever the candidate does. */
+  join(step: JsonObject, view: JsonValue, urls: readonly string[], reason: JsonValue | null, deadlineSeconds: number, token: CancelToken): Promise<JsonValue> {
+    return this.runtime.callJoin(this, step, view, urls, reason, deadlineSeconds, token);
   }
 }
 
@@ -354,6 +393,15 @@ export class Runtime {
   readonly consentDecisions: ConsentRecord[] = [];
   private readonly chain: AuditChain | null;
   private readonly root: Context;
+  /** link.v0: the run's links, the person's surface during the run, and the plan a decision names. */
+  readonly links: LinkHost | null;
+  readonly consent: RunConsentHost | null;
+  readonly planHash: string | null;
+  /** link.v0 L-42: the person's own run limits as the plan set them, which one raise may lift by at most half, never above the package's own caps. */
+  private readonly planLimits: { hard_tokens: number; max_remote_calls: number };
+  private raiseAsked = false;
+  /** link.v0 L-26: `usage.links`, each link's or slot's inner runs summed. */
+  private readonly linkUsage: Record<string, JsonObject> = {};
   /** compute.v0: the host's engine and the modules the preflight prepared (empty for a package without compute nodes). */
   readonly compute: ComputeEngine | null;
   readonly computeLimits: ComputeLimits;
@@ -406,8 +454,15 @@ export class Runtime {
     if (Object.values(this.roles).some((role) => role.kind !== "packaged")) {
       throw new PolicyError("Only declared packaged worker roles can execute");
     }
+    this.links = options.links ?? null;
+    this.consent = options.consent ?? null;
+    this.planHash = options.planHash ?? null;
+    this.planLimits = { hard_tokens: this.budget.hard_tokens as number, max_remote_calls: this.budget.max_remote_calls as number };
     const dependencies = pkg.manifest.dependencies;
-    if (Array.isArray(dependencies) && dependencies.length > 0) throw new PolicyError("Dependency execution/loading is not implemented");
+    if (Array.isArray(dependencies) && dependencies.length > 0 && (this.links === null || this.links.caller.digest !== pkg.digest)) {
+      // link.v0 L-10, L-17: a host resolves and decides every dependency before the run.
+      throw new PolicyError("link_unresolved: declared dependencies must be resolved and decided before the run");
+    }
     // compute.v0 preflight: `prepareCompute` ran before this constructor (it compiles, which is
     // asynchronous); a package with compute nodes and nothing prepared is refused here as the
     // reference refuses it in its constructor, before `runtime.started`.
@@ -646,7 +701,8 @@ export class Runtime {
   private remoteBound(ctx: Context, count = 1): { bound: "global_remote_calls" | "worker_remote_calls"; remote_calls: number; limit: number } | null {
     const own = this.usageByWorker.get(ctx.worker_id)!;
     const limit = this.budget.max_remote_calls as number;
-    if (this.global.remote_calls + count > limit) return { bound: "global_remote_calls", remote_calls: this.global.remote_calls, limit };
+    // link.v0 L-24: the remote calls an inner run holds are not there to spend.
+    if (this.global.remote_calls + this.global.reserved_remote_calls + count > limit) return { bound: "global_remote_calls", remote_calls: this.global.remote_calls, limit };
     const roleLimit = (this.roles[ctx.role]!.budget as JsonObject).remote_calls as number;
     if (own.remote_calls + count > roleLimit) return { bound: "worker_remote_calls", remote_calls: own.remote_calls, limit: roleLimit };
     return null;
@@ -921,7 +977,7 @@ export class Runtime {
     const summary: JsonObject = {};
     for (const key of ["max_hops", "max_activations", "activations", "model_calls", "tool_calls", "compute_calls", "remote_calls", "tokens", "seconds"] as const) summary[key] = deepCopy(bound[key] as JsonValue);
     const tokensLeft = (this.budget.hard_tokens as number) - this.global.tokens - this.global.reserved_tokens;
-    const remoteLeft = (this.budget.max_remote_calls as number) - this.global.remote_calls;
+    const remoteLeft = (this.budget.max_remote_calls as number) - this.global.remote_calls - this.global.reserved_remote_calls;
     const facts = { node_id: nodeId, bound: summary, tokens_left: tokensLeft, remote_calls_left: remoteLeft };
     let reason: string | null = null;
     if (bound.tokens > tokensLeft) reason = "tokens";
@@ -1070,6 +1126,17 @@ export class Runtime {
     if (reservation > router.context_window) {
       refuse("context_window", "Model request exceeds configured context window", { context_window: router.context_window });
     }
+    // link.v0 §7: where this reservation would fail on the person's own run limit and on nothing
+    // else, the person may be asked, once per run, to raise that limit. Nothing is computed for it
+    // where nobody can be asked or the one raise was asked.
+    if (this.consent !== null && !this.raiseAsked) {
+      const own = this.usageByWorker.get(ctx.worker_id)!;
+      const wanted = this.global.tokens + this.global.reserved_tokens + reservation;
+      const threshold = this.budget.approval_threshold_tokens;
+      await this.askRaise(ctx, "hard_tokens", reservation, token, {
+        admittedOtherwise: own.tokens + own.reserved_tokens + reservation <= ((this.roles[ctx.role]!.budget as JsonObject).tokens as number) && (typeof threshold !== "number" || wanted <= threshold),
+      });
+    }
     // One attempt: reserve against every bound, send, account. An answer that is not accepted (a
     // schema miss, no JSON, a refused answer check) may be asked for again (D-115, D-151): the
     // request plus one feedback line, recounted, with a fresh reservation, remote call and audit
@@ -1216,6 +1283,419 @@ export class Runtime {
     }
   }
 
+  // -- link.v0 (§5, §6, §7) ------------------------------------------------------------------
+
+  /** `linkCost`'s map for this run: each dependency's worst case, null for a link the person denied; null when the package has no links. */
+  get linkCosts(): LinkCosts | null {
+    return this.links !== null ? this.links.worstCases : null;
+  }
+
+  /** Seconds the current operation has left by its token (the step's, node's, role's and run's deadlines), or null where nothing bounds it. */
+  private static timeLeft(token: CancelToken): number | null {
+    return Number.isFinite(token.deadline) ? (token.deadline - Date.now()) / 1000 : null;
+  }
+
+  /**
+   * One card asked within `patience` seconds: the host's answer, or `timeout`. A card with no time
+   * left is not put to the host (the reference's `wait_for` with a zero timeout cancels the ask
+   * before it starts). The step's own cancellation passes through.
+   */
+  private async askWithin(request: RunRequest, patience: number, token: CancelToken): Promise<{ answer: unknown } | "timeout"> {
+    if (patience <= 0) return "timeout";
+    token.throwIfCancelled();
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let onAbort: (() => void) | undefined;
+    try {
+      return await new Promise<{ answer: unknown } | "timeout">((resolve, reject) => {
+        timer = setTimeout(() => {
+          controller.abort(new TimeoutError("card unanswered"));
+          resolve("timeout");
+        }, patience * 1000);
+        onAbort = () => {
+          controller.abort(token.reason ?? new CancelledError());
+          reject(token.reason ?? new CancelledError());
+        };
+        token.signal.addEventListener("abort", onAbort, { once: true });
+        this.consent!.ask(request, controller.signal).then(
+          (answer) => resolve({ answer }),
+          (error: unknown) => reject(error),
+        );
+      });
+    } finally {
+      clearTimeout(timer);
+      if (onAbort) token.signal.removeEventListener("abort", onAbort);
+    }
+  }
+
+  /**
+   * The budget-raise request (link.v0 §7). A reservation of `amount` that fails on the person's own
+   * run limit (`hard_tokens` or `max_remote_calls`, as the host lowered it under the package's cap)
+   * may be answered by one card per run: to raise that limit to what the reservation needs, by at
+   * most half of the plan's limit and never above the package's own cap. No person, a raise already
+   * asked, a reservation another bound would still refuse, or an amount the rule cannot admit: no
+   * card, and the refusal stands. True when the limit was raised.
+   */
+  private async askRaise(ctx: Context, limit: "hard_tokens" | "max_remote_calls", amount: number, token: CancelToken, options: { admittedOtherwise?: boolean } = {}): Promise<boolean> {
+    if (this.consent === null || this.raiseAsked) return false;
+    // A host's policy that forbids the raise (D-682): the surface does not take that card, so nobody is asked.
+    if (this.consent.kinds !== undefined && !this.consent.kinds.includes("budget.raise")) return false;
+    const name = limit === "hard_tokens" ? "tokens" : "remote_calls";
+    const used = limit === "hard_tokens" ? this.global.tokens + this.global.reserved_tokens : this.global.remote_calls + this.global.reserved_remote_calls;
+    const current = this.budget[limit] as number;
+    const target = used + amount;
+    const packageCap = (this.policy.budget as JsonObject)[limit] as number;
+    if (options.admittedOtherwise === false || target <= current || target > packageCap || target - current > Math.floor(this.planLimits[limit] / 2)) return false;
+    this.raiseAsked = true;
+    const nodeId = ctx.operation_id ?? ctx.node_id ?? null;
+    // A step's stated reason, the agent's words, where it has one; no step that reserves has one in this version.
+    const facts: JsonObject = { limit: name, from: current, to: target, needed: amount, used, package_cap: packageCap, node_id: nodeId, reason: null };
+    await validateDocument(facts, "budget-raise-card", "budget-raise card");
+    this.record("budget.requested", { context: ctx, limit: name, to: target, needed: amount, plan_hash: this.planHash, from: current });
+    // The card waits inside the time of the operation that asks: it ends before that operation's
+    // own timeout does, so that an unanswered card is the refusal of before.
+    const left = Runtime.timeLeft(token);
+    const patience = left === null ? RAISE_CARD_SECONDS : Math.min(RAISE_CARD_SECONDS, Math.max(0, left - CARD_MARGIN_SECONDS));
+    const asked = await this.askWithin({ kind: "budget.raise", run_id: this.run_id, node_id: nodeId, facts, timeout_seconds: patience }, patience, token);
+    if (asked === "timeout") return false; // an unanswered card is a no (L-43)
+    const decision = checkRunDecision("budget.raise", asked.answer);
+    if (!decision.accepted) return false;
+    this.budget[limit] = target;
+    this.record("budget.raised", { context: ctx, limit: name, to: target, decided_by: "person", provenance: decision.provenance, plan_hash: this.planHash, from: current });
+    return true;
+  }
+
+  /**
+   * A link's reservation (L-24): its worst case must fit what the run has left in tokens and remote
+   * calls and stay under the caller's approval threshold, in that order; then it is held until
+   * settlement. Returns `[null, left]` when held, else `[reason, left]`, with `left` what the run
+   * had. `raisable`: a refusal on the person's own limit may first ask the raise of §7.
+   */
+  private async hold(ctx: Context, needed: { tokens: number; remote_calls: number }, raisable: boolean, token: CancelToken): Promise<[reason: "tokens" | "remote_calls" | "approval_threshold" | null, left: { tokens: number; remote_calls: number }]> {
+    const threshold = this.budget.approval_threshold_tokens;
+    let reason: "tokens" | "remote_calls" | "approval_threshold" | null = null;
+    let left = { tokens: 0, remote_calls: 0 };
+    for (const attempt of [0, 1]) {
+      left = {
+        tokens: (this.budget.hard_tokens as number) - this.global.tokens - this.global.reserved_tokens,
+        remote_calls: (this.budget.max_remote_calls as number) - this.global.remote_calls - this.global.reserved_remote_calls,
+      };
+      const overThreshold = typeof threshold === "number" && this.global.tokens + this.global.reserved_tokens + needed.tokens > threshold;
+      reason = null;
+      if (needed.tokens > left.tokens) reason = "tokens";
+      else if (needed.remote_calls > left.remote_calls) reason = "remote_calls";
+      else if (overThreshold) reason = "approval_threshold";
+      if (reason === null) {
+        this.global.reserved_tokens += needed.tokens;
+        this.global.reserved_remote_calls += needed.remote_calls;
+        return [null, left];
+      }
+      if (attempt === 1 || !raisable || reason === "approval_threshold") break;
+      // One raise lifts one limit: it is asked only where the other figure and the threshold would then admit the reservation.
+      const other = reason === "tokens" ? "remote_calls" : "tokens";
+      const raised = await this.askRaise(ctx, reason === "tokens" ? "hard_tokens" : "max_remote_calls", needed[reason], token, { admittedOtherwise: needed[other] <= left[other] && !overThreshold });
+      if (!raised) break;
+    }
+    return [reason, left];
+  }
+
+  /** A value against one of a linked package's own schemas (its closed validator: formats, local references). */
+  private static async validateLinked(pkg: Package, path: string, value: JsonValue, label: string): Promise<void> {
+    const schemas = await PackageSchemasClass.open(pkg.files, (pkg.manifest.schemas as JsonObject[]).map((entry) => String(entry.path)));
+    try {
+      await schemas.validateInstance(path, value, label);
+    } finally {
+      schemas.close();
+    }
+  }
+
+  /**
+   * One planned link (link.v0 §5): the denial, the input against the linked package's own schema,
+   * the reservation, the inner run, the settlement, the result. The inner run is built from its
+   * binding alone (`links/host.ts::LinkHost.start`): its own grants, approvals, handlers and
+   * counters; of this run it receives the validated input and returns the validated result,
+   * nothing else (L-25).
+   */
+  async callLink(ctx: Context, step: JsonObject, payload: JsonValue, deadlineSeconds: number, token: CancelToken): Promise<JsonValue> {
+    this.checkContext(ctx);
+    const name = String(step.dependency);
+    const host = this.links;
+    if (host === null || !host.bindings.has(name)) throw new PolicyError(`link_unresolved: dependency ${name} was not resolved for this run`);
+    const binding = host.binding(name);
+    if (host.denied(binding)) {
+      // Denied at the review, or its publisher's key declined on a join card since (L-35): a denial is of the key and lasts for the run (L-13).
+      this.record("link.denied", { context: ctx, dependency: name });
+      throw new PolicyError(`Link ${name} was denied by the person`);
+    }
+    const linked = binding.resolved.package;
+    try {
+      await Runtime.validateLinked(linked, String(linked.graph.input_schema), payload, `link ${name} input`);
+    } catch (error) {
+      if (error instanceof ValidationError) Object.assign(error, { failed_check: { check: "link_input", dependency: name } });
+      throw error;
+    }
+    const needed = host.reservation(binding);
+    // Named `refused`, not `reason`: the text of `reserveNetwork`'s own check stays the only one of
+    // its kind in this file (a test outside this tree finds that check by its line).
+    const [refused, left] = await this.hold(ctx, needed, true, token);
+    if (refused !== null) {
+      this.record("link.refused", { context: ctx, dependency: name, reason: refused, needed, tokens_left: left.tokens, remote_calls_left: left.remote_calls });
+      if (refused === "approval_threshold") {
+        throw new BudgetError(`link ${name}: its worst case (${needed.tokens} tokens) crosses the token approval threshold (${String(this.budget.approval_threshold_tokens)}); a new host grant is required`);
+      }
+      throw new BudgetError(`link ${name}: its worst case (${needed.tokens} tokens, ${needed.remote_calls} remote calls) exceeds what the run has left (${left.tokens} tokens, ${left.remote_calls} remote calls)`);
+    }
+    return this.innerRun(ctx, "dependency", name, binding, payload, needed, deadlineSeconds, token);
+  }
+
+  /**
+   * An inner run under a reservation that is already held (L-25…L-27): started, recorded, run,
+   * settled into this run's counters, and its record kept. `key` says what `name` is, in the events
+   * and the record: a `dependency` or a `slot`.
+   */
+  private async innerRun(ctx: Context, key: "dependency" | "slot", name: string, binding: LinkBinding, payload: JsonValue, needed: { tokens: number; remote_calls: number }, deadlineSeconds: number, token: CancelToken): Promise<JsonValue> {
+    const host = this.links!;
+    const linked = binding.resolved.package;
+    const named = { [key]: name };
+    const nodeId = ctx.operation_id ?? ctx.node_id ?? null;
+    // A planned link's package was pinned by the caller's publisher and checked at preparation:
+    // what is not a classified error there is a fault of this runtime and surfaces. A joined
+    // package's bytes are a third party's, found during the run: whatever building or running it
+    // raises is the candidate's failure (L-38).
+    const contained = (error: unknown): boolean => key === "slot" || error instanceof AgentPkgError;
+    // Nothing is spent until an inner run exists.
+    let spent: InnerUsage = zeroUsage();
+    let inner: InnerRun | null = null;
+    try {
+      try {
+        inner = await host.start(binding, { router: this.router, limits: needed, deadlineSeconds, deadlineAt: token.deadline });
+      } catch (error) {
+        if (!contained(error) || error instanceof CancelledError) throw error;
+        // An inner run that could not be built: nothing ran, so nothing is charged, and the step
+        // fails as a failed inner run's does (L-27), `link.failed` naming the cause with no run id.
+        const code = failureCode(error);
+        this.record("link.failed", { context: ctx, inner_run_id: null, error_code: code, usage: spent, ...named });
+        throw new LinkError(name, code, { cause: error });
+      }
+      // From here on, unknown usage consumes the reservation (L-26), as a model call's.
+      spent = { tokens: needed.tokens, remote_calls: needed.remote_calls, model_calls: 0, tool_calls: {}, compute_calls: 0 };
+      this.record("link.started", { context: ctx, package_id: String(linked.manifest.package_id), digest: linked.digest, inner_plan_hash: binding.planHash, inner_run_id: inner.run_id, reserved: { ...needed }, input_hash: digest(payload), ...named });
+      let report: ExecutionReport;
+      try {
+        report = await inner.run(payload, token);
+      } catch (error) {
+        if (key !== "slot" || error instanceof LinkError || error instanceof CancelledError) throw error;
+        throw new LinkError(name, failureCode(error), { cause: error });
+      } finally {
+        spent = inner.usage();
+      }
+      if (report.status !== "completed") throw new LinkError(name, report.error_code ?? "worker_error");
+      const result = report.output!;
+      this.record("link.completed", { context: ctx, inner_run_id: inner.run_id, usage: spent, result_hash: digest(result), ...named });
+      host.finished(inner, { key, name, nodeId, status: "completed", errorCode: null });
+      return deepCopy(result);
+    } catch (error) {
+      if (inner !== null) {
+        const code = (error as { inner_code?: string }).inner_code ?? failureCode(error);
+        this.record("link.failed", { context: ctx, inner_run_id: inner.run_id, error_code: code, usage: spent, ...named });
+        host.finished(inner, { key, name, nodeId, status: "failed", errorCode: code });
+      }
+      throw error;
+    } finally {
+      this.global.reserved_tokens -= needed.tokens;
+      this.global.reserved_remote_calls -= needed.remote_calls;
+      // L-26: every counter the run keeps takes the inner run's figure. A run keeps no model-call
+      // counter, so an inner run's model calls are stated per link only.
+      this.global.tokens += spent.tokens;
+      this.global.remote_calls += spent.remote_calls;
+      this.global.compute_calls += spent.compute_calls;
+      for (const [tool, count] of Object.entries(spent.tool_calls)) this.global.tool_calls[`${name}:${tool}`] = (this.global.tool_calls[`${name}:${tool}`] ?? 0) + count;
+      const totals = this.linkTotals(name);
+      totals.runs = (totals.runs as number) + (inner !== null ? 1 : 0);
+      for (const figure of ["tokens", "remote_calls", "model_calls", "compute_calls"] as const) totals[figure] = (totals[figure] as number) + spent[figure];
+      const tools = totals.tool_calls as Record<string, number>;
+      for (const [tool, count] of Object.entries(spent.tool_calls)) tools[tool] = (tools[tool] ?? 0) + count;
+      this.record("budget.updated", { context: ctx, tokens: this.global.tokens, reserved_tokens: this.global.reserved_tokens, remote_calls: this.global.remote_calls });
+    }
+  }
+
+  /** The usage record's entry for one link or slot (`usage.links[<name>]`, L-26). */
+  private linkTotals(name: string): JsonObject {
+    if (!Object.hasOwn(this.linkUsage, name)) this.linkUsage[name] = { runs: 0, tokens: 0, remote_calls: 0, model_calls: 0, tool_calls: {}, compute_calls: 0 };
+    return this.linkUsage[name]!;
+  }
+
+  /**
+   * One slot step (link.v0 §6): the refusals that need no look, the look (discovery of each located
+   * page in order, then the one candidate's bytes), the candidate verified, the refusals before any
+   * card, the reservation, the card, the person's decision, the inner plan, the request-building
+   * call, the inner run. Every outcome but a failure of the caller's own request-building call is
+   * data: `{joined, reason, result}` (L-8): a candidate's bytes are a third party's, and nothing they
+   * hold or do fails this step. Nothing of the candidate reaches this run's model before the
+   * decision.
+   */
+  async callJoin(ctx: Context, step: JsonObject, view: JsonValue, urls: readonly string[], reason: JsonValue | null, deadlineSeconds: number, token: CancelToken): Promise<JsonValue> {
+    this.checkContext(ctx);
+    const began = Date.now();
+    const slot = String(step.slot);
+    const host = this.links;
+    const joins = host?.joins ?? null;
+    const nodeId = ctx.operation_id ?? ctx.node_id ?? null;
+    let candidate: JsonObject | null = null;
+    let worst: WorstCaseFigures | null = null;
+    const failed: JsonObject = { joined: false, reason: "failed", result: null };
+    /** What the step has left, less the margin a card and an inner run end before the step's own timeout by. */
+    const remaining = (): number => {
+      let left = deadlineSeconds - (Date.now() - began) / 1000;
+      const noted = Runtime.timeLeft(token);
+      if (noted !== null) left = Math.min(left, noted);
+      return Math.max(0, left - CARD_MARGIN_SECONDS);
+    };
+    const decided = (why: string | null, options: { accepted?: boolean; by?: string; provenance?: string | null; plan?: string | null; figure?: string | null } = {}): JsonObject => {
+      const facts: JsonObject = {
+        slot,
+        accepted: options.accepted ?? false,
+        decided_by: options.by ?? "runtime",
+        reason: why,
+        provenance: options.provenance ?? null,
+        candidate: candidate === null ? null : deepCopy(candidate),
+        worst_case: worst === null ? null : deepCopy(worst),
+        inner_plan_hash: options.plan ?? null,
+        ...(options.figure ? { figure: options.figure } : {}),
+      };
+      this.record("link.decided", { context: ctx, ...facts });
+      if (host !== null) host.joinRecords.push({ node_id: nodeId, joined: false, ...deepCopy(facts) });
+      return { joined: false, reason: why, result: null };
+    };
+    if (this.consent === null || joins === null) return decided("unattended");
+    if (joins.policy === "forbid") return decided("policy");
+    const shown = host!.cards.get(slot) ?? 0;
+    const total = [...host!.cards.values()].reduce((sum, count) => sum + count, 0);
+    if (shown >= (step.max_joins as number) || total >= MAX_RUN_CARDS) return decided("join_cap");
+    if (urls.length === 0) return decided("not_found");
+    const found = await findCandidate(joins, urls);
+    token.throwIfCancelled();
+    let link = null;
+    if (found.data !== null) {
+      try {
+        link = await verifyCandidate(found, slot, joins);
+      } catch (error) {
+        if (!(error instanceof LinkRefusal)) throw error;
+        found.reason = "verification";
+      }
+    }
+    if (link !== null) {
+      candidate = candidateFacts(link);
+      // Null for a candidate its profile refuses: no worst case is defined for it.
+      worst = link.worst_case !== null ? worstCaseFigures(link.worst_case) : null;
+    }
+    this.record("link.requested", { context: ctx, slot, fetches: deepCopy(found.fetches), candidate: candidate === null ? null : deepCopy(candidate) });
+    if (link === null) return decided(found.reason);
+    const refusal = refusalBeforeCard(link, step, { caller: this.package, deniedKeys: host!.deniedKeys, router: this.router });
+    if (refusal !== null) return decided(refusal[0], { figure: refusal[1] });
+    // The candidate's worst case is held from here to settlement, so that what the card says the run has left is still there when the inner run starts.
+    const needed = host!.reservation(new LinkBinding(link, ACCEPTED));
+    const [refused, left] = await this.hold(ctx, needed, false, token);
+    if (refused !== null) return decided("budget", { figure: refused });
+    let handed = false;
+    try {
+      host!.cards.set(slot, (host!.cards.get(slot) ?? 0) + 1);
+      const cards = {
+        slot: { shown: host!.cards.get(slot)!, max: step.max_joins as number },
+        run: { shown: [...host!.cards.values()].reduce((sum, count) => sum + count, 0), max: MAX_RUN_CARDS },
+      };
+      const facts = cardFacts(link, step, found, { reason: slotReason(reason ?? undefined), left, cards });
+      await validateDocument(facts, "link-join-card", "join card");
+      // A card that is not answered within the step's time is declined (L-35).
+      const patience = remaining();
+      const asked = await this.askWithin({ kind: "link.join", run_id: this.run_id, node_id: nodeId, facts, timeout_seconds: patience }, patience, token);
+      let decision;
+      try {
+        decision = checkRunDecision("link.join", asked === "timeout" ? { accepted: false, provenance: "timeout" } : asked.answer);
+        if (decision.accepted) {
+          const tools = new Set(Object.keys(link.package.tools));
+          const known = new Set((link.package.policy.permissions as JsonObject[]).map((permission) => String(permission.id)));
+          if (decision.approved_tools!.some((tool) => !tools.has(tool)) || Object.keys(decision.grants!).some((permission) => !known.has(permission))) {
+            throw new ConsentError("consent_decision_invalid", "a join decision names a tool or a permission the joined package does not declare");
+          }
+        }
+      } catch (error) {
+        if (error instanceof ConsentError) throw new WorkflowError("worker_error", nodeId, { cause: error });
+        throw error;
+      }
+      if (!decision.accepted) {
+        // A denial lasts for the run (L-13): this key is not offered again in it.
+        host!.deniedKeys.add(link.signer);
+        return decided("declined", { by: "person", provenance: decision.provenance });
+      }
+      const binding = new LinkBinding(link, ACCEPTED, { grants: decision.grants! as Grants, approvedTools: decision.approved_tools! });
+      // L-36: the card's grants, under this plan, this run and this slot. The caller's plan is not rewritten: the join is this inner plan plus the audit.
+      binding.plan = linkPlan(this.package, link, { grants: binding.grants, approvedTools: binding.approvedTools, parent: { plan_hash: this.planHash, run_id: this.run_id, slot } });
+      binding.planHash = hashPlan(binding.plan);
+      decided(null, { accepted: true, by: "person", provenance: decision.provenance, plan: binding.planHash });
+      host!.joined.set(binding.planHash, binding);
+      // The person's decision is recorded; from here a candidate's failure is data (L-38). What this
+      // host hands the joined package's inner run comes first, before the caller's model is asked
+      // for a request no run would take.
+      try {
+        if (joins.adapters) {
+          const adapters = await joins.adapters(link.package, { grants: binding.grants, approvedTools: binding.approvedTools });
+          binding.router = adapters.router;
+          binding.handlers = { ...adapters.handlers };
+        }
+      } catch (error) {
+        if (error instanceof CancelledError) throw error;
+        this.record("link.failed", { context: ctx, inner_run_id: null, error_code: failureCode(error), usage: zeroUsage(), slot });
+        this.linkTotals(slot);
+        host!.joinRecords.at(-1)!.reason = "failed";
+        return failed;
+      }
+      const requestValue = await this.joinRequest(ctx, step, view, link.package, token);
+      handed = true;
+      // The inner run has what is left of the step's time less the margin: one that is still
+      // running then is ended here (`link.failed` says `cancelled`, as L-27's) and is the
+      // candidate's failure, not the step's `timeout`.
+      let result: JsonValue;
+      try {
+        result = await withDeadline(remaining(), token, (bounded) => this.innerRun(ctx, "slot", slot, binding, requestValue, needed, deadlineSeconds, bounded));
+      } catch (error) {
+        if (error instanceof LinkError || error instanceof TimeoutError) {
+          host!.joinRecords.at(-1)!.reason = "failed";
+          return failed;
+        }
+        throw error;
+      }
+      host!.joinRecords.at(-1)!.joined = true;
+      return { joined: true, reason: null, result };
+    } finally {
+      if (!handed) {
+        this.global.reserved_tokens -= needed.tokens;
+        this.global.reserved_remote_calls -= needed.remote_calls;
+      }
+    }
+  }
+
+  /**
+   * The request-building call (L-37): one model call of this run's own, by the role's worker under
+   * the slot's `request` task. Its data is exactly the slot's view and the joined package's name,
+   * description and input schema; its output schema is that input schema. A non-conforming answer
+   * fails the step as any model call's does.
+   */
+  private async joinRequest(ctx: Context, step: JsonObject, view: JsonValue, linked: Package, token: CancelToken): Promise<JsonValue> {
+    const schema = bundleSchema(linked, String(linked.graph.input_schema));
+    const data: JsonObject = { view: deepCopy(view), package: { name: linked.manifest.name!, description: linked.manifest.description!, input_schema: schema } };
+    const request = step.request as JsonObject;
+    // The joined package's own closed validator (formats, local references).
+    const check = (answer: JsonValue): Promise<void> => Runtime.validateLinked(linked, String(linked.graph.input_schema), answer, `slot ${String(step.slot)} request`);
+    try {
+      return await this.callModel(ctx, String(request.task), data, schema, request.max_output_tokens as number, token, { check });
+    } catch (error) {
+      if (error instanceof PolicyError || error instanceof TimeoutError || error instanceof CancelledError) throw error;
+      const nodeId = ctx.operation_id ?? ctx.node_id ?? null;
+      throw Object.assign(new WorkflowError(error instanceof ValidationError ? "schema_validation" : "model_error", nodeId, { cause: error }), failedCheck(error));
+    }
+  }
+
   get usage(): JsonObject {
     const workers: JsonObject = {};
     for (const [worker, usage] of this.usageByWorker) {
@@ -1226,8 +1706,14 @@ export class Runtime {
       reserved_tokens: this.global.reserved_tokens,
       remote_calls: this.global.remote_calls,
       tool_calls: { ...this.global.tool_calls },
-      // compute.v0: present exactly when the graph declares modules, so every earlier package's usage is unchanged.
-      ...(this.modules.size > 0 ? { compute_calls: this.global.compute_calls } : {}),
+      // compute.v0: present exactly when the graph declares modules or the run holds links (link.v0
+      // L-26: a linked package's compute calls are settled into it), so every earlier package's
+      // usage is unchanged.
+      ...(this.modules.size > 0 || this.links !== null ? { compute_calls: this.global.compute_calls } : {}),
+      // link.v0 L-26: present exactly when the run holds links; what each link's inner runs spent.
+      // Its tokens, remote calls, compute calls and tool calls are already inside the totals above
+      // (tool calls there are qualified); its model calls are stated here only.
+      ...(this.links !== null ? { links: deepCopy(this.linkUsage) } : {}),
       peak_parallel_workers: this.peak,
       workers,
       limits: deepCopy(this.budget),

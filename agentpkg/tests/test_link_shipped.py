@@ -171,11 +171,11 @@ def test_another_archive_under_a_dependencys_name_is_refused(tmp_path, capsys):
 
 
 def test_the_signed_index_1_7_0_names_the_four_archives():
-    """Index 1.7.0 is signed and kept beside the current one: the Chrome tree pins the current
-    index and its tests' clock, so T66 makes 1.7.0 current when it moves those (D-699)."""
+    """Index 1.7.0 is signed and current since T66, which moved the Chrome tree's pins; 1.6.0 is
+    kept beside it as `agent-index-1.6.0.json` (D-698, D-700)."""
     examples = ROOT / "examples"
-    index = json.loads((examples / "agent-index-1.7.0.json").read_text(encoding="utf-8"))
-    assert index["content"] == json.loads((examples / "agent-index-1.7.0.content.json").read_text())
+    index = json.loads((examples / "agent-index.json").read_text(encoding="utf-8"))
+    assert index["content"] == json.loads((examples / "agent-index.content.json").read_text())
     content = index["content"]
     assert content["version"] == "1.7.0"
     entries = {entry["package_id"]: entry for entry in content["entries"]}
@@ -186,8 +186,11 @@ def test_the_signed_index_1_7_0_names_the_four_archives():
         assert entry["archive_sha256"] == hashlib.sha256(archive(stem).read_bytes()).hexdigest()
         assert entry["signer_fingerprint"] == fingerprint(_read_key(key(stem)))
         assert entry["package_url"].startswith("https://")
-    current = json.loads((examples / "agent-index.json").read_text(encoding="utf-8"))
-    assert current["content"]["version"] == "1.6.0"
+    previous = json.loads((examples / "agent-index-1.6.0.json").read_text(encoding="utf-8"))
+    assert previous["content"]["version"] == "1.6.0"
+    assert previous["content"] == json.loads(
+        (examples / "agent-index-1.6.0.content.json").read_text(encoding="utf-8")
+    )
 
 
 # -- the planner 0.2.0, signed at the user's "go" of 2026-11-16 (D-683) ----------------------------

@@ -4,7 +4,7 @@ This is the divergence log of experiment E8 in [`experiments/PROTOCOL.md`](../ex
 (section "E8 · The conformance report and the divergence log"). It lists every difference between the two
 runtimes that execute the Agent Package Format and its profiles, the Python reference (`agentpkg`) and the
 TypeScript core of the Chrome Agent Browser, that a conformance case, a unit or parity test, a review or a
-live run found in tasks T1 to T26 and that was then fixed or kept as a documented, allowed difference. Each
+live run found in tasks T1 to T26 and in T66 (Agent Links) and that was then fixed or kept as a documented, allowed difference. Each
 row cites the task and the place where it is recorded, how it was found, which runtime differed, its class,
 its resolution and the commit that resolved it. The conformance suite's own comparison rules are in
 [`conformance/README.md`](../conformance/README.md); this file is the history behind them.
@@ -54,34 +54,34 @@ no pending case. Figures: see the summary.
 
 ## Summary
 
-**67 divergences**, 40 fixed and 27 documented. The counts below are computed from the table: `experiments/conformance_report/report.py` recomputes this line and every table of this section from the log's rows and fails when one differs.
+**71 divergences**, 42 fixed and 29 documented. The counts below are computed from the table: `experiments/conformance_report/report.py` recomputes this line and every table of this section from the log's rows and fails when one differs.
 
 ### By class and resolution
 
 | Class | fixed | documented | total |
 |---|---:|---:|---:|
-| behaviour | 21 | 9 | 30 |
-| wording | 5 | 2 | 7 |
-| timing | 1 | 6 | 7 |
+| behaviour | 22 | 10 | 32 |
+| wording | 6 | 2 | 8 |
+| timing | 1 | 7 | 8 |
 | platform | 13 | 10 | 23 |
-| **all** | 40 | 27 | 67 |
+| **all** | 42 | 29 | 71 |
 
 ### By how it was found
 
 | Found by | fixed | documented | total |
 |---|---:|---:|---:|
-| suite | 6 | 9 | 15 |
+| suite | 7 | 11 | 18 |
 | test | 2 | 10 | 12 |
-| review | 32 | 6 | 38 |
+| review | 33 | 6 | 39 |
 | live | 0 | 2 | 2 |
 
 ### By runtime that differed
 
 | Wrong | fixed | documented | total |
 |---|---:|---:|---:|
-| Cr (Chrome core) | 31 | 11 | 42 |
-| Py (Python reference) | 6 | 2 | 8 |
-| both / neither alone | 3 | 14 | 17 |
+| Cr (Chrome core) | 32 | 11 | 43 |
+| Py (Python reference) | 6 | 3 | 9 |
+| both / neither alone | 4 | 15 | 19 |
 
 Rows whose reference side is the OpenClaw plugin rather than `agentpkg`: 3 (DV-29, DV-31, DV-34).
 
@@ -106,6 +106,7 @@ A row that names two tasks (the finding in one, the fix or the carry-over in the
 | T24 | 4 | 0 | 0 | 0 | 4 | 0 | 4 |
 | T25 | 1 | 0 | 0 | 0 | 1 | 0 | 1 |
 | T26 | 1 | 0 | 0 | 0 | 0 | 1 | 1 |
+| T66 | 2 | 1 | 1 | 0 | 2 | 2 | 4 |
 
 Tasks that no row names: T9, T10, T11, T12, T13, T14, T15, T16, T17. T5a (a Demo 3 fix task) and T9, T10, T13, T15 appear only in the sections below; T11, T12, T14, T16 and T17 changed one runtime or the extension only. A task that is the Python half of a pair (T23, T25) is named in the row of the Chrome task that ported its finding. The class is by symptom except where the cause is a language, library or engine property (see the rules).
 
@@ -180,6 +181,10 @@ Tasks that no row names: T9, T10, T11, T12, T13, T14, T15, T16, T17. T5a (a Demo
 | DV-65 | 2026-10-24 | T25/T26 | T25:504-508 (review 1, nit 9), 248; T26:53-63, 85, 131-132 | review | Cr | behaviour | fixed | `8c71a6c` | After the schema sync the Chrome core admitted `network` without the `network_minimum_version` rule, so with `minimum_version` lowered to 0.6.0 the shipped examples were refused for a different reason than the reference's rule. |
 | DV-66 | 2026-10-24 | T26 | conformance/README.md (network.v0, N-28, N-29; Recorded differences); T26:120; D-091; conformance/run.mjs:749-754 | suite | both | behaviour | documented | `8c71a6c` | A `once` grant used by more than one delegation is refused by `agentpkg run` at the first use (`permission_denied` at `delegate`) and by the Chrome CLI before the run; both execution layers refuse `execution_grant_unsupported` with one message. |
 | DV-67 | 2026-10-24 | T24/T26 | T24:708-713 (review 4, nit 2); T26:47-49, 87 | review | Cr | behaviour | fixed | `f4f7c2d` | In fixture mode, a bad conversation limit with an existing `--out` was refused for the limit by the Chrome CLI and for `--out` by agentpkg (a regression of the previous fix). |
+| DV-68 | 2026-11-17 | T66 | conformance/README.md (link.v0, N-24; Recorded differences); D-706, D-707 (a); conformance/drivers/link_host.py, link-host.ts; B-305 | suite | Py | behaviour | documented | `1f7e506` | A `once` grant on a linked package's card that the composition could consume more than once (L-28) is checked by the reference's execution session and not by `agentpkg run`, which lets each inner run spend it; the Chrome CLI runs through its execution layer and refuses before the run. Both execution layers' link hosts refuse `execution_grant_unsupported` with one message. |
+| DV-69 | 2026-11-17 | T66 | D-707 (e), D-709 (b); D-064; chrome-agent-browser/src/cli-run.ts (`hostLimitsDocument`) | suite | both | behaviour | fixed | `1f7e506` | The two CLIs take different `--limits` documents (D-064), so the link family's probe, which writes agentpkg's runtime form (`hard_tokens`), ran under other limits on the Chrome CLI; the Chrome CLI now also reads that form when the document holds `hard_tokens` and only the runtime's keys. |
+| DV-70 | 2026-11-17 | T66 | D-706; conformance/lib/normalize.mjs (`compareLinkArtifacts`, `linkIds`) | suite | both | timing | documented | `1f7e506` | Inner runs of link steps that run in one wave end in each runtime's scheduler order and draw their own run ids, so `links.json`'s `runs` and the inner files' names differ; they are compared as a set under a canonical mapping of the ids. |
+| DV-71 | 2026-11-17 | T66 | chrome-agent-browser/src/core/summary.ts; agentpkg/src/agentpkg/browser/summary.py (`links_declared`); test/extension/links.test.ts | review | Cr | wording | fixed | `3d261cc` | For a package with dependencies the Chrome summary still warned `dependencies_declared` ("no dependency resolver is installed") where agentpkg 0.8.0 says `links_declared`, an information line about Agent Links; the Chrome core now carries the reference's code, severity and sentence. |
 
 ## Designed-in differences
 
@@ -212,6 +217,8 @@ Found by a review or test, recorded in the backlog, and still open at the commit
 | T9, T10 | T9:249-256 (review 1, finding 4); T10:107-111, 316-317; D-125; B-142 | behaviour | Chrome stopped charging a token count as a remote call (one remote call per model request); agentpkg still charges two. D-125 decides both adopt the rule; the agentpkg change is staged as B-142 (no `remote_count` in `agentpkg/src`). Fixture conformance cannot see it. |
 | T13 | T13:249 (review, finding 10); T15:31; B-170 | behaviour | `agentpkg/src/agentpkg/hostbridge/router.py:173-174` treats `feedback: null` in a model request as absent where the Chrome renderer refuses it; unreachable because both validate the request first. |
 | T22 | T22:264-265, 370-371, 553-554; B-230 | wording | For a module the reader accepts and the engine refuses, Python's `module_invalid` message carries wasmtime's first line (`agentpkg/src/agentpkg/compute/engine.py:216`) and Chrome's carries none (`chrome-agent-browser/src/core/compute/engine.ts:89`); no conformance case reaches it. |
+| T66 | docs/chrome-agent-browser.md section 16; D-115, D-707 (f); examples/verification/chrome-link-e2e.json (`scenarios.join.signed.refusal`); B-307 | behaviour | On a live model route the Chrome core bounds a request's input by its UTF-8 bytes (D-115) where the reference asks its host's tokenizer. The signed planner 0.2.0's request-building call (L-37) therefore reserves 4,386 tokens against `FindHotel`'s own 4,000 on a Chrome host and is refused (`worker_token_budget`), after the join card was accepted; it fits on the reference's routes. Fixture conformance does not see it (the fixture router counts otherwise). |
+| T65, T66 | D-707 (c); agentpkg/src/agentpkg/workflow.py (`note_time`); B-303 | timing | The time a card may wait: the reference notes the step's, the node's and the role's time but not the run's own deadline, so a budget-raise card in a node that outlives the run can wait past it and the run ends `timeout`; the Chrome core's cancel token holds the run's deadline too, so the card ends first. No conformance case reaches it. |
 
 ## Not counted
 

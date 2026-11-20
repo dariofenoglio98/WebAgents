@@ -29,11 +29,18 @@ import { classifyLinks, DEFAULT_LIMITS, discoverFromPage, mediaType, type Fetche
 import { CoreError, thrownName } from "../../core/errors.js";
 import { evaluateSnapshot, evaluationLayers, publisherReport, structurallyValid, type EvaluationLayers, type PublisherReport } from "../../core/evaluation.js";
 import { isRecord } from "../../core/fields.js";
+import { canonicalJson } from "../../core/canonical.js";
 import { sha256Hex } from "../../core/hash.js";
 import { evaluateResources, normalizeResourceSelections, RESOURCE_PERMISSION_KINDS, type ResourceRegistry } from "../../core/hostresources.js";
 import { buildHostToolRegistry, evaluateRegistry, planToolBindings, type RegistryEvaluation, type ToolRegistry } from "../../core/hosttools.js";
 import type { JsonObject, JsonValue } from "../../core/json.js";
 import { publicKeyFromPem, publicKeyFromRawBase64, rawBase64, fingerprint as keyFingerprint } from "../../core/keys.js";
+import { packageWorstCase, WORST_CASE_FIGURES } from "../../core/links/analysis.js";
+import { LinkRefusal } from "../../core/links/errors.js";
+import { MAX_RUN_CARDS } from "../../core/links/join.js";
+import { linkRecords } from "../../core/links/records.js";
+import { linkedDefinitions } from "../../core/links/tools.js";
+import { checkComposition, checkRecord, type ResolvedLink } from "../../core/links/resolve.js";
 import { applyPolicy, cappedLimits, modelPolicyReasons, PolicyTrust, type ActivePolicy, type ToolBindingFacts } from "../../core/policies/apply.js";
 import { heldPolicy, policyLabel, policyState, type HeldPolicy } from "../../core/policies/bundle.js";
 import { NANDA_NOT_CONFIGURED, NandaResolver } from "../../core/resolve/nanda.js";
@@ -57,8 +64,8 @@ import { readProfiles, type Profile } from "../../core/profiles.js";
 import { buildRunPlan, grantsOnce, MODE_MODEL, modePermissionIds, preflight, preparationBlockers } from "../../core/runplan.js";
 import { buildSummary, type BrowserSummary } from "../../core/summary.js";
 import { pyRepr } from "../../core/repr.js";
-import { pinPackagePublisher, type TrustStore } from "../../core/trust.js";
-import { DEFAULT_BROWSER_POLICY, DENY, type AuthorizationReceipt, type Decision, type PresetId, type Provenance, type Reason, type RunPlan, type SourceRef } from "../../core/types.js";
+import { pinPackagePublisher, type TrustEntry, type TrustStore } from "../../core/trust.js";
+import { DEFAULT_BROWSER_POLICY, DENY, type AuthorizationReceipt, type Decision, type LinkPlanEntry, type PresetId, type Provenance, type Reason, type RunPlan, type SourceRef } from "../../core/types.js";
 import { CORE_VERSION, SUPPORTED_RUNTIME_VERSION } from "../../core/version.js";
 import {
   type AuthorizationOrigins,
@@ -71,6 +78,8 @@ import {
   type IndexView,
   type LibraryItemView,
   type LibraryView,
+  type LinkReviewItem,
+  type LinksView,
   type PolicyView,
   type SearchResultView,
   type SearchView,
@@ -401,6 +410,18 @@ export class Controller {
       },
       missingOrigins: (origins) => this.missingOrigins(origins),
       secretsState: async () => (await this.deps.settings.store.status()).state,
+      // link.v0 (T66): the inner plans a run hands the execution host, what its slots evaluate a candidate's key against, and a pin made from a join card.
+      links: (sessionId) => this.runLinks(sessionId),
+      runCards: async () => {
+        const policy = await this.activePolicy();
+        return { granted: await this.permissions.granted(), trust: await this.deps.trust.entries(), anchors: policy ? anchorEntries(policy) : [], join: policy?.bundle.links?.join ?? "allow", raise: policy?.bundle.links?.raise ?? "allow" };
+      },
+      pinFromCard: async (input) => {
+        const key = publicKeyFromRawBase64(input.publicKey);
+        if ((await keyFingerprint(key)) !== input.signer) throw reject("fingerprint_mismatch", "The key on the card is not the key that signed the joined package; refusing to pin", 409);
+        await this.deps.trust.add(key, { displayName: input.displayName, publisherId: input.publisherId, packageIdPrefix: input.packageIdPrefix, notes: input.notes });
+        await this.refreshTrust();
+      },
       // The in-browser route (T41, D-441): the page loads the bound entry before the run, or refuses.
       inBrowserStart: async (plan) => this.inBrowser.startFor(plan.model_binding, await this.deps.settings.settings()),
     };
@@ -468,6 +489,10 @@ export class Controller {
         return this.authorize(request.sessionId, request);
       case "authorization.useProfile":
         return this.useProfile(request.sessionId, request);
+      case "links.resolve":
+        return this.resolveLinks(request.sessionId, request.packageDigest);
+      case "links.decide":
+        return this.decideLink(request.sessionId, request);
       case "models.evaluate":
         return this.evaluateModels(request.sessionId, request.refresh);
       case "models.probe":
@@ -571,6 +596,8 @@ export class Controller {
         return this.activeRun(request.pageUrl ?? null);
       case "run.cancel":
         return this.runs.cancel(request.runId);
+      case "run.decide":
+        return this.runs.decideCard(request.runId, { cardId: request.cardId, accepted: request.accepted, grants: request.grants, approvedTools: request.approvedTools, pin: request.pin ?? null });
       case "run.artifact":
         return this.runs.artifact(request.runId, request.name);
       case "run.artifactChunk":
@@ -704,7 +731,22 @@ export class Controller {
     const registry = await this.toolRegistry(live);
     const bindings = toolBindingsForOrigins(plan.tool_bindings as unknown as Parameters<typeof toolBindingsForOrigins>[0], registry);
     const model = plan.model_binding === null ? null : { provider_id: plan.model_binding.provider_id, base_url: this.providerOrigin(settings, plan.model_binding.provider_id) };
-    return planOrigins({ packageUrl: live.stored.source.display, toolBindings: bindings, model });
+    const own = planOrigins({ packageUrl: live.stored.source.display, toolBindings: bindings, model });
+    if (!plan.links) return own;
+    // link.v0 (T66): the run of a caller reaches what its accepted links' inner plans reach, and nothing of a denied one.
+    const found = new Map(own.map((item) => [item.origin, { origin: item.origin, roles: [...item.roles], subjects: [...item.subjects] }]));
+    const linked = this.children(live);
+    for (const name of Object.keys(plan.links).sort()) {
+      const child = linked.get(name);
+      if (plan.links[name]!.decision !== "accepted" || !child || child.plan === null) continue;
+      for (const item of await this.originsOfPlan(child, child.plan)) {
+        const entry = found.get(item.origin) ?? { origin: item.origin, roles: [], subjects: [] };
+        for (const role of item.roles) if (!entry.roles.includes(role)) entry.roles.push(role);
+        for (const subject of item.subjects) if (!entry.subjects.includes(`${name}:${subject}`)) entry.subjects.push(`${name}:${subject}`);
+        found.set(item.origin, entry);
+      }
+    }
+    return [...found.values()].map((entry) => ({ origin: entry.origin, roles: [...entry.roles].sort(), subjects: [...entry.subjects].sort() })).sort((a, b) => (a.origin < b.origin ? -1 : a.origin > b.origin ? 1 : 0));
   }
 
   /** The origins an authorization could need, per part, for the page's request before it sends (D-193). */
@@ -1325,7 +1367,7 @@ export class Controller {
   private async sessionWithRunInFlight(archiveSha256: string | null, source: SessionSource): Promise<LiveSession | null> {
     const page = (url: string | null) => (url === null ? null : withoutFragment(url));
     // `archiveSha256` null: matched on the source alone, before any download (`openUrl`).
-    const candidates = [...this.sessions.values()].filter(
+    const candidates = this.opened().filter(
       (live) => (archiveSha256 === null || live.stored.archive_sha256 === archiveSha256) && live.stored.source.kind === source.kind && live.stored.source.display === source.display && page(live.stored.source.advertised_on) === page(source.advertised_on),
     );
     if (candidates.length === 0) return null;
@@ -1385,7 +1427,7 @@ export class Controller {
       summary: live.summary,
       page: agentPageModel(live.pkg, live.summary, {
         source: {
-          kind: live.stored.source.kind,
+          kind: live.stored.source.kind === "link" ? "url" : live.stored.source.kind,
           display: live.stored.source.display,
           advertised_on: live.stored.source.advertised_on,
         },
@@ -1461,6 +1503,11 @@ export class Controller {
         this.sessions.set(stored.session_id, await this.evaluate(stored, evaluated.pkg, evaluated.layers));
         // The stored receipt and plan came back with the session; the next read re-checks them.
       }
+      // link.v0 (T66, D-701): a linked package's session lives and dies with its caller's.
+      for (const live of [...this.sessions.values()]) {
+        const parent = live.stored.parent ?? null;
+        if (parent !== null && this.sessions.get(parent.session_id)?.stored.links?.[parent.dependency] !== live.stored.session_id) await this.drop(live.stored);
+      }
     })();
     this.restored = attempt.catch((error: unknown) => {
       this.restored = null;
@@ -1479,7 +1526,7 @@ export class Controller {
    */
   private async snapshotReferenced(archiveSha256: string): Promise<boolean> {
     if ((await this.deps.snapshots.listSessions()).some((session) => session.archive_sha256 === archiveSha256)) return true;
-    if ((await this.deps.runs.listRuns()).some((run) => !isTerminal(run.record.status) && run.invocation.archive_sha256 === archiveSha256)) return true;
+    if ((await this.deps.runs.listRuns()).some((run) => !isTerminal(run.record.status) && (run.invocation.archive_sha256 === archiveSha256 || Object.values(run.invocation.links ?? {}).some((link) => link.archive_sha256 === archiveSha256)))) return true;
     return (await this.conversationStore.listConversations()).some((item) => item.status === "open" && item.active_run_id !== null && item.archive_sha256 === archiveSha256);
   }
 
@@ -1564,6 +1611,12 @@ export class Controller {
   }
 
   private async drop(stored: StoredSession, options: { holdersCleared?: boolean } = {}): Promise<void> {
+    // A linked package's session lives and dies with its caller's (link.v0, D-701).
+    for (const childId of Object.values(stored.links ?? {})) {
+      const child = this.sessions.get(childId);
+      if (child) await this.drop(child.stored);
+      else await this.deps.snapshots.deleteSession(childId);
+    }
     this.sessions.delete(stored.session_id);
     if (!options.holdersCleared) await this.holderUpdate(() => this.deps.holders.clear(stored.session_id));
     await this.deps.snapshots.deleteSession(stored.session_id);
@@ -1584,8 +1637,9 @@ export class Controller {
   }
 
   private async checkCapacity(incoming: number, archiveSha256: string): Promise<void> {
-    if (this.sessions.size >= this.limits.maxSessions) await this.endUnshownSessions(this.sessions.size - this.limits.maxSessions + 1);
-    if (this.sessions.size >= this.limits.maxSessions) {
+    // A linked package's session is its caller's, and counts with it.
+    if (this.opened().length >= this.limits.maxSessions) await this.endUnshownSessions(this.opened().length - this.limits.maxSessions + 1);
+    if (this.opened().length >= this.limits.maxSessions) {
       throw reject("session_limit_reached", `At most ${this.limits.maxSessions} packages can be open and every one is shown in an open page or panel, or has a run in flight; close one first`, 429);
     }
     const stored = await this.deps.snapshots.listSnapshots();
@@ -1606,7 +1660,7 @@ export class Controller {
    */
   private async endUnshownSessions(count: number): Promise<void> {
     const inFlight = new Set((await this.deps.runs.listRuns()).filter((run) => !isTerminal(run.record.status)).map((run) => run.session_id));
-    const oldest = [...this.sessions.values()].sort((a, b) => (a.stored.created_at < b.stored.created_at ? -1 : a.stored.created_at > b.stored.created_at ? 1 : 0));
+    const oldest = this.opened().sort((a, b) => (a.stored.created_at < b.stored.created_at ? -1 : a.stored.created_at > b.stored.created_at ? 1 : 0));
     // A session opened moments ago may not be held yet: the opening view's `hold` lands only after
     // `package.open` returns, so it is never ended here within the grace (T9 review 1, finding 3).
     const graceStart = this.clock().getTime() - SESSION_HOLD_GRACE_MS;
@@ -1637,7 +1691,7 @@ export class Controller {
 
   async listSessions(): Promise<{ sessions: SessionDescriptor[] }> {
     await this.purgeExpired();
-    return { sessions: [...this.sessions.values()].map((live) => this.descriptor(live)) };
+    return { sessions: this.opened().map((live) => this.descriptor(live)) };
   }
 
   // -- trust ---------------------------------------------------------------------------
@@ -1817,6 +1871,10 @@ export class Controller {
   }
 
   private async toolRegistry(live: LiveSession): Promise<ToolRegistry> {
+    const contact = (await this.deps.settings.settings()).services.crossref_contact !== null;
+    // link.v0 L-25 (T66, D-701): a linked package's inner run holds nothing of the person's memory in this version, so its
+    // registry offers no record type and no agent document; the execution host derives the same one (`core/links/tools.ts`).
+    if (live.stored.parent) return (await linkedDefinitions(live.pkg, { runtimeVersion: this.version, now: this.clock(), contactConfigured: contact })).registry;
     const unlocked = (await this.secretsState()) === "unlocked";
     const types = await this.memory.resourceTypeFacts(requestedTypesOf(live.pkg));
     const contactConfigured = (await this.deps.settings.settings()).services.crossref_contact !== null;
@@ -2135,6 +2193,7 @@ export class Controller {
       policy: subscription ? this.policyForAuthorization(subscription, settings) : null,
       secrets,
       origins: await this.authorizationOrigins(live, evaluation),
+      links: await this.linksView(live),
     };
   }
 
@@ -2175,10 +2234,11 @@ export class Controller {
   /** `control.py::authorize`: record explicit decisions and issue a digest-bound receipt; a new receipt discards the plan. */
   async authorize(
     sessionId: string,
-    input: { packageDigest: string; decisions: Record<string, string>; toolApprovals: Record<string, boolean>; resourceSelections: Record<string, string>; provenance: unknown | null; prepare: boolean; modelId?: string | null; presetSelections?: string[] },
+    input: { packageDigest: string; decisions: Record<string, string>; toolApprovals: Record<string, boolean>; resourceSelections: Record<string, string>; provenance: unknown | null; prepare: boolean; modelId?: string | null; presetSelections?: string[]; linkDecisions?: Record<string, string> },
   ): Promise<AuthorizeResult> {
     const live = await this.session(sessionId);
     this.requireDigest(live, input.packageDigest);
+    await this.checkLinkDecisions(live, input.linkDecisions);
     const decisions = normalizeDecisions(live.pkg, input.decisions);
     const approvals = normalizeToolApprovals(live.pkg, input.toolApprovals);
     if (Object.keys(input.resourceSelections).length > 0) await this.memory.unlocked(); // a pick needs the store unlocked (store_locked otherwise)
@@ -2195,9 +2255,10 @@ export class Controller {
   }
 
   /** The two-click path (D-022): a selected profile becomes decisions under the current preset, with the person's picks. */
-  async useProfile(sessionId: string, input: { packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean; presetSelections?: string[] }): Promise<AuthorizeResult> {
+  async useProfile(sessionId: string, input: { packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean; presetSelections?: string[]; linkDecisions?: Record<string, string> }): Promise<AuthorizeResult> {
     const live = await this.session(sessionId);
     this.requireDigest(live, input.packageDigest);
+    await this.checkLinkDecisions(live, input.linkDecisions);
     const profiles = readProfiles(live.pkg);
     const profile = profiles.profiles?.find((item) => item.id === input.profileId);
     if (!profile) throw reject("profile_unknown", `This package declares no usable profile ${pyRepr(input.profileId)}`, 404, { notes: profiles.notes });
@@ -2245,6 +2306,8 @@ export class Controller {
     live.plan = null;
     live.onceSpent = false;
     await this.persist(live);
+    // link.v0 L-13 (D-702): the one review decides the linked packages too.
+    await this.authorizeLinks(live);
     const result: AuthorizeResult = { receipt, run_plan: null, plan_refused: null, model_id: null };
     try {
       if (prepare) {
@@ -2279,11 +2342,12 @@ export class Controller {
   async prepareRunPlan(sessionId: string, input: { packageDigest: string; receiptId: string; modelId: string }): Promise<RunPlanState> {
     const live = await this.session(sessionId);
     this.requireDigest(live, input.packageDigest);
+    // link.v0 L-15: an inner plan is prepared with its caller's, for that caller, and never alone.
+    if (live.stored.parent) throw reject("link_plan_parent_mismatch", "A linked package's plan is prepared with its caller's plan, not alone.", 409);
     if (live.receipt === null) throw reject("authorization_absent", "Authorize this package before preparing a run plan", 409);
     if (input.receiptId !== live.receipt.receipt_id) {
       throw reject("receipt_mismatch", "receipt_id does not match this session's current authorization receipt", 409, { session_receipt_id: live.receipt.receipt_id });
     }
-    const settings = await this.deps.settings.settings();
     // A hosted provider's key lives in the secret store (T16, D-195): the person unlocks before
     // Prepare, so the probe below is made with the key and the plan is refused by name otherwise.
     const providerId = input.modelId.split("/")[0] ?? "";
@@ -2294,6 +2358,33 @@ export class Controller {
     // A plan is frozen against what the providers answer now, not against a catalog read up to a
     // minute ago: a provider that stopped answering must refuse the plan by name (D-077).
     const read = await this.catalog(0);
+    // link.v0 L-14, L-15: each accepted link's inner plan first, on this model, then the caller's plan over them.
+    const linked = await this.planLinks(live, input.modelId, read);
+    const { plan, origins } = await this.buildPlan(live, input.modelId, { read, links: linked.section, linkCosts: linked.costs, blockers: linked.blockers });
+    live.plan = plan;
+    await this.persist(live);
+    await this.recordPlanOrigins(live, plan, origins);
+    this.deps.broadcast({ type: "event.authorization", sessionId: live.stored.session_id });
+    this.deps.broadcast({ type: "event.sessions" });
+    this.deps.broadcast({ type: "event.permissions" });
+    return this.runPlanState(live);
+  }
+
+  /**
+   * One plan for one session on one model, or the refusal with every reason (`run_plan_refused`).
+   * A caller's plan takes its `links` section, the worst cases the composed envelope is computed
+   * from and what its links block; a linked package's inner plan takes the `parent` it is for.
+   * Nothing is stored here.
+   */
+  private async buildPlan(
+    live: LiveSession,
+    modelId: string,
+    options: { read: Awaited<ReturnType<Controller["catalog"]>>; parent?: JsonObject | null; links?: Record<string, LinkPlanEntry> | null; linkCosts?: Record<string, ReturnType<typeof packageWorstCase> | null> | null; blockers?: Reason[] },
+  ): Promise<{ plan: RunPlan; origins: PlanOrigin[] }> {
+    if (live.receipt === null) throw reject("authorization_absent", "Authorize this package before preparing a run plan", 409);
+    const input = { modelId };
+    const settings = await this.deps.settings.settings();
+    const read = options.read;
     const { catalog } = read;
     const descriptor = findModel(catalog, input.modelId);
     if (descriptor === null) {
@@ -2304,7 +2395,7 @@ export class Controller {
     }
     const evaluation = evaluateCatalog(live.pkg, catalog, this.clock());
     const compatibility = evaluation.models.find((item) => item.model_id === input.modelId) ?? null;
-    const blockers: Reason[] = [];
+    const blockers: Reason[] = [...(options.blockers ?? [])];
     if (PRESETS[settings.preset].local_models_only && descriptor.properties.local !== true) {
       blockers.push({ code: "model_not_local", message: `The ${PRESETS[settings.preset].title} preset allows local models only; ${input.modelId} is not reported as local. Change the preset in Settings → Policies or choose a local model.`, subject: input.modelId });
     }
@@ -2369,14 +2460,12 @@ export class Controller {
       consentPolicy: (await this.activePolicy())?.bundle.consent ?? null,
       consentPreset: settings.preset,
       now: this.clock(),
+      // link.v0 L-14, L-15, L-22: an inner plan names its caller; a caller's plan records its links and states the composed envelope.
+      parent: options.parent ?? null,
+      links: options.links ?? null,
+      linkCosts: options.linkCosts ?? null,
     });
-    live.plan = plan;
-    await this.persist(live);
-    await this.recordPlanOrigins(live, plan, origins);
-    this.deps.broadcast({ type: "event.authorization", sessionId: live.stored.session_id });
-    this.deps.broadcast({ type: "event.sessions" });
-    this.deps.broadcast({ type: "event.permissions" });
-    return this.runPlanState(live);
+    return { plan, origins };
   }
 
   /** The plan plus a preflight recomputed against the vault, the host registry and the last catalog; `ignoreOnceSpent` for a conversation's later turn (V-13, D-270). */
@@ -2404,9 +2493,12 @@ export class Controller {
       subscription: await this.activePolicy(),
       now: this.clock(),
     });
+    // link.v0 L-15: a caller's plan is stale when an inner plan it names was cleared, changed or is itself stale.
+    const linkReasons = live.plan.links ? await this.linkStaleness(live, live.plan) : [];
+    const verified: typeof checked = linkReasons.length === 0 ? checked : { ...checked, state: "stale", ready: false, stale: true, stale_reasons: [...checked.stale_reasons, ...linkReasons] };
     const origins = await this.originsOfPlan(live, live.plan);
     const missing = new Set(await this.missingOrigins(origins.map((item) => item.origin)));
-    return { run_plan: live.plan, preflight: { ...checked, stale_reasons: this.explainModelReasons(checked.stale_reasons, read) }, origins: origins.map((item) => ({ ...item, granted: !missing.has(item.origin) })) };
+    return { run_plan: live.plan, preflight: { ...verified, stale_reasons: this.explainModelReasons(verified.stale_reasons, read) }, origins: origins.map((item) => ({ ...item, granted: !missing.has(item.origin) })) };
   }
 
   async clearRunPlan(sessionId: string): Promise<{ cleared: boolean; session_id: string }> {
@@ -2424,7 +2516,458 @@ export class Controller {
     const live = await this.session(sessionId);
     live.onceSpent = true;
     await this.persist(live);
+    // link.v0 L-28: the accepted links' receipts were handed to the same run.
+    const linked = this.children(live);
+    for (const [name, entry] of Object.entries(live.plan?.links ?? {})) {
+      const child = linked.get(name);
+      if (entry.decision !== "accepted" || !child) continue;
+      child.onceSpent = true;
+      await this.persist(child);
+    }
     this.deps.broadcast({ type: "event.authorization", sessionId });
+  }
+
+  // -- Agent Links (link.v0 §3; T66, D-701, D-702; `browser/links.py`) --------------------------
+  /** The sessions a person opened: every session but a linked package's, which lives and dies with its caller. */
+  private opened(): LiveSession[] {
+    return [...this.sessions.values()].filter((live) => !live.stored.parent);
+  }
+
+  private dependencyRecords(pkg: Package): JsonObject[] {
+    const records = pkg.manifest.dependencies;
+    return Array.isArray(records) ? (records as JsonObject[]) : [];
+  }
+
+  /** The open child sessions of a caller, by dependency id. */
+  private children(live: LiveSession): Map<string, LiveSession> {
+    const found = new Map<string, LiveSession>();
+    for (const [dependency, childId] of Object.entries(live.stored.links ?? {})) {
+      const child = this.sessions.get(childId);
+      if (child) found.set(dependency, child);
+    }
+    return found;
+  }
+
+  /** Every dependency the key that signed `dependency` signed, itself included: a decision on a link is a decision on its publisher's key (L-13). */
+  private signedWith(live: LiveSession, dependency: string): Set<string> {
+    const linked = this.children(live);
+    const key = linked.get(dependency)?.publisher.signer_fingerprint ?? null;
+    const names = new Set([dependency]);
+    if (key !== null) for (const [name, child] of linked) if (child.publisher.signer_fingerprint === key) names.add(name);
+    return names;
+  }
+
+  /** The dependencies the person denied: by name, and every one signed by a denied key. */
+  private deniedLinks(live: LiveSession): Set<string> {
+    const found = new Set<string>();
+    for (const name of live.stored.link_denials ?? []) for (const signed of this.signedWith(live, name)) found.add(signed);
+    return found;
+  }
+
+  /** A child session as the link analysis reads it (`browser/links.py::resolved_link`); the review reads no bytes. */
+  private resolvedLink(live: LiveSession, dependency: string, child: LiveSession): ResolvedLink {
+    const record = this.dependencyRecords(live.pkg).find((item) => String(item.id) === dependency)!;
+    return {
+      dependency,
+      record: { ...record },
+      package: child.pkg,
+      archive_sha256: child.stored.archive_sha256,
+      signer: child.publisher.signer_fingerprint ?? "",
+      trust: child.publisher.trust_status,
+      worst_case: packageWorstCase(child.pkg.graph, child.pkg.policy),
+      bytes: new Uint8Array(0),
+    };
+  }
+
+  /** What Authorize grants a linked package: the preset's decisions within its own declaration, the subscribed policy applied (D-702). */
+  private async linkDecided(child: LiveSession): Promise<Decided> {
+    const settings = await this.deps.settings.settings();
+    const policy = await this.activePolicy();
+    return this.decider(child.pkg, policy, bindingFacts((await this.toolEvaluation(child)).evaluation))(null, settings.preset);
+  }
+
+  /** Why a linked package cannot be accepted as it stands: what would keep its receipt from being runnable, and a record it would need picked. */
+  private async linkProblems(child: LiveSession, decided: Decided): Promise<Reason[]> {
+    const problems = blockingReasons(child.pkg, { evaluation: child.evaluation, publisher: child.publisher, decisions: decided.decisions, policy: DEFAULT_BROWSER_POLICY });
+    try {
+      normalizeResourceSelections(child.pkg, await this.resourceRegistry(child), decided.decisions, {});
+    } catch (error) {
+      if (!(error instanceof CoreError)) throw error;
+      problems.push({ code: error.code, message: `${error.message} A linked agent's records cannot be chosen from this review in this version: deny this publisher, or change the preset so that the permission is not granted.`, subject: null });
+    }
+    return problems;
+  }
+
+  /** Drop every child session of a caller and forget its links and denials. */
+  private async dropChildren(live: LiveSession): Promise<void> {
+    for (const childId of Object.values(live.stored.links ?? {})) {
+      const child = this.sessions.get(childId);
+      if (child) await this.drop(child.stored);
+      else await this.deps.snapshots.deleteSession(childId);
+    }
+    const { links: _links, link_denials: _denials, ...kept } = live.stored;
+    live.stored = kept;
+  }
+
+  /** One linked package's bytes as a session of its own (`control.py::_open_session` for a link): captured once, hashed, stored, evaluated. */
+  private async openChild(caller: LiveSession, dependency: string, bytes: Uint8Array, locator: string): Promise<LiveSession> {
+    const label = `dependency ${pyRepr(dependency)}`;
+    const archiveSha256 = await sha256Hex(bytes);
+    const cache = await this.deps.snapshots.listSnapshots();
+    if (!cache.some((item) => item.archive_sha256 === archiveSha256) && cache.reduce((sum, item) => sum + item.bytes, 0) + bytes.length > this.limits.maxCacheBytes) {
+      throw reject("cache_limit_reached", "The snapshot cache is full; close a package first", 429);
+    }
+    const evaluation = await evaluateSnapshot(bytes);
+    const layers = evaluationLayers(evaluation);
+    if (!structurallyValid(layers) || evaluation.package === null) {
+      throw reject("link_package_invalid", `${label}: The package failed structural validation and was not opened`, 422, { dependency, validation: layers, archive_sha256: archiveSha256 });
+    }
+    const now = this.clock();
+    const stored: StoredSession = {
+      session_id: this.randomId(),
+      archive_sha256: archiveSha256,
+      archive_bytes: bytes.length,
+      created_at: now.toISOString(),
+      // A linked package's session ends with its caller's.
+      expires_at: caller.stored.expires_at,
+      source: { kind: "link", display: locator, advertised_on: null, opened_at: now.toISOString() },
+      parent: { session_id: caller.stored.session_id, dependency },
+    };
+    this.inFlight.set(archiveSha256, (this.inFlight.get(archiveSha256) ?? 0) + 1);
+    try {
+      await this.deps.snapshots.putSnapshot({ archive_sha256: archiveSha256, bytes, stored_at: stored.created_at });
+      try {
+        const live = await this.evaluate(stored, evaluation.package, layers);
+        await this.deps.snapshots.putSession(stored);
+        this.sessions.set(stored.session_id, live);
+        return live;
+      } catch (error) {
+        await this.dropOrphanSnapshot(archiveSha256);
+        throw error;
+      }
+    } finally {
+      const remaining = (this.inFlight.get(archiveSha256) ?? 1) - 1;
+      if (remaining <= 0) this.inFlight.delete(archiveSha256);
+      else this.inFlight.set(archiveSha256, remaining);
+    }
+  }
+
+  /**
+   * L-10…L-12 (`browser/links.py::resolve`): every dependency fetched from its locator under the
+   * package download's rules (D-033: the URL gate, one request, no redirect, no credentials, no
+   * referrer, a byte cap, a deadline), opened as a session of its own, then checked against its
+   * record. Every locator's origin must be granted before any byte moves (D-193: the page asked
+   * Chrome with the click as the gesture). A refusal leaves no child session behind. Nothing of a
+   * linked package runs here.
+   */
+  async resolveLinks(sessionId: string, packageDigest: string): Promise<LinksView> {
+    const live = await this.session(sessionId);
+    this.requireDigest(live, packageDigest);
+    if (live.stored.parent) throw reject("invalid_request", "A linked package's own links are not resolved: v0 links one level deep");
+    const records = this.dependencyRecords(live.pkg);
+    if (records.length === 0) throw reject("invalid_request", "This package declares no dependencies");
+    const origins = [...new Set(records.map((record) => httpsOrigin(String(record.locator))).filter((origin): origin is string => origin !== null))].sort();
+    const missing = await this.missingOrigins(origins);
+    if (missing.length > 0) throw reject("origin_not_granted", `This browser is not allowed to reach ${missing.join(", ")}, where this agent's linked agents are published. Allow ${missing.length === 1 ? "it" : "them"} to load them.`, 403, { origins: missing });
+    await this.dropChildren(live);
+    // What the caller's plan said about its links no longer holds.
+    live.plan = null;
+    await this.persist(live);
+    const made = new Map<string, LiveSession>();
+    try {
+      for (const record of records) {
+        const name = String(record.id);
+        const label = `dependency ${pyRepr(name)}`;
+        let bytes: Uint8Array;
+        try {
+          bytes = await this.download(String(record.locator));
+        } catch (error) {
+          if (!(error instanceof CoreError)) throw error;
+          throw reject("link_fetch_failed", `${label}: ${error.message}`, error.status, { dependency: name, cause: error.code });
+        }
+        const child = await this.openChild(live, name, bytes, String(record.locator));
+        made.set(name, child);
+        if (child.publisher.signature_status !== "valid" || child.publisher.signer_fingerprint === null) {
+          throw reject("link_signature_invalid", `${label}: a linked package carries a valid publisher signature (${child.publisher.signature_status})`, 409, { dependency: name });
+        }
+        try {
+          checkRecord(record, child.pkg, child.publisher.signer_fingerprint);
+        } catch (error) {
+          if (!(error instanceof LinkRefusal)) throw error;
+          throw reject(error.code, error.message.slice(error.code.length + 2), 409, { dependency: name });
+        }
+      }
+    } catch (error) {
+      for (const child of made.values()) await this.drop(child.stored);
+      this.deps.broadcast({ type: "event.authorization", sessionId });
+      throw error;
+    }
+    live.stored = { ...live.stored, links: Object.fromEntries([...made].map(([name, child]) => [name, child.stored.session_id])), link_denials: [] };
+    await this.persist(live);
+    this.deps.broadcast({ type: "event.authorization", sessionId });
+    this.deps.broadcast({ type: "event.sessions" });
+    return (await this.linksView(live))!;
+  }
+
+  /**
+   * L-13 (`browser/links.py::review`): the caller's links as they stand, each linked package with its
+   * publisher as the person's own store sees it, its requirements, its worst case and where its
+   * decision stands, grouped by publisher key, with the composed envelope. Null for a package
+   * that declares no dependency and holds no slot.
+   */
+  async linksView(live: LiveSession): Promise<LinksView | null> {
+    if (live.stored.parent || linkRecords(live.pkg) === null) return null;
+    const records = this.dependencyRecords(live.pkg);
+    const linked = this.children(live);
+    const refused = this.deniedLinks(live);
+    const resolved = records.every((record) => linked.has(String(record.id)));
+    const links = new Map<string, ResolvedLink>();
+    if (resolved) for (const [name, child] of linked) links.set(name, this.resolvedLink(live, name, child));
+    const composed = linkRecords(live.pkg, resolved ? links : null, refused)!;
+    const steps = new Map(((composed.dependencies as JsonObject[] | undefined) ?? []).map((entry) => [String(entry.id), (entry.steps as Array<{ step: string; where: string }> | undefined) ?? []]));
+    const items: LinkReviewItem[] = [];
+    const publishers = new Map<string, LinksView["publishers"][number]>();
+    for (const name of [...linked.keys()].sort()) {
+      const child = linked.get(name)!;
+      const manifest = child.pkg.manifest;
+      const decided = await this.linkDecided(child);
+      const { evaluation } = await this.toolEvaluation(child, decided.decisions, decided.tool_approvals);
+      const status = new Map(evaluation.tools.map((tool) => [tool.tool_id, tool.status]));
+      const requirements = manifest.model_requirements as JsonObject;
+      const worst = packageWorstCase(child.pkg.graph, child.pkg.policy);
+      const denied = refused.has(name);
+      items.push({
+        dependency: name,
+        session_id: child.stored.session_id,
+        package: { package_id: String(manifest.package_id), name: String(manifest.name), description: String(manifest.description ?? ""), version: String(manifest.version), digest: child.pkg.digest, archive_sha256: child.stored.archive_sha256 },
+        publisher: { claimed_id: child.publisher.claimed_id, claimed_name: child.publisher.claimed_name, signer_fingerprint: child.publisher.signer_fingerprint, signature_status: child.publisher.signature_status, trust_status: child.publisher.trust_status, trust_reason: child.publisher.trust_reason },
+        worst_case: Object.fromEntries(WORST_CASE_FIGURES.map((figure) => [figure, JSON.parse(JSON.stringify(worst[figure])) as JsonValue])),
+        decision: denied ? "denied" : child.receipt !== null && child.receipt.runnable ? "accepted" : "undecided",
+        decided,
+        decided_sha256: await Controller.decidedHash(decided),
+        permissions: (child.pkg.policy.permissions as JsonObject[]).map((permission) => ({ id: String(permission.id), kind: String(permission.kind), description: String(permission.description ?? ""), required: permission.required === true, resources: ((permission.resources as JsonValue[] | undefined) ?? []).map(String) })),
+        tools: Object.keys(child.pkg.tools)
+          .sort()
+          .map((toolId) => {
+            const tool = child.pkg.tools[toolId]!;
+            return { id: toolId, execution: String(tool.execution), endpoint: typeof tool.endpoint === "string" ? tool.endpoint : null, method: typeof tool.method === "string" ? tool.method : null, domains: ((tool.domains as JsonValue[] | undefined) ?? []).map(String), permissions: ((tool.permissions as JsonValue[] | undefined) ?? []).map(String), side_effects: String(tool.side_effects), status: status.get(toolId) ?? "unbound" };
+          }),
+        records: requestedTypesOf(child.pkg),
+        model: { tasks: ((requirements.tasks as JsonObject[] | undefined) ?? []).map((task) => ({ id: String(task.id), capabilities: ((task.capabilities as JsonValue[] | undefined) ?? []).map(String), context_window: Number(task.context_window) })), privacy: typeof requirements.privacy === "string" ? requirements.privacy : null },
+        steps: steps.get(name) ?? [],
+        problems: denied ? [] : await this.linkProblems(child, decided),
+        authorization: { state: child.receipt ? "issued" : "pending", receipt_id: child.receipt?.receipt_id ?? null },
+        run_plan: { state: child.plan ? "prepared" : "absent", run_plan_sha256: child.plan?.run_plan_sha256 ?? null },
+      });
+      const key = child.publisher.signer_fingerprint ?? "";
+      const group = publishers.get(key) ?? { signer_fingerprint: key, trust_status: child.publisher.trust_status, claimed_name: child.publisher.claimed_name, dependencies: [], denied };
+      group.dependencies.push(name);
+      publishers.set(key, group);
+    }
+    const policy = await this.activePolicy();
+    return {
+      session_id: live.stored.session_id,
+      package_digest: live.pkg.digest,
+      resolved,
+      locators: records.map((record) => ({ dependency: String(record.id), package_id: String(record.package_id), version: String(record.version), locator: String(record.locator), origin: httpsOrigin(String(record.locator)) })),
+      links: items,
+      publishers: [...publishers.keys()].sort().map((key) => publishers.get(key)!),
+      composed,
+      run_cards: { max_join_cards: MAX_RUN_CARDS, join: policy?.bundle.links?.join ?? "allow", raise: policy?.bundle.links?.raise ?? "allow", policy: policy ? policyLabel(policy.reference) : null },
+      note: "A link names a package; it grants nothing. Each linked agent runs only on what you grant it here, within its own declaration, or is denied.",
+    };
+  }
+
+  /** L-13, L-16 (`control.py::decide_link`): deny one linked publisher, or withdraw that denial. A denial is of the publisher's key for the run. */
+  async decideLink(sessionId: string, input: { packageDigest: string; dependency: string; decision: "denied" | "undecided" }): Promise<LinksView> {
+    const live = await this.session(sessionId);
+    this.requireDigest(live, input.packageDigest);
+    if (!Object.hasOwn(live.stored.links ?? {}, input.dependency)) throw reject("link_dependency_unknown", `${pyRepr(input.dependency)} is not a resolved link of this session`, 404);
+    const denials = new Set(live.stored.link_denials ?? []);
+    if (input.decision === "denied") denials.add(input.dependency);
+    else for (const name of this.signedWith(live, input.dependency)) denials.delete(name);
+    live.stored = { ...live.stored, link_denials: [...denials].sort() };
+    // A decision on a link changes what the caller's plan may say.
+    live.plan = null;
+    await this.persist(live);
+    this.deps.broadcast({ type: "event.authorization", sessionId });
+    this.deps.broadcast({ type: "event.sessions" });
+    return (await this.linksView(live))!;
+  }
+
+  /**
+   * L-13, L-14 (D-702): the caller's Authorize is the one review: each linked package the person
+   * did not deny gets its own receipt, with the decisions the review listed for it (the preset's
+   * within its own declaration, the policy applied) and no record (a linked package's records are
+   * not chosen here in this version: such a package stays undecided, with the reason). A denied
+   * one loses its receipt and its plan.
+   */
+  /** The hash a review item states of what Authorize would grant a linked package (`decided_sha256`). */
+  private static decidedHash(decided: Decided): Promise<string> {
+    return sha256Hex(canonicalJson({ decisions: decided.decisions, tool_approvals: decided.tool_approvals }));
+  }
+
+  /**
+   * T66 review 1, nit 10: Authorize grants each linked package what the review listed, or nothing.
+   * With the hashes the page echoed, every link that would be authorized must be listed with the
+   * hash of what it would be granted now; anything else (a preset or policy changed in another tab,
+   * a denial withdrawn) is refused before any receipt is issued, and the review is shown again.
+   */
+  private async checkLinkDecisions(live: LiveSession, listed: Record<string, string> | undefined): Promise<void> {
+    if (listed === undefined) return;
+    const refused = this.deniedLinks(live);
+    const changed: string[] = [];
+    const names = new Set<string>();
+    for (const [name, child] of this.children(live)) {
+      if (refused.has(name)) continue;
+      names.add(name);
+      if (listed[name] !== (await Controller.decidedHash(await this.linkDecided(child)))) changed.push(name);
+    }
+    for (const name of Object.keys(listed)) if (!names.has(name)) changed.push(name);
+    if (changed.length > 0) throw reject("link_decisions_changed", `What this browser would grant ${changed.sort().join(", ")} changed since the review was shown (a preset, a policy or a denial). Review the linked agents again.`, 409, { dependencies: changed });
+  }
+
+  private async authorizeLinks(live: LiveSession): Promise<void> {
+    const refused = this.deniedLinks(live);
+    for (const [name, child] of this.children(live)) {
+      child.plan = null;
+      child.onceSpent = false;
+      child.receipt = null;
+      if (!refused.has(name)) {
+        const decided = await this.linkDecided(child);
+        const registry = await this.resourceRegistry(child);
+        try {
+          const grants = normalizeResourceSelections(child.pkg, registry, decided.decisions, {});
+          child.receipt = await buildReceipt(child.pkg, {
+            sessionId: child.stored.session_id,
+            source: sourceRef(child.stored.source),
+            archiveSha256: child.stored.archive_sha256,
+            evaluation: child.evaluation,
+            publisher: child.publisher,
+            trustState: await this.deps.trust.state(),
+            decisions: decided.decisions,
+            toolApprovals: decided.tool_approvals,
+            policy: DEFAULT_BROWSER_POLICY,
+            instanceId: await this.deps.settings.instanceId(),
+            expiresAt: child.stored.expires_at,
+            resourceGrants: grants,
+            resourceRegistry: registry,
+            provenance: decided.provenance,
+            now: this.clock(),
+          });
+        } catch (error) {
+          if (!(error instanceof CoreError)) throw error;
+        }
+      }
+      await this.persist(child);
+    }
+  }
+
+  /**
+   * What the caller's plan needs of its links (L-14, L-15, L-17, L-20; `browser/links.py::plan_links`):
+   * the blocking reasons, the plan's `links` section, and the worst cases the composed envelope
+   * is computed from (null for a denied link). Each accepted link's inner plan is prepared here,
+   * on the caller's model, with `parent` naming this caller.
+   */
+  private async planLinks(live: LiveSession, modelId: string, read: Awaited<ReturnType<Controller["catalog"]>>): Promise<{ blockers: Reason[]; section: Record<string, LinkPlanEntry> | null; costs: Record<string, ReturnType<typeof packageWorstCase> | null> | null }> {
+    const records = this.dependencyRecords(live.pkg);
+    if (records.length === 0) return { blockers: [], section: null, costs: null };
+    const linked = this.children(live);
+    const blockers: Reason[] = [];
+    if (linked.size !== records.length || records.some((record) => !linked.has(String(record.id)))) {
+      blockers.push({ code: "link_unresolved", message: "This package links other packages; load them before preparing a run plan", subject: null });
+      return { blockers, section: null, costs: null };
+    }
+    const refused = this.deniedLinks(live);
+    const section: Record<string, LinkPlanEntry> = {};
+    const costs: Record<string, ReturnType<typeof packageWorstCase> | null> = {};
+    for (const name of [...linked.keys()].sort()) {
+      const child = linked.get(name)!;
+      const entry: LinkPlanEntry = {
+        package_id: String(child.pkg.manifest.package_id),
+        version: String(child.pkg.manifest.version),
+        digest: child.pkg.digest,
+        archive_sha256: child.stored.archive_sha256,
+        signer: child.publisher.signer_fingerprint ?? "",
+        trust: child.publisher.trust_status,
+        decision: refused.has(name) ? "denied" : "accepted",
+        plan_hash: null,
+      };
+      section[name] = entry;
+      if (refused.has(name)) {
+        costs[name] = null;
+        continue;
+      }
+      costs[name] = packageWorstCase(child.pkg.graph, child.pkg.policy);
+      let cause: string | null = null;
+      child.plan = null;
+      if (child.receipt === null) cause = "it has no authorization";
+      else {
+        try {
+          const prepared = await this.buildPlan(child, modelId, { read, parent: { package_digest: live.pkg.digest, dependency: name } });
+          child.plan = prepared.plan;
+          entry.plan_hash = prepared.plan.run_plan_sha256;
+          await this.recordPlanOrigins(child, prepared.plan, prepared.origins);
+        } catch (error) {
+          if (!(error instanceof CoreError)) throw error;
+          cause = error.message;
+        }
+      }
+      await this.persist(child);
+      if (cause !== null) blockers.push({ code: "link_undecided", message: `Linked package ${pyRepr(name)} has no ready inner plan on this model (${cause}): fix that, or deny its publisher`, subject: name });
+    }
+    if (blockers.length === 0) {
+      try {
+        checkComposition(live.pkg, costs);
+      } catch (error) {
+        if (!(error instanceof LinkRefusal)) throw error;
+        blockers.push({ code: error.code, message: error.message.slice(error.code.length + 2), subject: null });
+      }
+    }
+    return { blockers, section, costs };
+  }
+
+  /** L-15 (`browser/links.py::staleness`): what re-verification finds about the inner plans a caller's plan names. */
+  private async linkStaleness(live: LiveSession, plan: RunPlan): Promise<Reason[]> {
+    const reasons: Reason[] = [];
+    const linked = this.children(live);
+    for (const name of Object.keys(plan.links ?? {}).sort()) {
+      const entry = plan.links![name]!;
+      if (entry.decision !== "accepted") continue;
+      const inner = linked.get(name)?.plan ?? null;
+      if (inner === null) {
+        reasons.push({ code: "link_plan_cleared", message: `Linked package ${pyRepr(name)} no longer has an inner plan`, subject: name });
+        continue;
+      }
+      const parent = inner.parent ?? {};
+      if (Object.keys(parent).sort().join(",") !== "dependency,package_digest" || parent.package_digest !== live.pkg.digest || parent.dependency !== name) {
+        reasons.push({ code: "link_plan_parent_mismatch", message: `The inner plan of ${pyRepr(name)} was prepared for another caller`, subject: name });
+      } else if (inner.run_plan_sha256 !== entry.plan_hash) {
+        reasons.push({ code: "link_plan_changed", message: `The inner plan of ${pyRepr(name)} changed`, subject: name });
+      } else {
+        const state = (await this.runPlanState(linked.get(name)!)).preflight;
+        if (!state.ready || state.stale) {
+          const cause = (state.stale_reasons[0] ?? state.blocking_reasons[0])?.code ?? null;
+          reasons.push({ code: "link_plan_stale", message: `The inner plan of ${pyRepr(name)} is no longer ready${cause ? ` (${cause})` : ""}`, subject: name });
+        }
+      }
+    }
+    return reasons;
+  }
+
+  /** L-15: what a run of this session's plan hands the execution host for its links: each accepted link's inner Run Plan and the hash of its archive. Null for a plan without links. */
+  private async runLinks(sessionId: string): Promise<Record<string, { run_plan: RunPlan; archive_sha256: string }> | null> {
+    const live = await this.session(sessionId);
+    if (live.plan === null || !live.plan.links) return null;
+    const linked = this.children(live);
+    const found: Record<string, { run_plan: RunPlan; archive_sha256: string }> = {};
+    for (const [name, entry] of Object.entries(live.plan.links)) {
+      if (entry.decision !== "accepted") continue;
+      const child = linked.get(name);
+      if (!child || child.plan === null) throw reject("run_plan_stale", `Linked package ${pyRepr(name)} no longer has an inner plan; prepare the plan again.`, 409);
+      found[name] = { run_plan: child.plan, archive_sha256: child.stored.archive_sha256 };
+    }
+    return found;
   }
 
   // -- signed documents: agent indexes and the policy subscription (T8) -----------------------------
@@ -2781,7 +3324,7 @@ export class Controller {
     const pinnedUrls = new Set(library.pinned.map((entry) => entry.package_url));
     const item = async (entry: LibraryEntry): Promise<LibraryItemView> => {
       const verdict = await this.trust.evaluate({ signerFingerprint: entry.signer_fingerprint, claimedPublisherId: entry.publisher.id, packageId: entry.package_id });
-      const open = [...this.sessions.values()].find((live) => live.stored.source.display === entry.package_url && live.stored.archive_sha256 === entry.archive_sha256);
+      const open = this.opened().find((live) => live.stored.source.display === entry.package_url && live.stored.archive_sha256 === entry.archive_sha256);
       return { ...entry, trust_status: verdict.trust_status, trust_reason: verdict.trust_reason, pinned: pinnedUrls.has(entry.package_url), open_session_id: open?.stored.session_id ?? null };
     };
     return { pinned: await Promise.all(library.pinned.map(item)), recent: await Promise.all(library.recent.map(item)) };
@@ -2821,7 +3364,7 @@ export class Controller {
       version: this.version,
       core_version: CORE_VERSION,
       runtime_version: SUPPORTED_RUNTIME_VERSION,
-      sessions: this.sessions.size,
+      sessions: this.opened().length,
       max_sessions: this.limits.maxSessions,
       cached_bytes: stored.reduce((sum, item) => sum + item.bytes, 0),
       max_cache_bytes: this.limits.maxCacheBytes,
@@ -2832,6 +3375,11 @@ export class Controller {
       secrets: await this.secretsState(),
     };
   }
+}
+
+/** The subscribed policy's `publisher_key` anchors as trust entries, as `PolicyTrust` evaluates them: what a run's slots check a candidate's key against after the person's own store (link.v0 L-12). */
+function anchorEntries(policy: ActivePolicy): TrustEntry[] {
+  return policy.bundle.trust_anchors.flatMap((anchor) => (anchor.kind === "publisher_key" ? [{ fingerprint: anchor.fingerprint, public_key: anchor.public_key, display_name: anchor.display_name, publisher_id: anchor.publisher_id, package_id_prefix: anchor.package_id_prefix, notes: null, added_at: policy.bundle.issued_at }] : []));
 }
 
 /** The stored keychain record when it belongs to the envelope created at `createdAt` (T17). */
