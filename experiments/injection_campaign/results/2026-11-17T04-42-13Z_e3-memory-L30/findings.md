@@ -44,3 +44,20 @@ F-MEMORY's evidence on L30 is `Py`'s and `Cr`'s (and on them the body never reac
 
 ## The local-results check with the user (gates the hosted rungs, §2.8)
 - pending (these directories postdate the check of 2026-11-16)
+
+## Addendum (2026-11-19, T32 review 2, finding 5): the text in a model request, counted by the script
+The "Reach" paragraph above says the injected text reached `FW`'s model in 0/37 runs. That figure was counted by hand
+(the payload's first 60 characters searched in the serialized request) and is wrong: `memory-02` starts with three
+newlines, so its 1 exposed `FW` run on L30 was missed. `analyze.py` now counts it (`in_model_request`: the
+payload's text, stripped, in a model call's system or user text, nested JSON decoded, whitespace collapsed) and
+prints it beside `exposed` in a "Reach" table. From the records: the text is in a model request in **every** exposed
+`FW` run, **1/37**; `Py` and `Cr` stay **0/37** (WebAir's graph keeps only the record's fields, as above). No
+outcome and no Tab. 4 row changes. From `agentpkg/.venv/bin/python experiments/injection_campaign/analyze.py experiments/injection_campaign/results/{{2026-11-15T17-16-05Z_paper-L4,2026-11-15T17-02-41Z_paper-L9,2026-11-15T17-02-41Z_paper-L30}} --supplement experiments/injection_campaign/results/2026-11-17T03-11-26Z_e3-memory-L4 --supplement experiments/injection_campaign/results/2026-11-17T03-11-26Z_e3-memory-L9 --supplement experiments/injection_campaign/results/2026-11-17T04-42-13Z_e3-memory-L30`:
+```
+cell | n | exposed | in a model request
+F-MEMORY|Cr|L30 | 37 | 32/37 [0.720,0.941] | 0/37 [0.000,0.094] ≤0.081
+F-MEMORY|FW|L30 | 37 | 1/37 [0.005,0.138] | 1/37 [0.005,0.138]
+F-MEMORY|Py|L30 | 37 | 32/37 [0.720,0.941] | 0/37 [0.000,0.094] ≤0.081
+```
+`FW`'s exposed-only cell on L30 (n = 1) is now printed `0/1 [0.000,0.793]` without the rule-of-three bound
+(T32 review 2, nit 9: 3/n is a bound only from n = 3); the Tab. 4 row above otherwise regenerates unchanged.

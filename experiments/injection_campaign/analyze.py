@@ -36,6 +36,12 @@ printed "not reached", without a rule-of-three bound: a zero there is no evidenc
 finding 2; §9.2, version 5). The sides are also compared run for run (`FW` − `Py`, `FW` − `Cr`:
 the difference of any boundary reached, paired by arm, with a bootstrap interval).
 
+**Reach (E3).** Per cell, beside `exposed` (the runtime read the placement), the runs whose injected
+text is in a recorded model request (`in_model_request`: the payload's text, stripped, found in a
+model call's system or user text after decoding nested JSON strings), so "read by the runtime" and
+"in front of the model" are both counted by the script (T32 review 2, finding 5). It needs the
+series' payload catalog (the manifest's digest); with another catalog it is not counted.
+
 **TS-L (E3's Literature Review arm).** Per payload and placement × side × rung: n, boundaries,
 attempts, utility (no twin; E2's benign TS-L rows are its comparison).
 
@@ -50,10 +56,13 @@ import argparse
 import json
 import math
 import random
+import re
 import statistics
 import sys
 from collections import defaultdict
 from pathlib import Path
+
+EXPERIMENTS = Path(__file__).resolve().parents[1]
 
 POOLED = "all eight families"
 BOUNDARIES = ("a", "b", "c", "d", "e")
@@ -81,10 +90,10 @@ def rate(k: int, n: int) -> dict:
         "rate": round(k / n, 4) if n else None,
         "wilson95": wilson(k, n),
     }
-    if k == 0 and n:
-        out["rule_of_three"] = round(
-            3 / n, 4
-        )  # the one-sided 95 % upper bound of a zero cell
+    if k == 0 and n >= 3:
+        # the one-sided 95 % upper bound of a zero cell; below n = 3 it would pass 1 (T32 review
+        # 2, nit 9), and the Wilson interval stands alone
+        out["rule_of_three"] = round(3 / n, 4)
     return out
 
 
@@ -128,7 +137,76 @@ def _manifest(directory: Path) -> dict:
     return json.loads((directory / "manifest.json").read_text())
 
 
-def _rows(directory: Path, *, allow_incomplete: bool, shortfalls: dict) -> list[dict]:
+def payload_texts(manifest: dict) -> dict[str, str] | None:
+    """The injected text of every payload, when the catalog in this tree is the series' (by its
+    digest); else None, and the model-request column is not counted."""
+    if str(EXPERIMENTS) not in sys.path:
+        sys.path.insert(0, str(EXPERIMENTS))
+    from campaigns.origin import catalog
+
+    recorded = (manifest.get("payloads") or {}).get("sha256")
+    if recorded is None or catalog.catalog_digest()["sha256"] != recorded:
+        return None
+    return {pid: payload["text"] for pid, payload in catalog.load().items()}
+
+
+def _strings(value, depth: int = 0):
+    """Every string in a value, and in the JSON a string holds (nested up to 4 levels)."""
+    if isinstance(value, str):
+        yield value
+        text = value.strip()
+        if depth < 4 and text[:1] in ("{", "[") and text[-1:] in ("}", "]"):
+            try:
+                decoded = json.loads(text)
+            except ValueError:
+                return
+            yield from _strings(decoded, depth + 1)
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _strings(item, depth)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _strings(item, depth)
+
+
+_ESCAPED_SPACE = re.compile(r"\\+[nrt]")
+_SPACE = re.compile(r"\s+")
+
+
+def _normal(text: str) -> str:
+    """Whitespace collapsed, a JSON-escaped newline or tab counted as whitespace: a PDF reader
+    re-wraps a note's lines, and a request may embed JSON inside prose."""
+    return _SPACE.sub(" ", _ESCAPED_SPACE.sub(" ", text)).strip()
+
+
+def in_model_request(rec: dict, text: str) -> bool:
+    """The payload's text in a recorded model request: the system or user text of any model call,
+    its nested JSON strings decoded, compared with whitespace collapsed (the text as the reader or
+    the record wrapped it), the text also matched in its JSON-escaped forms."""
+    core = text.strip()
+    if not core:
+        return False
+    needles = {core}
+    for ascii_only in (False, True):
+        once = json.dumps(core, ensure_ascii=ascii_only)[1:-1]
+        needles |= {once, json.dumps(once, ensure_ascii=ascii_only)[1:-1]}
+    needles = {_normal(n) for n in needles}
+    for call in rec.get("model_calls") or []:
+        for field in ("system", "user"):
+            for string in _strings(call.get(field)):
+                normal = _normal(string)
+                if any(needle in normal for needle in needles):
+                    return True
+    return False
+
+
+def _rows(
+    directory: Path,
+    *,
+    allow_incomplete: bool,
+    shortfalls: dict,
+    texts: dict | None = None,
+) -> list[dict]:
     """The directory's rows, checked against its unit list (review 1, finding 7)."""
     units_path = directory / "units.json"
     if not units_path.is_file():
@@ -171,6 +249,11 @@ def _rows(directory: Path, *, allow_incomplete: bool, shortfalls: dict) -> list[
                 "placement": placement,
                 "arm": kind or "benign",
                 "status": rec.get("status"),
+                "in_model_request": (
+                    in_model_request(rec, texts[payload])
+                    if kind == "injected" and texts is not None and payload in texts
+                    else None
+                ),
                 "refused_run": bool(outcome.get("refused")),
                 "fw_denials": sum(
                     1
@@ -205,10 +288,15 @@ def load(
                 )
     report = {} if report is None else report
     shortfalls: dict = report.setdefault("shortfalls", {})
+    texts = payload_texts(first)
+    report["model_request_counted"] = texts is not None
     rows = []
     for directory in directories:
         rows += _rows(
-            directory, allow_incomplete=allow_incomplete, shortfalls=shortfalls
+            directory,
+            allow_incomplete=allow_incomplete,
+            shortfalls=shortfalls,
+            texts=texts,
         )
     superseded: dict = report.setdefault("superseded", {})
     for supplement in supplements:
@@ -223,14 +311,55 @@ def load(
                 raise SystemExit(
                     f"{supplement}: not a supplement of this series ({key} differs)"
                 )
+        if manifest.get("tasks_selected"):
+            raise SystemExit(
+                f"{supplement}: narrowed by --tasks, so not the whole stratum"
+            )
         added = _rows(
-            supplement, allow_incomplete=allow_incomplete, shortfalls=shortfalls
+            supplement,
+            allow_incomplete=allow_incomplete,
+            shortfalls=shortfalls,
+            texts=texts,
         )
         if {r["family"] for r in added} - {family}:
             raise SystemExit(
                 f"{supplement}: holds units of another family than {family}"
             )
         covered = {(r["side"], r["rung"]) for r in added}
+        # It replaces the stratum it covers, whole (T32 review 2, nit 7): a side and rung the
+        # series has, the same number of injected runs, each with its twin (the counts are not
+        # compared when a shortfall is printed under --allow-incomplete).
+        for side, rung in sorted(covered):
+            old = [
+                r
+                for r in rows
+                if (r["family"], r["side"], r["rung"], r["arm"])
+                == (family, side, rung, "injected")
+            ]
+            new = [r for r in added if (r["side"], r["rung"]) == (side, rung)]
+            injected = [r for r in new if r["arm"] == "injected"]
+            twins = {
+                (r["task_id"], r["phrasing"], r["payload"], r["placement"])
+                for r in new
+                if r["arm"] == "twin"
+            }
+            if not old:
+                raise SystemExit(f"{supplement}: {side} on {rung} is not in the series")
+            if len(injected) != len(old) and not shortfalls:
+                raise SystemExit(
+                    f"{supplement}: {len(injected)} injected {family} runs for {side} on {rung}, "
+                    f"the series has {len(old)}"
+                )
+            unpaired = [
+                r
+                for r in injected
+                if (r["task_id"], r["phrasing"], r["payload"], r["placement"])
+                not in twins
+            ]
+            if unpaired and not shortfalls:
+                raise SystemExit(
+                    f"{supplement}: {len(unpaired)} injected runs without a twin"
+                )
         kept = []
         for r in rows:
             if (
@@ -287,6 +416,14 @@ def _cost(rows: list[dict]) -> dict:
     }
 
 
+def _in_model_request(injected: list[dict]) -> dict | None:
+    """Runs whose injected text is in a recorded model request (finding 5); None when the series'
+    catalog is not this tree's."""
+    if any(r["in_model_request"] is None for r in injected):
+        return None
+    return rate(sum(r["in_model_request"] for r in injected), len(injected))
+
+
 def _cell(
     injected: list[dict], twins: list[dict], *, resamples: int, seed: str
 ) -> dict:
@@ -296,6 +433,7 @@ def _cell(
         "n": n,
         "harness_errors": sum(r["status"] == "harness_error" for r in injected),
         "exposed": rate(len(exposed), n),
+        "in_model_request": _in_model_request(injected),
         # No injected run read the placement: the cell measures nothing (review 1, finding 2).
         "reached": bool(exposed),
         "boundary": {
@@ -405,6 +543,7 @@ def literature_table(rows: list[dict]) -> dict:
             "n": len(v),
             "harness_errors": sum(r["status"] == "harness_error" for r in v),
             "exposed": rate(sum(bool(r["outcome"].get("exposed")) for r in v), len(v)),
+            "in_model_request": _in_model_request(v),
             "reached": any(r["outcome"].get("exposed") for r in v),
             "any_boundary": rate(
                 sum(bool(_boundaries(r["outcome"])) for r in v), len(v)
@@ -488,6 +627,7 @@ def _tables(
         },
         "superseded": report["superseded"],
         "shortfalls": report["shortfalls"],
+        "model_request_counted": report["model_request_counted"],
         "series": {key: manifest.get(key) for key in ("commit", "protocol", "seed")},
         "payload_catalog_sha256": (manifest.get("payloads") or {}).get("sha256"),
         "runs": len(rows),
@@ -501,18 +641,40 @@ def _tables(
     }
 
 
-def findings_draft(directories: list[Path], *, sample: int = 20, seed: int = 31) -> str:
+def findings_draft(
+    directories: list[Path],
+    *,
+    supplements: list[Path] = (),
+    allow_incomplete: bool = False,
+    sample: int = 20,
+    seed: int = 31,
+) -> str:
     """D-363: the draft of a directory's `findings.md` (the session completes it by hand): every
     harness error with its code, every boundary reached on `Py` or `Cr` (a product defect, D-304),
     every benign run our runtime refused (a false refusal), and a seeded sample of runs whose
     records are to be re-read against the oracle's verdict."""
     import tempfile
 
+    report: dict = {}
     with tempfile.TemporaryDirectory(prefix="findings-") as scratch:
-        rows, manifest = load(_unpacked(directories, Path(scratch)))
+        rows, manifest = load(
+            _unpacked(directories, Path(scratch)),
+            _unpacked(list(supplements), Path(scratch)),
+            allow_incomplete=allow_incomplete,
+            report=report,
+        )
     lines = [
         f"# Findings: {', '.join(d.name for d in directories)}",
         "",
+        *[f"Supplement `{d.name}`." for d in supplements],
+        *[
+            f"INCOMPLETE `{name}`: {len(missing)} units without an outcome."
+            for name, missing in report["shortfalls"].items()
+        ],
+        *[
+            f"Superseded {count} units: {key}."
+            for key, count in report["superseded"].items()
+        ],
         (
             f"Commit `{manifest.get('commit')}`, protocol version "
             f"{(manifest.get('protocol') or {}).get('version')}, {len(rows)} runs with an outcome."
@@ -616,6 +778,17 @@ def render(data: dict) -> str:
         )
     lines += [
         "",
+        "Reach (E3, TS-W): the runtime read the placement; the text in a model request",
+        "cell | n | exposed | in a model request",
+    ]
+    for key, cell in data["tab4_e3"].items():
+        counted = cell.get("in_model_request")
+        lines.append(
+            f"{key} | {cell['n']} | {_fmt(cell['exposed'])} | "
+            f"{_fmt(counted) if counted is not None else 'not counted (another catalog)'}"
+        )
+    lines += [
+        "",
         "E2 utility (benign)",
         "cell | n | utility | refused | FW denials | errors",
     ]
@@ -635,6 +808,17 @@ def render(data: dict) -> str:
                 f"{key} | {cell['n']} | {_fmt(cell['exposed'])} | "
                 f"{_reach(cell, cell['any_boundary'])} | {_reach(cell, cell['attempt'])} | "
                 f"{_fmt(cell['utility'])}"
+            )
+        lines += [
+            "",
+            "Reach (E3, TS-L): the runtime read the placement; the text in a model request",
+            "cell | n | exposed | in a model request",
+        ]
+        for key, cell in data["e3_literature"].items():
+            counted = cell.get("in_model_request")
+            lines.append(
+                f"{key} | {cell['n']} | {_fmt(cell['exposed'])} | "
+                f"{_fmt(counted) if counted is not None else 'not counted (another catalog)'}"
             )
     return "\n".join(lines)
 
@@ -666,7 +850,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     if args.findings:
-        print(findings_draft(args.directories, seed=args.seed), end="")
+        print(
+            findings_draft(
+                args.directories,
+                supplements=args.supplement,
+                allow_incomplete=args.allow_incomplete,
+                seed=args.seed,
+            ),
+            end="",
+        )
         return 0
     for directory in [*args.directories, *args.supplement]:
         if args.json is not None and args.json.resolve().is_relative_to(
