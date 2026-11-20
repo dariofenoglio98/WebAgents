@@ -354,6 +354,8 @@ def test_resume_classifies_a_recorded_unit_without_an_outcome_and_never_reruns_i
     import campaigns.origin.stack as stack_module
 
     monkeypatch.setattr(stack_module, "CampaignStack", Stack)
+    # The route is up (T32 review 2, finding 1: unstubbed, the probe reached the Mac's Ollama).
+    monkeypatch.setattr(campaign, "route_ready", lambda rung: True)
     capsys.readouterr()
     args = ["--preset", "smoke", "--rungs", "L9", "--sides", "FW", "--out", str(out), "--resume"]
     assert campaign.main(args) == 0

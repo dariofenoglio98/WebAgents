@@ -207,6 +207,54 @@ def test_a_packed_directory_whose_archive_changed_is_refused(directory, tmp_path
         analyze.tables([packed])
 
 
+# -- T32 review 2, finding 2: packing a packed directory never empties its archive -----------------
+def test_packing_a_packed_directory_is_refused_and_leaves_its_archive(
+    directory, tmp_path
+):
+    import shutil
+
+    import pack
+
+    digest = pack.pack(directory)
+    packed = tmp_path / "packed" / directory.name
+    shutil.copytree(directory, packed)
+    assert pack.main([str(packed), "--remove-unpacked"]) == 0
+    assert not (packed / "runs").exists()
+    archive = (packed / "runs.tar.gz").read_bytes()
+    with pytest.raises(SystemExit, match="no runs/ tree"):
+        pack.main([str(packed)])
+    with pytest.raises(SystemExit, match="no runs/ tree"):
+        pack.main([str(tmp_path / "a-mistyped-path")])
+    assert (packed / "runs.tar.gz").read_bytes() == archive
+    assert (packed / "runs.tar.gz.sha256").read_text().split()[0] == digest
+    assert analyze.tables([packed], resamples=50)["tab4_e3"]  # still reads
+
+
+def test_remove_unpacked_deletes_nothing_unless_the_archive_reads_back_as_the_tree(
+    directory, tmp_path, monkeypatch
+):
+    import shutil
+
+    import pack
+
+    copy = tmp_path / "c" / directory.name
+    shutil.copytree(directory, copy)
+    real = pack.pack
+
+    def short_archive(d):  # an archive that lost a member between writing and removal
+        digest = real(d)
+        first = min((d / "runs").iterdir())
+        shutil.move(str(first), str(tmp_path / "moved"))
+        real(d)
+        shutil.move(str(tmp_path / "moved"), str(first))
+        return digest
+
+    monkeypatch.setattr(pack, "pack", short_archive)
+    with pytest.raises(SystemExit, match="nothing removed"):
+        pack.main([str(copy), "--remove-unpacked"])
+    assert (copy / "runs").is_dir()
+
+
 # -- T32 review 1, findings 2, 3 and 7; nit 12 -------------------------------------------------------
 def test_a_directory_short_of_its_unit_list_is_refused_or_its_shortfall_printed(
     directory,

@@ -4,6 +4,10 @@ timestamps and owners, gzip without a date), and `runs.tar.gz.sha256` records it
 `units.json`, `summary.json`, `server.jsonl` and `findings.md` stay beside it, uncompressed. `analyze.py` reads a
 packed directory as it reads an unpacked one. The unpacked original is kept where the campaign ran.
 
+A directory with no `runs/` tree (already packed, or a mistyped path) is refused, never packed into an empty
+archive over its own (T32 review 2, finding 2); the archive is written whole (`os.replace`); `--remove-unpacked`
+reads the written archive back, checks its digest and its member list against the tree, and only then deletes.
+
     agentpkg/.venv/bin/python experiments/injection_campaign/pack.py <directory> [--remove-unpacked]
 """
 
@@ -13,6 +17,7 @@ import argparse
 import gzip
 import hashlib
 import io
+import os
 import shutil
 import sys
 import tarfile
@@ -37,6 +42,11 @@ def _members(directory: Path) -> list[Path]:
 
 
 def pack(directory: Path) -> str:
+    if not (directory / "runs").is_dir():
+        raise SystemExit(
+            f"{directory}: no runs/ tree to pack (already packed, or not a results directory); "
+            "nothing written"
+        )
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w", format=tarfile.PAX_FORMAT) as tar:
         for path in _members(directory):
@@ -51,10 +61,42 @@ def pack(directory: Path) -> str:
             else:
                 tar.addfile(info)
     data = gzip.compress(buffer.getvalue(), compresslevel=9, mtime=0)
-    (directory / ARCHIVE).write_bytes(data)
     digest = hashlib.sha256(data).hexdigest()
-    (directory / f"{ARCHIVE}.sha256").write_text(f"{digest}  {ARCHIVE}\n")
+    _write_whole(directory / ARCHIVE, data)
+    _write_whole(directory / f"{ARCHIVE}.sha256", f"{digest}  {ARCHIVE}\n".encode())
     return digest
+
+
+def _write_whole(path: Path, data: bytes) -> None:
+    partial = path.with_name(path.name + ".partial")
+    partial.write_bytes(data)
+    os.replace(partial, path)
+
+
+def verify(directory: Path) -> None:
+    """The archive on disk is the recorded one and holds exactly the tree's members, byte for byte;
+    else SystemExit (before `--remove-unpacked` deletes anything)."""
+    data = (directory / ARCHIVE).read_bytes()
+    expected = (directory / f"{ARCHIVE}.sha256").read_text().split()[0]
+    if hashlib.sha256(data).hexdigest() != expected:
+        raise SystemExit(
+            f"{directory / ARCHIVE}: its SHA-256 is not the recorded one; nothing removed"
+        )
+    tree = {p.relative_to(directory).as_posix(): p for p in _members(directory)}
+    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+        members = {m.name: m for m in tar.getmembers()}
+        if set(members) != set(tree):
+            raise SystemExit(
+                f"{directory / ARCHIVE}: its members are not the tree's; nothing removed"
+            )
+        for name, member in members.items():
+            if (
+                member.isfile()
+                and tar.extractfile(member).read() != tree[name].read_bytes()
+            ):
+                raise SystemExit(
+                    f"{directory / ARCHIVE}: {name} differs from the tree; nothing removed"
+                )
 
 
 def unpacked(directory: Path, scratch: Path) -> Path:
@@ -88,6 +130,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     digest = pack(args.directory)
     if args.remove_unpacked:
+        verify(args.directory)
         for name in PACKED:
             path = args.directory / name
             if path.is_dir():

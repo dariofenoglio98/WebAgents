@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import collections
 
+import pytest
 from campaigns.driver import campaign
 from campaigns.origin import catalog
 
@@ -118,6 +119,7 @@ def test_a_timeout_is_the_runs_own_failure_on_every_side():
         assert campaign.promote_route_failure(rec)["status"] == "failed"
 
 
+@pytest.mark.route_probe
 def test_an_outage_delays_the_unit_instead_of_spending_it(monkeypatch):
     import httpx
     from campaigns.driver import campaign
