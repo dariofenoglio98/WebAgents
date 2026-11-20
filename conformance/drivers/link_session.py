@@ -9,6 +9,9 @@ does, and each case's plans changed as that test changes them. Prints one JSON l
 `inner-plan-replay` (N-34): the inner plan of `index` under another dependency, under another
 caller's digest, with another hash, and `scribe`'s plan handed over as `index`'s.
 `inner-plan-alone` (N-54): each linked package's inner plan handed over as a run's own plan.
+`linked-compute` (a control on N-52's composition, T66 review 1): the plans unchanged, a linked
+package with a compute node, run from the Run Plans on a host with a compute engine; accepted and
+completed, with the status and the compute calls (the caller's and each link's).
 """
 
 from __future__ import annotations
@@ -40,9 +43,24 @@ def main() -> None:
         keys[name] = (work / "keys" / f"{name}.private.pem", work / "keys" / f"{name}.pub.pem")
         keys[name][0].parent.mkdir(exist_ok=True)
         keygen(*keys[name])
-    composition = Composition(work / "composition", keys)
+    variant = "linked-compute" if case_id == "linked-compute" else None
+    composition = Composition(work / "composition", keys, variant)
     outcomes = []
-    if case_id == "inner-plan-replay":
+    if case_id == "linked-compute":
+        begin, result, *_ = asyncio.run(composition.run())
+        answer = outcome(begin)
+        if result is not None:
+            usage = result.get("usage", {})
+            answer |= {
+                "status": result.get("status"),
+                "compute_calls": usage.get("compute_calls"),
+                "link_compute_calls": {
+                    name: entry.get("compute_calls")
+                    for name, entry in sorted(usage.get("links", {}).items())
+                },
+            }
+        outcomes.append(answer)
+    elif case_id == "inner-plan-replay":
 
         def changed(mutate):
             links = composition.links_params()

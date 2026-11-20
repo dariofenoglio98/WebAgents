@@ -356,7 +356,7 @@ function linkLine(link: LinkNode, names: ReadonlyMap<string, string>): HTMLEleme
   if (link.code && link.state !== "declined") rows.push(["Code", el("code", { text: link.code })]);
   if (link.input_hash) rows.push(["What was sent", el("span", {}, "sha256 ", el("code", { text: shortHash(link.input_hash) }))]);
   if (link.result_hash) rows.push(["What came back", el("span", {}, "sha256 ", el("code", { text: shortHash(link.result_hash) }))]);
-  const title = link.kind === "join" ? `an agent found during the run (${link.name})` : (names.get(link.name) ?? link.name);
+  const title = link.kind === "join" ? `an agent found during the run (${link.name})` : link.denied_role !== null ? `nobody: the role ${link.denied_role} asks a publisher you denied` : (names.get(link.name) ?? link.name);
   return el(
     "li",
     { className: `ab-delegation-link ab-delegation-${link.state}`, attrs: { "data-link": link.name, "data-kind": link.kind, "data-state": link.state, "data-package": link.package_id ?? "" } },

@@ -42,7 +42,9 @@ import { agentToolDigests, requestedResourceTypes } from "../../core/memory/decl
 import type { MemoryRecord } from "../../core/memory/model.js";
 import { AdapterError, CancelledError } from "../../core/workflow/errors.js";
 import { isLoopbackBase } from "../../core/models/catalog.js";
+import { CoreError } from "../../core/errors.js";
 import { httpsOrigin } from "../../core/origins.js";
+import { grantsCover } from "../storage/permissions.js";
 import { TransportError, type HttpTransport } from "../../core/models/transport.js";
 import type { FileStore } from "../storage/files.js";
 import type { SnapshotStore } from "../storage/snapshots.js";
@@ -128,6 +130,21 @@ export function originGuard(transport: HttpTransport, allowedOrigins: readonly s
     if (!loopback && (origin === null || !allowed.has(origin))) {
       throw new TransportError(`the destination ${url.origin} is outside the origins this run's plan recorded`, { stage: "address_policy", reason: "origin_not_in_plan" });
     }
+    return transport(request);
+  };
+}
+
+/**
+ * A slot's look and a candidate's download only at origins Chrome was granted (T66 review 1,
+ * finding 1). An extension's request to an origin it holds no host permission for is an ordinary
+ * CORS request: Chrome sends it and lets it be read when the server allows. So the run refuses it
+ * here, before the transport: `origin_not_granted`, which the slot lists in its `fetches` (the URL
+ * policy's own refusals come first, in `core/links/web.ts`).
+ */
+export function grantedOnly(transport: HttpTransport, granted: readonly string[]): HttpTransport {
+  return async (request) => {
+    const origin = httpsOrigin(request.url);
+    if (!grantsCover(granted, origin)) throw new CoreError("origin_not_granted", `This browser is not allowed to read ${origin ?? "this address"}; a slot looks only at sites you allowed it to read`, { status: 403 });
     return transport(request);
   };
 }
@@ -501,9 +518,15 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       // link.v0 §6 (D-703): what lets this run's slots look and join. A look and a candidate's
       // download go to an address the plan could not record (the person's, or a search result's):
       // one GET each under the discovery and package-URL rules, no body, cookie or referrer, over
-      // the raw transport; Chrome reads only origins the person granted it. A joined package's tools
-      // reach only the origins of the tools its card approved.
+      // the raw transport, and only at an origin the person granted Chrome (anything else is refused
+      // before it is dialled, `grantedOnly`). A joined package's tools reach only the origins of the
+      // tools its card approved.
       const cards = message.cards ?? null;
+      const slotTransport = (subject: string, url: string): HttpTransport =>
+        grantedOnly((request) => {
+          record("tool", subject, url, null);
+          return deps.transports.tool(request);
+        }, cards?.granted ?? []);
       const trustOf: JoinHost["trust"] = async (signer, candidate) => {
         const claimed = candidate.manifest.publisher as { id?: unknown; name?: unknown };
         if (candidate.signature !== null) {
@@ -522,12 +545,10 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
           : {
               policy: cards.join,
               look: (url) => {
-                record("tool", "link.join:look", url, null);
-                return lookAtPage(url, deps.transports.tool);
+                return lookAtPage(url, slotTransport("link.join:look", url));
               },
               download: (url) => {
-                record("tool", "link.join:package", url, null);
-                return downloadPackage(url, deps.transports.tool);
+                return downloadPackage(url, slotTransport("link.join:package", url));
               },
               trust: trustOf,
               adapters: async (joined, decision) => {
@@ -555,7 +576,10 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
         linkTools: async (linked, dependency) => ({ ...linkedDeps(dependency, transports.tool), definitions: (await linkedDefinitions(linked, { runtimeVersion: message.settings.runtimeVersion, now: now(), contactConfigured: contact !== null })).definitions }),
         joins,
         // A policy that forbids the raise leaves that card out of the surface: the request is never made (D-682).
-        runConsent: cards === null ? null : runConsent(cards.raise === "forbid" ? ["link.join"] : undefined),
+        // A conversation's turn has no run-card surface (T66 review 1, finding 3): the chat draws only the
+        // turn's consent card, and the conversation's reservation counted the limits the turn runs under
+        // (V-10), so no raise is asked and a slot is `unattended`.
+        runConsent: cards === null || run.invocation.turn ? null : runConsent(cards.raise === "forbid" ? ["link.join"] : undefined),
         // L-36, L-44: the plan a decision made during the run names.
         planHash: plan.run_plan_sha256,
         resolver: memoryStore,

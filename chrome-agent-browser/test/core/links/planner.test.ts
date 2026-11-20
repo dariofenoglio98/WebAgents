@@ -206,4 +206,45 @@ describe("the delegation view's model (D-704)", () => {
     const unattended = delegationTree((await walk("0.2.0")).report.audit);
     expect(unattended.activations.flatMap((activation) => activation.links).find((link) => link.kind === "join")).toMatchObject({ state: "not_joined", code: "unattended", fetches: null });
   });
+
+  // T66 review 1, finding 4: the events a map step's concurrent items record (`link/link-in-map`'s, interleaved).
+  const at = (action: string, fields: Record<string, unknown>) => ({ action, ...fields }) as unknown as AuditEvent;
+  const started = (id: string, hash: string) => at("link.started", { node_id: "collect/ask", dependency: "index", package_id: "org.example.index", digest: "d".repeat(64), inner_run_id: id, reserved: { tokens: 100, remote_calls: 1 }, input_hash: hash });
+  const completed = (id: string, tokens: number, hash: string) => at("link.completed", { node_id: "collect/ask", dependency: "index", inner_run_id: id, usage: { tokens }, result_hash: hash });
+
+  it("draws concurrent inner runs of one step as one node each, keyed by the inner run id", async () => {
+    const { delegationTree } = await import("../../../src/core/links/delegation.js");
+    const tree = delegationTree([started("run_A", "in_A"), started("run_B", "in_B"), completed("run_A", 11, "out_A"), at("link.failed", { node_id: "collect/ask", dependency: "index", inner_run_id: "run_B", usage: { tokens: 22 }, error_code: "timeout" })]);
+    expect(tree.links.map((link) => [link.inner_run_id, link.state, link.input_hash, link.usage, link.result_hash, link.code])).toEqual([
+      ["run_A", "answered", "in_A", { tokens: 11 }, "out_A", null],
+      ["run_B", "failed", "in_B", { tokens: 22 }, null, "timeout"],
+    ]);
+    // In the order they end, too.
+    const reversed = delegationTree([started("run_A", "in_A"), started("run_B", "in_B"), completed("run_B", 22, "out_B"), completed("run_A", 11, "out_A")]);
+    expect(reversed.links.map((link) => [link.inner_run_id, link.state, link.usage, link.result_hash])).toEqual([
+      ["run_A", "answered", { tokens: 11 }, "out_A"],
+      ["run_B", "answered", { tokens: 22 }, "out_B"],
+    ]);
+  });
+
+  it("a join that failed before its inner run, a declined raise, and the network's own denial (review 1, finding 4)", async () => {
+    const { delegationTree } = await import("../../../src/core/links/delegation.js");
+    const slot = { node_id: "find/hotel", slot: "named-hotel" };
+    const tree = delegationTree([
+      at("link.requested", { ...slot, fetches: [], candidate: { package_id: "org.example.hotel", digest: "e".repeat(64) } }),
+      at("link.decided", { ...slot, accepted: true, decided_by: "person", reason: null, provenance: "person" }),
+      at("link.failed", { ...slot, inner_run_id: null, error_code: "link_error" }),
+      at("budget.requested", { node_id: "write/draft", limit: "tokens", from: 2000, to: 2187 }),
+      at("model.refused", { node_id: "write/draft", reason: "hard_tokens" }),
+      at("link.denied", { node_id: "trip", role: "Hotels" }),
+    ]);
+    expect(tree.links.map((link) => [link.kind, link.name, link.state, link.code, link.denied_role])).toEqual([
+      ["join", "named-hotel", "failed", "link_error", null],
+      ["link", "Hotels", "denied", "denied", "Hotels"],
+    ]);
+    expect(tree.raise).toMatchObject({ state: "kept", node_id: "write/draft" });
+    // A refusal at another operation leaves the raise asked; its own `budget.raised` raises it.
+    expect(delegationTree([at("budget.requested", { node_id: "a", limit: "tokens", from: 1, to: 2 }), at("model.refused", { node_id: "b" })]).raise!.state).toBe("asked");
+    expect(delegationTree([at("budget.requested", { node_id: "a", limit: "tokens", from: 1, to: 2 }), at("budget.raised", { node_id: "a" })]).raise!.state).toBe("raised");
+  });
 });

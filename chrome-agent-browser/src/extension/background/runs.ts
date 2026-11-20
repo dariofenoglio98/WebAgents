@@ -130,6 +130,11 @@ export interface RunHooks {
 
 /** What a run is handed for its cards (link.v0 §6, §7): the trust entries a candidate's signer is evaluated against, and whether the policy forbids joins or the raise. */
 export interface RunCardContext {
+  /**
+   * Chrome's granted origin match patterns when the run started (T66 review 1, finding 1): a slot
+   * looks at and downloads from these origins only; anything else is refused before it is dialled.
+   */
+  granted: string[];
   trust: TrustEntry[];
   anchors: TrustEntry[];
   join: "allow" | "forbid";
@@ -384,6 +389,11 @@ export class RunManager {
     const checks: string[] = [];
     const base: RunReadiness = { session_id: sessionId, checked_at: now.toISOString(), ready: false, run_plan_id: null, run_plan_sha256: null, blocker: null, checks, receipt: null, active_run_id: null, preflight: null, missing_origins: [] };
     const blocked = (code: string, message: string, subject: string | null = null): RunReadiness => ({ ...base, blocker: { code, message, subject } });
+    // link.v0 L-15, §9 (T66 review 1, finding 5): a linked package's session is never run or leased
+    // alone; its inner plan reaches the host only inside its caller's invocation. Every start and
+    // every turn passes here (`launch`), so this is the worker's refusal, before anything is written.
+    const parent = facts.stored.parent ?? null;
+    if (parent !== null) return blocked("link_lease_without_caller", "A linked package runs only inside its caller's run, from its caller's plan; run the caller.", parent.dependency);
     if (!this.deps.host.available()) return blocked("execution_unavailable", "This browser cannot run packages: the extension has no execution host (chrome.offscreen is unavailable).");
     checks.push("execution_host_available");
     const plan = facts.plan;
@@ -443,6 +453,8 @@ export class RunManager {
   async start(sessionId: string, input: { runPlanId: string; runPlanSha256: string; input: unknown }): Promise<RunView> {
     await this.restore();
     const facts = await this.deps.hooks.session(sessionId);
+    // link.v0 L-15: before any other check, as `readiness` (which `launch` asks again).
+    if ((facts.stored.parent ?? null) !== null) throw reject("link_lease_without_caller", "A linked package runs only inside its caller's run, from its caller's plan; run the caller.", 409, { dependency: facts.stored.parent!.dependency });
     const plan = facts.plan;
     if (plan === null) throw reject("run_plan_absent", "Authorize this package and prepare a run plan first.", 409);
     if (plan.run_plan_id !== input.runPlanId || plan.run_plan_sha256 !== input.runPlanSha256) {

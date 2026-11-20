@@ -129,7 +129,8 @@ export async function bindLinks(input: BindLinksInputs): Promise<LinkHost | null
       if (error instanceof LinkRefusal) throw new ExecutionError(error.code, error.message.slice(error.code.length + 2), { detail: { dependency: name } });
       throw error;
     }
-    checkCapabilities(linked, input.limits, { toolBindings: inner.tool_bindings, deniedTools: inner.execution.denied_tool_ids, fixture: inner.execution.fixture });
+    // The reference asks the engine globally (`compute.engine.available()`): a linked package's compute node runs on the caller's engine (L-26).
+    checkCapabilities(linked, input.limits, { toolBindings: inner.tool_bindings, deniedTools: inner.execution.denied_tool_ids, fixture: inner.execution.fixture, computeAvailable: (input.compute ?? null) !== null });
     // L-14: an inner plan is a model-backed plan on the caller's route. The inner run is given the
     // caller's router whatever its plan says, so a plan that names another model would be a record
     // of a route the run never used.

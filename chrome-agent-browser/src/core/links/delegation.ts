@@ -6,6 +6,11 @@
  * and a test can recompute it from an export: every node of the tree is an event or a pair of
  * events, every figure on it is a figure an event states, and a message or an input is named by the
  * hash its event records, never by its text. Nothing here reads the package's words.
+ *
+ * An inner run is known by its `inner_run_id` (T66 review 1, finding 4): a map step's items run up
+ * to `max_parallel` at once, so several runs of one step and one dependency can be open together.
+ * A join is known by its step and slot until its inner run starts (its look, its decision), and a
+ * join whose inner run could not be built fails with `inner_run_id: null` by the same key.
  */
 import type { JsonObject, JsonValue } from "../json.js";
 import type { AuditEvent } from "../types.js";
@@ -31,6 +36,8 @@ export interface LinkNode {
   code: string | null;
   input_hash: string | null;
   result_hash: string | null;
+  /** A network's `link.denied` names no dependency: the role whose program holds a denied link (its entry); null otherwise. */
+  denied_role: string | null;
   /** A join's look and decision (`link.requested`, `link.decided`): the pages looked at and the decision's facts. */
   fetches: JsonValue[] | null;
   decision: JsonObject | null;
@@ -73,7 +80,10 @@ const object = (value: JsonValue | undefined): JsonObject | null => (value !== n
 /** The delegation tree of a run, from its caller's audit events (in order). */
 export function delegationTree(events: readonly AuditEvent[]): DelegationTree {
   const tree: DelegationTree = { activations: [], links: [], raise: null, linked: false };
-  const open = new Map<string, LinkNode>();
+  // Joins by step and slot, oldest first, until their inner run starts or the decision ends them.
+  const joins = new Map<string, LinkNode[]>();
+  // Every inner run in flight, by its id.
+  const runs = new Map<string, LinkNode>();
   const current = (): ActivationNode | null => tree.activations.at(-1) ?? null;
   const place = (node: LinkNode): void => {
     const activation = current();
@@ -94,10 +104,25 @@ export function delegationTree(events: readonly AuditEvent[]): DelegationTree {
     code: null,
     input_hash: null,
     result_hash: null,
+    denied_role: null,
     fetches: null,
     decision: null,
   });
-  const key = (event: JsonObject): string => `${text(event.node_id) ?? ""}\u0000${text(event.dependency) ?? text(event.slot) ?? ""}`;
+  const key = (event: JsonObject): string => `${text(event.node_id) ?? ""}\u0000${text(event.slot) ?? ""}`;
+  const waiting = (event: JsonObject): LinkNode[] => {
+    const found = joins.get(key(event)) ?? [];
+    joins.set(key(event), found);
+    return found;
+  };
+  /** The oldest join of this step and slot that `test` admits, taken off the list when `take`. */
+  const join = (event: JsonObject, test: (node: LinkNode) => boolean, take: boolean): LinkNode | undefined => {
+    const list = waiting(event);
+    const index = list.findIndex(test);
+    if (index < 0) return undefined;
+    const [node] = take ? list.splice(index, 1) : [list[index]];
+    return node;
+  };
+  const accepted = (node: LinkNode): boolean => node.decision?.accepted === true && node.inner_run_id === null;
   for (const raw of events) {
     const event = raw as unknown as JsonObject;
     const action = String(event.action);
@@ -120,15 +145,15 @@ export function delegationTree(events: readonly AuditEvent[]): DelegationTree {
       const candidate = object(event.candidate);
       node.package_id = text(candidate?.package_id);
       node.digest = text(candidate?.digest);
-      open.set(key(event), node);
+      waiting(event).push(node);
       place(node);
     } else if (action === "link.decided") {
       tree.linked = true;
-      let node = open.get(key(event));
-      if (node === undefined || node.kind !== "join" || node.decision !== null) {
+      let node = join(event, (item) => item.decision === null, false);
+      if (node === undefined) {
         // A refusal before any look (`unattended`, `policy`, `join_cap`, no URL) has no `link.requested`.
         node = linkNode(event, "join");
-        open.set(key(event), node);
+        waiting(event).push(node);
         place(node);
       }
       const candidate = object(event.candidate);
@@ -137,12 +162,13 @@ export function delegationTree(events: readonly AuditEvent[]): DelegationTree {
       node.decision = { accepted: event.accepted ?? false, decided_by: event.decided_by ?? null, reason: event.reason ?? null, provenance: event.provenance ?? null, ...(event.figure !== undefined ? { figure: event.figure } : {}) };
       node.state = event.accepted === true ? "working" : event.decided_by === "person" ? "declined" : "not_joined";
       node.code = event.accepted === true ? null : text(event.reason);
+      // A join that was not accepted is over: nothing starts for it.
+      if (event.accepted !== true) join(event, (item) => item === node, true);
     } else if (action === "link.started") {
       tree.linked = true;
-      let node = open.get(key(event));
-      if (node === undefined || (node.kind === "link" && node.state !== "working") || node.inner_run_id !== null) {
+      let node = "slot" in event ? join(event, accepted, true) : undefined;
+      if (node === undefined) {
         node = linkNode(event, "slot" in event ? "join" : "link");
-        open.set(key(event), node);
         place(node);
       }
       node.state = "working";
@@ -151,9 +177,14 @@ export function delegationTree(events: readonly AuditEvent[]): DelegationTree {
       node.inner_run_id = text(event.inner_run_id);
       node.reserved = object(event.reserved);
       node.input_hash = text(event.input_hash);
+      if (node.inner_run_id !== null) runs.set(node.inner_run_id, node);
     } else if (action === "link.completed" || action === "link.failed") {
       tree.linked = true;
-      let node = open.get(key(event));
+      const inner = text(event.inner_run_id);
+      let node = inner !== null ? runs.get(inner) : undefined;
+      if (inner !== null) runs.delete(inner);
+      // An accepted join whose inner run could not be built fails with no run id (L-27, L-33).
+      if (node === undefined && inner === null && "slot" in event) node = join(event, accepted, true);
       if (node === undefined) {
         node = linkNode(event, "slot" in event ? "join" : "link");
         place(node);
@@ -163,17 +194,24 @@ export function delegationTree(events: readonly AuditEvent[]): DelegationTree {
       node.inner_run_id = node.inner_run_id ?? text(event.inner_run_id);
       if (action === "link.completed") node.result_hash = text(event.result_hash);
       else node.code = text(event.error_code);
-      open.delete(key(event));
     } else if (action === "link.refused" || action === "link.denied") {
       tree.linked = true;
       const node = linkNode(event, "link");
       node.state = action === "link.refused" ? "refused" : "denied";
       node.code = action === "link.refused" ? text(event.reason) : "denied";
+      // The network's own `link.denied` (its entry role holds a denied link) names the role, no dependency.
+      if (action === "link.denied" && text(event.dependency) === null && text(event.slot) === null) {
+        node.denied_role = text(event.role);
+        node.name = node.denied_role ?? "";
+      }
       place(node);
     } else if (action === "budget.requested") {
       tree.raise = { node_id: text(event.node_id), limit: String(event.limit), from: event.from as number, to: event.to as number, state: "asked" };
     } else if (action === "budget.raised" && tree.raise !== null) {
       tree.raise.state = "raised";
+    } else if (action.endsWith(".refused") && tree.raise !== null && tree.raise.state === "asked" && text(event.node_id) === tree.raise.node_id) {
+      // A declined or unanswered raise records nothing itself: the refusal it would have avoided follows, at the same operation.
+      tree.raise.state = "kept";
     } else if ((action === "workflow.completed" || action === "workflow.failed" || action === "workflow.cancelled") && tree.raise !== null && tree.raise.state === "asked") {
       tree.raise.state = "kept";
     }

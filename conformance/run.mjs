@@ -518,6 +518,8 @@ function linkFamilyCases(cli) {
       cases.push({ id, title, kind: "execution-layer parity", requires: "0.8.0", run: () => runLinkHost(testCase) });
     }
   }
+  // T66 review 1, finding 2: a control on N-52's composition through both execution sessions, from the Run Plans.
+  cases.push({ id: "link/linked-compute-plan", title: "A linked package with a compute node runs from its inner Run Plan on a host with a compute engine (link.v0 L-15, L-26; a control on N-52)", kind: "execution-layer parity", requires: "0.8.0", run: () => runLinkSessionControl("linked-compute") });
   return cases;
 }
 
@@ -563,6 +565,20 @@ function runLinkHost(testCase) {
   check(`execution sessions: every change refused ${testCase.code}`, outcomes.every((list) => list.length > 0 && list.every((o) => o.outcome === "refused" && o.code === testCase.code)) ? [] : outcomes.map((list) => JSON.stringify(list).slice(0, 400)));
   check("execution sessions: identical answers", diff(outcomes[0], outcomes[1]));
   return { checks, notes: [], halves: { python: outcomes[0].every?.((o) => o.code === testCase.code) === true, chromeVersionRefused: false }, observed: { execution_sessions: outcomes } };
+}
+
+/**
+ * A control of the execution sessions (T66 review 1, finding 2): one run case's composition, the plans
+ * unchanged, through both sessions; both accepted, completed, and the same compute calls.
+ */
+function runLinkSessionControl(caseId) {
+  const checks = [];
+  const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
+  const argv = writeInput(`link-host-${caseId}.json`, JSON.stringify(inputs.link[caseId].argv.filter((arg) => arg !== "{out}")));
+  const outcomes = [spawn(PYTHON, [join(ROOT, "conformance/drivers/link_session.py"), caseId, join(SCRATCH, `link-session-${caseId}`)]), spawn(process.execPath, [join(SCRATCH, "drivers", "link-session.js"), caseId, argv])].map((result) => (result.status === 0 ? JSON.parse(result.stdout) : [{ outcome: "driver_failed", message: result.stderr.slice(-400) }]));
+  check("execution sessions: accepted and completed", outcomes.every((list) => list.length === 1 && list[0].outcome === "accepted" && list[0].status === "completed") ? [] : outcomes.map((list) => JSON.stringify(list).slice(0, 400)));
+  check("execution sessions: identical answers", diff(outcomes[0], outcomes[1]));
+  return { checks, notes: [], halves: { python: outcomes[0][0]?.status === "completed", chromeVersionRefused: false }, observed: { execution_sessions: outcomes } };
 }
 
 const CONVERSATION_CASES = JSON.parse(spawn(PYTHON, [join(ROOT, "conformance/drivers/conversation_probe.py"), "--cases"]).stdout);
@@ -1093,7 +1109,9 @@ let nodeDriver = null;
 async function bundleDrivers() {
   // The Chrome core's TypeScript, bundled with the esbuild its own build uses.
   const esbuild = await import(pathToFileURL(join(ROOT, "chrome-agent-browser/node_modules/esbuild/lib/main.js")).href);
-  const drivers = ["control-plane", "execution-policy", "link-host", "link-session"].map((name) => join(ROOT, "conformance/drivers", `${name}.ts`));
+  const drivers = Object.fromEntries(["control-plane", "execution-policy", "link-host", "link-session"].map((name) => [name, join(ROOT, "conformance/drivers", `${name}.ts`)]));
+  // The Node CLI's compute Worker beside the drivers (named, so the drivers keep their flat names): `link-session.ts`'s `linked-compute` control runs a linked compute node.
+  drivers["compute-worker-node"] = join(ROOT, "chrome-agent-browser/src/compute-worker-node.ts");
   await esbuild.build({ entryPoints: drivers, bundle: true, platform: "node", format: "esm", target: "node24", outdir: join(SCRATCH, "drivers"), outExtension: { ".js": ".js" }, logLevel: "warning" });
   // ESM output needs a module scope: name the directory a module package.
   writeFileSync(join(SCRATCH, "drivers", "package.json"), '{"type": "module"}\n');

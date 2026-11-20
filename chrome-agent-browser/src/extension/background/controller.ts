@@ -413,7 +413,7 @@ export class Controller {
       links: (sessionId) => this.runLinks(sessionId),
       runCards: async () => {
         const policy = await this.activePolicy();
-        return { trust: await this.deps.trust.entries(), anchors: policy ? anchorEntries(policy) : [], join: policy?.bundle.links?.join ?? "allow", raise: policy?.bundle.links?.raise ?? "allow" };
+        return { granted: await this.permissions.granted(), trust: await this.deps.trust.entries(), anchors: policy ? anchorEntries(policy) : [], join: policy?.bundle.links?.join ?? "allow", raise: policy?.bundle.links?.raise ?? "allow" };
       },
       pinFromCard: async (input) => {
         const key = publicKeyFromRawBase64(input.publicKey);

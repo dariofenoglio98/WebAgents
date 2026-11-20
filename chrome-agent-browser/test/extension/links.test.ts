@@ -212,6 +212,19 @@ describe("one Authorize, one receipt per linked package, inner plans (L-13…L-1
     await expect(w.h.controller.handle({ type: "runplan.prepare", sessionId: child.session_id, packageDigest: child.package.digest, receiptId: child.authorization.receipt_id!, modelId: QWEN }, PAGE)).rejects.toMatchObject({ code: "link_plan_parent_mismatch" });
   });
 
+  it("the service worker never readies or starts a linked package's session alone: link_lease_without_caller, nothing started (review 1, finding 5)", async () => {
+    const { w } = await prepared();
+    for (const child of (await review(w)).links) {
+      expect(child.run_plan.state).toBe("prepared");
+      const readiness = (await w.h.controller.handle({ type: "run.readiness", sessionId: child.session_id }, PAGE)) as RunReadiness;
+      expect(readiness).toMatchObject({ ready: false, blocker: { code: "link_lease_without_caller", subject: child.dependency } });
+      // The inner plan's own hash, as a page that held it would send it.
+      await expect(w.h.controller.handle({ type: "run.start", sessionId: child.session_id, runPlanId: "any", runPlanSha256: child.run_plan.run_plan_sha256!, input: {} }, PAGE)).rejects.toMatchObject({ code: "link_lease_without_caller" });
+    }
+    expect(w.h.host.started).toEqual([]);
+    expect(await w.h.runs.listRuns()).toEqual([]);
+  });
+
   it("a denial is of the publisher's key: the plan states it, the envelope leaves it out, and withdrawing it asks for a new plan", async () => {
     const { w, result } = await prepared({ deny: "hotel-aggregator" });
     const plan = result.run_plan!.run_plan;
@@ -465,15 +478,30 @@ describe("a link made during a run: the join card (link.v0 §6, D-703)", () => {
     expect((await auditOf(w, runId)).find((event) => event.action === "link.decided")).toMatchObject({ accepted: true, decided_by: "person" });
   });
 
-  it("an origin Chrome does not grant is not read: the look is listed as failed and the slot finds nothing", async () => {
-    // The hotel's page answers nothing here, as an origin without a host permission answers a cross-origin read.
-    const { w, runId } = await joining({ pages: { improvise: true } });
+  it("an origin Chrome does not grant is never dialled: the look is listed origin_not_granted and the slot finds nothing (review 1, finding 1)", async () => {
+    // The hotel's page and package are there and would be found (as a server sending
+    // Access-Control-Allow-Origin: * lets an ungranted extension read them); only the grant is missing.
+    const granted = [TRIPWRIGHT, WEBAIR, STAYMERE].map((origin) => `${origin}/*`);
+    const { w, runId } = await joining({ permissions: granted, pages: { ...recordedHotel(), improvise: true } });
     const run = await settled(w, runId);
     expect(run.status, `${run.errorCode}: ${run.errorDetail}`).toBe("completed");
+    expect(w.h.host.started[0]!.cards!.granted).toEqual([...granted].sort());
     const events = await auditOf(w, runId);
-    expect(events.find((event) => event.action === "link.requested")).toMatchObject({ candidate: null, fetches: [{ url: HOTEL_PAGE, kind: "discovery", status: "discovery_http_status" }] });
+    expect(events.find((event) => event.action === "link.requested")).toMatchObject({ candidate: null, fetches: [{ url: HOTEL_PAGE, kind: "discovery", status: "origin_not_granted" }] });
     expect(events.find((event) => event.action === "link.decided")).toMatchObject({ accepted: false, decided_by: "runtime", reason: "not_found" });
     expect(run.runCard ?? null).toBeNull();
+    // Nothing was handed to the transport for the hotel's origin.
+    expect(w.scripted.toolSeen.filter((request) => request.url.startsWith(SALITUBAM))).toEqual([]);
+  });
+
+  it("the same origin granted is looked at and its card shown (the control of the test above)", async () => {
+    const granted = [TRIPWRIGHT, WEBAIR, STAYMERE, SALITUBAM].map((origin) => `${origin}/*`);
+    const { w, runId } = await joining({ permissions: granted, pages: { ...recordedHotel(), improvise: true } });
+    const waiting = await card(w, runId);
+    expect(waiting.runCard?.kind).toBe("link.join");
+    await decide(w, runId, waiting.runCard!.card_id, false);
+    await settled(w, runId);
+    expect(w.scripted.toolSeen.filter((request) => request.url.startsWith(SALITUBAM)).map((request) => request.url)).toEqual([HOTEL_PAGE, HOTEL_PACKAGE]);
   });
 
   it("a subscribed policy that forbids joins: nothing is looked at, no card is shown, the slot says policy; the review says so before the run", async () => {

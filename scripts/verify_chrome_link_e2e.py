@@ -90,51 +90,68 @@ def _link_events(audit: list[dict]) -> list[list]:
 
 def _tree(audit: list[dict]) -> list[dict]:
     """The delegation view's fold (`chrome-agent-browser/src/core/links/delegation.ts`), restated:
-    each link under the activation that asked it, with the state its last event gives it."""
+    each link under the activation that asked it, with the state its last event gives it. An inner
+    run is known by its `inner_run_id`; a join by its step and slot until its inner run starts."""
     rows: list[dict] = []
-    open_: dict[str, dict] = {}
+    joins: dict[tuple, list[dict]] = {}
+    runs: dict[str, dict] = {}
     role = None
+
+    def new(event, kind, state):
+        candidate = event.get("candidate") or {}
+        row = {"role": role, "kind": kind, "name": event.get("dependency") or event.get("slot")}
+        row["state"] = state
+        row["package_id"] = candidate.get("package_id")
+        row["accepted"] = None
+        row["inner"] = None
+        rows.append(row)
+        return row
+
     for event in audit:
         action = event["action"]
-        name = event.get("dependency") or event.get("slot")
+        key = (event.get("node_id"), event.get("slot"))
+        waiting = joins.setdefault(key, [])
         if action == "network.activated":
             role = event["role"]
         elif action == "link.requested":
-            candidate = event.get("candidate") or {}
-            row = {"role": role, "kind": "join", "name": name, "state": "looking"}
-            row["package_id"] = candidate.get("package_id")
-            rows.append(row)
-            open_[name] = row
+            waiting.append(new(event, "join", "looking"))
         elif action == "link.decided":
-            row = open_.get(name)
+            row = next((item for item in waiting if item["accepted"] is None), None)
             if row is None:
-                candidate = event.get("candidate") or {}
-                row = {"role": role, "kind": "join", "name": name, "state": "looking"}
-                row["package_id"] = candidate.get("package_id")
-                rows.append(row)
-                open_[name] = row
-            if event.get("accepted") is True:
+                row = new(event, "join", "looking")
+                waiting.append(row)
+            row["accepted"] = event.get("accepted") is True
+            if row["accepted"]:
                 row["state"] = "working"
             else:
                 row["state"] = "declined" if event.get("decided_by") == "person" else "not_joined"
+                waiting.remove(row)
         elif action == "link.started":
-            row = open_.get(name)
+            row = None
+            if "slot" in event:
+                row = next((item for item in waiting if item["accepted"] and item["inner"] is None), None)
+                if row is not None:
+                    waiting.remove(row)
             if row is None:
-                kind = "join" if "slot" in event else "link"
-                row = {"role": role, "kind": kind, "name": name, "state": "working"}
-                row["package_id"] = None
-                rows.append(row)
-                open_[name] = row
+                row = new(event, "join" if "slot" in event else "link", "working")
             row["state"] = "working"
             row["package_id"] = event["package_id"]
+            row["inner"] = event.get("inner_run_id")
+            if row["inner"] is not None:
+                runs[row["inner"]] = row
         elif action in ("link.completed", "link.failed"):
-            row = open_.pop(name, None)
+            inner = event.get("inner_run_id")
+            row = runs.pop(inner, None) if inner is not None else None
+            if row is None and inner is None and "slot" in event:
+                row = next((item for item in waiting if item["accepted"] and item["inner"] is None), None)
+                if row is not None:
+                    waiting.remove(row)
             if row is None:
-                kind = "join" if "slot" in event else "link"
-                row = {"role": role, "kind": kind, "name": name, "package_id": None}
-                rows.append(row)
+                row = new(event, "join" if "slot" in event else "link", "working")
             row["state"] = "answered" if action == "link.completed" else "failed"
-    return rows
+    return [
+        {name: row[name] for name in ("role", "kind", "name", "state", "package_id")} for row in rows
+    ]
 
 
 def _verify_link_run(directory: Path, package: Path) -> dict:

@@ -34,6 +34,39 @@ export interface OriginGrantRecord {
   recorded_at: string;
 }
 
+/**
+ * Whether Chrome's granted match patterns cover an HTTPS origin (T66 review 1, finding 1): the
+ * origin's own pattern (`https://host` + `/*`), "every site" (`EVERY_SITE_PATTERN`, any scheme's
+ * wildcard host, `<all_urls>`), or a subdomain pattern (`https://*.example.org` + `/*`). Only
+ * origin-wide patterns count (a narrower path grants part of a site, never the page a slot reads).
+ */
+export function grantsCover(patterns: readonly string[], origin: string | null): boolean {
+  if (origin === null) return false;
+  let where: URL;
+  try {
+    where = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (where.protocol !== "https:") return false;
+  const host = where.port === "" ? where.hostname : `${where.hostname}:${where.port}`;
+  for (const pattern of patterns) {
+    if (pattern === "<all_urls>") return true;
+    const match = /^(\*|https):\/\/([^/]+)\/\*$/u.exec(pattern);
+    if (match === null) continue;
+    const granted = match[2]!;
+    if (granted === "*") return true;
+    if (granted.startsWith("*.")) {
+      const suffix = granted.slice(2);
+      if (where.hostname === suffix || where.hostname.endsWith(`.${suffix}`)) return true;
+      continue;
+    }
+    // Chrome's patterns ignore the port unless one is named.
+    if (granted === host || (!granted.includes(":") && granted === where.hostname)) return true;
+  }
+  return false;
+}
+
 /** The Chrome surface the controller uses (`chrome.permissions`, `chrome.scripting`); memory in tests. */
 export interface PermissionsPort {
   /** Whether every one of these match patterns is granted now. */

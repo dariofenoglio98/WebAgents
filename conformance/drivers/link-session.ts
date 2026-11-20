@@ -5,8 +5,14 @@
  * planned for this caller (`parent`), the caller's plan recording each link's decision and inner plan
  * hash, and the plans changed as `test_link_execution.py` changes them. Prints one JSON list of
  * outcomes: `node <bundle> <case-id> <argv.json>`.
+ *
+ * `linked-compute` (a control on N-52's composition, T66 review 1): the plans unchanged, a linked
+ * package with a compute node, run on a host with the Node CLI's compute engine (its Worker bundled
+ * beside this driver by `run.mjs`): accepted and completed, with the status and the compute calls.
  */
 import { readFileSync } from "node:fs";
+
+import { nodeComputeEngine } from "../../chrome-agent-browser/src/cli-compute.js";
 
 import { localExecutionPlan, type ExecutionAuthorization, type ExecutionPlan } from "../../chrome-agent-browser/src/core/execution/plan.js";
 import { ExecutionSession } from "../../chrome-agent-browser/src/core/execution/runner.js";
@@ -79,6 +85,19 @@ async function main(): Promise<void> {
       (links: Inner) => void (links.index = links.scribe!),
     ]) {
       outcomes.push(await begin(callerBytes, plan, authorization, changed(mutate)));
+    }
+  } else if (caseId === "linked-compute") {
+    const fixture = fixtureAdapters(caller);
+    const session = new ExecutionSession();
+    try {
+      await session.begin({ run_id: "run-links", run_plan: plan, authorization, input: fixture.input, links: inner }, { archive: callerBytes, fixture: { router: fixture.router, handlers: fixture.handlers }, linkArchives: archives, compute: nodeComputeEngine(new URL("./compute-worker-node.js", import.meta.url)) });
+    } catch (error) {
+      outcomes.push({ outcome: "refused", code: (error as { code?: string }).code ?? null, message: (error as Error).message });
+    }
+    if (outcomes.length === 0) {
+      const outcome = await session.run();
+      const usage = (outcome.result.usage ?? {}) as { compute_calls?: number; links?: Record<string, { compute_calls?: number }> };
+      outcomes.push({ outcome: "accepted", status: outcome.result.status, compute_calls: usage.compute_calls, link_compute_calls: Object.fromEntries(Object.entries(usage.links ?? {}).sort(([a], [b]) => (a < b ? -1 : 1)).map(([name, entry]) => [name, entry.compute_calls])) });
     }
   } else if (caseId === "inner-plan-alone") {
     for (const name of ["index", "scribe"]) outcomes.push(await begin(archives[name]!, inner[name]!.run_plan, inner[name]!.authorization, {}));
