@@ -616,7 +616,9 @@ card caps, and that the "at most" already holds the join at that ceiling. The ag
 
 **One Authorize (D-702).** Using the agent records the caller's decisions and, for each linked
 package the person did not deny, issues that package's own receipt with the decisions the review
-listed for it. The caller's Run Plan is prepared over the inner plans: each accepted link gets an
+listed for it. The page sends back what it listed (each link's `decided_sha256`), and the worker
+refuses `link_decisions_changed`, issuing nothing, when a preset, a policy or a denial changed
+in between. The caller's Run Plan is prepared over the inner plans: each accepted link gets an
 inner Run Plan on the caller's model with `parent: {package_digest, dependency}` (L-14), and the
 caller's plan records `links: {<id>: {package_id, version, digest, archive_sha256, signer, trust,
 decision, plan_hash}}` and states the composed envelope (`execution.network`,
@@ -627,7 +629,10 @@ by dependency; the page asks Chrome for them in the Authorize click, and a denie
 origin is not among them. Re-verification covers the inner plans: a caller's plan is stale when
 an inner plan it names was cleared (`link_plan_cleared`), changed (`link_plan_changed`), names
 another caller (`link_plan_parent_mismatch`) or is itself stale (`link_plan_stale`), for instance
-after a linked key was unpinned. An inner plan is never prepared, leased or run alone. In this
+after a linked key was unpinned. An inner plan is never prepared, leased or run alone: the worker
+refuses to prepare one alone (`link_plan_parent_mismatch`) and to ready or start a linked
+package's own session (`link_lease_without_caller`), and the execution session refuses one
+handed over as a run's own plan. In this
 version a linked package's permissions are the preset's (they are not customized per link), and
 an inner run holds nothing of the person's memory: a linked package that requires one of the
 person's records, or binds a memory tool, stays undecided with the reason, and can only be denied
@@ -640,7 +645,8 @@ authorization as it verifies the caller's (`core/execution/links.ts`). An inner 
 bound from the linked package's own registry and its own approvals, over the run's transport,
 which admits only the plan's origins; the caller's files, records and memory are not handed over
 (L-25). The run page shows **Who was asked**, the delegation view (D-704): each activation of a
-role with where it handed off, and under it each link it asked, with its state (working,
+role with where it handed off, and under it each link it asked (an inner run known by its id, so
+the items of a map step that run together are one line each), with its state (working,
 answered, failed, not started, declined), what was held for it and what it used, and what crossed
 as a hash. The view is a fold of the run's own audit (`core/links/delegation.ts`, over
 `network.activated`, `route.decided`, `link.requested`, `link.decided`, `link.started`,
@@ -654,9 +660,13 @@ files, which already hold `links.json` and each inner run's `link-<inner run id>
 **A link made during a run: the join card (L-31…L-38, D-703).** A slot's look and its candidate's
 download are one GET each from the execution host (`core/links/web.ts`: no body, no cookie, no
 referrer, no redirect followed, a byte cap), to an address the plan could not record: one the
-person gave in the task, or one a declared search tool returned. Chrome reads only origins the
-person allowed, so a page on another origin is listed in the audit as not read and the slot finds
-nothing. A candidate that is verified, is not refused by a rule (the caller itself, a
+person gave in the task, or one a declared search tool returned. Only an origin the person granted
+Chrome is dialled: the worker hands the run Chrome's granted origins when it starts, and the
+execution host refuses any other before a request is made (Chrome itself would send an
+extension's request to an ungranted origin, and let it be read when the server allows it), so a
+page elsewhere is listed in the audit as `origin_not_granted` and the slot finds nothing. A page
+longer than 1 MiB is read to its first MiB and its head scanned, as the reference's discovery
+reads it. A candidate that is verified, is not refused by a rule (the caller itself, a
 conversation, nested links, a key denied in this run, the model route, the slot's ceiling, what
 the run has left) and whose worst case could be reserved is put before the person on a **join
 card** in the run panel, with the facts the core computed and validated
@@ -672,8 +682,10 @@ before the decision: the request-building call comes after an acceptance, with t
 and the joined package's name, description and input schema as its only data. Accepting asks
 Chrome for the origins of the tools the card approved, then answers; the joined package's tools
 reach those origins only. The card may also pin the candidate's key (for that package, or for
-the publisher); the pin is made by the service worker from the candidate's own verified key and
-is listed on the Trust page with a note saying which run and slot it came from. The join's inner
+the publisher); the pin is made by the service worker from the candidate's own verified key, only
+once the run took the answer (an answer that came after the card's time pins nothing), and is
+listed on the Trust page with a note saying which run and slot it came from. A pin that fails
+leaves the answer standing and is said on the card. The join's inner
 plan names the caller's Run Plan by its hash, the run and the slot (L-36), and the links record
 states that hash (`caller_plan_hash`).
 
@@ -681,14 +693,18 @@ states that hash (`caller_plan_hash`).
 the raise is admissible (once per run, by at most half of the limit, never above the agent's own
 cap), the run panel shows a card with the limit, what is used and held, what the step needs and
 what the limit would become. **No, keep my limit** is the default. The raise is recorded
-(`budget.requested`, `budget.raised`) and shown in the delegation view.
+(`budget.requested`, `budget.raised`) and shown in the delegation view (kept, when the refusal it
+would have avoided follows). A conversation's turn is never asked: the chat shows only the
+turn's consent card, and the conversation's reservation counted the limits the turn runs under
+(V-10), so a turn has no run-card surface (no raise, and a slot is `unattended`).
 
 **How a card travels.** As a conversation's consent card does (§13): the execution host writes
 the card into the stored run (`run_card_pending`), the page reads it with the run, the person's
 answer (`run.decide`) is checked by the service worker against the card (its id; for a join only
 permissions and tools the card lists), written to the run (`run_card_answers`) and then delivered
 (`host.card`); the host also reads the record every second, so a lost message does not hang the
-step.
+step. One card is shown at a time: a join card and the raise card asked together are shown in
+turn, and one whose time ran out while it waited is never shown and ends unanswered.
 
 **Policy and Settings.** A subscribed policy may carry `links: {join, raise}`
 ([policy bundle](../spec/extensions/policy-bundle-v0.md)): `join: forbid` makes every slot answer
