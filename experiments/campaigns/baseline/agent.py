@@ -46,7 +46,7 @@ from campaigns.baseline.policies import build as policies
 from campaigns.driver import record
 from campaigns.driver.py_driver import FIXTURE_HOSTS, prepare_memory, webair_grants
 from campaigns.driver.responder import Responder
-from campaigns.driver.routes import Rung
+from campaigns.driver.routes import RateLimitRetryTransport, Rung, rate_limit_log
 
 set_tracing_disabled(True)
 
@@ -247,7 +247,14 @@ def sdk_model(rung: Rung):
         key = os.environ.get(rung.api_key_env or "")
         if not key:
             raise RuntimeError("the hosted rung's key variable is unset")
-        client = AsyncOpenAI(api_key=key, timeout=rung.timeout_seconds, max_retries=0)
+        # D-361's rate-limit policy, as on `Py` and `Cr` (T32 review 2, finding 3): the client
+        # retries nothing; its transport waits out a 429 and resends.
+        client = AsyncOpenAI(
+            api_key=key,
+            timeout=rung.timeout_seconds,
+            max_retries=0,
+            http_client=httpx.AsyncClient(transport=RateLimitRetryTransport()),
+        )
         return OpenAIResponsesModel(model=rung.model, openai_client=client)
     raise ValueError(f"unknown provider {rung.provider}")
 
@@ -322,6 +329,7 @@ def run_webair(
     from agentpkg.memory.host import cli_memory
 
     run_dir.mkdir(parents=True, exist_ok=False)
+    waits = rate_limit_log()
     package = ports.load("webair")
     grants, memory_grants = webair_grants(grant_profile)
     memory_dir = prepare_memory(run_dir, profile_insertion)
@@ -476,5 +484,6 @@ def run_webair(
             },
             offered=sorted(offered),
             memory_grants=dict(flag.split("=", 1) for flag in memory_grants),
+            rate_limit_waits=waits,
         ),
     )

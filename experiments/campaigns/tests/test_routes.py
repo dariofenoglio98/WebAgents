@@ -25,7 +25,9 @@ def test_a_200_that_is_not_json_is_model_unavailable(monkeypatch):
     with pytest.raises(BridgeError) as raised:
         asyncio.run(router.complete(REQUEST, max_output_tokens=64))
     assert raised.value.code == "model_unavailable"
-    assert router.calls[-1]["error"] == "JSONDecodeError"
+    # The route's own code, which D-361's rule lists (T32 review 2, finding 4), and the class.
+    assert router.calls[-1]["error"] == "route_failed"
+    assert router.calls[-1]["exception"] == "JSONDecodeError"
 
 
 def test_aclose_closes_the_loops_client():

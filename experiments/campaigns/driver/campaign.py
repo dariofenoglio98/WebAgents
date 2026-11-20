@@ -722,8 +722,12 @@ def promote_failed_lookup(rec: dict) -> dict:
 # alike); a model too slow for the shared deadline is the run's own failure (utility 0, never a
 # harness error). The codes each side records for a call the route never answered:
 ROUTE_FAILURES = {
-    # `Py`'s route (`routes.CampaignRouter`): the transport's exception, or the code of an HTTP
-    # status the route refused (`model_unavailable`, its 4xx/5xx and a missing key)
+    # `Py`'s route (`routes.CampaignRouter`): `route_failed` for any failure but a read timeout (T32
+    # review 2, finding 4: a 200 that is not the provider's JSON, any transport error), or the code
+    # of an HTTP status the route refused (`model_unavailable`: its 4xx/5xx, a 429 after the
+    # rate-limit policy's resends, a missing key); before that change the transport's exception
+    # class, which the committed records carry:
+    "route_failed",
     "ConnectError",
     "ConnectTimeout",
     "RemoteProtocolError",

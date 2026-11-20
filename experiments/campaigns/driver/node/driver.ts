@@ -89,6 +89,16 @@ interface Route {
   think?: boolean | null;
   api_key_env?: string | null;
   timeout_seconds?: number;
+  /** D-361's rate-limit policy (`routes.RATE_LIMIT_RETRY`), sent for a hosted rung only. */
+  rate_limit?: RateLimitPolicy | null;
+}
+
+interface RateLimitPolicy {
+  status: number;
+  max_resends: number;
+  max_total_seconds: number;
+  base_seconds: number;
+  max_wait_seconds: number;
 }
 
 interface Job {
@@ -115,6 +125,8 @@ interface Job {
   probe_record?: { observed: Observed[]; requests: { url: string; method: string; body: string | null }[]; responses: { status: number; body: string }[] };
   /** Offline tests only: the responder's decisions on these cards (rule 11 with `responder.py`). */
   probe_consent?: { turn: number; facts: JsonValue }[];
+  /** Offline tests only: one model request through `modelTransport` over canned answers (D-361's rate-limit policy). */
+  probe_rate_limit?: { responses: { status: number; headers: Record<string, string>; body: string }[] };
 }
 
 const dials: JsonObject[] = [];
@@ -211,10 +223,46 @@ function recordUsage(kind: Route["kind"], text: string, status: number): void {
   }
 }
 
+/** Seconds to wait before resend `resends + 1` of a call answered 429, or null when the policy is
+ * spent: `routes.rate_limit_wait`, line for line (the provider's `retry-after-ms`, then
+ * `retry-after` in seconds, else `base * 2^resends`; capped per wait and per call). */
+function rateLimitWait(policy: RateLimitPolicy, resends: number, headers: Record<string, string>, waited: number): number | null {
+  if (resends >= policy.max_resends) return null;
+  let wait: number | null = null;
+  for (const [name, scale] of [["retry-after-ms", 0.001], ["retry-after", 1]] as const) {
+    const value = headers[name];
+    const parsed = value === undefined || value.trim() === "" ? Number.NaN : Number(value) * scale;
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      wait = parsed;
+      break;
+    }
+  }
+  if (wait === null) wait = policy.base_seconds * 2 ** resends;
+  wait = Math.min(wait, policy.max_wait_seconds);
+  if (waited + wait > policy.max_total_seconds) return null;
+  return Math.round(wait * 1000) / 1000;
+}
+
+function pause(seconds: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(signal.reason);
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", abort);
+      resolve();
+    }, seconds * 1000);
+    const abort = () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    };
+    signal.addEventListener("abort", abort, { once: true });
+  });
+}
+
 /** The core sends no sampling temperature; the campaign's (rule 2) is added to the body here, and
- * the answer's token counts are recorded (observation only). */
-function modelTransport(route: Route): HttpTransport {
-  const base = nodeTransport({ allowLoopbackHttp: route.kind === "ollama" });
+ * the answer's token counts are recorded (observation only). On a hosted rung a 429 is waited out
+ * and the same request sent again (D-361's policy, as `Py`'s router and `FW`'s transport do), each
+ * wait recorded on the call (`rate_limit_waits`). */
+function modelTransport(route: Route, base: HttpTransport = nodeTransport({ allowLoopbackHttp: route.kind === "ollama" })): HttpTransport {
   const temperature = route.temperature;
   return async (request) => {
     let sent = request;
@@ -224,7 +272,22 @@ function modelTransport(route: Route): HttpTransport {
       else body.temperature = temperature;
       sent = { ...request, body: JSON.stringify(body) };
     }
-    const response = await base(sent);
+    let response = await base(sent);
+    const policy = route.rate_limit;
+    if (policy) {
+      let resends = 0;
+      let waited = 0;
+      while (response.status === policy.status) {
+        const wait = rateLimitWait(policy, resends, response.headers, waited);
+        if (wait === null) break;
+        const entry = modelCalls[modelCalls.length - 1];
+        if (entry !== undefined) ((entry.rate_limit_waits ??= []) as number[]).push(wait);
+        await pause(wait, request.signal);
+        resends += 1;
+        waited += wait;
+        response = await base(sent);
+      }
+    }
     if (request.method === "POST") recordUsage(route.kind, response.body, response.status);
     return response;
   };
@@ -403,6 +466,18 @@ async function main(): Promise<void> {
       await transport({ url: request.url, method: request.method as "GET" | "POST", headers: {}, body: request.body, signal: AbortSignal.timeout(5_000), maxResponseBytes: 1 << 20 });
     }
     emit({ probe: "record", tool_calls: toolCalls, pending: pending as unknown as JsonValue });
+    return;
+  }
+  if (job.probe_rate_limit !== undefined) {
+    const answers = [...job.probe_rate_limit.responses];
+    let sent = 0;
+    const canned: HttpTransport = async () => {
+      sent += 1;
+      return answers.shift()!;
+    };
+    modelCalls.push({ at: Date.now() / 1000, url: "probe", body: null });
+    const response = await modelTransport(job.route, canned)({ url: "https://probe.invalid/v1/responses", method: "POST", headers: {}, body: "{}", signal: AbortSignal.timeout(60_000), maxResponseBytes: 1 << 20 });
+    emit({ probe: "rate_limit", status: response.status, sent, model_calls: modelCalls });
     return;
   }
   if (job.probe_consent !== undefined) {

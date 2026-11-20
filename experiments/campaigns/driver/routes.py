@@ -20,8 +20,11 @@ before the hosted rungs run, T32 compares it with the core's strict-first reques
 
 from __future__ import annotations
 
+import asyncio
+import contextvars
 import copy
 import json
+import math
 import os
 import time
 from dataclasses import dataclass, field
@@ -40,6 +43,9 @@ from jsonschema import ValidationError as JsonValidationError
 MAX_RESPONSE_FORMAT_BYTES = 64 * 1024
 STRIPPED_ROOT_KEYS = ("$schema", "$id", "$anchor", "title", "description")
 RESPONSE_FORMAT_NAME = "agentpkg_node_output"
+# The code `Py`'s route records for a call it could not complete for any reason but a read timeout
+# (D-361's harness errors, `campaign.ROUTE_FAILURES`).
+ROUTE_FAILED = "route_failed"
 
 
 @dataclass(frozen=True)
@@ -93,6 +99,93 @@ def ollama_format(schema) -> dict | None:
     return rooted
 
 
+# D-361 as amended (T32 review 2, finding 3; the user's choice, 2026-11-19): on a hosted rung a
+# 429 is waited out and the same call sent again, by one policy on every side (`Py`'s router
+# below, the transport under `FW`'s OpenAI client, `Cr`'s Node transport, which receives these
+# numbers in its job): the provider's `retry-after-ms` or `retry-after` (seconds) when given, else
+# 2, 4, 8, 16, 32, 60 s (each wait capped at 60 s), at most 6 resends and 240 s of waiting per
+# call; a 429 after that is the route's failure (a harness error). Every wait is recorded. A local
+# rung never retries (its outage is `campaign.route_ready`'s, before the unit); no other status
+# is retried.
+RATE_LIMIT_RETRY = {
+    "status": 429,
+    "max_resends": 6,
+    "max_total_seconds": 240.0,
+    "base_seconds": 2.0,
+    "max_wait_seconds": 60.0,
+}
+
+
+def rate_limit_wait(resends: int, headers, waited: float) -> float | None:
+    """Seconds to wait before resend number `resends + 1` of a call answered 429, or None when the
+    policy is spent (`waited`: the seconds this call already waited)."""
+    policy = RATE_LIMIT_RETRY
+    if resends >= policy["max_resends"]:
+        return None
+    wait = None
+    for name, scale in (("retry-after-ms", 0.001), ("retry-after", 1.0)):
+        value = headers.get(name) if headers is not None else None
+        try:
+            parsed = float(value) * scale if value is not None else math.nan
+        except ValueError:  # an HTTP date, or no number: the backoff
+            parsed = math.nan
+        if math.isfinite(parsed) and parsed >= 0:
+            wait = parsed
+            break
+    if wait is None:
+        wait = policy["base_seconds"] * 2**resends
+    wait = min(wait, policy["max_wait_seconds"])
+    if waited + wait > policy["max_total_seconds"]:
+        return None
+    return round(wait, 3)
+
+
+# `FW`'s waits for the run in progress: each `FW` driver starts a fresh list (`rate_limit_log`)
+# before its event loop, whose tasks inherit it, and records it as the run's `rate_limit_waits`.
+RATE_LIMIT_WAITS: contextvars.ContextVar[list | None] = contextvars.ContextVar(
+    "campaign_rate_limit_waits", default=None
+)
+
+
+def rate_limit_log() -> list:
+    waits: list = []
+    RATE_LIMIT_WAITS.set(waits)
+    return waits
+
+
+class RateLimitRetryTransport(httpx.AsyncBaseTransport):
+    """`FW`'s side of the policy: under the OpenAI client (`max_retries=0`), a 429 is waited out and
+    the same request sent again; every wait (seconds) goes to `waits` when given, else to the run's
+    `RATE_LIMIT_WAITS`."""
+
+    def __init__(self, inner: httpx.AsyncBaseTransport | None = None, *, waits=None, sleep=None):
+        self.inner = inner or httpx.AsyncHTTPTransport()
+        self._waits = waits
+        self._sleep = sleep or asyncio.sleep
+
+    def _record(self, wait: float) -> None:
+        log = self._waits if self._waits is not None else RATE_LIMIT_WAITS.get()
+        if log is not None:
+            log.append(wait)
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        resends, waited = 0, 0.0
+        while True:
+            response = await self.inner.handle_async_request(request)
+            if response.status_code != RATE_LIMIT_RETRY["status"]:
+                return response
+            wait = rate_limit_wait(resends, response.headers, waited)
+            if wait is None:
+                return response
+            await response.aclose()
+            self._record(wait)
+            await self._sleep(wait)
+            resends, waited = resends + 1, waited + wait
+
+    async def aclose(self) -> None:
+        await self.inner.aclose()
+
+
 class CampaignRouter:
     """`ModelRouter` for one rung; `calls` is the recording seam's list (one entry per call)."""
 
@@ -144,10 +237,17 @@ class CampaignRouter:
         except BridgeError as exc:
             entry["error"] = getattr(exc, "code", None) or type(exc).__name__
             raise
-        except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+        except httpx.ReadTimeout as exc:
+            # A model too slow for the shared deadline: the run's own failure (D-361).
+            entry["error"] = "ReadTimeout"
+            raise BridgeError("model_unavailable", "route failed: ReadTimeout") from exc
+        except Exception as exc:  # noqa: BLE001 - every other failure of the route is the route's
             # A transport failure, or a 200 that is not the provider's JSON (a tunnel's HTML
-            # page): the route is unavailable, as the bridge records it (review 1, nit 16).
-            entry["error"] = type(exc).__name__
+            # page, a shape this router does not read): the route is unavailable, as the bridge
+            # records it (review 1, nit 16). The route's own code, which D-361's rule lists, and
+            # the exception's class for the reader (T32 review 2, finding 4).
+            entry["error"] = ROUTE_FAILED
+            entry["exception"] = type(exc).__name__
             raise BridgeError("model_unavailable", f"route failed: {type(exc).__name__}") from exc
         entry.update(
             seconds=round(time.monotonic() - started, 3),
@@ -248,6 +348,7 @@ class CampaignRouter:
         entry["think"] = body.get("think")  # as sent: absent is null (review 2, nit 12)
         response = await self._http().post(f"{self.rung.base_url.rstrip('/')}/api/chat", json=body)
         if response.status_code != 200:
+            entry["status"] = response.status_code
             raise BridgeError("model_unavailable", f"Ollama answered HTTP {response.status_code}")
         data = response.json()
         message = data.get("message") or {}
@@ -282,12 +383,23 @@ class CampaignRouter:
                 }
             }
         entry["think"] = None  # the Responses API takes no `think`
-        response = await self._http().post(
-            f"{self.rung.base_url.rstrip('/')}/v1/responses",
-            json=body,
-            headers={"Authorization": f"Bearer {key}"},
-        )
+        resends, waited = 0, 0.0
+        while True:
+            response = await self._http().post(
+                f"{self.rung.base_url.rstrip('/')}/v1/responses",
+                json=body,
+                headers={"Authorization": f"Bearer {key}"},
+            )
+            if response.status_code != RATE_LIMIT_RETRY["status"]:
+                break
+            wait = rate_limit_wait(resends, response.headers, waited)
+            if wait is None:
+                break
+            entry.setdefault("rate_limit_waits", []).append(wait)
+            await asyncio.sleep(wait)
+            resends, waited = resends + 1, waited + wait
         if response.status_code != 200:
+            entry["status"] = response.status_code
             raise BridgeError("model_unavailable", f"OpenAI answered HTTP {response.status_code}")
         data = response.json()
         texts, refusal = [], False

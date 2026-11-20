@@ -303,6 +303,7 @@ def from_fw(
     limits,
     offered,
     memory_grants,
+    rate_limit_waits=None,
 ) -> dict:
     """The framework agent's record: no audit; the instrumented tool layer's calls (those that
     reached the executor), its refusals (Progent's denials, the ask step's, the budget's) with
@@ -337,6 +338,9 @@ def from_fw(
         "dials": state.dials,
         "origin_log": origin_log,
         "sink_log": sink_log,
+        # The run's waits on a hosted provider's 429 (D-361's policy; `Py` and `Cr` record theirs
+        # on the model call).
+        "rate_limit_waits": list(rate_limit_waits or []),
         "usage": _usage(model_calls, state.tool_calls, seconds, state.remote_calls),
     }
 

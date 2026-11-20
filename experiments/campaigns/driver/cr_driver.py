@@ -30,7 +30,7 @@ from campaigns.driver.py_driver import (
     webair_grants,
 )
 from campaigns.driver.responder import Responder
-from campaigns.driver.routes import Rung
+from campaigns.driver.routes import RATE_LIMIT_RETRY, Rung
 
 ROOT = Path(__file__).resolve().parents[3]
 CHROME = ROOT / "chrome-agent-browser"
@@ -177,6 +177,8 @@ def route_of(rung: Rung | None) -> dict:
         "think": rung.think,
         "api_key_env": rung.api_key_env,
         "timeout_seconds": rung.timeout_seconds,
+        # D-361's rate-limit policy, the same numbers as `Py`'s and `FW`'s (hosted rungs only).
+        "rate_limit": RATE_LIMIT_RETRY if rung.provider == "openai" else None,
     }
 
 
