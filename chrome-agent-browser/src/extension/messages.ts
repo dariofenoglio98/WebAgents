@@ -92,8 +92,14 @@ export type Request =
       modelId?: string | null;
       /** The permissions whose record the convenience preset chose (memory.v0 M-53): recorded as `preset` in the provenance. */
       presetSelections?: string[];
+      /**
+       * The linked packages' decisions the review showed (T66 review 1, nit 10): each accepted link's
+       * `decided_sha256` from the view; Authorize refuses `link_decisions_changed` when what it would
+       * grant now differs (a preset or a policy changed after the view). Absent: not checked.
+       */
+      linkDecisions?: Record<string, string>;
     }
-  | { type: "authorization.useProfile"; sessionId: string; packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean; presetSelections?: string[] }
+  | { type: "authorization.useProfile"; sessionId: string; packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean; presetSelections?: string[]; linkDecisions?: Record<string, string> }
   /** link.v0 L-10 (T66): fetch, snapshot and verify every dependency of an open package, each as a session of its own. */
   | { type: "links.resolve"; sessionId: string; packageDigest: string }
   /** link.v0 L-13: deny one linked publisher (its key, for the run), or withdraw that denial. */
@@ -481,6 +487,8 @@ export interface LinkReviewItem {
   decision: "accepted" | "denied" | "undecided";
   /** What Authorize grants this package: the current preset's decisions within its own declaration, the subscribed policy applied. */
   decided: Decided;
+  /** sha256 of the canonical `{decisions, tool_approvals}` of `decided`: the page echoes it at Authorize (`linkDecisions`). */
+  decided_sha256: string;
   permissions: Array<{ id: string; kind: string; description: string; required: boolean; resources: string[] }>;
   tools: Array<{ id: string; execution: string; endpoint: string | null; method: string | null; domains: string[]; permissions: string[]; side_effects: string; status: ToolStatus }>;
   /** The record types it asks for (its `personal.read` and `memory.read` resources). */
@@ -666,6 +674,8 @@ export interface RunView extends RunRecord {
   consentPending?: ConsentPending | null;
   /** link.v0 §6, §7 (T66): the card this run waits on (a join, the budget raise), or null. */
   runCard?: RunCardPending | null;
+  /** `run.decide`'s answer only: what became of a pin asked on the join card (T66 review 1, nit 8); made only once the run took the answer. */
+  cardPin?: { card_id: string; made: boolean; reason: string | null };
   /** link.v0 (T66, D-704): who was asked, who is working and who answered, folded from the run's own audit; null for a run without a network or a link. */
   delegation?: DelegationTree | null;
   /** link.v0 L-15: the links the run's plan records, each with the person's decision; null for a package without dependencies. */
@@ -1003,7 +1013,7 @@ export function parseRequest(value: unknown): Request {
       only(fields, ["type", "sessionId"]);
       return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID) };
     case "authorization.authorize":
-      only(fields, ["type", "sessionId", "packageDigest", "decisions", "toolApprovals", "resourceSelections", "provenance", "prepare", "modelId", "presetSelections"]);
+      only(fields, ["type", "sessionId", "packageDigest", "decisions", "toolApprovals", "resourceSelections", "provenance", "prepare", "modelId", "presetSelections", "linkDecisions"]);
       return {
         type,
         sessionId: text(fields.sessionId, "sessionId", MAX_ID),
@@ -1015,9 +1025,10 @@ export function parseRequest(value: unknown): Request {
         prepare: fields.prepare === true,
         modelId: optionalText(fields.modelId, "modelId", 300),
         ...(fields.presetSelections !== undefined ? { presetSelections: stringList(fields.presetSelections, "presetSelections") } : {}),
+        ...(fields.linkDecisions !== undefined ? { linkDecisions: stringMap(fields.linkDecisions, "linkDecisions") } : {}),
       };
     case "authorization.useProfile":
-      only(fields, ["type", "sessionId", "packageDigest", "profileId", "resourceSelections", "prepare", "presetSelections"]);
+      only(fields, ["type", "sessionId", "packageDigest", "profileId", "resourceSelections", "prepare", "presetSelections", "linkDecisions"]);
       return {
         type,
         sessionId: text(fields.sessionId, "sessionId", MAX_ID),
@@ -1026,6 +1037,7 @@ export function parseRequest(value: unknown): Request {
         resourceSelections: stringMap(fields.resourceSelections, "resourceSelections"),
         prepare: fields.prepare === true,
         ...(fields.presetSelections !== undefined ? { presetSelections: stringList(fields.presetSelections, "presetSelections") } : {}),
+        ...(fields.linkDecisions !== undefined ? { linkDecisions: stringMap(fields.linkDecisions, "linkDecisions") } : {}),
       };
     case "links.resolve":
       only(fields, ["type", "sessionId", "packageDigest"]);

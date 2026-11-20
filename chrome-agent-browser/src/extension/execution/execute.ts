@@ -149,6 +149,23 @@ export function grantedOnly(transport: HttpTransport, granted: readonly string[]
   };
 }
 
+/**
+ * A run's cards one at a time (T66 review 1, nit 6): each `ask` is presented after the previous one
+ * ended, in the order asked. A card whose own wait ended while it was queued is never presented: it
+ * rejects with its signal's reason, as an unanswered card does.
+ */
+export function oneCardAtATime(present: (request: RunRequest, signal: AbortSignal) => Promise<unknown>): (request: RunRequest, signal: AbortSignal) => Promise<unknown> {
+  let tail: Promise<void> = Promise.resolve();
+  return (request, signal) => {
+    const shown = tail.then(() => (signal.aborted ? Promise.reject(signal.reason) : present(request, signal)));
+    tail = shown.then(
+      () => undefined,
+      () => undefined,
+    );
+    return shown;
+  };
+}
+
 /** One writer at a time per run: checkpoints and the final record never interleave on the store. */
 class StoreQueue {
   private tail: Promise<unknown> = Promise.resolve();
@@ -309,6 +326,12 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
    * that message be lost, is read from the record every second; the core's own wait ends through
    * the signal (an unanswered card is a no, L-35, L-43). `publishers` holds, by signer, what a pin
    * made from a join card would record: the candidate's own verified key.
+   *
+   * One card is shown at a time (T66 review 1, nit 6): a join card and a raise card can be asked
+   * together when a top-level node runs beside a network; the second waits its turn instead of
+   * replacing the first (which could then only time out, a no with the key denied). Its own wait runs
+   * meanwhile, so a card that is never shown ends unanswered (`provenance: "timeout"`), never as a
+   * person's no. A card whose answer the run took is listed in `run_card_taken` (nit 8).
    */
   let cardCount = 0;
   const cardDelivered = new Map<string, RunCardAnswer>();
@@ -318,26 +341,26 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
     cardWaiting.get(cardId)?.(answer);
   };
   const publishers = new Map<string, NonNullable<RunCardPending["publisher"]>>();
-  const runConsent = (kinds: RunConsentHost["kinds"]): RunConsentHost => ({
-    ...(kinds !== undefined ? { kinds } : {}),
-    ask: (request: RunRequest, signal: AbortSignal): Promise<unknown> =>
+  const present = (request: RunRequest, signal: AbortSignal): Promise<unknown> =>
       new Promise((resolve, reject) => {
         const cardId = `card_${(cardCount += 1)}`;
         let timer: ReturnType<typeof setInterval> | null = null;
-        const clear = (): Promise<void> => {
+        const clear = (taken: boolean): Promise<void> => {
           if (timer !== null) clearInterval(timer);
           cardWaiting.delete(cardId);
           signal.removeEventListener("abort", onAbort);
           return checkpoint((run) => {
             if (run.run_card_pending?.card_id === cardId) run.run_card_pending = null;
+            if (taken) run.run_card_taken = [...(run.run_card_taken ?? []), cardId];
           });
         };
         const finish = (answer: RunCardAnswer | null) => {
+          if (!cardWaiting.has(cardId)) return;
           // The decision contract of `checkRunDecision`: a join's grants and approved tools are the joined package's own.
           const decision = answer === null ? { accepted: false, provenance: NO_DECISION } : request.kind === "link.join" && answer.accepted ? { accepted: true, provenance: "person", grants: { ...(answer.grants ?? {}) }, approved_tools: [...(answer.approved_tools ?? [])] } : { accepted: answer.accepted, provenance: "person" };
-          void clear().finally(() => resolve(decision));
+          void clear(answer !== null).finally(() => resolve(decision));
         };
-        const onAbort = () => void clear().finally(() => reject(signal.reason));
+        const onAbort = () => void clear(false).finally(() => reject(signal.reason));
         if (signal.aborted) {
           onAbort();
           return;
@@ -365,7 +388,11 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
             () => undefined,
           );
         }, CONSENT_POLL_MS);
-      }),
+      });
+  const shownOneAtATime = oneCardAtATime(present);
+  const runConsent = (kinds: RunConsentHost["kinds"]): RunConsentHost => ({
+    ...(kinds !== undefined ? { kinds } : {}),
+    ask: shownOneAtATime,
   });
 
   const settle = async (final: (run: StoredRun) => void, outcome: ExecutionOutcome | null): Promise<RunRecord["status"]> => {

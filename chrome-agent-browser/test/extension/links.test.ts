@@ -18,6 +18,8 @@ import type { AuthorizationView, AuthorizeResult, ExportBundle, LinksView, RunRe
 import { MemoryRunStore } from "../../src/extension/storage/runs.js";
 import { ARCHIVES, fixtureOf, grantsOf, linkRoutes, LOCATORS, PLANNER_URL, plannerVariant, read, recordedHotel, SALITUBAM, scriptedWorld, STAYMERE, TRIPWRIGHT, WEBAIR, type ScriptedWorld } from "../helpers/link-world.js";
 import { makeHarness, PACKAGE_MEDIA_TYPE, PAGE, type Harness, type Route } from "../helpers/shell.js";
+import { rawBase64 } from "../../src/core/keys.js";
+import { generateKeyPair } from "../helpers/keys.js";
 import { newSigner, signedBytes } from "../helpers/signing.js";
 
 const QWEN = "ollama/qwen3:30b";
@@ -29,7 +31,7 @@ interface World {
   digest: string;
 }
 
-async function world(options: { planner?: "planner010" | "planner020"; routes?: Record<string, Route>; permissions?: readonly string[]; runs?: MemoryRunStore; pages?: Parameters<typeof scriptedWorld>[1]; extra?: ReadonlyArray<keyof typeof ARCHIVES>; findHotelTokens?: number } = {}): Promise<World> {
+async function world(options: { planner?: "planner010" | "planner020"; routes?: Record<string, Route>; permissions?: readonly string[]; runs?: MemoryRunStore; pages?: Parameters<typeof scriptedWorld>[1]; extra?: ReadonlyArray<keyof typeof ARCHIVES>; findHotelTokens?: number; totalTokens?: number } = {}): Promise<World> {
   const planner = options.planner ?? "planner010";
   const scripted = await scriptedWorld([planner, "flights", "staymere", ...(options.extra ?? [])], options.pages ?? {});
   // The planner 0.2.0 with a larger `FindHotel` budget, signed with a throwaway key (`plannerVariant`), served at the planner's address.
@@ -39,6 +41,8 @@ async function world(options: { planner?: "planner010" | "planner020"; routes?: 
   const view = (await h.controller.handle({ type: "package.open", url: PLANNER_URL, advertisedOn: null, viewId: "test" }, PAGE)) as SessionView;
   const current = (await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView;
   current.settings.models.default_model = QWEN;
+  // Settings → Run limits: the person's own token limit, which a run may ask to raise once (link.v0 §7).
+  if (options.totalTokens !== undefined) current.settings.limits = { ...(current.settings.limits ?? {}), total_tokens: options.totalTokens } as typeof current.settings.limits;
   await h.controller.handle({ type: "settings.set", settings: current.settings }, PAGE);
   return { h, session: view, scripted, digest: view.summary.package.digest as string };
 }
@@ -212,6 +216,30 @@ describe("one Authorize, one receipt per linked package, inner plans (L-13…L-1
     await expect(w.h.controller.handle({ type: "runplan.prepare", sessionId: child.session_id, packageDigest: child.package.digest, receiptId: child.authorization.receipt_id!, modelId: QWEN }, PAGE)).rejects.toMatchObject({ code: "link_plan_parent_mismatch" });
   });
 
+  it("Authorize grants each linked package what the review listed, or refuses link_decisions_changed (review 1, nit 10)", async () => {
+    const w = await world();
+    await pinAll(w, await resolveLinks(w));
+    const decide = (decision: "denied" | "undecided") => w.h.controller.handle({ type: "links.decide", sessionId: w.session.session.id, packageDigest: w.digest, dependency: "hotel-aggregator", decision }, PAGE);
+    await decide("denied");
+    // The view this page shows: Staymere denied, so not listed for Authorize.
+    const listed = await review(w);
+    const echoed = Object.fromEntries(listed.links.filter((item) => item.decision !== "denied").map((item) => [item.dependency, item.decided_sha256]));
+    expect(Object.keys(echoed)).toEqual(["webair-flights"]);
+    const grants = grantsOf("examples/link/travel-planner-grants.json");
+    const click = (linkDecisions: Record<string, string>) => w.h.controller.handle({ type: "authorization.authorize", sessionId: w.session.session.id, packageDigest: w.digest, decisions: grants, toolApprovals: { "check-calendar": true }, resourceSelections: {}, provenance: null, prepare: false, linkDecisions }, PAGE) as Promise<AuthorizeResult>;
+    // Another tab withdraws the denial after this view: Authorize would grant Staymere unseen, so nothing is issued.
+    await decide("undecided");
+    await expect(click(echoed)).rejects.toMatchObject({ code: "link_decisions_changed", details: { dependencies: ["hotel-aggregator"] } });
+    expect((await review(w)).links.every((item) => item.authorization.state === "pending")).toBe(true);
+    // A hash that is not what would be granted now is refused the same way.
+    await expect(click({ ...echoed, "hotel-aggregator": "0".repeat(64) })).rejects.toMatchObject({ code: "link_decisions_changed" });
+    // The review shown again: its hashes are what is granted.
+    const again = await review(w);
+    const result = await click(Object.fromEntries(again.links.map((item) => [item.dependency, item.decided_sha256])));
+    expect(result.receipt.receipt_id).toBeTruthy();
+    expect((await review(w)).links.every((item) => item.authorization.state === "issued")).toBe(true);
+  });
+
   it("the service worker never readies or starts a linked package's session alone: link_lease_without_caller, nothing started (review 1, finding 5)", async () => {
     const { w } = await prepared();
     for (const child of (await review(w)).links) {
@@ -343,6 +371,46 @@ describe("a run through both links on the execution host (link.v0 §5, D-704, D-
   });
 });
 
+describe("the budget-raise card through the execution host (link.v0 §7, D-703; review 1, nit 13)", () => {
+  // At an 8,000-token run limit the planner's FrontMan route call would fail on that limit alone.
+  const raiseCard = async (w: World, runId: string) => {
+    const view = await waitFor(w, runId, (item) => (item.runCard ?? null) !== null || ["completed", "failed"].includes(item.status), "the raise card");
+    expect(view.runCard, `${view.status}: ${view.errorCode}`).toMatchObject({ kind: "budget.raise", node_id: "plan-trip/FrontMan/route", facts: { limit: "tokens", from: 8000, to: 8154 } });
+    return view.runCard!;
+  };
+
+  it("accepted from the run page's answer: the limit raised once, recorded, drawn raised", async () => {
+    const { w, result } = await prepared({ totalTokens: 8000 });
+    const started = await start(w, result);
+    const pending = await raiseCard(w, started.runId);
+    // A raise carries no grants or tools.
+    await expect(w.h.controller.handle({ type: "run.decide", runId: started.runId, cardId: pending.card_id, accepted: true, approvedTools: ["search-flights"] }, PAGE)).rejects.toMatchObject({ code: "invalid_request" });
+    await w.h.controller.handle({ type: "run.decide", runId: started.runId, cardId: pending.card_id, accepted: true }, PAGE);
+    const run = await settled(w, started.runId);
+    const audit = (await w.h.runs.getRun(started.runId))!.audit as unknown as JsonObject[];
+    expect(audit.filter((event) => String(event.action).startsWith("budget.r")).map((event) => [event.action, event.from, event.to])).toEqual([
+      ["budget.requested", 8000, 8154],
+      ["budget.raised", 8000, 8154],
+    ]);
+    expect(audit.find((event) => event.action === "budget.raised")).toMatchObject({ decided_by: "person", provenance: "person" });
+    expect((run.delegation as DelegationTree).raise).toMatchObject({ state: "raised", from: 8000, to: 8154 });
+    expect((await w.h.runs.getRun(started.runId))!.run_card_taken).toEqual([pending.card_id]);
+  });
+
+  it("declined: the limit kept, the refusal it would have avoided stands, drawn kept", async () => {
+    const { w, result } = await prepared({ totalTokens: 8000 });
+    const started = await start(w, result);
+    const pending = await raiseCard(w, started.runId);
+    await w.h.controller.handle({ type: "run.decide", runId: started.runId, cardId: pending.card_id, accepted: false }, PAGE);
+    const run = await settled(w, started.runId);
+    expect(run.status).toBe("failed");
+    expect(run.errorCode).toBe("budget_exhausted");
+    const audit = (await w.h.runs.getRun(started.runId))!.audit as unknown as JsonObject[];
+    expect(audit.some((event) => event.action === "budget.raised")).toBe(false);
+    expect((run.delegation as DelegationTree).raise).toMatchObject({ state: "kept" });
+  });
+});
+
 describe("a link made during a run: the join card (link.v0 §6, D-703)", () => {
   const HOTEL_PAGE = `${SALITUBAM}/`;
   const HOTEL_PACKAGE = `${SALITUBAM}/agent.pkg`;
@@ -413,7 +481,10 @@ describe("a link made during a run: the join card (link.v0 §6, D-703)", () => {
     await expect(decide(w, runId, "card_9", true)).rejects.toMatchObject({ code: "card_unknown" });
     await expect(decide(w, runId, pending.card_id, true, { grants: { "payments.charge": "session" } })).rejects.toMatchObject({ code: "invalid_request" });
     await expect(decide(w, runId, pending.card_id, true, { approvedTools: ["book-room"] })).rejects.toMatchObject({ code: "invalid_request" });
-    await decide(w, runId, pending.card_id, true, { grants: HOTEL_GRANTS, approvedTools: ["check-availability"], pin: "publisher" });
+    const answered = await decide(w, runId, pending.card_id, true, { grants: HOTEL_GRANTS, approvedTools: ["check-availability"], pin: "publisher" });
+    // The pin is made once the run took the answer (review 1, nit 8).
+    expect(answered.cardPin).toEqual({ card_id: pending.card_id, made: true, reason: null });
+    expect((await w.h.runs.getRun(runId))!.run_card_taken).toEqual([pending.card_id]);
     const run = await settled(w, runId);
     expect(run.status, `${run.errorCode}: ${run.errorDetail}`).toBe("completed");
     expect(run.runCard ?? null).toBeNull();
@@ -468,14 +539,30 @@ describe("a link made during a run: the join card (link.v0 §6, D-703)", () => {
     expect(((await w.h.controller.handle({ type: "trust.list" }, PAGE)) as TrustList).entries.some((entry) => entry.publisher_id === "hotel-salitubam")).toBe(false);
   });
 
-  it("an answer the Worker never receives is read from the record: the card does not hang", async () => {
+  it("an answer the Worker never receives is read from the record: the card does not hang, and its pin waits for the run to take it", async () => {
     const { w, runId } = await joining({ findHotelTokens: 6000 });
     w.h.host.cardLost = true;
     const waiting = await card(w, runId);
-    await decide(w, runId, waiting.runCard!.card_id, true, { grants: HOTEL_GRANTS, approvedTools: ["check-availability"] });
+    const answered = await decide(w, runId, waiting.runCard!.card_id, true, { grants: HOTEL_GRANTS, approvedTools: ["check-availability"], pin: "package" });
+    expect(answered.cardPin).toMatchObject({ made: true });
     const run = await settled(w, runId);
     expect(run.status, `${run.errorCode}: ${run.errorDetail}`).toBe("completed");
     expect((await auditOf(w, runId)).find((event) => event.action === "link.decided")).toMatchObject({ accepted: true, decided_by: "person" });
+  });
+
+  it("a pin that fails leaves the answer standing and says so; nothing is pinned (review 1, nit 8)", async () => {
+    const { w, runId } = await joining({ findHotelTokens: 6000 });
+    const waiting = await card(w, runId);
+    const cardId = waiting.runCard!.card_id;
+    // The key the card would pin no longer matches the candidate's signer (the worker checks it).
+    const other = rawBase64((await generateKeyPair()).publicKey);
+    await w.h.runs.updateRun(runId, (current) => ({ ...current, run_card_pending: { ...current.run_card_pending!, publisher: { ...current.run_card_pending!.publisher!, public_key: other } } }));
+    const answered = await decide(w, runId, cardId, true, { grants: HOTEL_GRANTS, approvedTools: ["check-availability"], pin: "publisher" });
+    expect(answered.cardPin).toMatchObject({ card_id: cardId, made: false, reason: expect.stringContaining("Your answer stands") });
+    const run = await settled(w, runId);
+    expect(run.status, `${run.errorCode}: ${run.errorDetail}`).toBe("completed");
+    expect((await auditOf(w, runId)).find((event) => event.action === "link.decided")).toMatchObject({ accepted: true, decided_by: "person" });
+    expect(((await w.h.controller.handle({ type: "trust.list" }, PAGE)) as TrustList).entries.some((entry) => entry.publisher_id === "hotel-salitubam")).toBe(false);
   });
 
   it("an origin Chrome does not grant is never dialled: the look is listed origin_not_granted and the slot finds nothing (review 1, finding 1)", async () => {

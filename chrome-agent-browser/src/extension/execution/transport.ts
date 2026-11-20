@@ -66,7 +66,7 @@ export function browserTransport(options: { allowLoopbackHttp: boolean; fetch?: 
       return { status: response.status === 0 ? 300 : response.status, headers, body: "" };
     }
     const declared = Number.parseInt(headers["content-length"] ?? "", 10);
-    if (Number.isFinite(declared) && declared > request.maxResponseBytes) {
+    if (request.truncate !== true && Number.isFinite(declared) && declared > request.maxResponseBytes) {
       try {
         await response.body?.cancel();
       } catch {
@@ -76,6 +76,7 @@ export function browserTransport(options: { allowLoopbackHttp: boolean; fetch?: 
     }
     const chunks: Uint8Array[] = [];
     let size = 0;
+    let truncated = false;
     if (response.body) {
       const reader = response.body.getReader();
       try {
@@ -83,11 +84,15 @@ export function browserTransport(options: { allowLoopbackHttp: boolean; fetch?: 
           const { value, done } = await reader.read();
           if (done) break;
           if (!value) continue;
-          size += value.length;
-          if (size > request.maxResponseBytes) {
+          if (size + value.length > request.maxResponseBytes) {
             await reader.cancel();
-            throw new TransportError("the response exceeds the byte cap", { stage: "body_size", http_status: response.status, response_bytes: size });
+            if (request.truncate !== true) throw new TransportError("the response exceeds the byte cap", { stage: "body_size", http_status: response.status, response_bytes: size + value.length });
+            chunks.push(value.subarray(0, request.maxResponseBytes - size));
+            size = request.maxResponseBytes;
+            truncated = true;
+            break;
           }
+          size += value.length;
           chunks.push(value);
         }
       } catch (error) {
@@ -96,9 +101,15 @@ export function browserTransport(options: { allowLoopbackHttp: boolean; fetch?: 
         throw new TransportError("the response failed mid-transfer", { stage: "transport" });
       }
     } else {
-      const buffer = new Uint8Array(await response.arrayBuffer());
-      if (buffer.length > request.maxResponseBytes) throw new TransportError("the response exceeds the byte cap", { stage: "body_size", http_status: response.status, response_bytes: buffer.length });
+      let buffer = new Uint8Array(await response.arrayBuffer());
+      if (buffer.length > request.maxResponseBytes) {
+        if (request.truncate !== true) throw new TransportError("the response exceeds the byte cap", { stage: "body_size", http_status: response.status, response_bytes: buffer.length });
+        buffer = buffer.subarray(0, request.maxResponseBytes);
+        truncated = true;
+      }
       chunks.push(buffer);
+      // A body without a stream is counted too (T66 review 1, nit 12: `size` stayed 0 and the join below threw).
+      size = buffer.length;
     }
     const joined = new Uint8Array(size);
     let offset = 0;
@@ -107,6 +118,6 @@ export function browserTransport(options: { allowLoopbackHttp: boolean; fetch?: 
       offset += chunk.length;
     }
     // The bytes as received beside the text: a linked package's archive is binary (link.v0 L-10).
-    return { status: response.status, headers, body: new TextDecoder().decode(joined), bytes: joined };
+    return { status: response.status, headers, body: new TextDecoder().decode(joined), bytes: joined, ...(truncated ? { truncated } : {}) };
   };
 }

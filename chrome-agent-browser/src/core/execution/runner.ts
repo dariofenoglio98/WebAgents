@@ -252,7 +252,7 @@ export class ExecutionSession {
     // link.v0 L-15: an inner plan is authority only inside its caller's run, so one handed over as a
     // run's own plan is refused before its bytes are read: the linked package would otherwise run
     // outside the caller's composition, reservation and audit, on the grants of a link's card.
-    if (plan.parent !== null) throw new ExecutionError(LINK_PLAN_MISMATCH, "This is a linked package's inner plan: it runs only inside its caller's run, handed over with the caller's plan.", { detail: { dependency: (plan.parent.dependency as string | undefined) ?? null } });
+    if ((plan.parent ?? null) !== null) throw new ExecutionError(LINK_PLAN_MISMATCH, "This is a linked package's inner plan: it runs only inside its caller's run, handed over with the caller's plan.", { detail: { dependency: (plan.parent!.dependency as string | undefined) ?? null } });
     // 1. The bytes. Verified here, independently, against the plan's identity.
     const { package: pkg, evidence } = await verifyExecutionArtifact(deps.archive, {
       archive_sha256: plan.package.archive_sha256,

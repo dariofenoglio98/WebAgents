@@ -11,6 +11,13 @@ import { describeError, refusedOrigins, requestOrigins, send } from "./client.js
 import { el } from "./dom.js";
 import { needsUnlock } from "./unlock.js";
 
+/** What the review listed for each linked package Authorize would decide (T66 review 1, nit 10): the worker refuses if it changed since. */
+function linkDecisions(view: AuthorizationView): { linkDecisions?: Record<string, string> } {
+  const links = view.links;
+  if (!links || !links.resolved) return {};
+  return { linkDecisions: Object.fromEntries(links.links.filter((item) => item.decision !== "denied").map((item) => [item.dependency, item.decided_sha256])) };
+}
+
 export interface AuthorizationHost {
   session: () => SessionView | null;
   get: () => AuthorizationView | null;
@@ -134,11 +141,11 @@ export function bindAuthorization(host: AuthorizationHost): AuthorizationControl
         state,
         {
           onUseProfile: (profileId, picks, presetSelections) =>
-            void act("Recording your decisions…", () => send<AuthorizeResult>({ type: "authorization.useProfile", sessionId: open.session.id, packageDigest: view.package_digest, profileId, resourceSelections: picks, prepare: true, ...(presetSelections && presetSelections.length > 0 ? { presetSelections } : {}) }), afterAuthorize),
+            void act("Recording your decisions…", () => send<AuthorizeResult>({ type: "authorization.useProfile", sessionId: open.session.id, packageDigest: view.package_digest, profileId, resourceSelections: picks, prepare: true, ...(presetSelections && presetSelections.length > 0 ? { presetSelections } : {}), ...linkDecisions(view) }), afterAuthorize),
           onAuthorize: (decisions: Record<string, Decision>, approvals, picks, provenance: Provenance, modelId, presetSelections) =>
             void act(
               "Recording your decisions…",
-              () => send<AuthorizeResult>({ type: "authorization.authorize", sessionId: open.session.id, packageDigest: view.package_digest, decisions, toolApprovals: approvals, resourceSelections: picks, provenance, prepare: true, modelId, ...(presetSelections && presetSelections.length > 0 ? { presetSelections } : {}) }),
+              () => send<AuthorizeResult>({ type: "authorization.authorize", sessionId: open.session.id, packageDigest: view.package_digest, decisions, toolApprovals: approvals, resourceSelections: picks, provenance, prepare: true, modelId, ...(presetSelections && presetSelections.length > 0 ? { presetSelections } : {}), ...linkDecisions(view) }),
               afterAuthorize,
             ),
           onPrepare: (modelId) =>

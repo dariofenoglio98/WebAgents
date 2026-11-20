@@ -128,6 +128,9 @@ export interface RunHooks {
   pinFromCard?(input: { publicKey: string; signer: string; displayName: string; publisherId: string; packageIdPrefix: string | null; notes: string }): Promise<void>;
 }
 
+/** How long `run.decide` waits for the run to take a join card's answer before pinning: three of the host's one-second polls and a margin (nit 8). */
+const CARD_TAKEN_WAIT_MS = 3_500;
+
 /** What a run is handed for its cards (link.v0 §6, §7): the trust entries a candidate's signer is evaluated against, and whether the policy forbids joins or the raise. */
 export interface RunCardContext {
   /**
@@ -975,20 +978,45 @@ export class RunManager {
     });
     if (updated === null) throw reject("card_unknown", "This run is not waiting on that card (it was answered, it timed out, or the run ended).", 409);
     await this.deps.host.card?.(runId, input.cardId, answer).catch(() => false);
-    if (card.kind === "link.join" && input.accepted && input.pin && card.publisher) {
+    // A pin is made only once the run took this answer (T66 review 1, nit 8): an answer that came after
+    // the card's wait ended pins nothing. A pin that fails leaves the answer standing and is reported.
+    let cardPin: RunView["cardPin"] | undefined;
+    if (card.kind === "link.join" && input.accepted && input.pin && card.publisher && this.deps.hooks.pinFromCard) {
       const signer = String((card.facts.publisher as { signer?: unknown } | undefined)?.signer ?? "");
       const slot = String(card.facts.slot ?? "");
-      await this.deps.hooks.pinFromCard?.({
-        publicKey: card.publisher.public_key,
-        signer,
-        displayName: card.publisher.claimed_name,
-        publisherId: card.publisher.claimed_id,
-        packageIdPrefix: input.pin === "package" ? card.publisher.package_id : null,
-        notes: `Pinned from a join card (run ${runId}, slot ${slot}).`,
-      });
+      if (!(await this.cardTaken(runId, input.cardId))) {
+        cardPin = { card_id: input.cardId, made: false, reason: "The run did not take this answer (the card's time ran out or the run ended first), so no key was pinned." };
+      } else {
+        try {
+          await this.deps.hooks.pinFromCard({
+            publicKey: card.publisher.public_key,
+            signer,
+            displayName: card.publisher.claimed_name,
+            publisherId: card.publisher.claimed_id,
+            packageIdPrefix: input.pin === "package" ? card.publisher.package_id : null,
+            notes: `Pinned from a join card (run ${runId}, slot ${slot}).`,
+          });
+          cardPin = { card_id: input.cardId, made: true, reason: null };
+        } catch (error) {
+          cardPin = { card_id: input.cardId, made: false, reason: `Your answer stands, but the key was not pinned: ${error instanceof Error ? error.message : String(error)}` };
+        }
+      }
     }
     this.deps.broadcast({ type: "event.run", runId, sessionId: run.session_id, status: updated.record.status });
-    return this.view((await this.deps.runs.getRun(runId)) ?? updated);
+    const view = await this.view((await this.deps.runs.getRun(runId)) ?? updated);
+    return cardPin === undefined ? view : { ...view, cardPin };
+  }
+
+  /** Whether the run took the answer to this card (`run_card_taken`), waiting a few of the host's polls for it; false once the run ended without it. */
+  private async cardTaken(runId: string, cardId: string): Promise<boolean> {
+    const deadline = Date.now() + CARD_TAKEN_WAIT_MS;
+    for (;;) {
+      const current = await this.deps.runs.getRun(runId);
+      if (current === null) return false;
+      if ((current.run_card_taken ?? []).includes(cardId)) return true;
+      if (isTerminal(current.record.status) || Date.now() >= deadline) return false;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
   }
 
   async clear(runId: string): Promise<{ cleared: boolean; run_id: string }> {

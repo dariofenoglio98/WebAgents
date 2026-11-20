@@ -119,6 +119,8 @@ export interface StoredRun {
   /** link.v0 §6, §7 (T66): the card the run waits on, or null; the person's answers by card id. */
   run_card_pending?: RunCardPending | null;
   run_card_answers?: Record<string, RunCardAnswer> | null;
+  /** The cards whose answer the run took (its wait ended with the person's answer, not by time), by id: a pin asked on a join card is made only for one of these (T66 review 1, nit 8). */
+  run_card_taken?: string[] | null;
 }
 
 export interface StoredArtifact {

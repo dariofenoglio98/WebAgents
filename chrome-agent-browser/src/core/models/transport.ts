@@ -13,6 +13,12 @@ export interface HttpRequest {
   body: string | null;
   signal: AbortSignal;
   maxResponseBytes: number;
+  /**
+   * Keep the first `maxResponseBytes` of a longer body and stop reading, instead of refusing it
+   * (`truncated` on the response). Website discovery reads a page's head this way (a slot's look,
+   * link.v0 L-31, as `browser/discovery.py` and the extension's own discovery do); never a package.
+   */
+  truncate?: boolean;
 }
 
 export interface HttpResponse {
@@ -22,6 +28,8 @@ export interface HttpResponse {
   body: string;
   /** The body's bytes as received, where the transport keeps them (the Node transport does): a package archive is binary (link.v0 L-10). */
   bytes?: Uint8Array;
+  /** True when the request asked `truncate` and the body went past the cap: `bytes` is its first `maxResponseBytes`. */
+  truncated?: boolean;
 }
 
 export type HttpTransport = (request: HttpRequest) => Promise<HttpResponse>;

@@ -44,7 +44,8 @@ export async function lookAtPage(url: string, transport: HttpTransport): Promise
   validatePackageUrl(document, "Website");
   let response;
   try {
-    response = await transport({ url: document, method: "GET", headers: { accept: "text/html, application/xhtml+xml" }, body: null, signal: AbortSignal.timeout(DEFAULT_LIMITS.timeoutSeconds * 1000), maxResponseBytes: DEFAULT_LIMITS.maxHtmlBytes });
+    // The page's first MiB, its head scanned (T66 review 1, nit 7): `browser/discovery.py` and `RecordedWeb.look` read a longer page the same way.
+    response = await transport({ url: document, method: "GET", headers: { accept: "text/html, application/xhtml+xml" }, body: null, signal: AbortSignal.timeout(DEFAULT_LIMITS.timeoutSeconds * 1000), maxResponseBytes: DEFAULT_LIMITS.maxHtmlBytes, truncate: true });
   } catch (error) {
     if (error instanceof CoreError) throw error;
     throw new CoreError(transportCode(error, "discovery"), `Cannot read the website: ${error instanceof Error ? error.name : "error"}`, { status: 502 });
@@ -53,5 +54,5 @@ export async function lookAtPage(url: string, transport: HttpTransport): Promise
   if (response.status !== 200) throw new CoreError("discovery_http_status", `The website answered HTTP ${response.status} instead of a page`, { status: 502, details: { status: response.status } });
   const contentType = response.headers["content-type"] ?? "";
   const [, parameters] = mediaType(contentType);
-  return discoverFromPage({ requested_url: url, final_url: document, redirects: [], content_type: contentType, charset: parameters.charset ?? null, content_coding: "identity", body: response.bytes ?? new TextEncoder().encode(response.body), truncated: false });
+  return discoverFromPage({ requested_url: url, final_url: document, redirects: [], content_type: contentType, charset: parameters.charset ?? null, content_coding: "identity", body: response.bytes ?? new TextEncoder().encode(response.body), truncated: response.truncated === true });
 }

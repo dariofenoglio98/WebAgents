@@ -29,6 +29,7 @@ import { classifyLinks, DEFAULT_LIMITS, discoverFromPage, mediaType, type Fetche
 import { CoreError, thrownName } from "../../core/errors.js";
 import { evaluateSnapshot, evaluationLayers, publisherReport, structurallyValid, type EvaluationLayers, type PublisherReport } from "../../core/evaluation.js";
 import { isRecord } from "../../core/fields.js";
+import { canonicalJson } from "../../core/canonical.js";
 import { sha256Hex } from "../../core/hash.js";
 import { evaluateResources, normalizeResourceSelections, RESOURCE_PERMISSION_KINDS, type ResourceRegistry } from "../../core/hostresources.js";
 import { buildHostToolRegistry, evaluateRegistry, planToolBindings, type RegistryEvaluation, type ToolRegistry } from "../../core/hosttools.js";
@@ -2233,10 +2234,11 @@ export class Controller {
   /** `control.py::authorize`: record explicit decisions and issue a digest-bound receipt; a new receipt discards the plan. */
   async authorize(
     sessionId: string,
-    input: { packageDigest: string; decisions: Record<string, string>; toolApprovals: Record<string, boolean>; resourceSelections: Record<string, string>; provenance: unknown | null; prepare: boolean; modelId?: string | null; presetSelections?: string[] },
+    input: { packageDigest: string; decisions: Record<string, string>; toolApprovals: Record<string, boolean>; resourceSelections: Record<string, string>; provenance: unknown | null; prepare: boolean; modelId?: string | null; presetSelections?: string[]; linkDecisions?: Record<string, string> },
   ): Promise<AuthorizeResult> {
     const live = await this.session(sessionId);
     this.requireDigest(live, input.packageDigest);
+    await this.checkLinkDecisions(live, input.linkDecisions);
     const decisions = normalizeDecisions(live.pkg, input.decisions);
     const approvals = normalizeToolApprovals(live.pkg, input.toolApprovals);
     if (Object.keys(input.resourceSelections).length > 0) await this.memory.unlocked(); // a pick needs the store unlocked (store_locked otherwise)
@@ -2253,9 +2255,10 @@ export class Controller {
   }
 
   /** The two-click path (D-022): a selected profile becomes decisions under the current preset, with the person's picks. */
-  async useProfile(sessionId: string, input: { packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean; presetSelections?: string[] }): Promise<AuthorizeResult> {
+  async useProfile(sessionId: string, input: { packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean; presetSelections?: string[]; linkDecisions?: Record<string, string> }): Promise<AuthorizeResult> {
     const live = await this.session(sessionId);
     this.requireDigest(live, input.packageDigest);
+    await this.checkLinkDecisions(live, input.linkDecisions);
     const profiles = readProfiles(live.pkg);
     const profile = profiles.profiles?.find((item) => item.id === input.profileId);
     if (!profile) throw reject("profile_unknown", `This package declares no usable profile ${pyRepr(input.profileId)}`, 404, { notes: profiles.notes });
@@ -2741,6 +2744,7 @@ export class Controller {
         worst_case: Object.fromEntries(WORST_CASE_FIGURES.map((figure) => [figure, JSON.parse(JSON.stringify(worst[figure])) as JsonValue])),
         decision: denied ? "denied" : child.receipt !== null && child.receipt.runnable ? "accepted" : "undecided",
         decided,
+        decided_sha256: await Controller.decidedHash(decided),
         permissions: (child.pkg.policy.permissions as JsonObject[]).map((permission) => ({ id: String(permission.id), kind: String(permission.kind), description: String(permission.description ?? ""), required: permission.required === true, resources: ((permission.resources as JsonValue[] | undefined) ?? []).map(String) })),
         tools: Object.keys(child.pkg.tools)
           .sort()
@@ -2798,6 +2802,31 @@ export class Controller {
    * not chosen here in this version: such a package stays undecided, with the reason). A denied
    * one loses its receipt and its plan.
    */
+  /** The hash a review item states of what Authorize would grant a linked package (`decided_sha256`). */
+  private static decidedHash(decided: Decided): Promise<string> {
+    return sha256Hex(canonicalJson({ decisions: decided.decisions, tool_approvals: decided.tool_approvals }));
+  }
+
+  /**
+   * T66 review 1, nit 10: Authorize grants each linked package what the review listed, or nothing.
+   * With the hashes the page echoed, every link that would be authorized must be listed with the
+   * hash of what it would be granted now; anything else (a preset or policy changed in another tab,
+   * a denial withdrawn) is refused before any receipt is issued, and the review is shown again.
+   */
+  private async checkLinkDecisions(live: LiveSession, listed: Record<string, string> | undefined): Promise<void> {
+    if (listed === undefined) return;
+    const refused = this.deniedLinks(live);
+    const changed: string[] = [];
+    const names = new Set<string>();
+    for (const [name, child] of this.children(live)) {
+      if (refused.has(name)) continue;
+      names.add(name);
+      if (listed[name] !== (await Controller.decidedHash(await this.linkDecided(child)))) changed.push(name);
+    }
+    for (const name of Object.keys(listed)) if (!names.has(name)) changed.push(name);
+    if (changed.length > 0) throw reject("link_decisions_changed", `What this browser would grant ${changed.sort().join(", ")} changed since the review was shown (a preset, a policy or a denial). Review the linked agents again.`, 409, { dependencies: changed });
+  }
+
   private async authorizeLinks(live: LiveSession): Promise<void> {
     const refused = this.deniedLinks(live);
     for (const [name, child] of this.children(live)) {

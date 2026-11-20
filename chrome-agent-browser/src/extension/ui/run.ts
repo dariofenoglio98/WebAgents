@@ -1322,8 +1322,10 @@ export class RunPanel {
   }
 
   /** The card a run waits on, built once per card: a poll that re-renders the run keeps what the person already chose on it. */
-  private cardNode: { id: string; busy: boolean; node: HTMLElement } | null = null;
+  private cardNode: { id: string; node: HTMLElement } | null = null;
   private cardBusy = false;
+  /** Why the last answer to the card on screen was not recorded, or what became of its pin (T66 review 1, nits 8 and 9). */
+  private cardNote: { id: string; text: string; tone: "bad" | "warn" } | null = null;
 
   /** link.v0 §6, §7 (T66, D-703): the join card or the budget-raise card of a run in flight, or nothing. */
   private renderRunCard(record: RunView): HTMLElement | null {
@@ -1331,11 +1333,16 @@ export class RunPanel {
     if (pending === null) {
       this.cardNode = null;
       this.cardBusy = false;
-      return null;
+      return this.cardNote !== null && this.cardNote.tone === "warn" ? el("p", { className: "ab-notice ab-warn", attrs: { "data-card-note": this.cardNote.id }, text: this.cardNote.text }) : null;
     }
-    if (this.cardNode === null || this.cardNode.id !== pending.card_id || this.cardNode.busy !== this.cardBusy) {
-      this.cardNode = { id: pending.card_id, busy: this.cardBusy, node: runCard(pending, { onDecide: (cardId, answer, origins) => void this.decideCard(record.runId, cardId, answer, origins) }, this.cardBusy) };
+    // Built once per card (nit 9): a busy answer disables its controls in place, so a failed answer
+    // leaves the person's permission choices, tool checks and pin choice as they were.
+    if (this.cardNode === null || this.cardNode.id !== pending.card_id) {
+      this.cardNode = { id: pending.card_id, node: runCard(pending, { onDecide: (cardId, answer, origins) => void this.decideCard(record.runId, cardId, answer, origins) }, false) };
     }
+    for (const control of this.cardNode.node.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement>("button, input, select")) control.disabled = this.cardBusy;
+    this.cardNode.node.querySelector("[data-card-note]")?.remove();
+    if (this.cardNote !== null && this.cardNote.id === pending.card_id) this.cardNode.node.append(el("p", { className: `ab-notice ab-${this.cardNote.tone}`, attrs: { "data-card-note": pending.card_id }, text: this.cardNote.text }));
     return this.cardNode.node;
   }
 
@@ -1343,13 +1350,17 @@ export class RunPanel {
   private async decideCard(runId: string, cardId: string, answer: { accepted: boolean; grants?: Record<string, string>; approvedTools?: string[]; pin?: "package" | "publisher" | null }, origins: string[]): Promise<void> {
     if (this.cardBusy) return;
     this.cardBusy = true;
+    this.cardNote = null;
     this.renderRun();
     try {
       if (answer.accepted && origins.length > 0 && this.host.requestOrigins) await this.host.requestOrigins(origins).catch(() => false);
       const record = await this.host.send<RunView>({ type: "run.decide", runId, cardId, accepted: answer.accepted, ...(answer.grants ? { grants: answer.grants } : {}), ...(answer.approvedTools ? { approvedTools: answer.approvedTools } : {}), ...(answer.pin ? { pin: answer.pin } : {}) });
       if (this.run?.runId === record.runId) this.run = record;
-    } catch {
-      // The card was answered elsewhere, timed out, or the run ended: the poll shows the state.
+      if (record.cardPin && !record.cardPin.made) this.cardNote = { id: cardId, text: record.cardPin.reason ?? "The key was not pinned.", tone: "warn" };
+    } catch (error) {
+      // The card was answered elsewhere, timed out, or the run ended (the poll shows the state), or the
+      // answer was refused: say so on the card, whose choices stay as the person left them.
+      this.cardNote = { id: cardId, text: `Your answer was not recorded: ${error instanceof Error ? error.message : String(error)}`, tone: "bad" };
     }
     this.cardBusy = false;
     if (this.disposed) return;

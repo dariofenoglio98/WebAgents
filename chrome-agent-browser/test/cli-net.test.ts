@@ -204,6 +204,14 @@ describe("the transport over a local server", () => {
     expect(await transport(request("/big", { maxResponseBytes: 8 * 1024 * 1024 }))).toMatchObject({ status: 200 });
   });
 
+  it("with truncate, keeps the first bytes up to the cap and stops reading (a slot's look, T66 review 1 nit 7)", async () => {
+    // `/declared` never finishes its body, so only the streamed route can show the stop.
+    const answer = await transport(request("/big", { maxResponseBytes: 100_000, truncate: true }));
+    expect(answer).toMatchObject({ status: 200, truncated: true });
+    expect(answer.bytes!.length).toBe(100_000);
+    expect((await transport(request("/big", { maxResponseBytes: 8 * 1024 * 1024, truncate: true }))).truncated).toBeUndefined();
+  });
+
   it("returns a redirect as its status with an empty body and never follows it", async () => {
     const answer = await transport(request("/redirect"));
     expect(answer).toMatchObject({ status: 302, body: "" });
