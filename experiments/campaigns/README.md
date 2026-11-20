@@ -130,18 +130,26 @@ from the answer and the recorded tool answers (`score.literature_checks`).
   `Cr`'s model seam records the answer text), so a refused attempt is visible on our side too.
 - **Route failures** (D-361): a model route that did not answer is a harness error on every side (on
   `Cr` read from the audit's `model.failed` reason, since the core ends the turn `model_error` whatever
-  the route did); a timeout is the run's failure (`FW`'s `APITimeoutError` included); before each unit
-  on a local rung the driver waits up to 30 minutes for the route, so an outage delays units instead of
-  spending them.
+  the route did; on `Py` any failure but a read timeout is the route's `route_failed`, T32 review 2); a
+  timeout is the run's failure (`FW`'s `APITimeoutError` included); before each unit on a local rung the
+  driver waits up to 30 minutes for the route, so an outage delays units instead of spending them. On a
+  hosted rung a **429** is waited out and the same call sent again, by one policy on every side
+  (`routes.RATE_LIMIT_RETRY`: the provider's `retry-after-ms`/`retry-after`, else 2, 4, 8, 16, 32, 60 s;
+  at most 6 resends and 240 s per call; `Py`'s router, `FW`'s `RateLimitRetryTransport`, `Cr`'s Node
+  transport from its job); each wait is recorded (`rate_limit_waits`), and a 429 after the policy is a
+  harness error. A new side (T32b's baselines) uses the same transport.
 - **Analysis**: `../injection_campaign/analyze.py <directories> [--supplement <e3-memory dir>]`
   prints Tab. 4 (with `exposed` and the exposed-only rate in every cell, "not reached" where no
-  injected run read the placement) and E2's utility columns (`--json` writes them outside the
+  injected run read the placement), the reach tables (`exposed` beside the runs whose injected text is in
+  a recorded model request, counted from the records with the series' payload catalog) and E2's utility
+  columns (`--json` writes them outside the
   directories; `--findings` drafts `findings.md`). It refuses a directory short of its unit list and a
   unit given twice (`--allow-incomplete` prints the shortfall).
 - **Committed form** (the user, 2026-11-15): `../injection_campaign/pack.py <directory>` packs the run
   tree into a deterministic `runs.tar.gz` with its SHA-256; the manifest, summary, units, server log and
   findings stay beside it; `analyze.py` reads a packed directory as an unpacked one (it verifies the
-  digest first).
+  digest first). A directory with no `runs/` tree (already packed) is refused and nothing is written;
+  `--remove-unpacked` reads the archive back against the tree before deleting it.
 
 ## The local rungs on the piz cluster (D-363)
 
