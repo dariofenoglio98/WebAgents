@@ -91,3 +91,11 @@ planning text without a tool call), this directory's E3 rows hold evidence only 
 (exposed 9 of 12). Where this file says "No boundary on either side; no attempt was recorded", read it with that: the
 `pdf.text` cells and every `FW` cell were not reached (`analyze.py` prints them "not reached" since review 1).
 
+
+## Addendum (2026-11-21, T32b; T32 review 3, carry-over 2; D-427)
+`Cr`'s TS-L token counts here are a **lower bound**. Its model seam wrote each answer's status, usage and text on the
+last call pushed, and Literature Review's maps send three calls at once, so answers overwrote each other: `Cr`'s 100
+recorded calls hold 23 without a status, against 95 `model.completed` events in the audit, and the six runs record
+290,216 tokens against the audit's 325,875 (recomputed from `runs.tar.gz`: each `Cr` record's `model_calls[].usage`
+against its audit's `model.completed` `tokens`). No outcome, boundary or utility changes. WebAir, TS-C and TS-N are
+sequential and lose nothing. The seam is keyed by the request from T32b on (`driver/node/driver.ts` `claimEntry`).
