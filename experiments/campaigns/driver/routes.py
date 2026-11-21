@@ -116,11 +116,30 @@ RATE_LIMIT_RETRY = {
 }
 
 
-def rate_limit_wait(resends: int, headers, waited: float) -> float | None:
+def rate_limit_final(headers, body: str | None) -> str | None:
+    """Why a 429 must not be resent, or None (T32 review 3, carry-over 3; D-427): the provider marks
+    it final (`x-should-retry: false`), or its error is a spent quota (`insufficient_quota`, which
+    never clears by waiting). Such a 429 is the route's failure at once (a harness error)."""
+    value = headers.get("x-should-retry") if headers is not None else None
+    if isinstance(value, str) and value.strip().lower() == "false":
+        return "x-should-retry: false"
+    try:
+        error = (json.loads(body or "") or {}).get("error") or {}
+    except (ValueError, AttributeError):
+        error = {}
+    if isinstance(error, dict) and "insufficient_quota" in (error.get("code"), error.get("type")):
+        return "insufficient_quota"
+    return None
+
+
+def rate_limit_wait(resends: int, headers, waited: float, body: str | None = None) -> float | None:
     """Seconds to wait before resend number `resends + 1` of a call answered 429, or None when the
-    policy is spent (`waited`: the seconds this call already waited)."""
+    policy is spent (`waited`: the seconds this call already waited) or the 429 is final
+    (`rate_limit_final`, read from the headers and the body)."""
     policy = RATE_LIMIT_RETRY
     if resends >= policy["max_resends"]:
+        return None
+    if rate_limit_final(headers, body) is not None:
         return None
     wait = None
     for name, scale in (("retry-after-ms", 0.001), ("retry-after", 1.0)):
@@ -153,20 +172,36 @@ def rate_limit_log() -> list:
     return waits
 
 
+def environment_transport() -> httpx.AsyncBaseTransport:
+    """The inner transport of `FW`'s hosted client with the proxy the environment names, as an
+    httpx client with its own transport would otherwise ignore it (T32 review 3, nit (f); `Py`'s
+    router uses an httpx client that reads it)."""
+    import urllib.request
+
+    proxy = urllib.request.getproxies().get("https")
+    if proxy and not urllib.request.proxy_bypass("api.openai.com"):
+        return httpx.AsyncHTTPTransport(proxy=proxy)
+    return httpx.AsyncHTTPTransport()
+
+
 class RateLimitRetryTransport(httpx.AsyncBaseTransport):
     """`FW`'s side of the policy: under the OpenAI client (`max_retries=0`), a 429 is waited out and
     the same request sent again; every wait (seconds) goes to `waits` when given, else to the run's
     `RATE_LIMIT_WAITS`."""
 
     def __init__(self, inner: httpx.AsyncBaseTransport | None = None, *, waits=None, sleep=None):
-        self.inner = inner or httpx.AsyncHTTPTransport()
+        self.inner = inner or environment_transport()
         self._waits = waits
         self._sleep = sleep or asyncio.sleep
 
     def _record(self, wait: float) -> None:
         log = self._waits if self._waits is not None else RATE_LIMIT_WAITS.get()
-        if log is not None:
-            log.append(wait)
+        if log is None:  # T32 review 3, nit (c): a driver that never opened the run's log
+            raise RuntimeError(
+                "a 429 wait with no rate-limit log: the driver must call rate_limit_log() "
+                "before its event loop"
+            )
+        log.append(wait)
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         resends, waited = 0, 0.0
@@ -174,7 +209,8 @@ class RateLimitRetryTransport(httpx.AsyncBaseTransport):
             response = await self.inner.handle_async_request(request)
             if response.status_code != RATE_LIMIT_RETRY["status"]:
                 return response
-            wait = rate_limit_wait(resends, response.headers, waited)
+            body = (await response.aread()).decode("utf-8", "replace")
+            wait = rate_limit_wait(resends, response.headers, waited, body)
             if wait is None:
                 return response
             await response.aclose()
@@ -392,8 +428,11 @@ class CampaignRouter:
             )
             if response.status_code != RATE_LIMIT_RETRY["status"]:
                 break
-            wait = rate_limit_wait(resends, response.headers, waited)
+            wait = rate_limit_wait(resends, response.headers, waited, response.text)
             if wait is None:
+                final = rate_limit_final(response.headers, response.text)
+                if final is not None:
+                    entry["rate_limit_final"] = final
                 break
             entry.setdefault("rate_limit_waits", []).append(wait)
             await asyncio.sleep(wait)

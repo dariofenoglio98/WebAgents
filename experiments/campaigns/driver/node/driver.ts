@@ -244,8 +244,21 @@ function recordUsage(entry: JsonObject | undefined, kind: Route["kind"], text: s
 /** Seconds to wait before resend `resends + 1` of a call answered 429, or null when the policy is
  * spent: `routes.rate_limit_wait`, line for line (the provider's `retry-after-ms`, then
  * `retry-after` in seconds, else `base * 2^resends`; capped per wait and per call). */
-function rateLimitWait(policy: RateLimitPolicy, resends: number, headers: Record<string, string>, waited: number): number | null {
+/** `routes.rate_limit_final`: a 429 the provider marks final, or a spent quota (D-427). */
+export function rateLimitFinal(headers: Record<string, string>, body: string): string | null {
+  if ((headers["x-should-retry"] ?? "").trim().toLowerCase() === "false") return "x-should-retry: false";
+  try {
+    const error = ((JSON.parse(body) as JsonObject)?.error ?? {}) as JsonObject;
+    if (error.code === "insufficient_quota" || error.type === "insufficient_quota") return "insufficient_quota";
+  } catch {
+    // not JSON: no final mark
+  }
+  return null;
+}
+
+function rateLimitWait(policy: RateLimitPolicy, resends: number, headers: Record<string, string>, waited: number, body = ""): number | null {
   if (resends >= policy.max_resends) return null;
+  if (rateLimitFinal(headers, body) !== null) return null;
   let wait: number | null = null;
   for (const [name, scale] of [["retry-after-ms", 0.001], ["retry-after", 1]] as const) {
     const value = headers[name];
@@ -297,8 +310,12 @@ function modelTransport(route: Route, base: HttpTransport = nodeTransport({ allo
       let resends = 0;
       let waited = 0;
       while (response.status === policy.status) {
-        const wait = rateLimitWait(policy, resends, response.headers, waited);
-        if (wait === null) break;
+        const wait = rateLimitWait(policy, resends, response.headers, waited, response.body);
+        if (wait === null) {
+          const final = rateLimitFinal(response.headers, response.body);
+          if (final !== null && entry !== undefined) entry.rate_limit_final = final;
+          break;
+        }
         if (entry !== undefined) ((entry.rate_limit_waits ??= []) as number[]).push(wait);
         await pause(wait, request.signal);
         resends += 1;

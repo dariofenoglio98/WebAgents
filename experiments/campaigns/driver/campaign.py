@@ -816,6 +816,52 @@ def promote_route_failure(rec: dict) -> dict:
     return rec
 
 
+# A hosted shard stops after this many consecutive route failures (T32 review 3, carry-over 3;
+# D-427): a spent quota, a revoked key or an outage would otherwise make every remaining unit of a
+# billed directory a harness error that `--resume` never reruns. The units left stay unrecorded,
+# so a resume after the route is back runs them; the failed ones keep their outcomes (listed).
+HOSTED_ROUTE_FAILURE_STOP = 3
+# The harness errors that mean the model route did not answer (D-361): our routes' promotions, and
+# `FW`'s client exceptions (its driver writes the exception's class first).
+ROUTE_FAILURE_PREFIXES = (
+    "route_unavailable",
+    "rate_limited_timeout",
+    "RateLimitError",
+    "APIConnectionError",
+    "InternalServerError",
+    "APIStatusError",
+    "AuthenticationError",
+    "PermissionDeniedError",
+)
+
+
+def is_route_failure(harness_error: str | None) -> bool:
+    return bool(harness_error) and str(harness_error).startswith(ROUTE_FAILURE_PREFIXES)
+
+
+def recorded_error(run_dir: Path) -> str | None:
+    """The record's harness error text (the outcome carries only whether there was one)."""
+    try:
+        return json.loads((run_dir / "run.json").read_text()).get("harness_error")
+    except (OSError, ValueError):
+        return None
+
+
+class RouteWatch:
+    """Consecutive route failures on hosted rungs, per shard (D-427)."""
+
+    def __init__(self, threshold: int = HOSTED_ROUTE_FAILURE_STOP):
+        self.threshold = threshold
+        self.run = 0
+
+    def observe(self, rung: Rung, harness_error: str | None) -> bool:
+        """True when the shard must stop."""
+        if rung.provider == "ollama":  # a local outage is `route_ready`'s, before the unit
+            return False
+        self.run = self.run + 1 if is_route_failure(harness_error) else 0
+        return self.run >= self.threshold
+
+
 # The turn codes that mean the run ran out of time (D-361): a model call's timeout, `FW`'s turn
 # deadline. On `Py`/`Cr` a node timeout cancels the call, so its entry has no answer.
 TIMEOUT_CODES = frozenset({"model_call_timeout", "deadline"})
@@ -1073,9 +1119,19 @@ def write_summary(out: Path, units: list[dict], **extra) -> dict:
     import fcntl
     import os
 
-    handle = os.open(out, os.O_RDONLY)
+    # The lock is held on `progress.jsonl` opened for writing (T32 review 3, nit (d)): a lock on a
+    # directory opened read-only is untried on the cluster's NFS home. Every shard that ran a unit
+    # has written that file; one that ran none locks the directory as before. Where the file system
+    # takes no lock, the summary is still written (the last shard to end writes it complete).
     try:
-        fcntl.flock(handle, fcntl.LOCK_EX)
+        handle = os.open(out / "progress.jsonl", os.O_WRONLY | os.O_APPEND)
+    except FileNotFoundError:
+        handle = os.open(out, os.O_RDONLY)
+    try:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX)
+        except OSError as exc:
+            print(f"campaign: no lock for the summary ({exc}); writing it unlocked", flush=True)
         summary = summarize(out, units)
         summary.update(extra)
         _write_atomic(out / "summary.json", json.dumps(summary, indent=1) + "\n")
@@ -1235,6 +1291,8 @@ def main(argv: list[str] | None = None) -> int:
     table = wanted["envelopes"]
     started = time.monotonic()
     # The stack's certificates (a throwaway CA and its key) stay out of the results directory.
+    watch = RouteWatch()
+    stopped = False
     with (
         tempfile.TemporaryDirectory(prefix="campaign-stack-") as scratch,
         CampaignStack(Path(scratch), resolver=any(u["task_set"] == "TS-L" for u in units)) as stack,
@@ -1295,6 +1353,15 @@ def main(argv: list[str] | None = None) -> int:
             with open(out / "progress.jsonl", "a", encoding="utf-8") as handle:
                 handle.write(json.dumps(line) + "\n")
             print(json.dumps(line), flush=True)
+            if watch.observe(rung_of(unit["rung"], args.ollama_url), recorded_error(run_dir)):
+                print(
+                    f"campaign: {watch.run} consecutive route failures on {unit['rung']} "
+                    "(a spent quota, a revoked key or an outage?); stopping this shard, the "
+                    "remaining units unrecorded (D-427)",
+                    flush=True,
+                )
+                stopped = True
+                break
     # Every shard writes the summary over all units; the last one to finish writes it complete.
     summary = write_summary(
         out,
@@ -1305,6 +1372,8 @@ def main(argv: list[str] | None = None) -> int:
     print(json.dumps(summary["cells"], indent=1))
     own = {u["id"] for u in mine}
     missing = [m for m in summary["missing"] if m in own]
+    if stopped:
+        return 2
     if missing:
         print(f"campaign: {len(missing)} of this process's {len(mine)} units have no outcome")
         return 1

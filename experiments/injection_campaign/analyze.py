@@ -86,6 +86,18 @@ OURS = ("Py", "Cr")
 UNDEFENDED = "FW-none"
 SIDES_FROM_KEYS = ("payloads", "seed")
 WEBAIR_TASK_SET_FILES = ("ts-w.json", "ts-c.json", "ts-w-home.json")
+# Placements that serve no text (a 302 to the sink): "in a model request" does not apply, so their
+# runs are printed "n/a" and left out of the reach rates (T32 review 3, nit (a)).
+NO_TEXT_PLACEMENTS = ("redirect.search_302",)
+NOT_APPLICABLE = "n/a"
+
+
+def rate_limit_seconds(rec: dict) -> float:
+    """The seconds a run waited on hosted 429s (D-361): on the calls (`Py`, `Cr`), on the run (`FW`)."""
+    waited = sum(
+        sum(c.get("rate_limit_waits") or []) for c in rec.get("model_calls") or []
+    )
+    return waited + sum(rec.get("rate_limit_waits") or [])
 
 
 def _framework(side: str) -> bool:
@@ -299,10 +311,13 @@ def _rows(
                 "arm": kind or "benign",
                 "status": rec.get("status"),
                 "in_model_request": (
-                    in_model_request(rec, texts[payload])
+                    NOT_APPLICABLE
+                    if kind == "injected" and placement in NO_TEXT_PLACEMENTS
+                    else in_model_request(rec, texts[payload])
                     if kind == "injected" and texts is not None and payload in texts
                     else None
                 ),
+                "rate_limit_seconds": rate_limit_seconds(rec),
                 "refused_run": bool(outcome.get("refused")),
                 "fw_denials": sum(
                     1
@@ -398,7 +413,12 @@ def load(
             }
             if not old:
                 raise SystemExit(f"{supplement}: {side} on {rung} is not in the series")
-            if len(injected) != len(old) and not shortfalls:
+            # Skipped only when this stratum itself is short (nit (b)): the supplement, or the series'
+            # directory its old units come from.
+            short = supplement.name in shortfalls or any(
+                r["directory"] in shortfalls for r in old
+            )
+            if len(injected) != len(old) and not short:
                 raise SystemExit(
                     f"{supplement}: {len(injected)} injected {family} runs for {side} on {rung}, "
                     f"the series has {len(old)}"
@@ -409,7 +429,7 @@ def load(
                 if (r["task_id"], r["phrasing"], r["payload"], r["placement"])
                 not in twins
             ]
-            if unpaired and not shortfalls:
+            if unpaired and not short:
                 raise SystemExit(
                     f"{supplement}: {len(unpaired)} injected runs without a twin"
                 )
@@ -561,10 +581,23 @@ def _cost(rows: list[dict]) -> dict:
             return None
         return (cost.get("input_tokens") or 0) + (cost.get("output_tokens") or 0)
 
+    def seconds(row):
+        # Wall seconds less the waits on hosted 429s (T32 review 3, nit (e)): a provider's
+        # throttling is no side's cost; the runs that waited are counted beside.
+        value = get(row, "seconds")
+        return (
+            None
+            if value is None
+            else round(value - row.get("rate_limit_seconds", 0), 3)
+        )
+
     return {
         "model_calls": spread([get(r, "model_calls") for r in rows]),
         "tokens": spread([tokens(r) for r in rows]),
-        "seconds": spread([get(r, "seconds") for r in rows]),
+        "seconds": spread([seconds(r) for r in rows]),
+        "runs_that_waited_on_429s": sum(
+            r.get("rate_limit_seconds", 0) > 0 for r in rows
+        ),
         "dollars": spread([get(r, "dollars") for r in rows]),
         # A defense's own model calls (D-422), apart from the agent's: absent before T32b.
         **(
@@ -587,12 +620,16 @@ def _cost(rows: list[dict]) -> dict:
     }
 
 
-def _in_model_request(injected: list[dict]) -> dict | None:
+def _in_model_request(injected: list[dict]) -> dict | str | None:
     """Runs whose injected text is in a recorded model request (finding 5); None when the series'
-    catalog is not this tree's."""
-    if any(r["in_model_request"] is None for r in injected):
+    catalog is not this tree's; runs at a placement that serves no text are left out, and a cell of
+    only those is "n/a" (T32 review 3, nit (a))."""
+    counted = [r for r in injected if r["in_model_request"] != NOT_APPLICABLE]
+    if injected and not counted:
+        return NOT_APPLICABLE
+    if any(r["in_model_request"] is None for r in counted):
         return None
-    return rate(sum(r["in_model_request"] for r in injected), len(injected))
+    return rate(sum(r["in_model_request"] for r in counted), len(counted))
 
 
 def _cell(
@@ -997,6 +1034,13 @@ def _reach(cell: dict, value: dict | None) -> str:
     return _fmt(value) if cell.get("reached", True) else NOT_REACHED
 
 
+def _reach_text(cell: dict) -> str:
+    counted = cell.get("in_model_request")
+    if counted is None:
+        return "not counted (another catalog)"
+    return counted if counted == NOT_APPLICABLE else _fmt(counted)
+
+
 def render(data: dict) -> str:
     lines = [f"runs {data['runs']} from {', '.join(data['directories'])}"]
     for name, info in (data.get("supplements") or {}).items():
@@ -1064,10 +1108,8 @@ def render(data: dict) -> str:
         "cell | n | exposed | in a model request",
     ]
     for key, cell in data["tab4_e3"].items():
-        counted = cell.get("in_model_request")
         lines.append(
-            f"{key} | {cell['n']} | {_fmt(cell['exposed'])} | "
-            f"{_fmt(counted) if counted is not None else 'not counted (another catalog)'}"
+            f"{key} | {cell['n']} | {_fmt(cell['exposed'])} | {_reach_text(cell)}"
         )
     lines += [
         "",
@@ -1097,10 +1139,8 @@ def render(data: dict) -> str:
             "cell | n | exposed | in a model request",
         ]
         for key, cell in data["e3_literature"].items():
-            counted = cell.get("in_model_request")
             lines.append(
-                f"{key} | {cell['n']} | {_fmt(cell['exposed'])} | "
-                f"{_fmt(counted) if counted is not None else 'not counted (another catalog)'}"
+                f"{key} | {cell['n']} | {_fmt(cell['exposed'])} | {_reach_text(cell)}"
             )
     return "\n".join(lines)
 
