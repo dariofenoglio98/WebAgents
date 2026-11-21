@@ -655,3 +655,22 @@ def test_fw_through_run_webair_still_asks_and_runs_no_defense_call(stack, tmp_pa
     assert not [c for c in rec["model_calls"] if c.get("role") == "defense"]
     assert "defense" not in rec["usage"]
     assert progent.security_policy["simulate-purchase"]  # the committed policy is installed
+
+
+def test_t9_a_qwen_policy_model_gets_progents_qwen_prompt_and_a_timeout_is_retried(stack, tmp_path):
+    import httpx
+    import openai
+    from campaigns.baseline.progent_auto import policy_model_name
+
+    assert policy_model_name("qwen3.5:9b") == "Qwen/qwen3.5:9b"
+    assert policy_model_name("gpt-5.6-luna") == "gpt-5.6-luna"
+    timeout = openai.APITimeoutError(request=httpx.Request("POST", "http://x/v1"))
+    good = json.dumps([{"name": "search-flights", "args": {}}])
+    _l, _s, _b, auto, route = _auto(stack, tmp_path, [timeout, good])
+    try:
+        assert progent.policy_model == "Qwen/qwen3.5:9b"
+        assert 'Output format: ```json [{"name": tool_name' in progent.get_SYS_PROMPT()
+        asyncio.run(auto.generate(["q"]))  # no exception: Progent retried the timed-out call
+        assert len(route.calls) == 2 and auto.events[-1]["error"] is None
+    finally:
+        auto.uninstall()

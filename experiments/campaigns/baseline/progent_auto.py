@@ -31,10 +31,15 @@ Our adaptations, stated (D-420):
    turn's deadline (`asyncio.wait_for`) still applies.
 5. **Route failures** (rule 12, D-361): Progent's retry loop catches every exception, and with
    update errors ignored it would turn our route's failure into a run without generated rules. A
-   failure of the route itself (any `openai` client error: a refused connection, a 5xx, a 429 past
-   D-361's waits, a timeout) is kept and raised after Progent returns, so the driver classifies it
-   as it classifies the agent's own calls (a harness error; a timeout the run's failure). A reply
-   Progent cannot parse is Progent's to retry, as released.
+   failure of the route itself (an `openai` client error: a refused connection, a 5xx, a 429 past
+   D-361's waits) is kept and raised after Progent returns, so the driver makes it a harness error
+   as it does for the agent's own calls. A call that timed out is the model's slowness, not the
+   route's failure: Progent retries it as released (the T32b smoke, TUNING T-9), and the turn's
+   deadline bounds the whole. A reply Progent cannot parse is Progent's to retry, as released.
+6. **The policy model's name** (TUNING T-9, rule 10): Progent picks its prompt's output-format
+   line by the model name, and names Qwen models `Qwen/…` (its vLLM route); a local Qwen rung is
+   given that name (`policy_model_name`), so Progent sends a Qwen model the prompt it wrote for one.
+   The route is ours whatever the name (the replaced `api_request`).
 """
 
 from __future__ import annotations
@@ -51,6 +56,12 @@ from campaigns.baseline.defense_route import DefenseRoute
 _ORIGINAL_API_REQUEST = progent.api_request
 
 
+def policy_model_name(model: str) -> str:
+    """The name Progent's prompt branches read (D-420, TUNING T-9): `Qwen/<model>` for a Qwen model
+    (its `Qwen/` branches add the output-format line), the provider's id otherwise."""
+    return f"Qwen/{model}" if model.lower().startswith("qwen") else model
+
+
 def joined_query(user_turns: list[str]) -> str:
     """The query Progent generates from before a turn: the user's messages so far."""
     return "\n\n".join(user_turns)
@@ -62,7 +73,7 @@ class ProgentAuto:
     def __init__(self, route: DefenseRoute, specs: list[dict], policy_model: str):
         self.route = route
         self.specs = specs  # the offered function-tool specs (`ToolLayer.specs` values)
-        self.policy_model = policy_model
+        self.policy_model = policy_model_name(policy_model)
         self.read_only = sorted(s["name"] for s in specs if s.get("side_effects") == "read")
         self.events: list[dict] = []
         self.route_failure: BaseException | None = None
@@ -98,6 +109,8 @@ class ProgentAuto:
                     seed=0,
                 )
             )
+        except openai.APITimeoutError:  # the model's slowness: Progent retries it (point 5)
+            raise
         except openai.OpenAIError as exc:
             if self.route_failure is None:
                 self.route_failure = exc

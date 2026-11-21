@@ -1,0 +1,482 @@
+[
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-detector-L9-C-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-progent-L9-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-spotlight-L9-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-progent-L9-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "L9",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "FW-spotlight-L9-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-progent-L9-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-detector-L9-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-spotlight-L9-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-progent-L9-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-spotlight-L9-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "L9",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "FW-detector-L9-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "L9",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "FW-spotlight-L9-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-repeat-L9-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-repeat-L9-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-repeat-L9-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "L9",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "FW-detector-L9-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "L9",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "FW-progent-L9-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-filter-L9-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-detector-L9-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-none-L9-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-filter-L9-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-repeat-L9-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-filter-L9-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-none-L9-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-detector-L9-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-filter-L9-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-progent-L9-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "L9",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "FW-none-L9-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-none-L9-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-filter-L9-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-progent-L9-C-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "L9",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "FW-repeat-L9-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-none-L9-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "L9",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "FW-progent-L9-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "L9",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "FW-filter-L9-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-spotlight-L9-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-repeat-L9-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-repeat-L9-C-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "L9",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "FW-none-L9-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "L9",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "FW-repeat-L9-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-detector-L9-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-none-L9-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-none-L9-C-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-detector-L9-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-spotlight-L9-C-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-spotlight-L9-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "L9",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "FW-filter-L9-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "L9",
+  "arm": null,
+  "id": "FW-filter-L9-C-01-p0-benign"
+ }
+]
