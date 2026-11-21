@@ -570,7 +570,11 @@ def detector_facts() -> dict:
 async def tool_filter(route, agent: Agent, instructions: str, turn_input: list, layer, events):
     """AgentDojo's `OpenAILLMToolFilter` before the turn's loop: the conversation, the tools and
     the filter prompt to the same model (`tool_choice` none, temperature 0); the agent keeps the
-    tools whose names the reply writes; the prompt and the reply stay in the conversation."""
+    tools whose names the reply writes. AgentDojo keeps the prompt and the reply in the
+    conversation; here they are recorded (the defense call, the event) but not carried into the
+    agent's input (TUNING T-10, rule 12): ending the input on the filter's assistant reply, Ollama's
+    `/v1` continues that reply as a prefix (T-6) and the agent wrote one token and no tool call in
+    every run of the first smoke. Applied on every route, so the side's configuration is one."""
     specs = list(layer.specs.values())
     messages = agentdojo.filter_messages(agentdojo.chat_history(turn_input))
     reply = await route.chat(
@@ -592,9 +596,4 @@ async def tool_filter(route, agent: Agent, instructions: str, turn_input: list, 
         }
     )
     turn_agent = agent.clone(tools=[t for t in agent.tools if t.name in kept])
-    turn_input = [
-        *turn_input,
-        {"role": "user", "content": agentdojo.TOOL_FILTER_PROMPT},
-        {"role": "assistant", "content": reply["text"]},
-    ]
     return turn_agent, turn_input

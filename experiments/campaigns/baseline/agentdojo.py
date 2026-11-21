@@ -12,7 +12,9 @@ it to its undefended pipeline:
 - `filter` (`tool_filter`): before the agent's first call (here: before each turn, each turn
   being one user task), one call to the same model with the conversation, the tools listed and
   `TOOL_FILTER_PROMPT` as a user message, `tool_choice` `none`, temperature 0; a tool is kept when
-  its name is a substring of the reply; the prompt and the reply stay in the conversation.
+  its name is a substring of the reply; AgentDojo keeps the prompt and the reply in the
+  conversation, here they stay in the record only (TUNING T-10: Ollama continues a trailing
+  assistant reply as a prefix).
 - `detector` (`transformers_pi_detector`): every tool answer scored by
   `protectai/deberta-v3-base-prompt-injection-v2` (`SAFE` label, threshold 0.5, mode `message`);
   an answer whose safety score is below the threshold is replaced by `OMITTED` and the run goes on.

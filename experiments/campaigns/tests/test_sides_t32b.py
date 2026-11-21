@@ -393,8 +393,8 @@ def test_the_tool_filter_keeps_named_tools_and_keeps_the_exchange(monkeypatch):
         fw.tool_filter(route, agent, "S", [{"role": "user", "content": "Q"}], Layer(), events)
     )
     assert [t.name for t in turn_agent.tools] == ["search-flights"]
-    assert turn_input[-2] == {"role": "user", "content": agentdojo.TOOL_FILTER_PROMPT}
-    assert turn_input[-1] == {"role": "assistant", "content": "search-flights"}
+    # TUNING T-10: the exchange is the defense call's, never a trailing assistant message
+    assert turn_input == [{"role": "user", "content": "Q"}]
     sent = calls[-1]
     assert sent["tool_choice"] == "none" and sent["temperature"] == 0.0
     assert sent["messages"][-1]["content"] == agentdojo.TOOL_FILTER_PROMPT
@@ -610,10 +610,7 @@ def test_each_new_side_composes_its_defense_in_run_webair(side_id, stack, tmp_pa
     if side_id == "FW-filter":
         assert purposes == ["agentdojo.tool_filter"] * 2
         assert [t.name for t in tool_runs[0]["agent"].tools] == ["get-fare-rules", "search-flights"]
-        assert tool_runs[0]["input"][-1] == {
-            "role": "assistant",
-            "content": "search-flights, get-fare-rules",
-        }
+        assert tool_runs[0]["input"][-1]["role"] == "user"  # T-10: never the filter's reply
     elif side_id == "FW-progent":
         assert purposes.count("progent.generate") == 2  # before each turn
         assert "progent.update" in purposes  # after the search
