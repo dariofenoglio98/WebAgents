@@ -33,6 +33,7 @@ from agents import (
     ModelSettings,
     OpenAIChatCompletionsModel,
     OpenAIResponsesModel,
+    RunConfig,
     RunHooks,
     Runner,
     set_tracing_disabled,
@@ -41,7 +42,8 @@ from agents.exceptions import MaxTurnsExceeded
 from jsonschema import Draft202012Validator
 from openai import AsyncOpenAI
 
-from campaigns.baseline import ports, tools
+from campaigns.baseline import agentdojo, ports, sides, tools
+from campaigns.baseline.defense_route import DefenseRoute
 from campaigns.baseline.policies import build as policies
 from campaigns.driver import record
 from campaigns.driver.py_driver import FIXTURE_HOSTS, prepare_memory, webair_grants
@@ -323,8 +325,10 @@ def run_webair(
     grant_profile: bool = False,
     profile_insertion: str | None = None,
     meta: dict,
+    side: str = "FW",
 ) -> dict:
-    """One WebAir conversation (TS-W, TS-C) on `FW`; returns the campaign run record."""
+    """One WebAir conversation (TS-W, TS-C) on a framework side (`sides.py`: `FW` by default);
+    returns the campaign run record."""
     from agentpkg.conversation.declarations import conversation_of
     from agentpkg.memory.host import cli_memory
 
@@ -337,7 +341,11 @@ def run_webair(
         package, mode="live", decisions=grants, memory_dir=memory_dir, memory_grants=memory_grants
     )
     offered = offered_tools(package, grant_profile=grant_profile)
+    config = sides.side(side)
     state = tools.RunState()
+    model_calls: list[dict] = []
+    route = DefenseRoute(rung, model_calls, turn=lambda: state.turn)
+    defense_events: list[dict] = []
     layer = tools.ToolLayer(
         specs=ports.function_tool_specs(package),
         state=state,
@@ -353,20 +361,41 @@ def run_webair(
         offered=offered,
         files=package.files,
         conversation=conversation_of(package.graph)["budget"],
+        ask=config.ask,
+        output_transform=output_transform(config),
     )
+    instructions = ports.instructions("webair", package)
+    if config.defense == "spotlight":
+        instructions = agentdojo.spotlight_instructions(instructions)
     agent = Agent(
         name="WebAir",
-        instructions=ports.instructions("webair", package),
+        instructions=instructions,
         tools=layer.function_tools(),
         model=sdk_model(rung),
         model_settings=model_settings(rung, package),
     )
-    layer.secure(agent, policies.progent_rules(policies.load("webair")))
+    auto = None
+    if config.progent == "declared":
+        layer.secure(agent, policies.progent_rules(policies.load("webair")))
+    elif config.progent == "auto":
+        from campaigns.baseline.progent_auto import ProgentAuto
+
+        auto = ProgentAuto(route, list(layer.specs.values()), rung.model)
+        auto.install()
+        layer.secure(agent, None)
+        auto.always_allow()
+        layer.after_tool = auto.update
+    else:
+        layer.instrument(agent)
+    run_config = (
+        RunConfig(call_model_input_filter=agentdojo.repeat_filter)
+        if config.defense == "repeat"
+        else None
+    )
     answer_agent = formatter(rung, package)
     bound = model_call_bound(package)
     hard_tokens = package.policy["budget"].get("hard_tokens")
     deadline = package.graph.get("deadline_seconds")
-    model_calls: list[dict] = []
     turn_records: list[dict] = []
     origin_start, sink_start = len(stack.origin_log), len(stack.sink.log)
     started = time.monotonic()
@@ -399,16 +428,28 @@ def run_webair(
                 )
                 return
             hooks = Recorder(model_calls, hard_tokens, index)
-            try:
-                result = await asyncio.wait_for(
-                    Runner.run(
-                        agent,
-                        history + [{"role": "user", "content": text}],
-                        max_turns=bound,
-                        hooks=hooks,
-                    ),
-                    timeout=deadline,
+            user_turns = list(turns[:index])
+
+            async def turn_run():
+                # The side's defense before the agent's loop (D-420): Progent's generation from
+                # the user's messages so far; AgentDojo's tool filter for the turn.
+                turn_agent, turn_input = agent, history + [{"role": "user", "content": text}]
+                if auto is not None:
+                    await auto.generate(user_turns)
+                if config.defense == "filter":
+                    turn_agent, turn_input = await tool_filter(
+                        route, agent, instructions, turn_input, layer, defense_events
+                    )
+                return await Runner.run(
+                    turn_agent,
+                    turn_input,
+                    max_turns=bound,
+                    hooks=hooks,
+                    run_config=run_config,
                 )
+
+            try:
+                result = await asyncio.wait_for(turn_run(), timeout=deadline)
             except Exception as exc:
                 state.tokens += hooks.tokens
                 code = _error_code(exc)
@@ -451,6 +492,9 @@ def run_webair(
         asyncio.run(conversation())
     except Exception as exc:  # a driver failure: a harness error, in the denominator
         outcome["harness_error"] = f"{type(exc).__name__}: {exc}"[:500]
+    finally:
+        if auto is not None:
+            auto.uninstall()
     harness_error = outcome["harness_error"]
     seconds = time.monotonic() - started
     context = ollama_context(rung) if rung.provider == "ollama" else None
@@ -485,5 +529,72 @@ def run_webair(
             offered=sorted(offered),
             memory_grants=dict(flag.split("=", 1) for flag in memory_grants),
             rate_limit_waits=waits,
+            defense={
+                "side": sides.describe(side),
+                "events": defense_events + (auto.events if auto is not None else []),
+                "transforms": state.transforms,
+                **({"detector": detector_facts()} if config.defense == "detector" else {}),
+            },
         ),
     )
+
+
+def output_transform(config: sides.Side):
+    """AgentDojo's transforms of a tool answer before the model reads it (D-420)."""
+    if config.defense == "spotlight":
+        return lambda text: (agentdojo.spotlight_output(text), {"defense": "spotlight"})
+    if config.defense == "detector":
+        model = agentdojo.detector()
+
+        def detect(text: str):
+            facts = model.detect(text)
+            return (agentdojo.OMITTED if facts["flagged"] else text), {
+                "defense": "detector",
+                **facts,
+            }
+
+        return detect
+    return None
+
+
+def detector_facts() -> dict:
+    return {
+        "model": agentdojo.DETECTOR_MODEL,
+        "revision": agentdojo.DETECTOR_REVISION,
+        "threshold": agentdojo.DETECTOR_THRESHOLD,
+        "window": agentdojo.DETECTOR_WINDOW,
+        "stride": agentdojo.DETECTOR_STRIDE,
+    }
+
+
+async def tool_filter(route, agent: Agent, instructions: str, turn_input: list, layer, events):
+    """AgentDojo's `OpenAILLMToolFilter` before the turn's loop: the conversation, the tools and
+    the filter prompt to the same model (`tool_choice` none, temperature 0); the agent keeps the
+    tools whose names the reply writes; the prompt and the reply stay in the conversation."""
+    specs = list(layer.specs.values())
+    messages = agentdojo.filter_messages(agentdojo.chat_history(turn_input))
+    reply = await route.chat(
+        purpose="agentdojo.tool_filter",
+        system=instructions,
+        messages=messages,
+        tools=specs,
+        tool_choice="none",
+        temperature=0.0,
+    )
+    names = [s["name"] for s in specs]
+    kept = agentdojo.kept_tools(reply["text"], reply["tool_calls"], names)
+    events.append(
+        {
+            "turn": route.turn(),
+            "event": "tool_filter",
+            "kept": kept,
+            "reply_tool_calls": reply["tool_calls"],
+        }
+    )
+    turn_agent = agent.clone(tools=[t for t in agent.tools if t.name in kept])
+    turn_input = [
+        *turn_input,
+        {"role": "user", "content": agentdojo.TOOL_FILTER_PROMPT},
+        {"role": "assistant", "content": reply["text"]},
+    ]
+    return turn_agent, turn_input

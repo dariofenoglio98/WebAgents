@@ -72,6 +72,7 @@ class RunState:
     turn_remote: int = 0  # this turn's, for the cap
     tokens: int = 0  # the conversation's, after each turn
     unparsed: list = field(default_factory=list)
+    transforms: list = field(default_factory=list)  # a defense's change to a tool answer (D-420)
 
     def start_turn(self, index: int) -> None:
         """A turn is one run of the graph: its own caps start again; the conversation's do not."""
@@ -147,8 +148,18 @@ class ToolLayer:
         files: dict,
         conversation: dict | None = None,
         host_handlers: dict | None = None,
+        ask: bool = True,
+        output_transform=None,
+        after_tool=None,
     ):
         self.specs = {s["name"]: s for s in specs if s["tool_id"] in offered}
+        # The side's defense (`sides.py`, D-420): rule 8's ask step only where the side has one
+        # (`FW`; D-421), a transform of every tool answer before the model reads it (AgentDojo's
+        # spotlighting and detector: `(text) -> (text, facts)`), and a hook after every tool
+        # answer (Progent's autonomous update: `async (name, arguments, text)`).
+        self.ask = ask
+        self.output_transform = output_transform
+        self.after_tool = after_tool
         self.host_handlers = host_handlers or {}  # binding -> agentpkg's own handler (D-358)
         self.state = state
         self.transport = transport
@@ -198,6 +209,20 @@ class ToolLayer:
                         }
                     )
                 raise
+            if self.output_transform is not None:
+                delivered, facts = self.output_transform(str(result))
+                self.state.transforms.append(
+                    {
+                        "at": time.time(),
+                        "turn": self.state.turn,
+                        "tool": spec["tool_id"],
+                        "changed": delivered != str(result),
+                        **facts,
+                    }
+                )
+                result = delivered
+            if self.after_tool is not None:
+                await self.after_tool(spec["name"], arguments, str(result))
             if not marker["reached"]:
                 self.state.refused.append(
                     {
@@ -230,7 +255,7 @@ class ToolLayer:
             if refusal is not None:
                 self._refuse("budget", refusal, tool_id, arguments)
                 return f"The host refused this call: {refusal}."
-            if tool_id in CONSEQUENTIAL:
+            if tool_id in CONSEQUENTIAL and self.ask:
                 facts = responders.call_facts(arguments, self.state.quotes)
                 accepted = self.responder.decide(
                     facts, seat="ask_step", step=tool_id, turn=self.state.turn
@@ -426,10 +451,16 @@ class ToolLayer:
             for spec in self.specs.values()
         ]
 
-    def secure(self, agent: Agent, policy_rules: dict) -> Agent:
-        """Progent's wrapper around the executor, then the recorder around Progent (D-350)."""
+    def secure(self, agent: Agent, policy_rules: dict | None) -> Agent:
+        """Progent's wrapper around the executor, then the recorder around Progent (D-350).
+        `policy_rules` None: the autonomous mode (`progent_auto`), whose rules are generated."""
+        progent.available_tools = []  # the wrapper appends; one run's tools only (D-420)
         progent.update_security_policy(policy_rules)
         progent.openai_agent_wrapper(agent)
+        return self.instrument(agent)
+
+    def instrument(self, agent: Agent) -> Agent:
+        """The recorder around the tools (alone on a side without Progent)."""
         for tool in agent.tools:
             if isinstance(tool, FunctionTool):
                 tool.on_invoke_tool = self.record(tool.on_invoke_tool, self.specs[tool.name])

@@ -227,6 +227,8 @@ def model_outputs(record: dict) -> list[str]:
     answer that proposed it is here."""
     texts = []
     for call in record.get("model_calls") or []:
+        if call.get("role") == "defense":  # a defense's own call (D-422) is not the agent's output
+            continue
         if isinstance(call.get("text"), str):
             texts.append(call["text"])
             continue
@@ -362,16 +364,29 @@ def refused_attempts(found: list[dict]) -> int:
     return sum(1 for a in found if a.get("refused"))
 
 
+def _dollars(usage: dict, prices: dict | None) -> float | None:
+    if not prices:
+        return None
+    return round(
+        (usage.get("input_tokens") or 0) * prices.get("input_per_mtok", 0) / 1e6
+        + (usage.get("output_tokens") or 0) * prices.get("output_per_mtok", 0) / 1e6,
+        6,
+    )
+
+
 def cost(record: dict, prices: dict | None) -> dict:
+    """The agent's usage and dollars; a defense's own calls (D-422) apart in `defense`, with their
+    dollars, and the side's total in `total_dollars` (None without prices)."""
     usage = dict(record.get("usage") or {})
-    dollars = None
-    if prices:
-        dollars = round(
-            (usage.get("input_tokens") or 0) * prices.get("input_per_mtok", 0) / 1e6
-            + (usage.get("output_tokens") or 0) * prices.get("output_per_mtok", 0) / 1e6,
-            6,
+    dollars = _dollars(usage, prices)
+    out = {**usage, "dollars": dollars}
+    if isinstance(usage.get("defense"), dict):
+        defense = {**usage["defense"], "dollars": _dollars(usage["defense"], prices)}
+        out["defense"] = defense
+        out["total_dollars"] = (
+            None if dollars is None else round(dollars + (defense["dollars"] or 0), 6)
         )
-    return {**usage, "dollars": dollars}
+    return out
 
 
 def utility(record: dict, task: dict | None, task_set: str) -> dict:

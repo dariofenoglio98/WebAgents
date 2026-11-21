@@ -63,6 +63,7 @@ EXPERIMENTS = ROOT / "experiments"
 if str(EXPERIMENTS) not in sys.path:  # `campaigns` itself puts WebAir's origin on the path
     sys.path.insert(0, str(EXPERIMENTS))
 
+from campaigns.baseline import sides as framework  # noqa: E402
 from campaigns.driver import pacing, record  # noqa: E402
 from campaigns.driver.routes import Rung  # noqa: E402
 from campaigns.origin import catalog, tls  # noqa: E402
@@ -70,7 +71,10 @@ from campaigns.tasks import generate  # noqa: E402
 
 PROTOCOL = EXPERIMENTS / "PROTOCOL.md"
 RUNGS = Path(__file__).resolve().parent / "rungs.json"
+# Our two runtimes and `FW` (the declaration-derived configuration): the default `--sides`. T32b's
+# framework sides (`baseline/sides.py`, D-420: the original configurations) are run when named.
 SIDES = ("Py", "Cr", "FW")
+ALL_SIDES = (*SIDES, *framework.NEW_SIDES)
 PRESETS = ("smoke", "placements", "e2", "e3", "e3-memory", "qualification", "paper")
 # E3's pooled arm (PROTOCOL.md §3 E3, D-360): 300 injected runs per side × rung, 37 or 38 per
 # family, each with its twin; TS-L's arm: every question × its two payloads × its placements,
@@ -111,6 +115,8 @@ LITERATURE_RUNGS = ("L30", "H")
 # T32, D-363.
 CONTEXT_BY_TASK_SET = {"TS-L": 65536}
 LITERATURE_ATTACK_SIDES = ("Py", "FW")
+# The task sets T32b's new sides run (D-423: E2's TS-W and TS-C, E3's W1–W4 draws).
+WEBAIR_TASK_SETS = ("TS-W", "TS-C")
 
 
 # -- the matrix ------------------------------------------------------------------------------
@@ -200,9 +206,11 @@ def _pairs(payload_id: str, placement: str) -> list[dict]:
 
 
 def admits(side: str, rung: str, task: dict, arm: dict | None) -> bool:
-    """Whether a unit belongs in the matrix: a driver exists, TS-L only on its rungs, and TS-L's
-    attack arm only on its sides."""
+    """Whether a unit belongs in the matrix: a driver exists, TS-L only on its rungs, TS-L's
+    attack arm only on its sides, and T32b's framework sides on WebAir's task sets only (D-423)."""
     if (side, task["task_set"]) in NOT_BUILT:
+        return False
+    if side in framework.NEW_SIDES and task["task_set"] not in WEBAIR_TASK_SETS:
         return False
     if task["task_set"] == "TS-L":
         if rung not in LITERATURE_RUNGS:
@@ -433,11 +441,24 @@ def _versions(sides: list[str]) -> dict:
     import agentpkg
 
     out = {"agentpkg": agentpkg.__version__, "python": sys.version.split()[0]}
-    if "FW" in sides:
+    if any(framework.is_framework(s) for s in sides):
         from campaigns.baseline import ports
 
         out["openai-agents"] = version("openai-agents")
         out["secagent"] = ports.PROGENT_COMMIT
+    if any(framework.SIDES[s].defense for s in sides if framework.is_framework(s)):
+        from campaigns.baseline import agentdojo
+
+        out["agentdojo"] = agentdojo.SOURCE
+    if "FW-detector" in sides:
+        from campaigns.baseline import agentdojo
+
+        out["torch"] = version("torch")
+        out["transformers"] = version("transformers")
+        out["detector"] = {
+            "model": agentdojo.DETECTOR_MODEL,
+            "revision": agentdojo.DETECTOR_REVISION,
+        }
     if "Cr" in sides:
         from campaigns.driver import cr_driver
 
@@ -522,7 +543,7 @@ def envelope_for(unit: dict, task: dict, table: dict) -> dict:
     conversation's budget lets any side spend (its turns, its tokens, its per-tool caps across
     turns), plus the answer step on FW."""
     family = table[FAMILIES.get(unit["task_set"], "webair")]
-    extra = table["fw_answer_step_model_calls"] if unit["side"] == "FW" else 0
+    extra = table["fw_answer_step_model_calls"] if framework.is_framework(unit["side"]) else 0
     if family["per"] == "run":
         return {
             "model_calls": family["model_calls"] + extra,
@@ -614,6 +635,8 @@ def manifest(
         "seed": seed,
         "preset": preset,
         "sides": sides,
+        # Each framework side's configuration (D-420): Progent's mode, the ask step, the defense.
+        "framework_sides": {s: framework.describe(s) for s in sides if framework.is_framework(s)},
         "task_sets": {
             name: _sha_file(generate.HERE / name)
             for name in ("ts-w.json", "ts-c.json", "ts-n.json", "ts-l.json", "ts-w-home.json")
@@ -701,14 +724,18 @@ _RUNNERS = {
 
 
 def _side_runner(family: str, side: str):
-    """The driver of one family on one side; an unknown side is refused (review 1, nit 5)."""
+    """The driver of one family on one side; an unknown side is refused (review 1, nit 5). T32b's
+    framework sides run `FW`'s WebAir driver with their configuration (D-420), WebAir only."""
+    import functools
     import importlib
 
+    base = "FW" if side in framework.NEW_SIDES and family == "webair" else side
     try:
-        module, name = _RUNNERS[family][side]
+        module, name = _RUNNERS[family][base]
     except KeyError:
         raise ValueError(f"no {family} driver for side {side!r}") from None
-    return getattr(importlib.import_module(module), name)
+    runner = getattr(importlib.import_module(module), name)
+    return functools.partial(runner, side=side) if base != side else runner
 
 
 def _runner(side: str):
@@ -1076,7 +1103,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     rungs = [r for r in args.rungs.split(",") if r]
     sides = [s for s in args.sides.split(",") if s]
-    unknown = [s for s in sides if s not in SIDES]
+    unknown = [s for s in sides if s not in ALL_SIDES]
     if unknown:
         parser.error(f"unknown sides {unknown}")
     task_sets = tuple(s for s in args.task_sets.split(",") if s)
