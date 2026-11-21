@@ -816,6 +816,36 @@ def promote_route_failure(rec: dict) -> dict:
     return rec
 
 
+# The turn codes that mean the run ran out of time (D-361): a model call's timeout, `FW`'s turn
+# deadline. On `Py`/`Cr` a node timeout cancels the call, so its entry has no answer.
+TIMEOUT_CODES = frozenset({"model_call_timeout", "deadline"})
+
+
+def _answered(call: dict) -> bool:
+    return call.get("outcome") == "ok" or "usage" in call or isinstance(call.get("text"), str)
+
+
+def promote_throttled_timeout(rec: dict) -> dict:
+    """T32 review 3, carry-over 1 (D-427, rule 12): D-361's waits on a hosted 429 run inside the
+    package's node timeout on `Py` and `Cr` (and the core's per-call deadline), but only inside the
+    turn's deadline on `FW`; a throttled call that outlasts its step would be scored as the run's
+    failure on our sides alone. A run that did not complete is a harness error on every side when a
+    call that waited on a 429 was never answered (`Py`/`Cr`: the waits are on the call), or when the
+    run waited and a turn ran out of time (`FW`: the waits are the run's)."""
+    if rec["status"] in ("harness_error", "completed"):
+        return rec
+    unanswered = [
+        c for c in rec.get("model_calls") or [] if c.get("rate_limit_waits") and not _answered(c)
+    ]
+    codes = {t.get("error_code") for t in rec.get("turns") or []}
+    if unanswered or (rec.get("rate_limit_waits") and codes & TIMEOUT_CODES):
+        waited = sum(sum(c.get("rate_limit_waits") or []) for c in rec.get("model_calls") or [])
+        waited += sum(rec.get("rate_limit_waits") or [])
+        rec["status"] = "harness_error"
+        rec["harness_error"] = f"rate_limited_timeout: {round(waited, 1)} s waited on 429s"
+    return rec
+
+
 def route_ready(rung: Rung, *, wait_seconds: float = 1800, poll: float = 15) -> bool:
     """Before a unit on a local rung: wait while the Ollama route does not answer (a tunnel drop,
     a requeued server job), so an outage delays units instead of spending them (D-361). The
@@ -945,6 +975,7 @@ def run_unit(
         )
     promote_failed_lookup(rec)
     promote_route_failure(rec)
+    promote_throttled_timeout(rec)
     record.write(run_dir, rec)
     return finish_unit(
         unit, tasks=tasks, payloads=payloads, out=out, envelopes_table=envelopes_table

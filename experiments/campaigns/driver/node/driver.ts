@@ -131,6 +131,8 @@ interface Job {
   probe_records?: boolean;
   /** Offline tests only: one model request through `modelTransport` over canned answers (D-361's rate-limit policy). */
   probe_rate_limit?: { responses: { status: number; headers: Record<string, string>; body: string }[] };
+  /** Requests observed in order and sent at once, answered in reverse order (carry-over 2). */
+  probe_concurrent?: { bodies: string[]; answers: { delay_ms: number; body: string }[] };
 }
 
 const dials: JsonObject[] = [];
@@ -209,9 +211,21 @@ function responsesText(answer: JsonObject): string | null {
   return parts.length ? parts.join("") : null;
 }
 
-/** The provider's own token counts on the answer, onto the request the observer recorded last. */
-function recordUsage(kind: Route["kind"], text: string, status: number): void {
-  const entry = modelCalls[modelCalls.length - 1];
+/** The entries the transport has claimed: one per request that left (never serialized). */
+const claimed = new WeakSet<JsonObject>();
+
+/** The observer's entry for the request the transport is sending (T32 review 3, carry-over 2;
+ * D-427): the core's observer sees every body before it leaves, so the oldest unclaimed entry with
+ * the same body is this request's. Literature Review's maps send three calls at once; writing on
+ * the last entry pushed gave one call's answer to another and left calls without a status. */
+export function claimEntry(calls: JsonObject[], body: string | null): JsonObject | undefined {
+  const entry = calls.find((call) => !claimed.has(call) && call.body === body);
+  if (entry !== undefined) claimed.add(entry);
+  return entry;
+}
+
+/** The provider's own token counts and text, onto the request's own entry. */
+function recordUsage(entry: JsonObject | undefined, kind: Route["kind"], text: string, status: number): void {
   if (entry === undefined) return;
   entry.status = status;
   try {
@@ -276,6 +290,7 @@ function modelTransport(route: Route, base: HttpTransport = nodeTransport({ allo
       else body.temperature = temperature;
       sent = { ...request, body: JSON.stringify(body) };
     }
+    const entry = request.method === "POST" ? claimEntry(modelCalls, request.body) : undefined;
     let response = await base(sent);
     const policy = route.rate_limit;
     if (policy) {
@@ -284,7 +299,6 @@ function modelTransport(route: Route, base: HttpTransport = nodeTransport({ allo
       while (response.status === policy.status) {
         const wait = rateLimitWait(policy, resends, response.headers, waited);
         if (wait === null) break;
-        const entry = modelCalls[modelCalls.length - 1];
         if (entry !== undefined) ((entry.rate_limit_waits ??= []) as number[]).push(wait);
         await pause(wait, request.signal);
         resends += 1;
@@ -292,7 +306,7 @@ function modelTransport(route: Route, base: HttpTransport = nodeTransport({ allo
         response = await base(sent);
       }
     }
-    if (request.method === "POST") recordUsage(route.kind, response.body, response.status);
+    if (request.method === "POST") recordUsage(entry, route.kind, response.body, response.status);
     return response;
   };
 }
@@ -497,9 +511,22 @@ async function main(): Promise<void> {
       sent += 1;
       return answers.shift()!;
     };
-    modelCalls.push({ at: Date.now() / 1000, url: "probe", body: null });
+    modelCalls.push({ at: Date.now() / 1000, url: "probe", body: "{}" }); // as the observer records it
     const response = await modelTransport(job.route, canned)({ url: "https://probe.invalid/v1/responses", method: "POST", headers: {}, body: "{}", signal: AbortSignal.timeout(60_000), maxResponseBytes: 1 << 20 });
     emit({ probe: "rate_limit", status: response.status, sent, model_calls: modelCalls });
+    return;
+  }
+  if (job.probe_concurrent !== undefined) {
+    const { bodies, answers } = job.probe_concurrent;
+    const canned: HttpTransport = async (request) => {
+      const answer = answers[(JSON.parse(request.body ?? "{}") as { n: number }).n]!; // the body as sent carries the temperature too
+      await new Promise((resolve) => setTimeout(resolve, answer.delay_ms));
+      return { status: 200, headers: {}, body: answer.body };
+    };
+    for (const body of bodies) modelCalls.push({ at: Date.now() / 1000, url: "probe", body });
+    const transport = modelTransport(job.route, canned);
+    await Promise.all(bodies.map((body) => transport({ url: "https://probe.invalid/api/chat", method: "POST", headers: {}, body, signal: AbortSignal.timeout(60_000), maxResponseBytes: 1 << 20 })));
+    emit({ probe: "concurrent", model_calls: modelCalls });
     return;
   }
   if (job.probe_consent !== undefined) {
