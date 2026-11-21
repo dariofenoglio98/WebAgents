@@ -34,4 +34,14 @@ PY=$("$ROOT/bin/uv" python find 3.13)
 agentpkg/.venv/bin/python -m pip install -q --upgrade pip
 agentpkg/.venv/bin/python -m pip install -q -e './agentpkg[dev,compute]' -r experiments/campaigns/requirements.txt
 (cd chrome-agent-browser && npm ci --silent --no-audit --no-fund)
+# T32b's FW-detector (D-420): torch and transformers from the CPU wheel index (no CUDA wheels: the
+# classifier runs on the node's CPU beside Ollama's GPU), and the detector model fetched once by
+# revision into the node-local Hugging Face cache, so the runs need no network for it.
+export HF_HOME=$ROOT/hf
+if [ -f experiments/campaigns/requirements-detector.txt ]; then
+  agentpkg/.venv/bin/python -m pip install -q -r experiments/campaigns/requirements-detector.txt \
+    --extra-index-url https://download.pytorch.org/whl/cpu
+  (cd experiments && ../agentpkg/.venv/bin/python -c "from campaigns.baseline import agentdojo as a; \
+from huggingface_hub import snapshot_download as s; s(a.DETECTOR_MODEL, revision=a.DETECTOR_REVISION)")
+fi
 echo "ready: $(git rev-parse HEAD) python $(agentpkg/.venv/bin/python --version) node $(node --version)"

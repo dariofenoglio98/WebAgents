@@ -17,6 +17,8 @@ NAME=$4
 shift 4
 ROOT=${WEBAGENTS_ROOT:-/tmp/${USER}-webagents}
 export PATH=$ROOT/node/bin:$PATH
+# The detector model's node-local cache (setup-node-local.sh), read offline (T32b's FW-detector).
+export HF_HOME=$ROOT/hf HF_HUB_OFFLINE=1
 cd "$ROOT/repo/experiments"
 OUT=injection_campaign/results/$NAME
 SAFE=$HOME/webagents-campaign/results/$NAME
