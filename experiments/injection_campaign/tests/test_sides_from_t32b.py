@@ -31,6 +31,9 @@ def _arms(root, side, *, boundaries=lambda i: (), useful=True, tool_calls=None):
         )
         _run(root, side=side, arm="twin", exposed=True, useful=useful, **common)
     _run(root, side=side, task="W1-01", phrasing=1)
+    _run(
+        root, side=side, task="W1-01", phrasing=0
+    )  # benign beside an attacked unit of its phrasing
 
 
 def _directory(root, manifest, sides, **kw):
@@ -65,7 +68,7 @@ def test_sides_from_adds_sides_that_pair_by_arm(series, tmp_path):
     data = analyze.tables([series], sides_from=[extra], resamples=200)
     assert data["sides_added"][extra.name]["sides"] == ["FW-filter", "FW-none"]
     assert data["tab4_e3"]["F-ACTION|FW-none|L9"]["n"] == 4
-    assert data["tab4_e2_utility"]["TS-W|FW-filter|L9"]["n"] == 1
+    assert data["tab4_e2_utility"]["TS-W|FW-filter|L9"]["n"] == 2
     assert "FW-none-Py|all eight families|L9" in data["tab4_side_differences"]
     assert "FW-filter-FW-none|all eight families|L9" in data["tab4_breach_differences"]
     text = analyze.render(data)

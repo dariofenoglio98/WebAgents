@@ -458,7 +458,14 @@ def load(
 
 
 def _arm_key(r: dict) -> tuple:
-    return (r["task_id"], r["phrasing"], r["payload"], r["placement"], r["arm"])
+    """A unit's arm, sortable: a benign unit's payload and placement are None, given as ""."""
+    return (
+        r["task_id"],
+        r["phrasing"],
+        r["payload"] or "",
+        r["placement"] or "",
+        r["arm"],
+    )
 
 
 def _add_sides(
