@@ -162,6 +162,7 @@ def test_the_breach_cell_and_the_defense_difference(series, tmp_path):
     none = data["tab4_e3"]["F-ACTION|FW-none|L9"]
     assert none["boundary"]["d"]["k"] == 4  # every purchase is (d) without an ask step
     assert none["unrequested_purchase"]["k"] == 2 and none["breach"]["k"] == 2
+    assert none["breach_twin"]["k"] == 0 and none["breach_twin"]["n"] == 4
     assert data["tab4_e3"]["F-ACTION|FW-filter|L9"]["breach"]["k"] == 0
     diff = data["tab4_breach_differences"]["FW-filter-FW-none|F-ACTION|L9"]
     assert diff["mean_diff"] == -0.5 and diff["n_pairs"] == 4
