@@ -25,9 +25,13 @@ it to its undefended pipeline:
 
 Our adaptations, stated (D-420): the filter runs once per turn (AgentDojo has one query per task);
 where a route ignores `tool_choice` (Ollama) and the reply is a tool call, the called names count
-as listed; the detector scores overlapping windows of its model's 512-token input and flags the
-answer when any window is flagged, because AgentDojo's pipeline call passes no truncation (its tool
-outputs are short; WebAir's search answers are not, and the model cannot read past 512 tokens).
+as listed. The detector makes AgentDojo's own call, `pipeline(tool_output)[0]`, over the whole
+answer in one pass (no truncation, as released: DeBERTa-v3's relative positions read past 512
+tokens). **Corrected 2026-11-23 (TUNING T-11, rule 12):** until then this port scored overlapping
+512-token windows and flagged an answer if any window was flagged, on the wrong premise that the
+model cannot read past 512 tokens; windows cut mid-JSON were flagged where AgentDojo's whole-text
+call passes the answer (104 of 108 multi-window benign search answers flagged on L9), so
+`FW-detector`'s units of the first light-side directories are superseded.
 """
 
 from __future__ import annotations
@@ -53,8 +57,6 @@ SPOTLIGHT_SUFFIX = (
 # The detector model's revision on the Hugging Face hub, pinned (recorded in every manifest): the
 # hub's head on 2026-11-20 (last modified 2026-07-09; Apache-2.0). AgentDojo names the model only.
 DETECTOR_REVISION = "90c9989b1a342275dd0d1a95aad283c04e075671"
-DETECTOR_WINDOW = 512  # the model's input length in tokens, special tokens included
-DETECTOR_STRIDE = 128  # the windows' overlap
 
 
 # -- spotlighting ----------------------------------------------------------------------------
@@ -152,7 +154,7 @@ def repeat_filter(data):
 
 # -- the detector ----------------------------------------------------------------------------
 class Detector:
-    """`TransformersBasedPIDetector` over 512-token windows (see the module's note)."""
+    """`TransformersBasedPIDetector`: AgentDojo's pipeline and call, on the CPU."""
 
     def __init__(self, model: str = DETECTOR_MODEL, revision: str = DETECTOR_REVISION):
         try:
@@ -171,31 +173,12 @@ class Detector:
             "text-classification", model=classifier, tokenizer=self.tokenizer, device="cpu"
         )
 
-    def windows(self, text: str) -> list[str]:
-        ids = self.tokenizer(text, add_special_tokens=False)["input_ids"]
-        size = DETECTOR_WINDOW - self.tokenizer.num_special_tokens_to_add()
-        if len(ids) <= size:
-            return [text]
-        out = []
-        start = 0
-        while True:
-            out.append(self.tokenizer.decode(ids[start : start + size]))
-            if start + size >= len(ids):
-                return out
-            start += size - DETECTOR_STRIDE
-
-    def safety(self, text: str) -> float:
-        result = self.pipeline(text, truncation=True, max_length=DETECTOR_WINDOW)[0]
-        return result["score"] if result["label"] == DETECTOR_SAFE_LABEL else 1 - result["score"]
-
     def detect(self, text: str) -> dict:
-        scores = [self.safety(w) for w in self.windows(text)]
-        lowest = min(scores)
-        return {
-            "flagged": lowest < DETECTOR_THRESHOLD,
-            "safety": round(lowest, 6),
-            "windows": len(scores),
-        }
+        """AgentDojo's `detect`: the pipeline over the whole text, the safety score of the `SAFE`
+        label, an injection below the threshold."""
+        result: dict = self.pipeline(text)[0]
+        safety = result["score"] if result["label"] == DETECTOR_SAFE_LABEL else 1 - result["score"]
+        return {"flagged": safety < DETECTOR_THRESHOLD, "safety": round(safety, 6)}
 
 
 _DETECTOR: Detector | None = None

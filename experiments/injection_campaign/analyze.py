@@ -24,6 +24,9 @@ series beside `Py`, `Cr` and `FW`. It may come from a later commit and protocol,
 series' payload catalog, seed, WebAir task sets and each rung's model and digest; a side already in
 the series is refused, and each added side must hold, per rung, exactly the series' `FW` arms on TS-W
 and TS-C (task, phrasing, payload, placement, arm: the draw every cell pairs on, supplements applied).
+`--supersede-side DIR:SIDE` leaves one side of a `--sides-from` directory out (a harness fault of that
+side, rerun in a later directory: T32b's `FW-detector`, TUNING T-11); its units are counted as
+superseded, never pooled.
 
 **Tab. 4 (E3).** Per family and the pooled arm "all eight families" (the headline cell, §3 E3) ×
 side × rung, over the injected runs of the `e3` units on TS-W:
@@ -340,6 +343,7 @@ def load(
     supplements: list[Path] = (),
     *,
     sides_from: list[Path] = (),
+    supersede_sides: list[str] = (),
     allow_incomplete: bool = False,
     report: dict | None = None,
 ) -> tuple[list[dict], dict]:
@@ -446,7 +450,13 @@ def load(
                 kept.append(r)
         rows = kept + added
     rows = _add_sides(
-        rows, manifests, list(sides_from), allow_incomplete, report, texts
+        rows,
+        manifests,
+        list(sides_from),
+        allow_incomplete,
+        report,
+        texts,
+        superseded_sides=_superseded_sides(supersede_sides),
     )
     units = [r["unit"] for r in rows]
     if len(units) != len(set(units)):
@@ -468,6 +478,17 @@ def _arm_key(r: dict) -> tuple:
     )
 
 
+def _superseded_sides(specs) -> set[tuple[str, str]]:
+    """`DIR:SIDE` pairs (the directory's name, a side) left out of `--sides-from`."""
+    out = set()
+    for spec in specs or ():
+        name, sep, side = str(spec).rpartition(":")
+        if not sep or not name or not side:
+            raise SystemExit(f"--supersede-side {spec!r}: expected DIRECTORY:SIDE")
+        out.add((Path(name).name, side))
+    return out
+
+
 def _add_sides(
     rows: list[dict],
     manifests: list[dict],
@@ -475,6 +496,7 @@ def _add_sides(
     allow_incomplete: bool,
     report: dict,
     texts: dict | None,
+    superseded_sides: set[tuple[str, str]] = frozenset(),
 ) -> list[dict]:
     """D-424: each `--sides-from` directory's sides join the series, checked to pair by arm."""
     added_report: dict = report.setdefault("sides_added", {})
@@ -505,6 +527,12 @@ def _add_sides(
             shortfalls=report.setdefault("shortfalls", {}),
             texts=texts,
         )
+        superseded = report.setdefault("superseded", {})
+        for r in added:
+            if (extra.name, r["side"]) in superseded_sides:
+                key = f"{extra.name}|{r['side']}"
+                superseded[key] = superseded.get(key, 0) + 1
+        added = [r for r in added if (extra.name, r["side"]) not in superseded_sides]
         present = {r["side"] for r in rows}
         new_sides = {r["side"] for r in added}
         if new_sides & present:
@@ -874,6 +902,7 @@ def tables(
     *,
     supplements: list[Path] = (),
     sides_from: list[Path] = (),
+    supersede_sides: list[str] = (),
     allow_incomplete: bool = False,
     resamples: int = 2000,
     seed: int = 31,
@@ -885,6 +914,7 @@ def tables(
             _unpacked(directories, Path(scratch)),
             _unpacked(list(supplements), Path(scratch)),
             sides_from=_unpacked(list(sides_from), Path(scratch)),
+            supersede_sides=supersede_sides,
             allow_incomplete=allow_incomplete,
             resamples=resamples,
             seed=seed,
@@ -896,6 +926,7 @@ def _tables(
     supplements: list[Path],
     *,
     sides_from: list[Path] = (),
+    supersede_sides: list[str] = (),
     allow_incomplete: bool,
     resamples: int,
     seed: int,
@@ -905,6 +936,7 @@ def _tables(
         directories,
         supplements,
         sides_from=sides_from,
+        supersede_sides=supersede_sides,
         allow_incomplete=allow_incomplete,
         report=report,
     )
@@ -943,6 +975,7 @@ def findings_draft(
     *,
     supplements: list[Path] = (),
     sides_from: list[Path] = (),
+    supersede_sides: list[str] = (),
     allow_incomplete: bool = False,
     sample: int = 20,
     seed: int = 31,
@@ -959,6 +992,7 @@ def findings_draft(
             _unpacked(directories, Path(scratch)),
             _unpacked(list(supplements), Path(scratch)),
             sides_from=_unpacked(list(sides_from), Path(scratch)),
+            supersede_sides=supersede_sides,
             allow_incomplete=allow_incomplete,
             report=report,
         )
@@ -1174,6 +1208,12 @@ def main(argv: list[str] | None = None) -> int:
         help="a directory of T32b's framework sides added to the series (§9.2, version 6, D-424)",
     )
     parser.add_argument(
+        "--supersede-side",
+        action="append",
+        default=[],
+        help="DIRECTORY:SIDE, a side of a --sides-from directory left out (a rerun replaces it)",
+    )
+    parser.add_argument(
         "--allow-incomplete",
         action="store_true",
         help="print a directory's shortfall against its unit list instead of refusing it",
@@ -1195,6 +1235,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.directories,
                 supplements=args.supplement,
                 sides_from=args.sides_from,
+                supersede_sides=args.supersede_side,
                 allow_incomplete=args.allow_incomplete,
                 seed=args.seed,
             ),
@@ -1210,6 +1251,7 @@ def main(argv: list[str] | None = None) -> int:
         args.directories,
         supplements=args.supplement,
         sides_from=args.sides_from,
+        supersede_sides=args.supersede_side,
         allow_incomplete=args.allow_incomplete,
         resamples=args.bootstrap,
         seed=args.seed,

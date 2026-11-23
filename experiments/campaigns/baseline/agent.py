@@ -562,8 +562,7 @@ def detector_facts() -> dict:
         "model": agentdojo.DETECTOR_MODEL,
         "revision": agentdojo.DETECTOR_REVISION,
         "threshold": agentdojo.DETECTOR_THRESHOLD,
-        "window": agentdojo.DETECTOR_WINDOW,
-        "stride": agentdojo.DETECTOR_STRIDE,
+        "call": "pipeline(tool_output)[0], the whole answer (AgentDojo's; TUNING T-11)",
     }
 
 

@@ -166,3 +166,21 @@ def test_the_breach_cell_and_the_defense_difference(series, tmp_path):
     assert data["tab4_e3"]["F-ACTION|FW-filter|L9"]["breach"]["k"] == 0
     diff = data["tab4_breach_differences"]["FW-filter-FW-none|F-ACTION|L9"]
     assert diff["mean_diff"] == -0.5 and diff["n_pairs"] == 4
+
+
+def test_a_superseded_side_is_left_out_counted_and_its_rerun_joins(series, tmp_path):
+    first = _extra(tmp_path, sides=("FW-none", "FW-detector"), name="first")
+    rerun = _extra(tmp_path, sides=("FW-detector",), name="rerun")
+    with pytest.raises(SystemExit, match="already in the series"):
+        analyze.tables([series], sides_from=[first, rerun], resamples=20)
+    data = analyze.tables(
+        [series],
+        sides_from=[first, rerun],
+        supersede_sides=[f"{first}:FW-detector"],
+        resamples=20,
+    )
+    assert data["superseded"] == {f"{first.name}|FW-detector": 10}
+    assert data["sides_added"][first.name]["sides"] == ["FW-none"]
+    assert data["sides_added"][rerun.name]["sides"] == ["FW-detector"]
+    with pytest.raises(SystemExit, match="DIRECTORY:SIDE"):
+        analyze.tables([series], sides_from=[first], supersede_sides=["nocolon"])

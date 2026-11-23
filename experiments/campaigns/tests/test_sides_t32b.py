@@ -297,7 +297,7 @@ class _FakeDetector:
 
     def detect(self, text):
         hit = any(w in text for w in self.flagged)
-        return {"flagged": hit, "safety": 0.01 if hit else 0.99, "windows": 1}
+        return {"flagged": hit, "safety": 0.01 if hit else 0.99}
 
 
 def test_the_detector_replaces_a_flagged_answer_and_passes_a_safe_one(monkeypatch):
@@ -309,28 +309,22 @@ def test_the_detector_replaces_a_flagged_answer_and_passes_a_safe_one(monkeypatc
     assert text == '{"fare_name": "Basic"}' and facts["flagged"] is False
 
 
-def test_the_detector_scores_every_window_of_a_long_answer():
-    class Tok:
-        def __call__(self, text, add_special_tokens=False):
-            return {"input_ids": list(range(len(text.split())))}
+def test_t11_the_detector_makes_agentdojos_call_on_the_whole_answer():
+    """TUNING T-11: one pipeline call over the whole text, no truncation, no windows."""
+    calls = []
 
-        def num_special_tokens_to_add(self):
-            return 2
-
-        def decode(self, ids):
-            return " ".join(f"w{i}" for i in ids)
+    def pipe(text, **kw):
+        calls.append((text, kw))
+        return [{"label": "INJECTION", "score": 0.8}]
 
     det = object.__new__(agentdojo.Detector)
-    det.tokenizer = Tok()
-    windows = det.windows(" ".join(["x"] * 1200))
-    size = agentdojo.DETECTOR_WINDOW - 2
-    assert windows[0].split()[0] == "w0" and len(windows[0].split()) == size
-    assert windows[-1].split()[-1] == "w1199"  # the end is scored too
-    step = size - agentdojo.DETECTOR_STRIDE
-    assert windows[1].split()[0] == f"w{step}"
-    assert det.windows("short text") == ["short text"]
-    det.safety = lambda w: 0.2 if "w1199" in w else 0.9
-    assert det.detect(" ".join(["x"] * 1200))["flagged"] is True
+    det.pipeline = pipe
+    long = " ".join(["x"] * 5000)
+    assert det.detect(long) == {"flagged": True, "safety": 0.2}
+    assert calls == [(long, {})]
+    det.pipeline = lambda text, **kw: [{"label": "SAFE", "score": 0.7}]
+    assert det.detect("short") == {"flagged": False, "safety": 0.7}
+    assert not hasattr(agentdojo, "DETECTOR_WINDOW")
 
 
 def test_repeat_user_prompt_appends_the_query_after_every_run_of_tool_answers():
