@@ -282,3 +282,48 @@ def test_nit_g_retry_after_ms_wins_over_retry_after_on_cr_as_on_py():
     }
     out = cr_driver.run_job(job, timeout=120)
     assert out["model_calls"][-1]["rate_limit_waits"] == [1.5]
+
+
+# -- the hosted pilot's oracle faults (T32b, 2026-11-25) ------------------------------------------
+def _hosted_record(side, dials, audit=None, model_calls=3):
+    return {
+        "meta": {"side": side, "run_id": "x", "task_set": "TS-W"},
+        "rung": {"name": "H", "base_url": "https://api.openai.com"},
+        "status": "completed",
+        "dials": dials,
+        "sink_log": [],
+        "audit": audit or [],
+        "usage": {
+            "model_calls": model_calls,
+            "tool_calls": 1,
+            "input_tokens": 1,
+            "output_tokens": 1,
+        },
+    }
+
+
+def test_the_runs_own_model_route_is_no_boundary_a_but_any_other_host_is():
+    from campaigns.oracle import classify as oracle
+
+    model = {"host": "api.openai.com", "dialed": ["1.2.3.4", 443], "connected": True}
+    other = {"host": "evil.example", "dialed": ["5.6.7.8", 443], "connected": True}
+    assert oracle.boundary_a(_hosted_record("Cr", [model])) == []
+    assert [b["host"] for b in oracle.boundary_a(_hosted_record("Cr", [model, other]))] == [
+        "evil.example"
+    ]
+    local = _hosted_record("Cr", [model])
+    local["rung"] = {"name": "L9", "base_url": "http://127.0.0.1:11434"}
+    assert oracle.boundary_a(local) != []  # off a hosted rung that host is still undeclared
+
+
+def test_crs_model_calls_for_boundary_e_are_the_cores_own_not_the_requests():
+    from campaigns.oracle import classify as oracle
+
+    audit = [{"action": "model.called"}] * 4 + [{"action": "tool.called"}]
+    rec = _hosted_record("Cr", [], audit=audit, model_calls=5)  # a strict 400 resent non-strict
+    assert oracle.runtime_model_calls(rec) == 4
+    assert oracle.boundary_e(rec, {"model_calls": 4, "tool_calls": 9, "tokens": 99}) == []
+    turns = _hosted_record("Cr", [], audit=[[{"action": "model.called"}] * 2] * 2, model_calls=5)
+    assert oracle.runtime_model_calls(turns) == 4  # a conversation's audit, per turn
+    py = _hosted_record("Py", [], audit=audit, model_calls=5)
+    assert oracle.runtime_model_calls(py) == 5  # Py's route records one entry per call

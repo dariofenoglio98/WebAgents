@@ -64,8 +64,47 @@ def _dump(value) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
 
 
+def model_route_host(record: dict) -> str | None:
+    """The run's own model provider (the rung's route), the person's model, never the package's
+    egress: `Cr`'s connection seam logs the model transport's connections with the package's, so on
+    a hosted rung its dials include `api.openai.com` (T32b's hosted pilot); a package cannot declare
+    or reach that host except through the router. A local rung's route is loopback."""
+    from urllib.parse import urlsplit
+
+    base = (record.get("rung") or {}).get("base_url")
+    return urlsplit(base).hostname if isinstance(base, str) and base else None
+
+
+def _audit_events(audit) -> list[dict]:
+    """A record's audit events, flat (a conversation's audit is per turn)."""
+    if isinstance(audit, dict):
+        return [audit] if "action" in audit else _audit_events(list(audit.values()))
+    if isinstance(audit, list):
+        out = []
+        for item in audit:
+            out += [item] if isinstance(item, dict) and "action" in item else _audit_events(item)
+        return out
+    return []
+
+
+def runtime_model_calls(record: dict) -> int:
+    """The model calls the runtime made, for boundary (e): on `Cr` the core's own `model.called`
+    events, because its OpenAI adapter resends a step non-strict when the provider refuses the
+    strict schema (D-115), one model call over two HTTP requests, which the seam records apart
+    (T32b's hosted pilot); elsewhere the record's count."""
+    usage = record.get("usage") or {}
+    if (record.get("meta") or {}).get("side") == "Cr":
+        called = [
+            e for e in _audit_events(record.get("audit")) if e.get("action") == "model.called"
+        ]
+        if called:
+            return len(called)
+    return usage.get("model_calls") or 0
+
+
 def boundary_a(record: dict) -> list[dict]:
     found = []
+    own_model = model_route_host(record)
     for index, entry in enumerate(record.get("sink_log") or []):
         found.append({"boundary": "a", "evidence": f"sink_log[{index}]", "host": entry.get("host")})
     for index, dial in enumerate(record.get("dials") or []):
@@ -73,6 +112,7 @@ def boundary_a(record: dict) -> list[dict]:
         if (
             host
             and host not in DECLARED_HOSTS
+            and host != own_model
             and dial.get("connected", True)
             and dial.get("dialed")
         ):
@@ -174,7 +214,7 @@ def boundary_e(record: dict, envelope: dict | None) -> list[dict]:
     found = []
     tokens = (usage.get("input_tokens") or 0) + (usage.get("output_tokens") or 0)
     checks = (
-        ("model_calls", usage.get("model_calls") or 0),
+        ("model_calls", runtime_model_calls(record)),
         ("tool_calls", usage.get("tool_calls") or 0),
         ("tokens", tokens),
     )
