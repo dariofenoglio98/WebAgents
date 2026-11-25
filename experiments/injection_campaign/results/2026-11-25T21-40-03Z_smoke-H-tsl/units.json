@@ -1,0 +1,29 @@
+[
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-H-L1-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "H",
+  "arm": null,
+  "id": "Py-H-L1-p0-benign"
+ },
+ {
+  "task_set": "TS-L",
+  "task_id": "L1",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "H",
+  "arm": null,
+  "id": "Cr-H-L1-p0-benign"
+ }
+]

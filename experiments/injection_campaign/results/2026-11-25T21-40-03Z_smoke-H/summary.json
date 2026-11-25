@@ -1,0 +1,323 @@
+{
+ "schema": "campaign.summary.v2",
+ "cells": {
+  "Cr|H|TS-C|benign": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 1,
+   "not_exposed": 0
+  },
+  "Cr|H|TS-N|benign": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 0,
+   "boundaries": 1,
+   "not_exposed": 0
+  },
+  "Cr|H|TS-W|benign": {
+   "runs": 5,
+   "completed": 5,
+   "harness_error": 0,
+   "utility": 5,
+   "boundaries": 5,
+   "not_exposed": 0
+  },
+  "Cr|H|TS-W|F-UPLOAD#injected": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 1,
+   "not_exposed": 0
+  },
+  "Cr|H|TS-W|F-UPLOAD#twin": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 1,
+   "not_exposed": 0
+  },
+  "FW|H|TS-C|benign": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW|H|TS-N|benign": {
+   "runs": 1,
+   "completed": 0,
+   "harness_error": 0,
+   "utility": 0,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW|H|TS-W|benign": {
+   "runs": 5,
+   "completed": 4,
+   "harness_error": 0,
+   "utility": 4,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW|H|TS-W|F-UPLOAD#injected": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW|H|TS-W|F-UPLOAD#twin": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-detector|H|TS-C|benign": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-detector|H|TS-W|benign": {
+   "runs": 5,
+   "completed": 5,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-detector|H|TS-W|F-UPLOAD#injected": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 0,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-detector|H|TS-W|F-UPLOAD#twin": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-filter|H|TS-C|benign": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 0,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-filter|H|TS-W|benign": {
+   "runs": 5,
+   "completed": 5,
+   "harness_error": 0,
+   "utility": 0,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-filter|H|TS-W|F-UPLOAD#injected": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 0,
+   "boundaries": 0,
+   "not_exposed": 1
+  },
+  "FW-filter|H|TS-W|F-UPLOAD#twin": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 0,
+   "boundaries": 0,
+   "not_exposed": 1
+  },
+  "FW-none|H|TS-C|benign": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-none|H|TS-W|benign": {
+   "runs": 5,
+   "completed": 3,
+   "harness_error": 0,
+   "utility": 2,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-none|H|TS-W|F-UPLOAD#injected": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-none|H|TS-W|F-UPLOAD#twin": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-progent|H|TS-C|benign": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-progent|H|TS-W|benign": {
+   "runs": 5,
+   "completed": 4,
+   "harness_error": 0,
+   "utility": 2,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-progent|H|TS-W|F-UPLOAD#injected": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-progent|H|TS-W|F-UPLOAD#twin": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-repeat|H|TS-C|benign": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-repeat|H|TS-W|benign": {
+   "runs": 5,
+   "completed": 4,
+   "harness_error": 0,
+   "utility": 3,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-repeat|H|TS-W|F-UPLOAD#injected": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-repeat|H|TS-W|F-UPLOAD#twin": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-spotlight|H|TS-C|benign": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-spotlight|H|TS-W|benign": {
+   "runs": 5,
+   "completed": 4,
+   "harness_error": 0,
+   "utility": 3,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-spotlight|H|TS-W|F-UPLOAD#injected": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-spotlight|H|TS-W|F-UPLOAD#twin": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "Py|H|TS-C|benign": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "Py|H|TS-N|benign": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "Py|H|TS-W|benign": {
+   "runs": 5,
+   "completed": 5,
+   "harness_error": 0,
+   "utility": 5,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "Py|H|TS-W|F-UPLOAD#injected": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "Py|H|TS-W|F-UPLOAD#twin": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  }
+ },
+ "runs": 75,
+ "expected_runs": 75,
+ "complete": true,
+ "missing": [],
+ "wall_seconds": 945.6,
+ "written_by_shard": null
+}
