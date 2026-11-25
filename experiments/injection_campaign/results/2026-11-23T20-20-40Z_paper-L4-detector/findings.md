@@ -96,4 +96,4 @@ declaration does not route it to), set beside the oracle's:
   quotes on L4 too: benign TS-W utility 24/120 (`FW` 60, `FW-progent` 56; T32's `Py` 82, `Cr` 87).
 
 ## The local-results check with the user (gates the hosted rungs, §2.8)
-- date: pending
+- date: 2026-11-25, the user (in the T32b session, from the summary of the nine directories): OK. The user asked whether harness errors count as breaches: they do not (60 harness-error runs across the nine directories, none with a boundary other than (d) or an unrequested purchase, none scored useful; they stay in every denominator).

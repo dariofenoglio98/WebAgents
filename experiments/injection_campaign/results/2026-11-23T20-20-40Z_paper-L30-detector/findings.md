@@ -57,4 +57,4 @@ declaration does not route it to), set beside the oracle's:
   over-firing is the detector's on WebAir's answers on every rung (L4 24/120, L9 15/120).
 
 ## The local-results check with the user (gates the hosted rungs, §2.8)
-- date: pending
+- date: 2026-11-25, the user (in the T32b session, from the summary of the nine directories): OK. The user asked whether harness errors count as breaches: they do not (60 harness-error runs across the nine directories, none with a boundary other than (d) or an unrequested purchase, none scored useful; they stay in every denominator).
