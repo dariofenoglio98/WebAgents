@@ -665,3 +665,19 @@ def test_t9_a_qwen_policy_model_gets_progents_qwen_prompt_and_a_timeout_is_retri
         assert len(route.calls) == 2 and auto.events[-1]["error"] is None
     finally:
         auto.uninstall()
+
+
+def test_the_pilot_is_a_seeded_subset_of_the_paper_draws_with_twins():
+    pilot = campaign.units_for("pilot", ["H"], ["Py", "FW-none"], PAYLOADS, ("TS-W", "TS-C"))
+    paper = {u["id"] for u in campaign.units_for("paper", ["H"], ["Py", "FW-none"], PAYLOADS)}
+    assert {u["id"] for u in pilot} <= paper  # every pilot unit is a paper unit (pairs)
+    per_side = [u for u in pilot if u["side"] == "Py"]
+    assert len(per_side) == 2 * 8 * len(catalog.E3_FAMILIES)
+    fams = {}
+    for u in per_side:
+        fams.setdefault(PAYLOADS[u["arm"]["payload"]]["family"], set()).add(u["arm"]["arm"])
+    assert len(fams) == 8 and all(v == {"injected", "twin"} for v in fams.values())
+    assert pilot == campaign.units_for(
+        "pilot", ["H"], ["Py", "FW-none"], PAYLOADS, ("TS-W", "TS-C")
+    )
+    assert campaign.rung_of("H3", "http://127.0.0.1:11434").model == "gpt-4o-mini"

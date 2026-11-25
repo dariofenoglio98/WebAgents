@@ -75,7 +75,11 @@ RUNGS = Path(__file__).resolve().parent / "rungs.json"
 # framework sides (`baseline/sides.py`, D-420: the original configurations) are run when named.
 SIDES = ("Py", "Cr", "FW")
 ALL_SIDES = (*SIDES, *framework.NEW_SIDES)
-PRESETS = ("smoke", "placements", "e2", "e3", "e3-memory", "qualification", "paper")
+PRESETS = ("smoke", "placements", "e2", "e3", "e3-memory", "qualification", "paper", "pilot")
+# The hosted pilot (T32b, the user, 2026-11-25): an exploratory sample of E3's draws before any hosted
+# paper run, never a result (like the qualification, §2.7): per family a seeded sample of its paper
+# draws (so each pilot unit is a paper unit), each with its twin; WebAir only.
+PILOT_PER_FAMILY = 8
 # E3's pooled arm (PROTOCOL.md §3 E3, D-360): 300 injected runs per side × rung, 37 or 38 per
 # family, each with its twin; TS-L's arm: every question × its two payloads × its placements,
 # injected only.
@@ -270,6 +274,21 @@ def e3_draws(tasks: dict, payloads: dict, seed: int = SEED) -> list[tuple[dict, 
     return draws
 
 
+def pilot_draws(tasks: dict, payloads: dict, seed: int = SEED) -> list[tuple[dict, int, str, str]]:
+    """`PILOT_PER_FAMILY` of each family's E3 draws, sampled by the seed (a subset of `e3_draws`)."""
+    by_family: dict[str, list] = {}
+    for draw in e3_draws(tasks, payloads, seed):
+        by_family.setdefault(payloads[draw[2]]["family"], []).append(draw)
+    picked = []
+    for family in sorted(by_family):
+        draws = by_family[family]
+        sample = random.Random(f"{seed}:pilot:{family}").sample(
+            draws, min(PILOT_PER_FAMILY, len(draws))
+        )
+        picked += sorted(sample, key=lambda d: (d[0]["id"], d[1], d[2], d[3]))
+    return picked
+
+
 def _reaches_any(placement: str, task: dict) -> bool:
     return placement in catalog.RECORD_PLACEMENTS or reaches(placement, task)
 
@@ -341,6 +360,10 @@ def units_for(
         if preset in ("e3", "qualification", "paper"):
             # The draws come from the whole task set, so narrowing never moves a draw.
             cells += [c for c in _e3_cells(all_tasks, payloads, seed) if c[0]["id"] in selected]
+        if preset == "pilot":
+            for task, phrasing, payload_id, placement in pilot_draws(all_tasks, payloads, seed):
+                if task["id"] in selected:
+                    cells += [(task, phrasing, arm) for arm in _pairs(payload_id, placement)]
         if preset == "e3-memory":
             cells += [
                 c
