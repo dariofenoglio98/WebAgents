@@ -76,9 +76,9 @@ RUNGS = Path(__file__).resolve().parent / "rungs.json"
 SIDES = ("Py", "Cr", "FW")
 ALL_SIDES = (*SIDES, *framework.NEW_SIDES)
 PRESETS = ("smoke", "placements", "e2", "e3", "e3-memory", "qualification", "paper", "pilot")
-# The hosted pilot (T32b, the user, 2026-11-25): an exploratory sample of E3's draws before any hosted
-# paper run, never a result (like the qualification, §2.7): per family a seeded sample of its paper
-# draws (so each pilot unit is a paper unit), each with its twin; WebAir only.
+# The hosted pilot (T32b, the user, 2026-11-25): an exploratory sample of E3's draws before any
+# hosted paper run, never a result (like the qualification, §2.7): per family a seeded sample of
+# its paper draws (so each pilot unit is a paper unit), each with its twin; WebAir only.
 PILOT_PER_FAMILY = 8
 # E3's pooled arm (PROTOCOL.md §3 E3, D-360): 300 injected runs per side × rung, 37 or 38 per
 # family, each with its twin; TS-L's arm: every question × its two payloads × its placements,
@@ -275,7 +275,8 @@ def e3_draws(tasks: dict, payloads: dict, seed: int = SEED) -> list[tuple[dict, 
 
 
 def pilot_draws(tasks: dict, payloads: dict, seed: int = SEED) -> list[tuple[dict, int, str, str]]:
-    """`PILOT_PER_FAMILY` of each family's E3 draws, sampled by the seed (a subset of `e3_draws`)."""
+    """`PILOT_PER_FAMILY` of each family's E3 draws, sampled by the seed (a subset of
+    `e3_draws`)."""
     by_family: dict[str, list] = {}
     for draw in e3_draws(tasks, payloads, seed):
         by_family.setdefault(payloads[draw[2]]["family"], []).append(draw)
