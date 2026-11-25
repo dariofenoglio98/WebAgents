@@ -1,0 +1,187 @@
+{
+ "schema": "campaign.manifest.v1",
+ "commit": "b452cd443ea73d3865fbb33cc13bffd2970ae154",
+ "dirty": false,
+ "dirty_fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ "protocol": {
+  "sha256": "5f1ce4c6324935ef8e333255ca68d523a7cfbc1578cad8b046f00c4526f91333",
+  "version": 6
+ },
+ "seed": 31,
+ "preset": "paper",
+ "sides": [
+  "FW-progent"
+ ],
+ "framework_sides": {
+  "FW-progent": {
+   "id": "FW-progent",
+   "progent": "auto",
+   "ask": false,
+   "defense": null,
+   "source": "Progent b02783b autonomous mode as agentdojo/run.sh runs it (D-420)"
+  }
+ },
+ "task_sets": {
+  "ts-w.json": "b67e5e70770db87b47da7e68abb106e096bc5c442d3ba78f268d11ce1232cd16",
+  "ts-c.json": "ea80a73a435cd869dd032428db7c508d6ee9f11d30a36df52c37c085a62ccfa8",
+  "ts-n.json": "a76a3c15c65efbe905c54bb37268c145e9f3e1de2cd653af0f45ee97604c743f",
+  "ts-l.json": "85a7d5cd05f639a4caeee77747848056576c5ee510d7c02f9938714e0a12a9fd",
+  "ts-w-home.json": "42635fae43c12efa54af49a5c6683649a2ad7d439b378ad8de187bef51b85fc6"
+ },
+ "task_sets_selected": [
+  "TS-W",
+  "TS-C"
+ ],
+ "literature": {
+  "rungs": [
+   "L30",
+   "H"
+  ],
+  "local_context_window": 65536,
+  "attack_sides": [
+   "Py",
+   "FW"
+  ],
+  "crossref_lane": {
+   "max_concurrent": 1,
+   "min_interval_seconds": 1.0,
+   "contact": null
+  }
+ },
+ "not_built": [],
+ "payloads": {
+  "sha256": "0bb626a210efc0a30e4ce40dac5721203d8cd9cc7c3d7a88b7d3ddb39c40fded",
+  "files": {
+   "F-ACTION/action-01.json": "b0f08de6c3e08ec026640fc95e885a2cdb64e9a502b87359a7883a8e9c9be597",
+   "F-ACTION/action-02.json": "f324f1e1cb212c8f6e1f92f64b4919fbdf97386853bd935e30f337686ecb9f53",
+   "F-ACTION/action-03.json": "fd337e4f92a9ea0929eddfa609f93bd43c05cfc121dce5577c0e51c88cb03f44",
+   "F-CONSENT/consent-01.json": "378afd0608029f997887ae57d8fd392c58684b1a5a172ec08205601c219d261e",
+   "F-CONSENT/consent-02.json": "2746a4c8263b8451ece0fe4f2a2f5d0853c00df0b0d1e6490d2bac5e55bf232c",
+   "F-CONSENT/consent-03.json": "2f1157e1633ac2bb4e683af1b564825f3639a7dff07bbfedf91ed1e91d732b3a",
+   "F-FIELD/field-01.json": "19ad5200e94be003e4da2200f1005a1bcd9233d222523c830718b3dc1db6a1ee",
+   "F-FIELD/field-02.json": "0da96eddbe275874b3fb2e201b2220c73248f149253d1f616dd7bc216f964054",
+   "F-FIELD/field-03.json": "52b7952f2d84eceac7e816759af401830dd1223ca95ae0abc025f250b8656a08",
+   "F-MEMORY/memory-01.json": "9cdb295eaabd33fd42babf1bbad347553308b037ab0f2311774c47da6cfff8f0",
+   "F-MEMORY/memory-02.json": "ea9620df624b076f40cd28e3542b1c72697898ad834c5d82df7ee20e3a76feaa",
+   "F-MEMORY/memory-03.json": "23ca2b1823b77ee4ee1b8cd4b0d36f77041ac7be4da02b45cb8eacc1715688fd",
+   "F-PEER/peer-01.json": "701f3bf605215c56a4c62a30dd77cee35fb9066e8a3e10716e718e7fa3e9c5eb",
+   "F-REDIRECT/redirect-01.json": "36ad7d4812295a04369d1f7f5feb00d14dee288eceb39c92474c74342480c2e2",
+   "F-REDIRECT/redirect-02.json": "2c5ecd7b3a7a84937bc6f1a53cc8b1bc745470b2f015ba76ffd7119f0dea8784",
+   "F-REDIRECT/redirect-03.json": "6fe6626b46148ab4c8c28a1f330e884368aa4641534bbc109218b925f3463e14",
+   "F-STEER/steer-01.json": "c544643fe2e4963965e5c7030506b74e967078e742f3294f1fec670262a0d9f9",
+   "F-STEER/steer-02.json": "3a19498d1750431bcd1ceaa5a3b65c1fbb14016a3224cbfa7b8b5a7813e8148d",
+   "F-STEER/steer-03.json": "5d068a27b27df884e131f8f07ecc103788d4624b4d2847c344677b138bbbb4db",
+   "F-STEER/steer-l1.json": "1eacffd9c248f1d6f859cda0b69ebd407502ad63adffbba33fa6143172afd3fb",
+   "F-TERMINATE/terminate-01.json": "965bb3792d0911bec37c379cda596d03a41b485df7da04205ca923af523158c4",
+   "F-UPLOAD/upload-01.json": "cc632f921e4e9f0df24bdd6f96b66cce1e5c6f43befb4a0a2d91436aa3c3ab81",
+   "F-UPLOAD/upload-02.json": "9e7b6bd830a8de9276c0525bc52e83938b9151c35b72b931ac948a4096020a57",
+   "F-UPLOAD/upload-03.json": "1dc98360a00d1259308a56c997592d3f37bc5c3ae79b10a2ee5d607403afc19d",
+   "F-UPLOAD/upload-l1.json": "ed33c73d3b70e021ecb9653b63af11881ae1f0d6e0a6de575f0bd3c543d132c7",
+   "F-WIDEN/widen-01.json": "9fe5895f05ebe077d2fb5878be292cf142e7425d85dfad80eff12e4687d707cc",
+   "F-WIDEN/widen-02.json": "cb3c3da3aaae707db70d9a9f18c7545f1c1623442c46e9e118eaf88eaf5b29eb",
+   "F-WIDEN/widen-03.json": "aabf6e341aea31b4e8488bc0ed745502d0bbc3a8313ce53a6780545baa627382"
+  }
+ },
+ "documents": {
+  "sources_sha256": "fc48ed2b8d316e6dbc93f0589409034e6099240db5039fa41caea4761fd7b605",
+  "writer_sha256": "06f373b6267764ae640c8d4dd8e3752058664e832fa8ecb0bea5d71fe440c50b"
+ },
+ "policies": {
+  "webair": "be9e24ffa0990bebfee4cf6c7b68976434aa40c7926a04d033844dbb004c236c",
+  "travel-network": "a88ea945105d8def138a8bb2d8a7b3acddc0c674fb830401557d93629094e5fb",
+  "literature-review": "bc037c7ffe8edf226278b7a2d63dd11f99d19e05f50a53e107e993f21ce8759a"
+ },
+ "instructions": {
+  "webair": "bbcc2a5757bf7959340f45024305b2c985f2ef5ba2660a76425d4e6a3ec054e4",
+  "travel-network": "834f32a3a55f946ddbd5d58e298e20c172d22b5d1af1240afbb2159e8a4906d5",
+  "literature-review": "cf0d523a6cde961ced3970415c14b3f3a88f8284b5aaee46dae5cf457afda107"
+ },
+ "rungs": {
+  "L9": {
+   "name": "L9",
+   "provider": "ollama",
+   "model": "qwen3.5:9b",
+   "base_url": "http://127.0.0.1:26187",
+   "context_window": 32768,
+   "temperature": 0.0,
+   "think": true,
+   "api_key_env": null,
+   "timeout_seconds": 600.0,
+   "remote": false,
+   "ollama_digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+   "list_price_usd_per_mtok": null,
+   "provisional": false
+  }
+ },
+ "host_mapping": {
+  "hostnames": [
+   "webagents-webair-production.up.railway.app",
+   "webagents-citation-resolver-production.up.railway.app",
+   "sink.invalid"
+  ],
+  "fixture_hosts": [
+   "webagents-webair-production.up.railway.app",
+   "webagents-citation-resolver-production.up.railway.app"
+  ],
+  "dial": "127.0.0.1, a throwaway campaign CA per stack",
+  "real_dns_answer_classified": true
+ },
+ "responder": "R-facts",
+ "envelopes": {
+  "webair": {
+   "per": "turn",
+   "model_calls": 4,
+   "tokens": 120000,
+   "tool_calls": 12,
+   "max_calls_per_tool": {
+    "get-fare-rules": 6,
+    "personal.passenger_identity": 1,
+    "prepare-booking": 1,
+    "search-flights": 1,
+    "simulate-purchase": 1,
+    "travel.profile": 1,
+    "wallet.payment_method": 1
+   },
+   "conversation": {
+    "max_turns": 8,
+    "tokens": 240000,
+    "max_calls_per_tool": {
+     "simulate-purchase": 1
+    }
+   }
+  },
+  "travel-network": {
+   "per": "run",
+   "model_calls": 8,
+   "tokens": 48000,
+   "tool_calls": 3
+  },
+  "literature-review": {
+   "per": "run",
+   "model_calls": 47,
+   "tokens": 180000,
+   "tool_calls": 36
+  },
+  "fw_answer_step_model_calls": 1
+ },
+ "versions": {
+  "agentpkg": "0.8.0",
+  "python": "3.13.18",
+  "openai-agents": "0.24.0",
+  "secagent": "b02783b896d4bf01a2adf24738015e258db8d35b"
+ },
+ "expected_runs": 732,
+ "units_sha256": "6cd96e9e21c6ac5b748db90e7ad530506f58eca77799050fd654983280c69e31",
+ "tasks_selected": null,
+ "served": {
+  "ollama_version": "ollama version is 0.40.8",
+  "env": {
+   "OLLAMA_NUM_PARALLEL": "4",
+   "OLLAMA_CONTEXT_LENGTH": "32768",
+   "OLLAMA_MAX_LOADED_MODELS": "1",
+   "OLLAMA_KEEP_ALIVE": "-1"
+  },
+  "models": "qwen3:30b=ad815644918f qwen3.5:4b=3b6225ff0711 qwen3.5:9b=6488c96fa5fa "
+ },
+ "written_at": "2026-11-22T00:01:42Z"
+}
