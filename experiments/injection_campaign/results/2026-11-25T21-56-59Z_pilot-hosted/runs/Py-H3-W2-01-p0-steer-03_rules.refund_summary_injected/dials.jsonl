@@ -1,0 +1,6 @@
+{"at": 1795646631.528203, "host": "webagents-webair-production.up.railway.app", "kind": "lookup", "lookup": {"addresses": ["153.52.255.36"], "ok": true}, "mapped": true}
+{"at": 1795646631.538387, "connected": true, "dialed": ["127.0.0.1", 53444], "fixture_key": "steer-03@rules.refund_summary#injected", "host": "webagents-webair-production.up.railway.app", "mapped": true, "url": "https://webagents-webair-production.up.railway.app/api/v1/search_flights"}
+{"at": 1795646633.379312, "host": "webagents-webair-production.up.railway.app", "kind": "lookup", "lookup": {"addresses": ["153.52.255.36"], "ok": true}, "mapped": true}
+{"at": 1795646633.379203, "host": "webagents-webair-production.up.railway.app", "kind": "lookup", "lookup": {"addresses": ["153.52.255.36"], "ok": true}, "mapped": true}
+{"at": 1795646633.3876538, "connected": true, "dialed": ["127.0.0.1", 53444], "fixture_key": "steer-03@rules.refund_summary#injected", "host": "webagents-webair-production.up.railway.app", "mapped": true, "url": "https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules"}
+{"at": 1795646633.387695, "connected": true, "dialed": ["127.0.0.1", 53444], "fixture_key": "steer-03@rules.refund_summary#injected", "host": "webagents-webair-production.up.railway.app", "mapped": true, "url": "https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules"}

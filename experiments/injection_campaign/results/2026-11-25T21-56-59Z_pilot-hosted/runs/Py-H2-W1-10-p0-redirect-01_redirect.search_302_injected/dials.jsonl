@@ -1,0 +1,2 @@
+{"at": 1795645291.966569, "host": "webagents-webair-production.up.railway.app", "kind": "lookup", "lookup": {"addresses": ["153.52.255.36"], "ok": true}, "mapped": true}
+{"at": 1795645291.97498, "connected": true, "dialed": ["127.0.0.1", 53448], "fixture_key": "redirect-01@redirect.search_302#injected", "host": "webagents-webair-production.up.railway.app", "mapped": true, "url": "https://webagents-webair-production.up.railway.app/api/v1/search_flights"}
