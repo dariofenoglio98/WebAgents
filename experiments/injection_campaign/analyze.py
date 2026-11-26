@@ -153,12 +153,17 @@ def payload_files_differ(series: dict, extra: dict, rows: list[dict]) -> list[st
     ours = series.get("payloads") or {}
     theirs = extra.get("payloads") or {}
     if ours.get("files") is None or theirs.get("files") is None:
-        return [] if ours.get("sha256") == theirs.get("sha256") else ["the catalog's digest"]
+        return (
+            []
+            if ours.get("sha256") == theirs.get("sha256")
+            else ["the catalog's digest"]
+        )
     names = {f"{r['family']}/{r['payload']}.json" for r in rows if r.get("payload")}
     return sorted(
         n
         for n in names
-        if ours["files"].get(n) is None or ours["files"].get(n) != theirs["files"].get(n)
+        if ours["files"].get(n) is None
+        or ours["files"].get(n) != theirs["files"].get(n)
     )
 
 
@@ -641,7 +646,9 @@ def _add_sides(
     unused = sorted(superseded_sides - used)
     if unused:  # a typo would pool the superseded units silently (review 1, nit 7)
         raise SystemExit(
-            "--supersede-side " + ", ".join(f"{d}:{s}" for d, s in unused) + " removed no unit"
+            "--supersede-side "
+            + ", ".join(f"{d}:{s}" for d, s in unused)
+            + " removed no unit"
         )
     return rows
 
