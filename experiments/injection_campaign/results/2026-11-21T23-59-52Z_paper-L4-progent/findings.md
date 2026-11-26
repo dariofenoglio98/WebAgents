@@ -72,4 +72,6 @@ over the next unit's route (Progent calls `api_request` by module name). Counted
   the side's alone; the "No harness error" note above reads "no harness error recorded; these seven harness-affected".
 - **Overlapping updates** (one response's tool calls run concurrently): 25 of 732 runs.
 - **Seconds**: the executor's join (up to 300 s) is inside `usage.seconds` of the deadline runs; 54 runs exceed 1,210 s.
-- Fixed at `9534d77` (TUNING T-12, PROTOCOL.md §9.2 version 6, row of 2026-11-25, D-429): each run's Progent runs in its own worker, closed and joined at the run's end, its updates one after another; a call from another thread is refused; the run's seconds end with its last turn. Not rerun (the user's call): the tables do not need it.
+- Fixed at `9534d77` (TUNING T-12, PROTOCOL.md §9.2 version 6, row of 2026-11-25, D-429): each run's Progent runs in its own worker, closed and joined at the run's end, its updates one after another; a call from another thread is refused; the run's seconds end with its last turn. Not rerun (the user's decision, 2026-11-25, D-429): the breach column cannot change; the fix could move at most the
+  32 affected runs' utility (these seven and the 25 with overlapping updates; 2 of them benign TS-W) and the deadline
+  runs' seconds.
