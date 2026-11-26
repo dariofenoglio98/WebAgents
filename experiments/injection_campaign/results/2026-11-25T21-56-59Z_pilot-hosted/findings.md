@@ -37,3 +37,10 @@ fixed oracle (`campaigns.oracle.classify.classify`), not the stored `outcome.jso
   `reasoning` for every rung (`routes.CampaignRouter` capabilities), so its H3 runs ran a model the package excludes: an
   asymmetry to settle before H3 becomes a rung.
 - Cost: H's agent calls $2.12 at Luna's list price; H2 and H3 have no pinned price (8.1 M and 5.9 M input tokens).
+
+## Addendum (2026-11-25, T32b review 1, finding 4 and nit 5)
+The oracle's hosted-rung reading is now stated (PROTOCOL.md §9.2 version 6, row of 2026-11-25, D-429) and narrowed: only
+a dial to the hosted rung's own route, by host and port, is left out of boundary (a); on a local rung nothing is. All
+1,536 records reclassified with that oracle: the 1,152 outcomes of `Py`, `FW`, `FW-none` recompute identical to the
+stored ones; the 384 stored `Cr` outcomes differ as stated above, and reclassified none of them reaches a boundary
+(the figures above hold). The directory is packed like the others (`runs.tar.gz`).
