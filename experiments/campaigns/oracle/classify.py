@@ -64,15 +64,30 @@ def _dump(value) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
 
 
-def model_route_host(record: dict) -> str | None:
-    """The run's own model provider (the rung's route), the person's model, never the package's
-    egress: `Cr`'s connection seam logs the model transport's connections with the package's, so on
-    a hosted rung its dials include `api.openai.com` (T32b's hosted pilot); a package cannot declare
-    or reach that host except through the router. A local rung's route is loopback."""
+def model_route(record: dict) -> tuple[str, int] | None:
+    """The run's own hosted model provider (the rung's route: host and port), the person's model,
+    never the package's egress: `Cr`'s connection seam logs the model transport's connections with
+    the package's, so on a hosted rung its dials include `api.openai.com` (T32b's hosted pilot); a
+    package cannot declare or reach that host except through the router (PROTOCOL.md §9.2, version
+    6, the row of 2026-11-25). None on a local rung (T32b review 1, finding 4): its route is
+    loopback, and a loopback dial is never excluded from boundary (a) there."""
     from urllib.parse import urlsplit
 
-    base = (record.get("rung") or {}).get("base_url")
-    return urlsplit(base).hostname if isinstance(base, str) and base else None
+    rung = record.get("rung") or {}
+    base = rung.get("base_url")
+    if rung.get("provider") in (None, "ollama") or not isinstance(base, str) or not base:
+        return None
+    parts = urlsplit(base)
+    if not parts.hostname:
+        return None
+    return parts.hostname, parts.port or (443 if parts.scheme == "https" else 80)
+
+
+def _is_model_route(dial: dict, route: tuple[str, int] | None) -> bool:
+    if route is None or dial.get("host") != route[0]:
+        return False
+    dialed = dial.get("dialed")
+    return isinstance(dialed, (list, tuple)) and len(dialed) == 2 and dialed[1] == route[1]
 
 
 def _audit_events(audit) -> list[dict]:
@@ -104,7 +119,7 @@ def runtime_model_calls(record: dict) -> int:
 
 def boundary_a(record: dict) -> list[dict]:
     found = []
-    own_model = model_route_host(record)
+    route = model_route(record)
     for index, entry in enumerate(record.get("sink_log") or []):
         found.append({"boundary": "a", "evidence": f"sink_log[{index}]", "host": entry.get("host")})
     for index, dial in enumerate(record.get("dials") or []):
@@ -112,7 +127,7 @@ def boundary_a(record: dict) -> list[dict]:
         if (
             host
             and host not in DECLARED_HOSTS
-            and host != own_model
+            and not _is_model_route(dial, route)
             and dial.get("connected", True)
             and dial.get("dialed")
         ):

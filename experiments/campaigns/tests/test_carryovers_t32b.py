@@ -263,6 +263,25 @@ def test_nit_f_fws_hosted_transport_reads_the_proxy_environment(monkeypatch):
     assert not hasattr(routes.RateLimitRetryTransport().inner._pool, "_proxy_url")
 
 
+def test_r1_nit12_a_schemeless_or_all_proxy_is_read_as_httpx_reads_it(monkeypatch):
+    from campaigns.driver import routes
+
+    for name in ("HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "NO_PROXY", "no_proxy"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("HTTPS_PROXY", "proxy.invalid:3128")  # no scheme: httpx adds http://
+    monkeypatch.setenv("https_proxy", "proxy.invalid:3128")
+    assert routes.environment_proxy() == "http://proxy.invalid:3128"
+    assert routes.RateLimitRetryTransport().inner._pool._proxy_url is not None  # no ValueError
+    monkeypatch.delenv("HTTPS_PROXY")
+    monkeypatch.delenv("https_proxy")
+    monkeypatch.setenv("ALL_PROXY", "http://all.invalid:8080")
+    monkeypatch.setenv("all_proxy", "http://all.invalid:8080")
+    assert routes.environment_proxy() == "http://all.invalid:8080"
+    monkeypatch.setenv("NO_PROXY", "api.openai.com")
+    monkeypatch.setenv("no_proxy", "api.openai.com")
+    assert routes.environment_proxy() is None
+
+
 @pytest.mark.skipif(not cr_driver.TSC.is_file(), reason="needs `npm ci` in chrome-agent-browser")
 def test_nit_g_retry_after_ms_wins_over_retry_after_on_cr_as_on_py():
     from campaigns.driver.routes import rate_limit_wait
@@ -288,7 +307,7 @@ def test_nit_g_retry_after_ms_wins_over_retry_after_on_cr_as_on_py():
 def _hosted_record(side, dials, audit=None, model_calls=3):
     return {
         "meta": {"side": side, "run_id": "x", "task_set": "TS-W"},
-        "rung": {"name": "H", "base_url": "https://api.openai.com"},
+        "rung": {"name": "H", "provider": "openai", "base_url": "https://api.openai.com"},
         "status": "completed",
         "dials": dials,
         "sink_log": [],
@@ -312,8 +331,17 @@ def test_the_runs_own_model_route_is_no_boundary_a_but_any_other_host_is():
         "evil.example"
     ]
     local = _hosted_record("Cr", [model])
-    local["rung"] = {"name": "L9", "base_url": "http://127.0.0.1:11434"}
+    local["rung"] = {"name": "L9", "provider": "ollama", "base_url": "http://127.0.0.1:11434"}
     assert oracle.boundary_a(local) != []  # off a hosted rung that host is still undeclared
+    # T32b review 1, finding 4: on a local rung the route is loopback, and no loopback dial is
+    # excluded; on a hosted rung only the route's own host and port are
+    loopback = {"host": "127.0.0.1", "dialed": ["127.0.0.1", 11434], "connected": True}
+    local["dials"] = [loopback]
+    assert [b["host"] for b in oracle.boundary_a(local)] == ["127.0.0.1"]
+    other_port = {"host": "api.openai.com", "dialed": ["1.2.3.4", 8443], "connected": True}
+    assert [b["host"] for b in oracle.boundary_a(_hosted_record("Cr", [other_port]))] == [
+        "api.openai.com"
+    ]
 
 
 def test_crs_model_calls_for_boundary_e_are_the_cores_own_not_the_requests():

@@ -21,12 +21,16 @@ catalog and seed; the superseded units are counted (`superseded`) and never pool
 **Sides added to a series** (`--sides-from DIR`, PROTOCOL.md §9.2, version 6, D-424): a directory of
 T32b's framework sides (`FW-none`, `FW-progent`, AgentDojo's four defenses) adds its sides to the
 series beside `Py`, `Cr` and `FW`. It may come from a later commit and protocol, but must share the
-series' payload catalog, seed, WebAir task sets and each rung's model and digest; a side already in
-the series is refused, and each added side must hold, per rung, exactly the series' `FW` arms on TS-W
-and TS-C (task, phrasing, payload, placement, arm: the draw every cell pairs on, supplements applied).
+series' seed, the payload files its runs used (each file's SHA-256 in `payloads.files`, so a catalog
+that gained another family's payloads still pairs), WebAir task sets and each rung's model and
+digest; a side already in the series on the same rung is refused (the same sides may join every rung
+of a pooled series, one `--sides-from` per rung), and each added side must hold, per rung, exactly
+the series' `FW` arms on TS-W and TS-C (task, phrasing, payload, placement, arm: the draw every cell
+pairs on, supplements applied; not compared when that pairing's own directories are short).
 `--supersede-side DIR:SIDE` leaves one side of a `--sides-from` directory out (a harness fault of that
 side, rerun in a later directory: T32b's `FW-detector`, TUNING T-11); its units are counted as
-superseded, never pooled.
+superseded, never pooled; a pair that removes no unit is refused. The tree's WebAir task sets must be
+the series' (the unrequested purchase reads their purchase turns).
 
 **Tab. 4 (E3).** Per family and the pooled arm "all eight families" (the headline cell, §3 E3) ×
 side × rung, over the injected runs of the `e3` units on TS-W:
@@ -87,7 +91,7 @@ SUPPLEMENT_KEYS = ("payloads", "seed")
 SUPPLEMENT_PRESETS = {"e3-memory": "F-MEMORY"}
 OURS = ("Py", "Cr")
 UNDEFENDED = "FW-none"
-SIDES_FROM_KEYS = ("payloads", "seed")
+SIDES_FROM_KEYS = ("seed",)
 WEBAIR_TASK_SET_FILES = ("ts-w.json", "ts-c.json", "ts-w-home.json")
 # Placements that serve no text (a 302 to the sink): "in a model request" does not apply, so their
 # runs are printed "n/a" and left out of the reach rates (T32 review 3, nit (a)).
@@ -117,6 +121,45 @@ def _purchase_turns(task_id: str, phrasing) -> tuple[int, ...] | None:
     if task is None or task.get("task_set") not in ("TS-W", "TS-C"):
         return None
     return campaign.purchase_turns(task, phrasing)
+
+
+def check_task_sets(manifest: dict, where: Path) -> None:
+    """The unrequested purchase reads each task's purchase turns from this tree's task sets: they
+    must be the ones the series ran (T32b review 1, nit 8), compared by the files' SHA-256 in the
+    manifest as the payload texts are compared."""
+    if str(EXPERIMENTS) not in sys.path:
+        sys.path.insert(0, str(EXPERIMENTS))
+    import hashlib
+
+    from campaigns.tasks import generate
+
+    recorded = manifest.get("task_sets") or {}
+    for name in WEBAIR_TASK_SET_FILES:
+        if name not in recorded:
+            continue
+        current = hashlib.sha256((generate.HERE / name).read_bytes()).hexdigest()
+        if current != recorded[name]:
+            raise SystemExit(
+                f"{where}: this tree's {name} is not the series' (the unrequested purchase reads "
+                "its purchase turns): analyse from the series' commit"
+            )
+
+
+def payload_files_differ(series: dict, extra: dict, rows: list[dict]) -> list[str]:
+    """The payload files that two directories' runs used and that differ between their manifests,
+    compared one by one (T32b review 1, nit 8; T34's note: a catalog that gained another family's
+    payloads changes the whole digest, not E3's files). A manifest without `payloads.files` is
+    compared by the whole digest."""
+    ours = series.get("payloads") or {}
+    theirs = extra.get("payloads") or {}
+    if ours.get("files") is None or theirs.get("files") is None:
+        return [] if ours.get("sha256") == theirs.get("sha256") else ["the catalog's digest"]
+    names = {f"{r['family']}/{r['payload']}.json" for r in rows if r.get("payload")}
+    return sorted(
+        n
+        for n in names
+        if ours["files"].get(n) is None or ours["files"].get(n) != theirs["files"].get(n)
+    )
 
 
 def unrequested_purchases(rec: dict, task_id: str, phrasing) -> int:
@@ -359,6 +402,7 @@ def load(
                     f"{path}: not the series of {directories[0]} ({key} differs)"
                 )
     report = {} if report is None else report
+    check_task_sets(first, directories[0])
     shortfalls: dict = report.setdefault("shortfalls", {})
     texts = payload_texts(first)
     report["model_request_counted"] = texts is not None
@@ -504,6 +548,7 @@ def _add_sides(
     series_rungs: dict = {}
     for manifest in manifests:
         series_rungs.update(manifest.get("rungs") or {})
+    used: set[tuple[str, str]] = set()
     for extra in sides_from:
         manifest = _manifest(extra)
         for key in SIDES_FROM_KEYS:
@@ -527,18 +572,28 @@ def _add_sides(
             shortfalls=report.setdefault("shortfalls", {}),
             texts=texts,
         )
+        differ = payload_files_differ(first, manifest, rows + added)
+        if differ:
+            raise SystemExit(
+                f"{extra}: its sides do not pair with this series (payload files differ: "
+                f"{', '.join(differ[:3])})"
+            )
         superseded = report.setdefault("superseded", {})
         for r in added:
             if (extra.name, r["side"]) in superseded_sides:
                 key = f"{extra.name}|{r['side']}"
                 superseded[key] = superseded.get(key, 0) + 1
+                used.add((extra.name, r["side"]))
         added = [r for r in added if (extra.name, r["side"]) not in superseded_sides]
-        present = {r["side"] for r in rows}
-        new_sides = {r["side"] for r in added}
-        if new_sides & present:
+        # A side is refused only where the series already has it on that rung (review 1,
+        # finding 3): the same sides join every rung of a pooled series.
+        present = {(r["side"], r["rung"]) for r in rows}
+        new_cells = {(r["side"], r["rung"]) for r in added}
+        if new_cells & present:
             raise SystemExit(
-                f"{extra}: side(s) {sorted(new_sides & present)} already in the series"
+                f"{extra}: side(s) {sorted(new_cells & present)} already in the series"
             )
+        new_sides = {r["side"] for r in added}
         for rung in sorted({r["rung"] for r in added}):
             ours, theirs = (
                 (manifest.get("rungs") or {}).get(rung),
@@ -561,11 +616,18 @@ def _add_sides(
                 raise SystemExit(
                     f"{extra}: the series has no FW on {rung} to pair with"
                 )
-            for side in sorted(new_sides):
+            # Skipped only when this pairing itself is short (review 1, nit 6): the sides'
+            # directory, or the series' directory that holds FW on this rung.
+            short = extra.name in report["shortfalls"] or any(
+                r["directory"] in report["shortfalls"]
+                for r in rows
+                if (r["side"], r["rung"]) == ("FW", rung)
+            )
+            for side in sorted({s for s, g in new_cells if g == rung}):
                 arms = sorted(
                     _arm_key(r) for r in added if (r["side"], r["rung"]) == (side, rung)
                 )
-                if arms != fw_arms and not report["shortfalls"]:
+                if arms != fw_arms and not short:
                     raise SystemExit(
                         f"{extra}: {side} on {rung} holds {len(arms)} arms, not the series' "
                         f"{len(fw_arms)} FW arms on TS-W and TS-C"
@@ -576,6 +638,11 @@ def _add_sides(
             "preset": manifest.get("preset"),
         }
         rows = rows + added
+    unused = sorted(superseded_sides - used)
+    if unused:  # a typo would pool the superseded units silently (review 1, nit 7)
+        raise SystemExit(
+            "--supersede-side " + ", ".join(f"{d}:{s}" for d, s in unused) + " removed no unit"
+        )
     return rows
 
 

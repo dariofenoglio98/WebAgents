@@ -94,7 +94,7 @@ def test_sides_with_other_arms_or_another_catalog_or_model_are_refused(
     other = _extra(
         tmp_path, manifest={**SERIES, "payloads": {"sha256": "y"}}, name="cat"
     )
-    with pytest.raises(SystemExit, match="payloads differs"):
+    with pytest.raises(SystemExit, match="payload files differ"):
         analyze.tables([series], sides_from=[other], resamples=50)
     model = _extra(
         tmp_path,

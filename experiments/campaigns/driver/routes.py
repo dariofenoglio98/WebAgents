@@ -172,16 +172,25 @@ def rate_limit_log() -> list:
     return waits
 
 
+def environment_proxy(host: str = "api.openai.com") -> str | None:
+    """The proxy the environment names for an HTTPS request to `host`, read as httpx reads it for
+    `Py`'s router (T32b review 1, nit 12): `HTTPS_PROXY`, else `ALL_PROXY`; `NO_PROXY` honoured; a
+    proxy given without a scheme is `http://`."""
+    import urllib.request
+
+    proxies = urllib.request.getproxies()
+    proxy = proxies.get("https") or proxies.get("all")
+    if not proxy or urllib.request.proxy_bypass(host):
+        return None
+    return proxy if "://" in proxy else f"http://{proxy}"
+
+
 def environment_transport() -> httpx.AsyncBaseTransport:
     """The inner transport of `FW`'s hosted client with the proxy the environment names, as an
     httpx client with its own transport would otherwise ignore it (T32 review 3, nit (f); `Py`'s
     router uses an httpx client that reads it)."""
-    import urllib.request
-
-    proxy = urllib.request.getproxies().get("https")
-    if proxy and not urllib.request.proxy_bypass("api.openai.com"):
-        return httpx.AsyncHTTPTransport(proxy=proxy)
-    return httpx.AsyncHTTPTransport()
+    proxy = environment_proxy()
+    return httpx.AsyncHTTPTransport(proxy=proxy) if proxy else httpx.AsyncHTTPTransport()
 
 
 class RateLimitRetryTransport(httpx.AsyncBaseTransport):
