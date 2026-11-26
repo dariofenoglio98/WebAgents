@@ -1,0 +1,8 @@
+# FW-detector only (D-420): AgentDojo's `transformers_pi_detector` needs torch and transformers
+# (AgentDojo's own extra `agentdojo[transformers]`: transformers>=4.41.2, torch>=2.2.1). CPU is enough
+# (a 184M-parameter classifier over each tool answer). On Linux use the CPU wheel index:
+#   pip install -r requirements-detector.txt --extra-index-url https://download.pytorch.org/whl/cpu
+# The model, protectai/deberta-v3-base-prompt-injection-v2, is fetched by revision
+# (`baseline/agentdojo.py` DETECTOR_REVISION) into the Hugging Face cache on first use.
+torch==2.15.0
+transformers==5.23.0

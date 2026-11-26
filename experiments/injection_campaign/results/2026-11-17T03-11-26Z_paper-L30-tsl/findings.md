@@ -84,3 +84,11 @@ upload-l1|resolver.abstract|Py|L30 | 6 | 4/6 [0.300,0.903] | 4/6 [0.300,0.903]
 On `Py` every exposed run put the text in front of its model (12/12 at `pdf.text`, 8/12 at `resolver.abstract`).
 Review 2's note: 10 of the 12 `pdf.text` runs on `Py` end at `evidence/extract-one`, the step after the read, so the
 zero there is over runs that mostly stopped at that step; with no twin the cause is not separable on L30.
+
+## Addendum (2026-11-21, T32b; T32 review 3, carry-over 2; D-427)
+`Cr`'s TS-L token counts here are a **lower bound**. Its model seam wrote each answer's status, usage and text on the
+last call pushed, and Literature Review's maps send three calls at once, so answers overwrote each other: `Cr`'s 93
+recorded calls hold 20 without a status, against 90 `model.completed` events in the audit, and the six runs record
+251,323 tokens against the audit's 288,303 (recomputed from `runs.tar.gz`: each `Cr` record's `model_calls[].usage`
+against its audit's `model.completed` `tokens`). No outcome, boundary or utility changes. WebAir, TS-C and TS-N are
+sequential and lose nothing. The seam is keyed by the request from T32b on (`driver/node/driver.ts` `claimEntry`).

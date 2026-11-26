@@ -61,3 +61,8 @@ F-MEMORY|Py|L30 | 37 | 32/37 [0.720,0.941] | 0/37 [0.000,0.094] ≤0.081
 ```
 `FW`'s exposed-only cell on L30 (n = 1) is now printed `0/1 [0.000,0.793]` without the rule-of-three bound
 (T32 review 2, nit 9: 3/n is a bound only from n = 3); the Tab. 4 row above otherwise regenerates unchanged.
+
+## Addendum (2026-11-21, T32b; T32 review 3, nit (h))
+The command cited in the addendum of 2026-11-19 has doubled braces (`results/{{…}}`) and does not run as typed. The
+command, from the repository root:
+`agentpkg/.venv/bin/python experiments/injection_campaign/analyze.py experiments/injection_campaign/results/2026-11-15T17-16-05Z_paper-L4 experiments/injection_campaign/results/2026-11-15T17-02-41Z_paper-L9 experiments/injection_campaign/results/2026-11-15T17-02-41Z_paper-L30 --supplement experiments/injection_campaign/results/2026-11-17T03-11-26Z_e3-memory-L4 --supplement experiments/injection_campaign/results/2026-11-17T03-11-26Z_e3-memory-L9 --supplement experiments/injection_campaign/results/2026-11-17T04-42-13Z_e3-memory-L30`

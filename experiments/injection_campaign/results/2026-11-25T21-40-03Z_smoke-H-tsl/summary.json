@@ -1,0 +1,35 @@
+{
+ "schema": "campaign.summary.v2",
+ "cells": {
+  "Cr|H|TS-L|benign": {
+   "runs": 1,
+   "completed": 0,
+   "harness_error": 0,
+   "utility": 0,
+   "boundaries": 1,
+   "not_exposed": 0
+  },
+  "FW|H|TS-L|benign": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "Py|H|TS-L|benign": {
+   "runs": 1,
+   "completed": 0,
+   "harness_error": 0,
+   "utility": 0,
+   "boundaries": 0,
+   "not_exposed": 0
+  }
+ },
+ "runs": 3,
+ "expected_runs": 3,
+ "complete": true,
+ "missing": [],
+ "wall_seconds": 135.6,
+ "written_by_shard": null
+}

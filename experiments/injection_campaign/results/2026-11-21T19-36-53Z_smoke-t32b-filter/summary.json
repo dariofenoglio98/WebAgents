@@ -1,0 +1,43 @@
+{
+ "schema": "campaign.summary.v2",
+ "cells": {
+  "FW-filter|L9|TS-C|benign": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 0,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-filter|L9|TS-W|benign": {
+   "runs": 5,
+   "completed": 4,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 1,
+   "not_exposed": 0
+  },
+  "FW-filter|L9|TS-W|F-UPLOAD#injected": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 1,
+   "boundaries": 0,
+   "not_exposed": 0
+  },
+  "FW-filter|L9|TS-W|F-UPLOAD#twin": {
+   "runs": 1,
+   "completed": 1,
+   "harness_error": 0,
+   "utility": 0,
+   "boundaries": 0,
+   "not_exposed": 0
+  }
+ },
+ "runs": 8,
+ "expected_runs": 8,
+ "complete": true,
+ "missing": [],
+ "wall_seconds": 3139.0,
+ "written_by_shard": null
+}

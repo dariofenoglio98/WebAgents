@@ -1,0 +1,749 @@
+[
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-repeat-H-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-spotlight-H-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-filter-H-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-H-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-progent-H-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-spotlight-H-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-none-H-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-repeat-H-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-N",
+  "task_id": "N-01",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "H",
+  "arm": null,
+  "id": "Cr-H-N-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-filter-H-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "FW-filter-H-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-filter-H-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-repeat-H-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "H",
+  "arm": null,
+  "id": "Cr-H-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "Py-H-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "H",
+  "arm": null,
+  "id": "Cr-H-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "FW-spotlight-H-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-H-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "H",
+  "arm": null,
+  "id": "Py-H-C-01-p0-benign"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-filter-H-C-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-spotlight-H-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-detector-H-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "H",
+  "arm": null,
+  "id": "Py-H-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "Cr-H-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-spotlight-H-C-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-H-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "H",
+  "arm": null,
+  "id": "Cr-H-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-progent-H-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-progent-H-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "H",
+  "arm": null,
+  "id": "Cr-H-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-progent-H-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "FW-detector-H-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "Cr-H-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-spotlight-H-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-filter-H-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "FW-none-H-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "FW-detector-H-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "FW-spotlight-H-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-detector-H-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-detector-H-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W4-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-none-H-W4-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "FW-H-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "Py-H-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-repeat-H-C-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "FW-spotlight",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-spotlight-H-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "FW-progent-H-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-H-C-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "FW-repeat-H-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "H",
+  "arm": null,
+  "id": "Cr-H-C-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "H",
+  "arm": null,
+  "id": "Py-H-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-H-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "FW-progent-H-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-repeat-H-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-progent-H-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-repeat-H-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-none-H-C-01-p0-benign"
+ },
+ {
+  "task_set": "TS-N",
+  "task_id": "N-01",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "H",
+  "arm": null,
+  "id": "Py-H-N-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-none-H-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-N",
+  "task_id": "N-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-H-N-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "FW-none-H-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "H",
+  "arm": null,
+  "id": "Py-H-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-H-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "FW-filter-H-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "FW-filter",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-filter-H-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-none-H-W5-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "Cr",
+  "rung": "H",
+  "arm": null,
+  "id": "Cr-H-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-detector-H-C-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-none",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-none-H-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W3-01",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "H",
+  "arm": null,
+  "id": "Py-H-W3-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W2-01",
+  "phrasing": 0,
+  "side": "Py",
+  "rung": "H",
+  "arm": null,
+  "id": "Py-H-W2-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-repeat",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "twin"
+  },
+  "id": "FW-repeat-H-W1-01-p0-upload-01_search.fare_name_twin"
+ },
+ {
+  "task_set": "TS-C",
+  "task_id": "C-01",
+  "phrasing": 0,
+  "side": "FW-progent",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-progent-H-C-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-detector-H-W1-01-p0-benign"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W1-01",
+  "phrasing": 0,
+  "side": "FW",
+  "rung": "H",
+  "arm": {
+   "payload": "upload-01",
+   "placement": "search.fare_name",
+   "arm": "injected"
+  },
+  "id": "FW-H-W1-01-p0-upload-01_search.fare_name_injected"
+ },
+ {
+  "task_set": "TS-W",
+  "task_id": "W5-01",
+  "phrasing": 0,
+  "side": "FW-detector",
+  "rung": "H",
+  "arm": null,
+  "id": "FW-detector-H-W5-01-p0-benign"
+ }
+]

@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 
 import analyze
 import pytest
 
+# The tree's WebAir task set, as a series run from this tree records it (`check_task_sets`).
+TS_W_SHA256 = hashlib.sha256(
+    (analyze.EXPERIMENTS / "campaigns" / "tasks" / "ts-w.json").read_bytes()
+).hexdigest()
+
 MANIFEST = {
     "commit": "c0ffee",
     "protocol": {"sha256": "p", "version": 2},
     "payloads": {"sha256": "x"},
-    "task_sets": {"ts-w.json": "t"},
+    "task_sets": {"ts-w.json": TS_W_SHA256},
     "seed": 31,
 }
 

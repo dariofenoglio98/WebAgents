@@ -152,17 +152,38 @@ def refusals_and_failures(audit: list[dict] | None) -> tuple[list[dict], list[di
     return refused, failures
 
 
+def is_defense_call(call: dict) -> bool:
+    """A defense's own model call (AgentDojo's tool filter, Progent's policy calls; D-422)."""
+    return call.get("role") == "defense"
+
+
+def _tokens(calls: list[dict], key: str) -> int:
+    return sum((c.get("usage") or {}).get(key) or 0 for c in calls)
+
+
 def _usage(
     model_calls: list[dict], tool_calls: list[dict], seconds: float, remote_calls=None
 ) -> dict:
-    return {
-        "input_tokens": sum((c.get("usage") or {}).get("input_tokens") or 0 for c in model_calls),
-        "output_tokens": sum((c.get("usage") or {}).get("output_tokens") or 0 for c in model_calls),
-        "model_calls": len(model_calls),
+    """The run's usage: the agent's own model calls (rule 9's budgets and boundary (e) read
+    these), and, where a defense made calls of its own, their tokens apart in `defense` (D-422:
+    the side's cost, never charged to the agent's budgets)."""
+    agent = [c for c in model_calls if not is_defense_call(c)]
+    defense = [c for c in model_calls if is_defense_call(c)]
+    usage = {
+        "input_tokens": _tokens(agent, "input_tokens"),
+        "output_tokens": _tokens(agent, "output_tokens"),
+        "model_calls": len(agent),
         "tool_calls": len(tool_calls),
         "remote_calls": remote_calls,
         "seconds": round(seconds, 3),
     }
+    if defense:
+        usage["defense"] = {
+            "input_tokens": _tokens(defense, "input_tokens"),
+            "output_tokens": _tokens(defense, "output_tokens"),
+            "model_calls": len(defense),
+        }
+    return usage
 
 
 def _proposals(replies: list) -> list:
@@ -316,6 +337,7 @@ def from_fw(
     offered,
     memory_grants,
     rate_limit_waits=None,
+    defense=None,
 ) -> dict:
     """The framework agent's record: no audit; the instrumented tool layer's calls (those that
     reached the executor), its refusals (Progent's denials, the ask step's, the budget's) with
@@ -354,6 +376,9 @@ def from_fw(
         # on the model call).
         "rate_limit_waits": list(rate_limit_waits or []),
         "usage": _usage(model_calls, state.tool_calls, seconds, state.remote_calls),
+        # The side and its defense's events (D-420): Progent's generated policies, the tool
+        # filter's kept tools, a transform of a tool answer; absent on records before T32b.
+        **({"defense": defense} if defense is not None else {}),
     }
 
 

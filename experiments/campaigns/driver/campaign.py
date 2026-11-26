@@ -63,6 +63,7 @@ EXPERIMENTS = ROOT / "experiments"
 if str(EXPERIMENTS) not in sys.path:  # `campaigns` itself puts WebAir's origin on the path
     sys.path.insert(0, str(EXPERIMENTS))
 
+from campaigns.baseline import sides as framework  # noqa: E402
 from campaigns.driver import pacing, record  # noqa: E402
 from campaigns.driver.routes import Rung  # noqa: E402
 from campaigns.origin import catalog, tls  # noqa: E402
@@ -70,8 +71,15 @@ from campaigns.tasks import generate  # noqa: E402
 
 PROTOCOL = EXPERIMENTS / "PROTOCOL.md"
 RUNGS = Path(__file__).resolve().parent / "rungs.json"
+# Our two runtimes and `FW` (the declaration-derived configuration): the default `--sides`. T32b's
+# framework sides (`baseline/sides.py`, D-420: the original configurations) are run when named.
 SIDES = ("Py", "Cr", "FW")
-PRESETS = ("smoke", "placements", "e2", "e3", "e3-memory", "qualification", "paper")
+ALL_SIDES = (*SIDES, *framework.NEW_SIDES)
+PRESETS = ("smoke", "placements", "e2", "e3", "e3-memory", "qualification", "paper", "pilot")
+# The hosted pilot (T32b, the user, 2026-11-25): an exploratory sample of E3's draws before any
+# hosted paper run, never a result (like the qualification, §2.7): per family a seeded sample of
+# its paper draws (so each pilot unit is a paper unit), each with its twin; WebAir only.
+PILOT_PER_FAMILY = 8
 # E3's pooled arm (PROTOCOL.md §3 E3, D-360): 300 injected runs per side × rung, 37 or 38 per
 # family, each with its twin; TS-L's arm: every question × its two payloads × its placements,
 # injected only.
@@ -111,6 +119,8 @@ LITERATURE_RUNGS = ("L30", "H")
 # T32, D-363.
 CONTEXT_BY_TASK_SET = {"TS-L": 65536}
 LITERATURE_ATTACK_SIDES = ("Py", "FW")
+# The task sets T32b's new sides run (D-423: E2's TS-W and TS-C, E3's W1–W4 draws).
+WEBAIR_TASK_SETS = ("TS-W", "TS-C")
 
 
 # -- the matrix ------------------------------------------------------------------------------
@@ -200,9 +210,11 @@ def _pairs(payload_id: str, placement: str) -> list[dict]:
 
 
 def admits(side: str, rung: str, task: dict, arm: dict | None) -> bool:
-    """Whether a unit belongs in the matrix: a driver exists, TS-L only on its rungs, and TS-L's
-    attack arm only on its sides."""
+    """Whether a unit belongs in the matrix: a driver exists, TS-L only on its rungs, TS-L's
+    attack arm only on its sides, and T32b's framework sides on WebAir's task sets only (D-423)."""
     if (side, task["task_set"]) in NOT_BUILT:
+        return False
+    if side in framework.NEW_SIDES and task["task_set"] not in WEBAIR_TASK_SETS:
         return False
     if task["task_set"] == "TS-L":
         if rung not in LITERATURE_RUNGS:
@@ -260,6 +272,22 @@ def e3_draws(tasks: dict, payloads: dict, seed: int = SEED) -> list[tuple[dict, 
         picked = random.Random(f"{seed}:e3:{family}").sample(options, count)
         draws += sorted(picked, key=lambda d: (d[0]["id"], d[1], d[2], d[3]))
     return draws
+
+
+def pilot_draws(tasks: dict, payloads: dict, seed: int = SEED) -> list[tuple[dict, int, str, str]]:
+    """`PILOT_PER_FAMILY` of each family's E3 draws, sampled by the seed (a subset of
+    `e3_draws`)."""
+    by_family: dict[str, list] = {}
+    for draw in e3_draws(tasks, payloads, seed):
+        by_family.setdefault(payloads[draw[2]]["family"], []).append(draw)
+    picked = []
+    for family in sorted(by_family):
+        draws = by_family[family]
+        sample = random.Random(f"{seed}:pilot:{family}").sample(
+            draws, min(PILOT_PER_FAMILY, len(draws))
+        )
+        picked += sorted(sample, key=lambda d: (d[0]["id"], d[1], d[2], d[3]))
+    return picked
 
 
 def _reaches_any(placement: str, task: dict) -> bool:
@@ -333,6 +361,10 @@ def units_for(
         if preset in ("e3", "qualification", "paper"):
             # The draws come from the whole task set, so narrowing never moves a draw.
             cells += [c for c in _e3_cells(all_tasks, payloads, seed) if c[0]["id"] in selected]
+        if preset == "pilot":
+            for task, phrasing, payload_id, placement in pilot_draws(all_tasks, payloads, seed):
+                if task["id"] in selected:
+                    cells += [(task, phrasing, arm) for arm in _pairs(payload_id, placement)]
         if preset == "e3-memory":
             cells += [
                 c
@@ -433,11 +465,24 @@ def _versions(sides: list[str]) -> dict:
     import agentpkg
 
     out = {"agentpkg": agentpkg.__version__, "python": sys.version.split()[0]}
-    if "FW" in sides:
+    if any(framework.is_framework(s) for s in sides):
         from campaigns.baseline import ports
 
         out["openai-agents"] = version("openai-agents")
         out["secagent"] = ports.PROGENT_COMMIT
+    if any(framework.SIDES[s].defense for s in sides if framework.is_framework(s)):
+        from campaigns.baseline import agentdojo
+
+        out["agentdojo"] = agentdojo.SOURCE
+    if "FW-detector" in sides:
+        from campaigns.baseline import agentdojo
+
+        out["torch"] = version("torch")
+        out["transformers"] = version("transformers")
+        out["detector"] = {
+            "model": agentdojo.DETECTOR_MODEL,
+            "revision": agentdojo.DETECTOR_REVISION,
+        }
     if "Cr" in sides:
         from campaigns.driver import cr_driver
 
@@ -522,7 +567,7 @@ def envelope_for(unit: dict, task: dict, table: dict) -> dict:
     conversation's budget lets any side spend (its turns, its tokens, its per-tool caps across
     turns), plus the answer step on FW."""
     family = table[FAMILIES.get(unit["task_set"], "webair")]
-    extra = table["fw_answer_step_model_calls"] if unit["side"] == "FW" else 0
+    extra = table["fw_answer_step_model_calls"] if framework.is_framework(unit["side"]) else 0
     if family["per"] == "run":
         return {
             "model_calls": family["model_calls"] + extra,
@@ -614,6 +659,8 @@ def manifest(
         "seed": seed,
         "preset": preset,
         "sides": sides,
+        # Each framework side's configuration (D-420): Progent's mode, the ask step, the defense.
+        "framework_sides": {s: framework.describe(s) for s in sides if framework.is_framework(s)},
         "task_sets": {
             name: _sha_file(generate.HERE / name)
             for name in ("ts-w.json", "ts-c.json", "ts-n.json", "ts-l.json", "ts-w-home.json")
@@ -701,14 +748,18 @@ _RUNNERS = {
 
 
 def _side_runner(family: str, side: str):
-    """The driver of one family on one side; an unknown side is refused (review 1, nit 5)."""
+    """The driver of one family on one side; an unknown side is refused (review 1, nit 5). T32b's
+    framework sides run `FW`'s WebAir driver with their configuration (D-420), WebAir only."""
+    import functools
     import importlib
 
+    base = "FW" if side in framework.NEW_SIDES and family == "webair" else side
     try:
-        module, name = _RUNNERS[family][side]
+        module, name = _RUNNERS[family][base]
     except KeyError:
         raise ValueError(f"no {family} driver for side {side!r}") from None
-    return getattr(importlib.import_module(module), name)
+    runner = getattr(importlib.import_module(module), name)
+    return functools.partial(runner, side=side) if base != side else runner
 
 
 def _runner(side: str):
@@ -786,6 +837,82 @@ def promote_route_failure(rec: dict) -> dict:
         rec["status"] = "harness_error"
         code = failed[0].get("error") or failed[0].get("outcome") or "no_answer"
         rec["harness_error"] = f"route_unavailable: {code}"
+    return rec
+
+
+# A hosted shard stops after this many consecutive route failures (T32 review 3, carry-over 3;
+# D-427): a spent quota, a revoked key or an outage would otherwise make every remaining unit of a
+# billed directory a harness error that `--resume` never reruns. The units left stay unrecorded,
+# so a resume after the route is back runs them; the failed ones keep their outcomes (listed).
+HOSTED_ROUTE_FAILURE_STOP = 3
+# The harness errors that mean the model route did not answer (D-361): our routes' promotions, and
+# `FW`'s client exceptions (its driver writes the exception's class first).
+ROUTE_FAILURE_PREFIXES = (
+    "route_unavailable",
+    "rate_limited_timeout",
+    "RateLimitError",
+    "APIConnectionError",
+    "InternalServerError",
+    "APIStatusError",
+    "AuthenticationError",
+    "PermissionDeniedError",
+)
+
+
+def is_route_failure(harness_error: str | None) -> bool:
+    return bool(harness_error) and str(harness_error).startswith(ROUTE_FAILURE_PREFIXES)
+
+
+def recorded_error(run_dir: Path) -> str | None:
+    """The record's harness error text (the outcome carries only whether there was one)."""
+    try:
+        return json.loads((run_dir / "run.json").read_text()).get("harness_error")
+    except (OSError, ValueError):
+        return None
+
+
+class RouteWatch:
+    """Consecutive route failures on hosted rungs, per shard (D-427)."""
+
+    def __init__(self, threshold: int = HOSTED_ROUTE_FAILURE_STOP):
+        self.threshold = threshold
+        self.run = 0
+
+    def observe(self, rung: Rung, harness_error: str | None) -> bool:
+        """True when the shard must stop."""
+        if rung.provider == "ollama":  # a local outage is `route_ready`'s, before the unit
+            return False
+        self.run = self.run + 1 if is_route_failure(harness_error) else 0
+        return self.run >= self.threshold
+
+
+# The turn codes that mean the run ran out of time (D-361): a model call's timeout, `FW`'s turn
+# deadline. On `Py`/`Cr` a node timeout cancels the call, so its entry has no answer.
+TIMEOUT_CODES = frozenset({"model_call_timeout", "deadline"})
+
+
+def _answered(call: dict) -> bool:
+    return call.get("outcome") == "ok" or "usage" in call or isinstance(call.get("text"), str)
+
+
+def promote_throttled_timeout(rec: dict) -> dict:
+    """T32 review 3, carry-over 1 (D-427, rule 12): D-361's waits on a hosted 429 run inside the
+    package's node timeout on `Py` and `Cr` (and the core's per-call deadline), but only inside the
+    turn's deadline on `FW`; a throttled call that outlasts its step would be scored as the run's
+    failure on our sides alone. A run that did not complete is a harness error on every side when a
+    call that waited on a 429 was never answered (`Py`/`Cr`: the waits are on the call), or when the
+    run waited and a turn ran out of time (`FW`: the waits are the run's)."""
+    if rec["status"] in ("harness_error", "completed"):
+        return rec
+    unanswered = [
+        c for c in rec.get("model_calls") or [] if c.get("rate_limit_waits") and not _answered(c)
+    ]
+    codes = {t.get("error_code") for t in rec.get("turns") or []}
+    if unanswered or (rec.get("rate_limit_waits") and codes & TIMEOUT_CODES):
+        waited = sum(sum(c.get("rate_limit_waits") or []) for c in rec.get("model_calls") or [])
+        waited += sum(rec.get("rate_limit_waits") or [])
+        rec["status"] = "harness_error"
+        rec["harness_error"] = f"rate_limited_timeout: {round(waited, 1)} s waited on 429s"
     return rec
 
 
@@ -918,6 +1045,7 @@ def run_unit(
         )
     promote_failed_lookup(rec)
     promote_route_failure(rec)
+    promote_throttled_timeout(rec)
     record.write(run_dir, rec)
     return finish_unit(
         unit, tasks=tasks, payloads=payloads, out=out, envelopes_table=envelopes_table
@@ -1015,9 +1143,19 @@ def write_summary(out: Path, units: list[dict], **extra) -> dict:
     import fcntl
     import os
 
-    handle = os.open(out, os.O_RDONLY)
+    # The lock is held on `progress.jsonl` opened for writing (T32 review 3, nit (d)): a lock on a
+    # directory opened read-only is untried on the cluster's NFS home. Every shard that ran a unit
+    # has written that file; one that ran none locks the directory as before. Where the file system
+    # takes no lock, the summary is still written (the last shard to end writes it complete).
     try:
-        fcntl.flock(handle, fcntl.LOCK_EX)
+        handle = os.open(out / "progress.jsonl", os.O_WRONLY | os.O_APPEND)
+    except FileNotFoundError:
+        handle = os.open(out, os.O_RDONLY)
+    try:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX)
+        except OSError as exc:
+            print(f"campaign: no lock for the summary ({exc}); writing it unlocked", flush=True)
         summary = summarize(out, units)
         summary.update(extra)
         _write_atomic(out / "summary.json", json.dumps(summary, indent=1) + "\n")
@@ -1076,7 +1214,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     rungs = [r for r in args.rungs.split(",") if r]
     sides = [s for s in args.sides.split(",") if s]
-    unknown = [s for s in sides if s not in SIDES]
+    unknown = [s for s in sides if s not in ALL_SIDES]
     if unknown:
         parser.error(f"unknown sides {unknown}")
     task_sets = tuple(s for s in args.task_sets.split(",") if s)
@@ -1177,6 +1315,8 @@ def main(argv: list[str] | None = None) -> int:
     table = wanted["envelopes"]
     started = time.monotonic()
     # The stack's certificates (a throwaway CA and its key) stay out of the results directory.
+    watch = RouteWatch()
+    stopped = False
     with (
         tempfile.TemporaryDirectory(prefix="campaign-stack-") as scratch,
         CampaignStack(Path(scratch), resolver=any(u["task_set"] == "TS-L" for u in units)) as stack,
@@ -1237,6 +1377,15 @@ def main(argv: list[str] | None = None) -> int:
             with open(out / "progress.jsonl", "a", encoding="utf-8") as handle:
                 handle.write(json.dumps(line) + "\n")
             print(json.dumps(line), flush=True)
+            if watch.observe(rung_of(unit["rung"], args.ollama_url), recorded_error(run_dir)):
+                print(
+                    f"campaign: {watch.run} consecutive route failures on {unit['rung']} "
+                    "(a spent quota, a revoked key or an outage?); stopping this shard, the "
+                    "remaining units unrecorded (D-427)",
+                    flush=True,
+                )
+                stopped = True
+                break
     # Every shard writes the summary over all units; the last one to finish writes it complete.
     summary = write_summary(
         out,
@@ -1247,6 +1396,8 @@ def main(argv: list[str] | None = None) -> int:
     print(json.dumps(summary["cells"], indent=1))
     own = {u["id"] for u in mine}
     missing = [m for m in summary["missing"] if m in own]
+    if stopped:
+        return 2
     if missing:
         print(f"campaign: {len(missing)} of this process's {len(mine)} units have no outcome")
         return 1

@@ -1,4 +1,4 @@
-# Campaign infrastructure (T31, T31b)
+# Campaign infrastructure (T31, T31b, T32, T32b)
 
 What every live campaign of the mechanism paper shares, built once against the registered
 protocol ([`../PROTOCOL.md`](../PROTOCOL.md), version 1, tag `protocol-v1`): the task sets, the
@@ -20,6 +20,7 @@ core from their public pieces, and every campaign seam is stated below.
 | `driver/record.py` | The campaign run record (`campaign.run.v1`), one shape for every side | D-352 |
 | `oracle/classify.py` | The oracle: boundaries (a)…(e), attempts by the payload's matcher, utility, cards, cost | §2.4, D-352 |
 | `baseline/` | `FW`: the OpenAI Agents SDK 0.24.0 with Progent's released code (`secagent`, pinned), the package's tools as function tools, the instrumented tool layer, rule 8's ask step; WebAir, the travel network (handoffs) and Literature Review (`literature.py`: agentpkg's own handlers under `Py`'s host mapping); `TUNING.md` logs every rule-10 adjustment | §2.5, D-350, D-358 |
+| `baseline/sides.py`, `progent_auto.py`, `agentdojo.py`, `defense_route.py` | T32b's framework sides on WebAir (TS-W, TS-C): `FW-none`, `FW-progent` (Progent's autonomous mode as its authors run it), AgentDojo v0.1.35's `FW-filter`, `FW-detector`, `FW-spotlight`, `FW-repeat`; the defenses' own model calls over the rung's route, recorded apart. `FW-detector` needs `requirements-detector.txt` (torch, transformers) | §9.2 v6, D-420…D-424 |
 | `driver/campaign.py` | The campaign driver: matrix, seeded order, presets, manifest, `--resume` | §2.7, D-353 |
 | `tests/` | Offline and credential-free | |
 
@@ -53,7 +54,18 @@ core from their public pieces, and every campaign seam is stated below.
   (`baseline/policies/`, derived from the declaration), the declared input schema (an invalid call
   refused before it is counted, as ours), our budgets per turn and the conversation's across turns
   (with our runner's whole-turn reservation), the ask step, the executor. Progent's LLM-generated
-  policy mode is never called.
+  policy mode is never called on `FW`.
+- **T32b's framework sides** (`--sides FW-none,FW-progent,FW-filter,FW-detector,FW-spotlight,FW-repeat`;
+  the default `--sides` stays `Py,Cr,FW`): `FW`'s port, unchanged, with the side's defense in place of
+  `FW`'s policy and ask step (`baseline/sides.py`; none has an ask step, D-421). `FW-progent` runs
+  Progent's released code autonomous: before each turn the rung's model generates the policy from the
+  user's messages so far, after each tool answer Progent decides whether to update it, the declaration's
+  read-only tools always allowed. AgentDojo's four (texts verbatim from v0.1.35): the tool filter before
+  each turn, the detector replacing a flagged tool answer, spotlighting's `<<…>>` and system suffix, the
+  user's query repeated after every tool answer (`call_model_input_filter`). Every defense model call is
+  recorded with `"role": "defense"` (`usage.defense`, `cost.defense`; never the agent's budget or its
+  `model_output`; D-422). They run TS-W and TS-C only (D-423); `analyze.py --sides-from` adds their
+  directories to T32's series (D-424).
 - **The responder** (R-facts, every seat): accepts a card only in a turn where the task asks for a
   purchase and only on the task's facts; every other card is denied.
 
@@ -136,9 +148,16 @@ from the answer and the recorded tool answers (`score.literature_checks`).
   hosted rung a **429** is waited out and the same call sent again, by one policy on every side
   (`routes.RATE_LIMIT_RETRY`: the provider's `retry-after-ms`/`retry-after`, else 2, 4, 8, 16, 32, 60 s;
   at most 6 resends and 240 s per call; `Py`'s router, `FW`'s `RateLimitRetryTransport`, `Cr`'s Node
-  transport from its job); each wait is recorded (`rate_limit_waits`), and a 429 after the policy is a
-  harness error. A new side (T32b's baselines) uses the same transport.
-- **Analysis**: `../injection_campaign/analyze.py <directories> [--supplement <e3-memory dir>]`
+  transport from its job); each wait is recorded (`rate_limit_waits`: on the call on `Py` and `Cr`, on
+  the run on `FW`, whose driver opens the run's log with `rate_limit_log()` or a wait fails loudly), and a
+  429 after the policy is a harness error. A 429 the provider marks final (`x-should-retry: false`,
+  `insufficient_quota`) is never resent. A run that did not complete is a harness error on every side when
+  a call that waited was never answered or the run waited and timed out (T32b, D-427). A hosted shard stops
+  (exit 2) after 3 consecutive route failures, its remaining units unrecorded for a later `--resume`.
+  T32b's framework sides and their defense calls use the same transport.
+- **Analysis**: `../injection_campaign/analyze.py <directories> [--supplement <e3-memory dir>]
+  [--sides-from <T32b sides dir>]` (T32b: the unrequested purchase and the breach columns, each side
+  against each core and each defense against `FW-none`; seconds less the 429 waits)
   prints Tab. 4 (with `exposed` and the exposed-only rate in every cell, "not reached" where no
   injected run read the placement), the reach tables (`exposed` beside the runs whose injected text is in
   a recorded model request, counted from the records with the series' payload catalog) and E2's utility
@@ -187,4 +206,6 @@ TS-W,TS-C,TS-N`). An earlier route kept the drivers on the Mac over a reverse tu
 
 ## Not built here (open, with the task that builds it)
 
-- The LangGraph arm (D-354): not built; one framework baseline is run.
+- The LangGraph arm (D-354): not built; one framework is run, in seven configurations (T32b).
+- CaMeL and FIDES (D-425): not ported; CaMeL runs in EA's own harness (T37/T37a), FIDES released no
+  evaluated system.

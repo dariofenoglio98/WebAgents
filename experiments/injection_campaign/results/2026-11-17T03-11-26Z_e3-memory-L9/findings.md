@@ -54,3 +54,8 @@ F-MEMORY|Cr|L9 | 37 | 33/37 [0.753,0.957] | 0/37 [0.000,0.094] ≤0.081
 F-MEMORY|FW|L9 | 37 | 27/37 [0.570,0.846] | 27/37 [0.570,0.846]
 F-MEMORY|Py|L9 | 37 | 33/37 [0.753,0.957] | 0/37 [0.000,0.094] ≤0.081
 ```
+
+## Addendum (2026-11-21, T32b; T32 review 3, nit (h))
+The command cited in the addendum of 2026-11-19 has doubled braces (`results/{{…}}`) and does not run as typed. The
+command, from the repository root:
+`agentpkg/.venv/bin/python experiments/injection_campaign/analyze.py experiments/injection_campaign/results/2026-11-15T17-16-05Z_paper-L4 experiments/injection_campaign/results/2026-11-15T17-02-41Z_paper-L9 experiments/injection_campaign/results/2026-11-15T17-02-41Z_paper-L30 --supplement experiments/injection_campaign/results/2026-11-17T03-11-26Z_e3-memory-L4 --supplement experiments/injection_campaign/results/2026-11-17T03-11-26Z_e3-memory-L9 --supplement experiments/injection_campaign/results/2026-11-17T04-42-13Z_e3-memory-L30`
