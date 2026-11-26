@@ -38,7 +38,7 @@ from agents import (
     Runner,
     set_tracing_disabled,
 )
-from agents.exceptions import MaxTurnsExceeded
+from agents.exceptions import MaxTurnsExceeded, UserError
 from jsonschema import Draft202012Validator
 from openai import AsyncOpenAI
 
@@ -308,6 +308,17 @@ def _error_code(exc: BaseException) -> str:
     return type(exc).__name__
 
 
+def route_cause(exc: BaseException) -> BaseException:
+    """The route's own failure behind the SDK's tool error (T32b review 1, nit 11): a failure raised
+    inside a tool's code (Progent's update after a tool answer) reaches the runner as
+    `UserError("Error running tool …") from <failure>`; the run's harness error names the failure,
+    so the driver's `RouteWatch` counts it as it counts the agent's own calls."""
+    cause = exc.__cause__
+    if isinstance(exc, UserError) and isinstance(cause, openai.OpenAIError):
+        return cause
+    return exc
+
+
 def offered_tools(package, *, grant_profile: bool) -> set[str]:
     """Rules 1 and 6: the tools our plan grants on the same arm, no more (the travel profile only
     where it is granted, D-353)."""
@@ -399,9 +410,19 @@ def run_webair(
     turn_records: list[dict] = []
     origin_start, sink_start = len(stack.origin_log), len(stack.sink.log)
     started = time.monotonic()
-    outcome = {"harness_error": None}
+    outcome = {"harness_error": None, "ended": None}
 
     async def conversation() -> None:
+        try:
+            await turns_run()
+        finally:
+            # The run's time ends with its last turn, before any wait for a defense's worker
+            # (T32b review 1, finding 1: the executor's join counted up to 300 s more).
+            outcome["ended"] = time.monotonic()
+            if auto is not None:
+                auto.close()  # the policy worker stopped and joined before the record is written
+
+    async def turns_run() -> None:
         # One event loop for the whole conversation: the model clients are bound to it.
         history: list = []
         for index, text in enumerate(turns, start=1):
@@ -451,6 +472,7 @@ def run_webair(
             try:
                 result = await asyncio.wait_for(turn_run(), timeout=deadline)
             except Exception as exc:
+                exc = route_cause(exc)
                 state.tokens += hooks.tokens
                 code = _error_code(exc)
                 if code not in RUN_OUTCOMES:
@@ -491,12 +513,15 @@ def run_webair(
     try:
         asyncio.run(conversation())
     except Exception as exc:  # a driver failure: a harness error, in the denominator
-        outcome["harness_error"] = f"{type(exc).__name__}: {exc}"[:500]
+        outcome["harness_error"] = outcome["harness_error"] or f"{type(exc).__name__}: {exc}"[:500]
     finally:
         if auto is not None:
-            auto.uninstall()
+            try:
+                auto.uninstall()
+            except Exception as exc:  # `WorkerAlive`: the run's record is not the run's alone
+                outcome["harness_error"] = f"{type(exc).__name__}: {exc}"[:500]
     harness_error = outcome["harness_error"]
-    seconds = time.monotonic() - started
+    seconds = (outcome["ended"] or time.monotonic()) - started
     context = ollama_context(rung) if rung.provider == "ollama" else None
     if context is not None and context != rung.context_window:
         harness_error = harness_error or (

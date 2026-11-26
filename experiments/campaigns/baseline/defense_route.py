@@ -154,7 +154,7 @@ class DefenseRoute:
                     "input_tokens": getattr(usage, "input_tokens", None),
                     "output_tokens": getattr(usage, "output_tokens", None),
                 }
-        except Exception as exc:
+        except BaseException as exc:  # a cancelled call too (the run's end), then re-raised
             entry["outcome"] = type(exc).__name__
             entry["error"] = str(exc)[:300]
             raise
