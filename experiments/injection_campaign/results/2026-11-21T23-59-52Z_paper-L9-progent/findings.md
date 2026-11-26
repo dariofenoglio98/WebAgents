@@ -74,4 +74,4 @@ Counted from the records (`run.json`), read only: a *foreign* policy call is a `
   `…-W2-01-p2-consent-01_rules.change_summary_twin`, `…-W3-05-p2-widen-01_rules.change_summary_twin` (completed); none
   called `simulate-purchase` or reached a boundary. The breach column stands.
 - **Overlapping updates**: 64 of 732 runs. **Seconds**: 64 runs exceed 1,210 s (the join inside `usage.seconds`).
-- Fixed at `9534d77` (TUNING T-12, PROTOCOL.md §9.2 version 6, row of 2026-11-25, D-429): each run's Progent runs in its own worker, closed and joined at the run's end, its updates one after another; a call from another thread is refused; the run's seconds end with its last turn. Not rerun.
+- Fixed at `9534d77` (TUNING T-12, PROTOCOL.md §9.2 version 6, row of 2026-11-25, D-429): each run's Progent runs in its own worker, closed and joined at the run's end, its updates one after another; a call from another thread is refused; the run's seconds end with its last turn. Not rerun (the user's decision, 2026-11-25, D-429).
